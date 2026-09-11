@@ -1,0 +1,27 @@
+-- ============================================================
+-- Planning Chantiers — ajoute la demi-journée sur un jalon
+-- Migration 0006 — 08.09.2026
+--
+-- Complète 0003_notes_demi.sql : un jalon peut désormais, comme une note,
+-- être posé sur une seule demi-journée (matin/aprem) à chacun de ses 2 bords
+-- plutôt que toujours la journée entière. Demande explicite de Lionel après
+-- le correctif du déplacement par demi-case des notes (§45/§46 du
+-- FRONTEND-CHANGELOG) : "pour plus de clareté je veux que le jalon utilise
+-- aussi la demi journée, comme ça toutes les bulles se comportent de la
+-- même manière" — annule la règle "un jalon marque toujours la journée
+-- entière" décidée le 02.09.2026 (§10.3 du FRONTEND-CHANGELOG), à la
+-- demande explicite et réfléchie de Lionel, en connaissance de cause de ce
+-- qu'elle change.
+--
+-- Appliquée directement sur le projet Supabase via le connecteur MCP au
+-- moment où la demande a été traitée (même méthode que 0003/0005) — ce
+-- fichier n'a donc PAS besoin d'être recollé dans l'éditeur SQL par Lionel,
+-- il documente juste ce qui a déjà été fait. Aucun GRANT nécessaire (la
+-- table jalons a déjà ses droits authenticated + sa policy RLS "connecte_tout"
+-- depuis 0002_rls.sql, un nouveau champ sur une table déjà autorisée n'a pas
+-- besoin d'un GRANT séparé).
+--
+-- null = toute la journée (comportement par défaut, comme pour les notes).
+-- ============================================================
+
+alter table jalons add column if not exists demi text check (demi in ('matin', 'aprem'));
