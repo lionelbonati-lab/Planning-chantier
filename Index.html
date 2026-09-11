@@ -400,10 +400,30 @@
     transition: box-shadow .12s, background .5s; cursor: pointer; touch-action: none;
   }
   .cell.cell-jalon, .cell.cell-note { background: var(--surface); }
-  .cell.drop-hover, .cell.selection-active { box-shadow: inset 0 0 0 2px var(--accent); background: var(--accent-soft); }
-  .cell.selection-add { box-shadow: inset 0 0 0 2px var(--succes-ink); background: var(--succes-bg); }
+  .cell.drop-hover { box-shadow: inset 0 0 0 2px var(--accent); background: var(--accent-soft); }
+  /* selection-active/selection-add (round du 11.09.2026 — bug signalé par
+     Lionel, vidéo à l'appui : « la sélection verte lors du glisser se
+     comporte bizarrement ») : PLUS de box-shadow individuel par case ici —
+     appliqué à CHAQUE case d'un rectangle de plusieurs cases, cet anneau de
+     2px se dessinait aussi sur les bords INTÉRIEURS partagés entre 2 cases
+     voisines sélectionnées (en plus du filet de 1px du fond de .grille,
+     cf. "gap"), donnant l'impression d'un quadrillage de cases séparées au
+     lieu d'un seul rectangle continu. Le contour continu est maintenant
+     dessiné par UNE SEULE couche par-dessus tout le rectangle (cf.
+     #selection-overlay, posée par surlignerRectangle) ; ces classes ne
+     posent plus que le fond teinté (qui, lui, se fond correctement d'une
+     case à l'autre, la même couleur unie des 2 côtés du filet de gap ne
+     créant aucune coupure visible). */
+  .cell.selection-active { background: var(--accent-soft); }
+  .cell.selection-add { background: var(--succes-bg); }
   .cell.armement-selection { box-shadow: inset 0 0 0 2px var(--border-strong); }
   .cell.cell-interdite { box-shadow: inset 0 0 0 2px var(--avertissement-ink); background: var(--avertissement-bg); }
+  #selection-overlay {
+    position: fixed; display: none; pointer-events: none; z-index: 60;
+    border-radius: 3px; box-sizing: border-box;
+  }
+  #selection-overlay.actif-defaut { border: 2px solid var(--accent); }
+  #selection-overlay.actif-add { border: 2px solid var(--succes-ink); }
   .cell.just-dropped { background: var(--accent-soft); }
   /* Surbrillance de dépôt PRÉCISE (demi-journée), round du 07.09.2026, suite
      — Lionel : « la surbrillance ne se fait que sur les journée entière, je
@@ -3958,8 +3978,33 @@
           if (!giVisibleFenetre(gi, n)) continue;
           var lab = labGDeGi(gi), ji = jourIdxDeGi(gi);
           if (lab == null) continue;
-          var demiIciT = d === 0 ? (t.demiDebut || null) : (d === t.duree - 1 ? (t.demiFin || null) : null);
-          var demisAAppliquer = demiIciT ? [demiIciT] : ["matin", "aprem"];
+          // demiIciT (round du 11.09.2026 — bug signalé par Lionel, vidéo à
+          // l'appui : « en tirant test 2 il se scinde en plusieurs ») : DOIT
+          // appliquer EXACTEMENT la même règle de bord que demisOccupeesTache
+          // (cf. plus bas) — sur une plage de PLUSIEURS jours, demiDebut ===
+          // "matin" au 1er jour et demiFin === "aprem" au dernier jour sont
+          // visuellement identiques à une journée entière (cf.
+          // colonneEtSpanDemi : "matin" est déjà le bord gauche du jour,
+          // "aprem" ne raccourcit jamais une fin de plage) — AVANT ce
+          // correctif, cette fonction réimplémentait sa PROPRE version (sans
+          // cette équivalence) au lieu d'appeler demisOccupeesTache comme le
+          // documente pourtant déjà son commentaire (cf. test_grille_compacte.js,
+          // "demisOccupeesTache(it, gi) est la fonction PARTAGÉE ... utilisée
+          // par le moteur de synchronisation (calculerEtatLocal)" — affirmation
+          // fausse dans les faits jusqu'à ce correctif). Résultat concret du
+          // bug : sur le jour de bord d'une plage multi-jours, une seule des 2
+          // demi-journées serveur était écrite, l'autre restant vide. Au
+          // rechargement suivant (construireVueDepuisCache), cette moitié
+          // manquante cassait la continuité de la plage reconstruite
+          // (l'algorithme de fusion exige un contenu identique sur CHAQUE
+          // demi-slot consécutif) : la tâche revenait scindée en 2+ bulles au
+          // lieu d'une seule, dès sa création ou dès le premier
+          // redimensionnement — sans qu'aucun geste supplémentaire ne soit
+          // nécessaire pour le déclencher. Appeler directement
+          // demisOccupeesTache(t, gi) élimine la duplication ET garantit qu'un
+          // futur ajustement de cette règle de bord ne puisse plus diverger
+          // entre affichage et écriture serveur.
+          var demisAAppliquer = demisOccupeesTache(t, gi);
           demisAAppliquer.forEach(function (demi) {
             var cle = p.id + "|" + demi + "|" + lab + "|" + ji;
             if (!cellules[cle]) cellules[cle] = { chantier: null, taches: [] };
@@ -6194,11 +6239,54 @@
     if (kind === "personne") sel += '[data-personne="' + extra.personne + '"][data-demi="' + extra.demi + '"]';
     return Array.prototype.filter.call(document.querySelectorAll(sel), function (c) { var gi = +c.dataset.jour; return gi >= giMin && gi <= giMax; });
   }
-  function effacerSurlignage() { celluleSurlignees.forEach(function (c) { c.classList.remove("selection-active", "selection-add"); }); celluleSurlignees = []; }
+  // #selection-overlay (round du 11.09.2026 — bug signalé par Lionel, vidéo
+  // à l'appui : « la sélection verte lors du glisser se comporte
+  // bizarrement ») : UN seul rectangle dessiné par-dessus TOUTES les cases
+  // sélectionnées (englobant leurs getBoundingClientRect()), plutôt qu'un
+  // anneau posé sur CHAQUE case individuellement (cf. règles .selection-add/
+  // .selection-active ci-dessus, qui ne posent plus qu'un fond teinté) — un
+  // rectangle continu plutôt qu'un quadrillage de cases séparées. position:
+  // fixed + coordonnées viewport (getBoundingClientRect) : pas besoin de
+  // connaître un ancêtre positionné ni le décalage de scroll du .scroller,
+  // ça reste correct même si la grille défile pendant le glissé.
+  var elSelectionOverlay = null;
+  function selectionOverlay() {
+    if (!elSelectionOverlay) {
+      elSelectionOverlay = document.createElement("div");
+      elSelectionOverlay.id = "selection-overlay";
+      document.body.appendChild(elSelectionOverlay);
+    }
+    return elSelectionOverlay;
+  }
+  function masquerSelectionOverlay() { if (elSelectionOverlay) elSelectionOverlay.style.display = "none"; }
+  function majSelectionOverlay(cellules, classe) {
+    if (!cellules.length) { masquerSelectionOverlay(); return; }
+    var minG = Infinity, minH = Infinity, maxD = -Infinity, maxB = -Infinity;
+    cellules.forEach(function (c) {
+      var r = c.getBoundingClientRect();
+      if (r.left < minG) minG = r.left;
+      if (r.top < minH) minH = r.top;
+      if (r.right > maxD) maxD = r.right;
+      if (r.bottom > maxB) maxB = r.bottom;
+    });
+    var overlay = selectionOverlay();
+    overlay.className = classe === "selection-add" ? "actif-add" : "actif-defaut";
+    overlay.style.left = minG + "px";
+    overlay.style.top = minH + "px";
+    overlay.style.width = (maxD - minG) + "px";
+    overlay.style.height = (maxB - minH) + "px";
+    overlay.style.display = "block";
+  }
+  function effacerSurlignage() {
+    celluleSurlignees.forEach(function (c) { c.classList.remove("selection-active", "selection-add"); });
+    celluleSurlignees = [];
+    masquerSelectionOverlay();
+  }
   function surlignerRectangle(kind, lignes, iMin, iMax, giMin, giMax, classe) {
     effacerSurlignage();
     lignes.slice(iMin, iMax + 1).forEach(function (extra) { celluleSurlignees = celluleSurlignees.concat(trouverCellules(kind, extra, giMin, giMax)); });
     celluleSurlignees.forEach(function (c) { c.classList.add(classe || "selection-active"); });
+    majSelectionOverlay(celluleSurlignees, classe);
   }
   function trouverIndexLigne(lignes, extra) {
     for (var i = 0; i < lignes.length; i++) if (lignes[i].personne === extra.personne && lignes[i].demi === extra.demi) return i;
@@ -6256,7 +6344,23 @@
         if (c2 && c2.dataset.kind === kind) {
           var giCandidat = +c2.dataset.jour;
           if (estGiWeekend(giDebut) || estGiWeekend(giCandidat)) return;
-          var idx2 = kind === "personne" ? trouverIndexLigne(lignes, { personne: c2.dataset.personne, demi: c2.dataset.demi }) : 0;
+          // demi: extraDebut.demi, PAS c2.dataset.demi (round du 11.09.2026 —
+          // bug signalé par Lionel, vidéo à l'appui : « la sélection est
+          // bizarre on dirait une case sur 2 ») : en mode compact, matin et
+          // aprem d'un même jour sont 2 colonnes CÔTE À CÔTE dans la même
+          // ligne visuelle (pas 2 lignes empilées) — un glissé à peu près
+          // horizontal traverse donc naturellement, à chaque jour franchi,
+          // la moitié matin PUIS la moitié aprem de ce jour, et redécouvrir
+          // la demi-journée depuis la case survolée à CHAQUE pointermove
+          // faisait retomber `indexCourant` tantôt sur la ligne matin tantôt
+          // sur la ligne aprem selon la position exacte du curseur — d'où
+          // l'alternance "matin teinté / aprem pas teinté" sur toute la
+          // largeur du geste, jamais un bloc plein. La demi-journée ciblée
+          // reste maintenant celle de la case de DÉPART pendant tout le
+          // geste ; seul un déplacement vers une AUTRE personne change de
+          // ligne (cf. lignesSecteur, qui garde matin/aprem comme 2 lignes
+          // indépendantes par personne).
+          var idx2 = kind === "personne" ? trouverIndexLigne(lignes, { personne: c2.dataset.personne, demi: extraDebut.demi }) : 0;
           if (idx2 !== -1) {
             indexCourant = idx2; giCourant = giCandidat;
             surlignerRectangle(kind, lignes, Math.min(indexDebut, indexCourant), Math.max(indexDebut, indexCourant), Math.min(giDebut, giCourant), Math.max(giDebut, giCourant), "selection-add");
@@ -6313,7 +6417,9 @@
       if (c2 && c2.dataset.kind === kind) {
         var giCandidat = +c2.dataset.jour;
         if (!estGiWeekend(giDebut) && !estGiWeekend(giCandidat)) {
-          var idx2 = kind === "personne" ? trouverIndexLigne(lignes, { personne: c2.dataset.personne, demi: c2.dataset.demi }) : 0;
+          // demi: extraDebut.demi, pas c2.dataset.demi — même correctif que
+          // cablerAjoutCellule ci-dessus (round du 11.09.2026, "case sur 2").
+          var idx2 = kind === "personne" ? trouverIndexLigne(lignes, { personne: c2.dataset.personne, demi: extraDebut.demi }) : 0;
           if (idx2 !== -1) { indexCourant = idx2; giCourant = giCandidat; surlignerRectangle(kind, lignes, Math.min(indexDebut, indexCourant), Math.max(indexDebut, indexCourant), Math.min(giDebut, giCourant), Math.max(giDebut, giCourant)); }
         }
       }
@@ -6989,6 +7095,37 @@
      FORMULAIRES AJOUT / ÉDITION — tâches, absences, jalons, notes.
      ============================================================ */
   function creerGroupeTaches(cibles, giDebut, duree, payload) {
+    // Absence (Congé/Vacances/formulaire rapide configuré en absence) sur
+    // PLUSIEURS jours (round du 11.09.2026 — bug signalé par Lionel, vidéo à
+    // l'appui : « en créant vacances sur plusieurs case, il fait plusieurs
+    // bulles au lieu de 1 ») : contrairement à une tâche assignée, une
+    // absence pluri-jours n'a jamais de sens en demi-journée (on ne pose pas
+    // "vacances le matin seulement, 3 jours") — 1 SEUL item par personne
+    // concernée, journée complète du début à la fin de la sélection, plutôt
+    // que la fragmentation par ligne demi + par jour ci-dessous. Cette
+    // fragmentation reste nécessaire pour une TÂCHE (cf. commentaire plus
+    // bas, cas réel "matin seul, 3 jours") mais, appliquée à une absence,
+    // produit une plage qui ne peut structurellement JAMAIS se refusionner
+    // en 1 seule bulle au rechargement (demisOccupeesTache exige une
+    // journée complète sur tout jour STRICTEMENT entre les 2 bords — un
+    // jour qui n'a que sa demi-journée "ligne de sélection" occupée casse
+    // la continuité) : dédoublonnée ici par personne (une même personne peut
+    // apparaître sur 2 lignes, matin et aprem, si les 2 ont été
+    // sélectionnées) pour ne pas poser 2 fois la même absence.
+    if (payload.type === "absence" && duree > 1) {
+      var personnesVues = {};
+      cibles.forEach(function (c) {
+        if (personnesVues[c.personne]) return;
+        personnesVues[c.personne] = true;
+        var ta = itemPlageTache(payload.type, payload.texte, c.personne, giDebut, duree, {
+          chantier: payload.chantier, important: payload.important, statut: payload.statut,
+          demiDebut: null, demiFin: null
+        });
+        ta.dateDebutIso = isoDeGi(giDebut);
+        TACHES.push(ta);
+      });
+      return;
+    }
     cibles.forEach(function (c) {
       // 1 item PAR JOUR, pas 1 seul item de `duree` jours (§49) : `c.demi`
       // ici est la demi-journée FIXE d'une "ligne" de sélection (cf.

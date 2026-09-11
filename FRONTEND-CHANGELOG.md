@@ -2878,3 +2878,139 @@ reprendre dans le vrai formulaire (`ouvrirEdition`, `champChantierHTML`) :
 Maquette source (`mockups.html`, HTML/CSS autonome ayant servi aux captures d'écran) sauvegardée dans le
 projet sous `claude/mockup-formulaire-tache.html` pour reprise ultérieure — évite de redemander à Lionel de
 revalider un design déjà approuvé.
+
+## 51. Round du 11.09.2026 — vérification avec de vraies données (§6bis) : 4 bugs trouvés et corrigés
+
+Lionel a commencé à saisir de vraies données dans l'appli migrée (étape 5 du §6bis, "vérification bout en
+bout"). Deux vagues de bugs remontées pendant cette phase, toutes corrigées et vérifiées via le harnais
+Playwright + mock Supabase déjà en place (`test_*.js`, extraction des vraies fonctions du fichier source).
+
+### 51.1 Note/tâche/jalon sur 1 seul jour : impossible de choisir Début=A + Fin=P indépendamment
+
+Signalement de Lionel : *« impossible de sélectionner A et P si la date de début correspond à la date de
+fin. on doit pouvoir faire A/P ou A/A ou PP, mais pas P/A »*.
+
+**Cause** : `cablerDatesPlage` forçait Fin à recopier Début (et vice-versa) dès que `giDebut === giFin`, sous
+l'ancienne hypothèse "1 seul jour ⇒ 1 seule valeur de demi-journée pour toute la carte" — devenue fausse
+depuis que Début/Fin portent chacun leur propre demi-journée (§49).
+
+**Correctif** : le clic sur un bouton A/P d'un bord ne touche plus que ce bord, avec un seul garde-fou ciblé
+(bloquer la combinaison invalide Début=aprem + Fin=matin sur un seul jour, qui inverserait le sens de la
+plage). L'enregistrement normalise ensuite Début=matin + Fin=aprem (équivalent à une journée entière) vers
+`null`/`null`, pour ne pas introduire une 2e représentation possible d'une même journée pleine et préserver
+l'invariant `demiDebut === demiFin` sur 1 seul jour dont dépend le reste du fichier (`demisOccupeesTache`,
+rendu des bulles, glissé/redimensionnement — cf. commentaires §49).
+
+Vérifié (`test_demi_unseuljour.js`) : A/P sélectionnables indépendamment, journée entière stockée/ré-ouverte
+sans distorsion, combinaison P/A bloquée.
+
+### 51.2 Vidéo de Lionel : tâches qui se scindent, "Vacances" en plusieurs bulles, sélection verte "bizarre"
+
+Trois symptômes remontés ensemble, avec vidéo à l'appui : *« en tirant test 2 il se scinde en plusieurs »*
+(redimensionner une tâche la fragmente), *« en créant vacances sur plusieurs case, il fait plusieurs bulles
+au lieu de 1 »*, et *« la sélection verte lors du glisser se comporte bizarrement »* (rectangle de sélection
+visuellement découpé case par case au lieu d'un seul bloc).
+
+#### 51.2.1 Tâches/absences multi-jours qui se scindent — cause racine commune aux 2 premiers symptômes
+
+Reproduit sans même passer par un redimensionnement : une tâche de plusieurs jours créée normalement (via
+`ouvrirEdition`, en cliquant une case du MATIN) revenait déjà scindée en 2 bulles après le premier
+aller-retour serveur (`enregistrerCellulePersonneServeur` → rechargement → `construireVueDepuisCache`).
+
+**Cause** : `calculerEtatLocal()` (le "photographe" qui décide ce qui part vers le serveur à chaque
+synchronisation) réimplémentait sa PROPRE version, incomplète, de la règle de bord demiDebut/demiFin, au
+lieu d'appeler `demisOccupeesTache(it, gi)` — la fonction PARTAGÉE qui, elle, applique correctement
+l'équivalence "matin au 1er jour d'une plage multi-jours = journée entière" / "aprem au dernier jour =
+journée entière" (cf. `colonneEtSpanDemi`, qui rend visuellement ces cas identiques à une journée pleine —
+`test_grille_compacte.js` documentait même déjà, à tort, que `calculerEtatLocal` passait par
+`demisOccupeesTache`). Résultat concret : sur le jour de bord d'une plage multi-jours, une seule des 2
+demi-journées serveur était écrite, l'autre restant vide — au rechargement suivant, cette moitié manquante
+cassait la continuité de la plage reconstruite (l'algorithme de fusion de `construireVueDepuisCache` exige
+un contenu identique sur CHAQUE demi-slot consécutif), la tâche revenant scindée en 2+ bulles. Comme
+l'ouverture d'une nouvelle tâche/absence hérite par défaut de la demi-journée de la case cliquée
+(`demiInit`, `ouvrirEdition`) et que cliquer une case MATIN est le geste le plus courant, ce bug touchait la
+quasi-totalité des tâches multi-jours créées normalement, pas seulement après un redimensionnement.
+
+**Correctif** : `calculerEtatLocal` appelle maintenant directement `demisOccupeesTache(t, gi)` au lieu de
+dupliquer sa logique — élimine le bug ET la possibilité qu'affichage et écriture serveur redivergent un jour.
+
+Vérifié (`diag_tache_split.js`, `repro_tache_split.js`) : une tâche 3 jours (bords matin/matin) et une tâche
+2 jours qui la chevauche partiellement restent chacune une seule bulle continue après création ET après
+redimensionnement — plus aucune ligne de données serveur manquante sur les jours de bord.
+
+#### 51.2.2 "Vacances"/"Congé" sur plusieurs cases : `creerGroupeTaches` ne fusionnait qu'une tâche assignée
+
+Le correctif ci-dessus ne suffisait pas pour "Vacances" sur une sélection multi-jours : `creerGroupeTaches`
+(le glisser-sélectionner rapide, boutons Congé/Vacances du menu `.menu-pop`) pose délibérément 1 item PAR
+JOUR ET par ligne de sélection (matin OU aprem) — nécessaire pour une TÂCHE ("matin seul, 3 jours" doit
+laisser l'après-midi libre chaque jour, cf. §49), mais qui rend structurellement impossible toute fusion au
+rechargement si le glissé reste sur une seule des 2 lignes demi d'une personne (cas très probable en
+pratique : un glissé à peu près horizontal reste sur la ligne où le geste a commencé) — un jour dont seule
+UNE des 2 demis est occupée casse la continuité exigée par l'algorithme de fusion, quelle que soit la
+correction du §51.2.1.
+
+**Correctif** : une absence (Congé/Vacances/formulaire rapide configuré en absence) posée sur PLUSIEURS
+jours n'a jamais de sens en demi-journée (personne ne prend "vacances le matin seulement, 3 jours") — pour
+`duree > 1`, `creerGroupeTaches` pose maintenant 1 SEUL item par personne concernée, journée complète du
+début à la fin de la sélection, sans dépendre de la ligne demi effectivement glissée (dédoublonné par
+personne si ses 2 lignes matin/aprem étaient toutes les deux sélectionnées). Le comportement d'une TÂCHE
+assignée (pas une absence) est inchangé.
+
+Vérifié (`repro_vacances.js`) : "Vacances" glissée sur la seule ligne matin, 3 jours (MAR-JEU) → écrit des
+journées complètes sur les 3 jours côté serveur et s'affiche en 1 SEULE bulle continue.
+
+#### 51.2.3 Sélection verte "bizarre" — quadrillage au lieu d'un rectangle continu
+
+**Cause** : `surlignerRectangle` posait un anneau `box-shadow: inset 0 0 0 2px` sur CHAQUE case du
+rectangle de sélection individuellement (classes `.selection-active`/`.selection-add`) — visible aussi sur
+les bords INTÉRIEURS partagés entre 2 cases voisines sélectionnées, en plus du filet de 1px du fond de
+`.grille` (technique `gap` + `background`) qui sépare déjà TOUTES les cases du tableau. Combinés, ces 2
+filets donnaient l'impression d'un quadrillage de cases séparées plutôt que d'un seul bloc.
+
+**Correctif** : ces classes ne posent plus qu'un fond teinté (qui se fond correctement d'une case à l'autre,
+la même couleur unie des 2 côtés du filet de `gap` ne créant aucune coupure visible) ; le contour est
+maintenant dessiné par une seule couche `#selection-overlay`, positionnée en `position: fixed` sur le
+rectangle englobant (`getBoundingClientRect()`) de toutes les cases sélectionnées, posée/mise à jour par
+`surlignerRectangle` et masquée par `effacerSurlignage`. `position: fixed` + coordonnées viewport évitent
+d'avoir à connaître un ancêtre positionné ou le décalage de scroll du `.scroller`.
+
+Vérifié (`repro_selection_overlay.js`) : un seul rectangle continu affiché pendant le glissé (dimensions =
+englobant des 3 cases sélectionnées), cases individuelles sans `box-shadow`, overlay masqué au relâchement.
+
+#### 51.2.4 (suite, même jour) "la sélection est bizarre, on dirait une case sur 2"
+
+Nouvelle vidéo de Lionel après livraison du §51.2 ci-dessus : cette fois le rectangle de sélection est bien
+UN SEUL bloc continu (§51.2.3 corrigé), mais son remplissage alterne colonne par colonne — une case teintée,
+la suivante pas, sur toute la largeur du geste. Clarification demandée et obtenue : *« le bleu est pour la
+sélection multiple »* (`demarrerSelectionRapide`, clic droit/appui long — sélectionner des bulles
+existantes pour les copier/couper/supprimer), *« vert pour insertion multiple »* (`cablerAjoutCellule`,
+glisser-déposer normal — le menu Ajouter/Congé/Vacances des §51.2.1-51.2.3).
+
+**Cause, commune aux 2 couleurs** : en mode compact, matin et après-midi d'un même jour sont 2 colonnes
+CÔTE À CÔTE dans la même ligne visuelle (pas 2 lignes empilées, cf. §48). Le calcul de la ligne survolée
+(`trouverIndexLigne`, dans `onMove` des 2 gestes) relisait `c2.dataset.demi` — la demi-journée de la case
+EXACTEMENT sous le curseur — à CHAQUE `pointermove`. Un geste à peu près horizontal traverse pourtant
+naturellement, à chaque jour franchi, la moitié matin PUIS la moitié aprem de ce jour-là (imprécision de
+tracé humaine normale, pas un geste "raté") : `indexCourant` retombait donc tantôt sur la ligne matin tantôt
+sur la ligne aprem selon la position exacte du curseur à l'instant de CHAQUE mouvement, sans qu'aucun choix
+délibéré n'ait été fait. Le rendu, fidèle à cet état, alternait alors "matin teinté / aprem pas teinté" sur
+toute la largeur du geste — jamais le bloc plein attendu.
+
+**Correctif** : la demi-journée ciblée est désormais figée sur celle de la case de DÉPART pendant tout le
+geste (`extraDebut.demi` au lieu de `c2.dataset.demi`), dans les 2 fonctions (`cablerAjoutCellule` et
+`demarrerSelectionRapide`). Seul un déplacement vers une AUTRE personne change encore de ligne — le
+découpage matin/aprem par ligne (`lignesSecteur`) n'est pas remis en cause, juste stabilisé pour ne plus
+dépendre du tracé exact du curseur. Le cas "tâche assignée en matin seul sur plusieurs jours" (le vrai
+besoin métier derrière ce découpage, cf. §49) reste entièrement possible : il suffit de commencer le geste
+sur une case matin et de ne jamais quitter la ligne de cette personne.
+
+Vérifié (`repro_case_sur_2.js`) : un glissé simulé qui traverse RÉELLEMENT matin ET aprem de chaque jour
+(reproduisant l'imprécision d'un vrai geste) reste maintenant sur une seule demi-journée du début à la fin,
+pour les 2 couleurs. Non-régression vérifiée sur un glissé "Tâche" classique (`repro_tache_matin_seul.js`)
+et sur toute la suite du §51.2 (`diag_tache_split.js`, `repro_vacances.js`, `repro_selection_overlay.js`).
+
+### 51.3 Vérification effectuée
+
+Syntaxe (`node --check` sur le script extrait) OK. Suite Playwright + mock Supabase existante rejouée sans
+régression (`test_demi_unseuljour.js`). Scripts de reproduction ciblés créés pour cette session (non ajoutés
+à la suite `test_*.js` versionnée — scripts de diagnostic ad hoc, gardés en dehors du dépôt).
