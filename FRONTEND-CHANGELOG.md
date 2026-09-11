@@ -3014,3 +3014,322 @@ et sur toute la suite du §51.2 (`diag_tache_split.js`, `repro_vacances.js`, `re
 Syntaxe (`node --check` sur le script extrait) OK. Suite Playwright + mock Supabase existante rejouée sans
 régression (`test_demi_unseuljour.js`). Scripts de reproduction ciblés créés pour cette session (non ajoutés
 à la suite `test_*.js` versionnée — scripts de diagnostic ad hoc, gardés en dehors du dépôt).
+
+## 52. Round du 12.09.2026 — le §51.2.4 ("figer sur la demi de départ") est rejeté : refonte "case par case" de toute la sélection au glissé, + 6 retours plus courts
+
+Nouvelle vidéo de Lionel, plus une liste de 8 points envoyée dans la foulée. Premier mot de son message :
+*« Ce n'est pas le comportement attendu. »* — le correctif du §51.2.4 (figer la demi-journée ciblée sur
+celle de la case de DÉPART pendant tout le geste) supprimait bien l'alternance visuelle, mais au prix d'un
+comportement que Lionel n'a jamais demandé : impossible de faire commencer une sélection le matin et de la
+terminer l'après-midi (ou l'inverse) sur un geste continu.
+
+### 52.1 Nouveau modèle demandé (verbatim)
+
+> la sélection doit se faire case par case, on ne parle plus de demi journée. dans la vidéo je clique du
+> lundi matin au vendredi après midi. la surbrillance est seulement sur les matin mais la bulle vient
+> jusqu'à l'après-midi. si je lâche la souris sur vendredi matin, la bulle est créée jusqu'au vendredi
+> après-midi. Ce comportement doit être pareil pour tout type des bulles. on ne sélectionne pas que les
+> matin ou que les après midi. dans mon cas je n'ai qu'une ligne, mais si j'avais une 2ème ou plus personne
+> plus bas, il faudrait faire une bulle par ligne.
+> une case = une demi journée.
+
+Autrement dit : le glissé doit se comporter comme une sélection de cellules de tableur — un rectangle exact
+entre la case de départ et la case sous le curseur au relâchement, aucune case en trop, aucune case en
+moins — et ce rectangle doit produire EXACTEMENT une bulle par ligne (personne) traversée, avec les mêmes
+bords de demi-journée pour toutes.
+
+### 52.2 Refonte : demi-slot suivi au pixel près + ligne = personne (pas personne+demi)
+
+**Ancien modèle (§51.2.4, abandonné)** : la dimension horizontale ET verticale du glissé passaient par
+`lignesSecteur` (une "ligne" = un COUPLE personne+demi, 2 lignes par personne) ; `indexDebut`/`indexCourant`
+indexaient dans ce tableau, et la demi-journée de la ligne restait figée sur celle du point de départ pour
+tout le geste — structurellement incapable de représenter "commence matin, finit après-midi".
+
+**Nouveau modèle** : la dimension horizontale est un numéro de **demi-slot continu** (`jour*2 + 0/1`, déjà
+utilisé ailleurs dans le fichier par `demiSlotsDepuisBornes`/`bornesDepuisDemiSlots` pour le glissement d'une
+note existante) recalculé à CHAQUE `pointermove` depuis la case réellement sous le curseur (`demiSlotCellule`,
+nouvelle fonction) ; la dimension verticale, pour la grille personnel, est désormais la **PERSONNE SEULE**
+(`personnesSecteurListe`, nouvelle fonction) — la notion de "ligne = personne+demi" disparaît du glissé.
+Au relâchement, `bornesDepuisDemiSlots(halfMin, halfMax)` (déjà existante, jusqu'ici réservée au
+déplacement d'un item existant) convertit directement la plage de demi-slots en `{giDebut, duree,
+demiDebut, demiFin}` — les bords exacts, y compris asymétriques (ex. commence matin, finit après-midi,
+comme demandé). Une bulle est créée PAR PERSONNE traversée par le rectangle vertical, avec ces mêmes bords
+partagés (Lionel : *« il faudrait faire une bulle par ligne »*).
+
+`cablerAjoutCellule` (glissé vert, création) et `demarrerSelectionRapide` (glissé bleu, sélection de bulles
+existantes pour copier/couper/supprimer) sont réécrites sur ce même modèle ; la surbrillance en direct
+(`surlignerPlagePersonnes`) tinte l'union EXACTE des cases (personne × demi-slot) du rectangle — plus de
+case "en trop" d'un côté comme le §51.2.3/51.2.4 pouvait encore en laisser en bord de plage.
+
+**Jalon/note** n'ont qu'UNE cellule DOM par jour, jamais scindée matin/aprem (`creerCelluleFond`) —
+impossible d'y appliquer le même mécanisme de `classList` sur une sous-cellule. `demiSlotCellule` retombe
+ici sur `demiDepuisPointeur` (position du curseur dans la case pleine largeur, déjà utilisée pour le
+glissement d'une note existante) et une nouvelle fonction `surlignerPlageJalonNote` positionne un élément
+dédié (`.selection-precis`) en `grid-column`/`grid-row` via `colonneEtSpanDemi` — la MÊME fonction pure que
+le rendu final des bulles, garantissant que ce qui est surligné est exactement ce qui sera créé. Un simple
+clic (sans glissé) sur une case jalon/note est lui aussi désormais demi-précis (`ouvrirAjout` calcule la
+demi-journée depuis la position du clic dans la case, au lieu de toujours poser une journée entière).
+
+**`creerGroupeTaches`** (boutons rapides Congé/Vacances, formulaires Armature/Béton/Livraison
+armature/Entrée dynamique) fragmentait auparavant 1 item PAR JOUR avec une demi-journée FIXE par ligne de
+sélection (le cas "absence sur plusieurs jours" avait déjà été sorti de cette fragmentation au §51.2.2) —
+remplacé par le même modèle unifié : 1 SEUL item par personne, sur les bords exacts `demiDebut`/`demiFin`
+de la plage sélectionnée, quel que soit le type de bulle (Lionel : *« Ce comportement doit être pareil pour
+tout type des bulles »*). `ouvrirEdition`/`ouvrirEditionPlage` (fiche "Tâche"/"Absence"/jalon/note avec
+descriptif) créaient déjà 1 item fusionné par cible de cette façon et n'ont pas eu besoin d'être changées
+sur ce point — seule leur initialisation de `state.demiDebut`/`state.demiFin` a été corrigée pour reprendre
+les bords précis transmis depuis le glissé plutôt qu'une seule demi-journée reprise de la case cliquée
+(voir §52.4, Boutons A/P).
+
+Vérifié (`repro_case_par_case.js`) : glissé lundi matin → vendredi matin (ligne droite, traverse donc
+mécaniquement les colonnes aprem intermédiaires) — surbrillance finale sur vendredi = matin SEUL ; bulle
+"Tâche" créée = lundi à vendredi, vendredi en demi-journée matin seul (PAS après-midi comme avant ce
+round). Vérifié aussi (`repro_absence_case_par_case.js`) : le bouton rapide "Vacances" (qui passe par
+`creerGroupeTaches`, pas `ouvrirEdition`) applique le même modèle unifié. Non-régression : `repro_vacances.js`
+(désormais avec un résultat différent et VOULU — plus "journée entière forcée", bords précis comme partout
+ailleurs), `diag_tache_split.js`, `repro_tache_matin_seul.js`, `repro_selection_overlay.js`,
+`test_demi_unseuljour.js`.
+
+### 52.3 Libellés "Jalons"/"Notes" dans la colonne de gauche
+
+Retirés le 02.09.2026 (retour de Lionel à l'époque : "on peut réduire les hauteurs de ligne en enlevant...
+les titres notes et jalons, on a déjà une légende"), remis ce round (nouveau retour : *« ajouté les
+libellés jalon et note dans la colonne de gauche »*) — sans repère textuel la colonne de gauche ne dit plus
+quelle ligne est quoi une fois la légende hors du premier écran. Texte affiché en plus du `title` déjà
+présent (survol), même balisage `<b>` que les libellés personne (`lbl-speciale b`, déjà stylé). Vérifié
+(`repro_jalon_note_precis.js`) : `.lbl-speciale` contient bien "Jalons" et "Notes".
+
+### 52.4 Boutons A/P pas synchronisés avec la plage glissée
+
+Signalé séparément par Lionel mais résolu par la refonte du §52.2 : les boutons A/P de la fiche qui s'ouvre
+après un glissé initialisaient `state.demiDebut`/`state.demiFin` à `null`/`null` (journée entière) quelle
+que soit la plage réellement sélectionnée — `ouvrirAjoutPlage`/`ouvrirEditionPlage` ne transportaient que
+`giDebut`/`duree`, jamais de demi-journée. Ces 2 fonctions (et `ouvrirEdition`/`cablerBoutonsMenuAjout` en
+aval) transportent désormais aussi `demiDebut`/`demiFin` (les bords exacts issus de
+`bornesDepuisDemiSlots`), et l'initialisation de `state` les reprend directement au lieu de systématiquement
+`null`. Vérifié (`repro_case_par_case.js`) : après un glissé lundi matin → vendredi matin, la fiche s'ouvre
+avec Fin = "A" actif (pas de bouton actif sur Début, correct : matin en tout PREMIER jour d'une plage
+équivaut à journée entière, convention déjà en vigueur ailleurs dans le fichier).
+
+### 52.5 Sortir du mode sélection au clic à côté d'une bulle
+
+Un `pointerdown` sur une case (jamais sur une `.bulle`) pendant que des bulles étaient sélectionnées
+n'armait jusqu'ici qu'un panoramique tactile (`demarrerDefilementSimple`) : un simple clic/tap sans glissé
+n'y déclenchait rigoureusement rien. Nouvelle fonction `demarrerDefilementOuSortieSelection` : un vrai
+glissé reste un panoramique inchangé, mais un clic SANS mouvement réel (seuil 4px, comme le reste du
+fichier) appelle désormais `quitterModeSelection()` + `render(false)`. `quitterModeSelection()` retire aussi
+directement la classe `.selectionnee` de chaque bulle DOM concernée (les appelants historiques
+enchaînaient déjà avec un `render()` qui la faisait disparaître de fait ; le nouvel appelant du §52.6,
+ci-dessous, n'en déclenche pas toujours un). Vérifié (`repro_mode_selection.js`).
+
+### 52.6 Le mode sélection restait actif après enregistrer/annuler/supprimer un formulaire
+
+`fermerAuClicExterieur` fabrique la fonction `fermer()` COMMUNE à Enregistrer/Annuler/Supprimer (tous
+l'appellent, dans `ouvrirEdition`/`ouvrirEditionPlage` et les 4 formulaires historiques) et au clic
+extérieur — `quitterModeSelection()` y est appelée en un seul endroit dès que `bullesSelectionnees` n'est
+pas vide, couvrant les 3 actions demandées sans rien dupliquer par formulaire. Vérifié
+(`repro_mode_selection.js`) : sélectionner une bulle, ouvrir sa fiche, Annuler → barre d'action masquée.
+
+### 52.7 Entrée dans le descriptif fermait le formulaire entier sans enregistrer
+
+**Cause** : le raccourci clavier global (`document.addEventListener("keydown", ...)`) traite Entrée/Échap
+AVANT de vérifier si le focus est dans un champ de texte (nécessaire pour que Entrée valide un POPUP —
+`popValiderActuel` — même quand le focus est resté dans un champ de ce popup). Le petit éditeur de
+descriptif (`.desc-edit-box textarea`, une SURCOUCHE au-dessus du formulaire principal) n'avait lui-même
+aucune gestion de touche : Entrée y remontait donc jusqu'à ce raccourci global, qui validait/fermait le
+FORMULAIRE ENTIER (`popValiderActuel`, équivalent au bouton "Enregistrer" de la carte) sans jamais avoir
+appelé le `setTexte()` du petit éditeur — le texte tapé était donc perdu.
+
+**Correctif** : `cablerDescriptifEdit` écoute maintenant `keydown` sur son propre textarea — Entrée (sans
+Maj, pour laisser Maj+Entrée insérer un retour à la ligne normal) appelle `validerEdit()` (enregistre le
+texte ET ferme ce petit éditeur, laissant le formulaire principal ouvert) ; Échap appelle `fermerEdit()`
+(ferme sans enregistrer). Les 2 appellent `stopPropagation()` pour empêcher le raccourci global de les
+revoir. Vérifié (`repro_case_par_case.js`) : texte du descriptif présent après Entrée, formulaire principal
+toujours ouvert (fermé ensuite normalement via "Enregistrer").
+
+### 52.8 Vérification effectuée
+
+Syntaxe (`node --check` sur le script extrait) OK. Nouveaux scripts de reproduction pour cette session :
+`repro_case_par_case.js` (scénario vidéo exact de Lionel + boutons A/P + Entrée du descriptif),
+`repro_jalon_note_precis.js` (libellés colonne de gauche, clic/glissé demi-précis sur jalon/note),
+`repro_mode_selection.js` (sortie du mode sélection au clic à côté et après formulaire),
+`repro_absence_case_par_case.js` (bouton rapide "Vacances" sur le modèle unifié). Suite existante rejouée
+sans régression : `diag_tache_split.js`, `repro_tache_split.js`, `repro_vacances.js` (résultat modifié,
+volontairement — cf. §52.2), `repro_selection_overlay.js`, `repro_tache_matin_seul.js`,
+`test_demi_unseuljour.js`, `test_deplacement_note_demi.js`. `repro_case_sur_2.js` (§51.2.4) donne
+maintenant un résultat différent lui aussi, volontairement : le modèle "figer sur la demi de départ" qu'il
+vérifiait est celui que ce round remplace (§52.1) — un glissé qui se termine réellement sur une case
+après-midi doit désormais couvrir l'après-midi, ce n'est plus une régression.
+
+## 53. Round du 11.09.2026 — 7 retours après test réel du §52 (case unique jalon/note, bordure de départ, série, barre d'outils, calendrier, dates liées)
+
+Nouvelle vidéo + capture d'écran + liste écrite de Lionel après avoir testé le rendu livré au §52 :
+
+> L'ajout simple (clique gauche) sélectionne 2 case dans note et jalon.
+> ajout multiple laisse une bordure verte sur la case de départ.
+> j'aimerai pouvoir modifier une série lors de l'ouverture d'un formulaire avec série.
+> bouton 2 semaines à coté de aujourd'hui, en surbrillance quand planning affiché sur 2 semaines.
+> placer le boutons imprimer à droite du bouton 2. ajout lointain disparait car on peut maintenant le faire via les nouveaux formulaire. le design de bouton doit être cohérent avec le bouton aujourd'hui
+> Cliquer sur la date dans les formulaires permet d'ouvrir un calendrier. quand le date de début est la même que la date de fin, augmenter la date de début augmente automatiquement la date de fin et inversement.
+
+### 53.1 Ajout simple sur jalon/note teignait toute la case (2 demi-journées) au lieu d'une seule
+
+**Cause** : `ouvrirEditionPlage` recevait la case DOM réelle cliquée (`celluleSurbrillance`) et la passait
+telle quelle à `fermerAuClicExterieur(pop, celluleSurbrillance, ...)`, qui lui applique `.selection-add`
+pendant que la fiche est ouverte. Une case jalon/note n'est JAMAIS scindée matin/aprem au DOM (une seule
+`.cell` pleine largeur par jour, `creerCelluleFond` — contrairement à "personne", scindée en 2 sous-cases
+par `colonneDemi`) : teindre cette case entière tinte donc TOUJOURS les 2 demi-journées, même quand la
+plage réelle sélectionnée (`demiDebut`/`demiFin`) ne couvre qu'un seul demi-slot.
+
+**Correctif** : 2 nouvelles fonctions "duck-typées" (`surbrillancePrecisePersonnes`/
+`surbrillancePreciseJalonNote`, avec `surlignerPlagePersonnes`/`surlignerPlageJalonNote` du §52.1)
+remplacent la case DOM brute par un objet exposant la même interface `classList.add/remove` qu'attend
+`fermerAuClicExterieur` — `add()` repeint la plage EXACTE (réutilise l'overlay `.selection-precis` pour
+jalon/note, les vraies sous-cases pour personne), `remove()` appelle `effacerSurlignage()`. `ouvrirEdition`
+et `ouvrirEditionPlage` construisent maintenant cet objet à partir de `state.giDebut/giFin/demiDebut/demiFin`
+(+ `cibles` pour personne) au lieu de transmettre une case DOM. Vérifié
+(`repro_jalon_note_case_unique.js`) : clic simple sur la moitié gauche (matin) d'une case Note → overlay
+`.selection-precis` de largeur moitié de la case, aucune classe `.selection-add` posée sur la case entière.
+
+### 53.2 Ajout multiple (plusieurs jours/personnes) laissait une case isolée teintée après le choix du type
+
+**Cause** : même mécanisme que le §53.1, mais côté `ouvrirEdition` (tâche/absence) : le `cell` transmis par
+`ouvrirAjoutPlage`/`cablerBoutonsMenuAjout` n'est que la case "coin haut-gauche" calculée pour retrouver un
+point d'ancrage à l'écran — teindre CETTE SEULE case pendant que la fiche est ouverte, alors que la plage
+réelle couvre plusieurs jours et/ou personnes, laisse tout le reste correctement nettoyé par
+`effacerSurlignage()` (fin du glissé) mais cette case-là seule encore allumée : visuellement un résidu, pas
+une indication utile. Diagnostiqué en reproduisant en direct (nouveau `harness2p.js`, 2 personnes) le
+glissé lundi-matin (Lionel) → mardi-matin (Test) puis en inspectant les classes DOM juste après le
+relâchement ET juste après le choix "Tâche" dans le menu.
+
+**Correctif** : même `surbrillancePrecisePersonnes` que le §53.1, construite depuis `cibles` (dédupliquées
+par personne) et `state.giDebut/giFin/demiDebut/demiFin` — peint TOUTES les cases de la plage, pas
+seulement celle d'ancrage. Vérifié (`repro_bordure_case_depart.js`) : glissé 2 jours × 2 personnes, après
+choix "Tâche" les 6 cases de la plage (2 personnes × 3 demi-slots) portent `.selection-add`, plus aucune
+case isolée. Non-régression sur le cas simple (`repro_surbrillance_case_unique_personne.js`) : un clic
+simple continue de ne teindre QUE sa propre case, nettoyée après Annuler.
+
+### 53.3 Modifier une série depuis la fiche d'un item existant
+
+Avant ce round, `champSerie` valait toujours `""` pour un item existant (`itemExisting ? "" : serieChampsHTML()`)
+: aucune indication dans la fiche qu'un item fait partie d'une série, alors qu'enregistrer une modification
+dessus déclenche déjà (mécanisme préexistant, `demanderPorteeSerie`) un choix de portée (cet élément seul /
+les suivants / toute la série) appliqué via `gerer-serie`.
+
+**Limite serveur constatée** (documentée ici plutôt que contournée en silence) : `gerer-serie`
+(`planModifierSerie`, `functions/gerer-serie/logic.js`) ne sait modifier que des champs PAR OCCURRENCE déjà
+matérialisée (texte, important, statut, chantier) — la DÉFINITION de la série elle-même (fréquence,
+intervalle, condition de fin) est écrite une fois dans la table `series` à sa création
+(`enregistrer-serie`) et n'est jamais renvoyée au client ni modifiable depuis l'existant. Convertir un item
+déjà existant EN série poserait par ailleurs un doublon serveur garanti : `construireOccurrencesSerie`
+(`functions/enregistrer-serie/logic.js`) insère TOUJOURS une nouvelle occurrence à sa date de départ, sans
+jamais remplacer ce qui existe déjà ce jour-là ("une série vient s'ajouter au contenu déjà présent").
+Faire les 2 (modifier la définition d'une série existante, ou greffer une série sur un item déjà créé)
+demanderait donc du travail serveur nouveau, pas encore fait.
+
+**Ce qui est livré ici** : `ouvrirEdition`/`ouvrirEditionPlage` (note uniquement — jalon exclu des séries,
+inchangé) affichent désormais, dans "Plus d'options", un bandeau `serieInfoExistanteHTML()` ("↻ Fait partie
+d'une série. En enregistrant, un choix sera proposé : cet élément seul, celui-ci et les suivants, ou toute
+la série.") quand `itemExisting.serieId` est renseigné — rend visible AVANT même de cliquer "Enregistrer"
+un mécanisme qui existait déjà mais restait invisible dans la fiche. La case à cocher "Série (se répète)"
+(`serieChampsHTML()`) reste réservée à la création (nouvel item), inchangée. Vérifié
+(`repro_serie_info_existante.js`) : bandeau affiché pour un item déjà en série, case à cocher affichée (pas
+de bandeau) pour un nouvel item — aucune régression croisée.
+
+*Pour Lionel : modifier la fréquence/la durée d'une série déjà en cours, ou transformer une tâche déjà
+posée en série, demande un développement serveur supplémentaire (gerer-serie ne le permet pas aujourd'hui)
+— à programmer séparément si besoin.*
+
+### 53.4/53.5 Barre d'outils : "2 semaines" et "Imprimer" à côté d'"Aujourd'hui", "Ajout lointain" retiré
+
+L'ancienne paire de boutons `.toggle-sem` ("1 semaine"/"2 semaines", case à cocher à 2 états) et les
+boutons `#btnAjoutLointain`/`#btnImprimer` vivaient dans `.header-actions` (construite une seule fois, au
+chargement de la page). Désormais :
+
+- **"2 semaines"** devient un bouton UNIQUE (`.btn-deux-semaines`), déplacé dans `.semaine-titre` (juste
+  après "Aujourd'hui" — cette barre est reconstruite à chaque rendu, cf. `construireGrille`, donc son état
+  `.actif` suit `deuxSemaines` sans câblage séparé à tenir à jour). Nouvelle fonction `basculerDeuxSemaines()`
+  (inverse `deuxSemaines`, recharge la fenêtre). `.actif` reprend les teintes `--accent`/`--accent-soft`
+  déjà utilisées ailleurs pour un état actif (ex. légende chantier par défaut).
+- **"Imprimer"** rejoint la même barre, juste à droite du bouton "2 semaines" (`.btn-imprimer-titre`,
+  câblé sur `openPrintSheet`, inchangé).
+- **"Ajout lointain"** est entièrement retiré : bouton, câblage, CSS (`.pop-lointain`) et les 4 fonctions
+  dédiées (`joursOuvresDepuis`, `construireLignesAjoutLointain`, `ajoutLointainTache`,
+  `ouvrirAjoutLointain`) supprimées — Lionel : "on peut maintenant le faire via les nouveaux formulaires"
+  (cf. §53.6 ci-dessous, qui est précisément ce qui rend ce formulaire dédié redondant). `test_ajout_lointain.js`
+  (suite existante) est donc obsolète depuis ce round.
+- Design cohérent : les 3 boutons (`Aujourd'hui`, `2 semaines`, `Imprimer`) partagent désormais la classe
+  `.btn-titre` (remplace l'ancien style ad hoc de `.btn-aujourdhui`, dupliqué sur les 2 nouveaux plutôt que
+  réinventé). `.header-actions` ne garde plus que "Recharger".
+
+Vérifié (`repro_toolbar_reorg.js`) : les 3 boutons présents dans `.semaine-titre` avec la classe partagée,
+"2 semaines" bascule `.actif` à chaque clic (et la fenêtre affichée passe bien à 10/5 jours), "Imprimer"
+ouvre toujours `.impression-modal`, `#toggleSem`/`#btnAjoutLointain`/`#btnImprimer` n'existent plus dans le
+DOM.
+
+### 53.6 Calendrier au clic sur une date de formulaire (et ce qui rend "Ajout lointain" redondant)
+
+Les flèches ‹ › de `dateLigneHTML` restent bornées à la fenêtre actuellement affichée (5 ou 10 jours,
+`nbJoursAffiches()`) : aucun moyen direct de viser une date lointaine sans cliquer une flèche des dizaines
+de fois. Nouvelle fonction `cablerCalendrierDate` (appelée depuis `cablerDatesPlage`) : cliquer le texte
+d'une date (`.date-val`) fait apparaître un `<input type="date">` natif invisible positionné par-dessus
+(pas de composant "calendrier" maison à maintenir), ouvert directement via `.showPicker()` (repli sur
+`.focus()` si non supporté) — le calendrier natif du navigateur s'affiche, pas l'input lui-même.
+
+Contrairement aux flèches, une date choisie au calendrier peut viser N'IMPORTE QUELLE date du planning
+(`etat.semaines` couvre ~5 ans devant/derrière, `genererSemaines`) : nouvelle fonction
+`appliquerDateChoisieFormulaire` détermine la semaine cible (`indexSemaineDeIso_`, généralisation
+d'`indexSemaineAujourdhui_` à une date arbitraire) et, si elle diffère de la fenêtre affichée, navigue puis
+recharge (`assurerFenetreChargee` + `construireVueDepuisCache` + `render(false)`, même trajet que
+"Aujourd'hui"/les flèches semaine) AVANT de recalculer les 2 bornes en `gi` (nouvelle fonction
+`giDepuisIso`, inverse d'`isoDeGi`, cherchée dans la fenêtre fraîchement chargée). Le formulaire ouvert
+n'est jamais détruit par cette navigation (`pop` vit dans `document.body`, hors de `#racine` que
+`construireGrille` reconstruit).
+
+La borne ÉDITÉE (`bord` cliqué) reçoit toujours exactement la date choisie ; l'AUTRE borne est préservée
+par sa date absolue tant qu'elle reste du bon côté (Début ≤ Fin) — sinon la plage redevient 1 seul jour sur
+la date choisie plutôt que de forcer une plage invalide ou de changer silencieusement le mode 1/2 semaines
+(jamais touché par cette fonctionnalité). C'est ce mécanisme — poser une date ARBITRAIRE directement dans
+la fiche d'édition normale — qui rend "Ajout lointain" (§53.5) redondant : plus besoin d'un formulaire à
+part pour "un ouvrier prend congé 1 semaine au mois de novembre", le formulaire "Absence" habituel suffit
+désormais.
+
+Vérifié (`repro_calendrier_date.js`) : l'input apparaît au clic ; une date dans la même semaine met à jour
+la seule borne cliquée sans toucher l'autre ; une date à ~4 mois navigue la fenêtre jusqu'à la bonne
+semaine (fiche toujours ouverte), recolle l'autre borne sur la date choisie (devenue invalide dans la
+nouvelle fenêtre), et l'enregistrement crée bien la tâche à la date exacte choisie. Un 2e scénario (borne
+encore valide après le choix) confirme que l'autre borne n'est PAS écrasée dans ce cas — un tri min/max
+naïf des 2 bornes aurait fait atterrir la date choisie sur la mauvaise ligne (corrigé avant livraison, cf.
+historique de ce round).
+
+### 53.7 Dates de début/fin liées quand elles désignaient le même jour
+
+**Cause** : sur 1 seul jour (`giDebut === giFin`), les flèches restaient bornées `Début ≤ Fin` et
+`Fin ≥ Début` l'une par rapport à l'autre (branches inchangées, correctes pour le cas multi-jours) — sur 1
+seul jour, ces 2 bornes coïncident déjà, donc "Début suivant" recalculait TOUJOURS la même valeur que
+l'existant (plafonné à `Fin`, qui vaut `Début`) et ne faisait rigoureusement rien ; symétriquement pour
+"Fin précédent".
+
+**Correctif** : nouvelle branche dans `cablerDatesPlage`, avant les 2 branches existantes : si
+`state.giDebut === state.giFin`, N'IMPORTE QUELLE flèche (Début ou Fin, avant ou arrière) déplace les DEUX
+bornes du même pas — le jour unique avance/recule en bloc au lieu de rester bloqué contre lui-même. Le
+comportement multi-jours (bornes indépendantes, sauf clamp habituel) reste inchangé. Vérifié
+(`repro_dates_liees_un_jour.js`) : "Début suivant" 2 fois de suite avance bien les 2 bornes ensemble
+(lundi → mardi → mercredi), "Fin précédent" les recule ensemble (mercredi → mardi).
+
+### 53.8 Vérification effectuée
+
+Nouveau harness `harness2p.js` (copie de `harness.js` avec un 2e personnel `{id:2, nom:'Test'}`) — requis
+pour reproduire en direct le §53.2 (bug multi-personnes). Nouveaux scripts de reproduction :
+`repro_bordure_case_depart.js` (§53.2, diagnostic + vérification, 2 personnes), `repro_jalon_note_case_unique.js`
+(§53.1), `repro_jalon_plage_multijour_surbrillance.js` (§53.1, variante plage multi-jours jalon),
+`repro_surbrillance_case_unique_personne.js` (non-régression cas simple), `repro_serie_info_existante.js`
+(§53.3), `repro_toolbar_reorg.js` (§53.4/53.5), `repro_calendrier_date.js` (§53.6, y compris navigation
+inter-semaines), `repro_dates_liees_un_jour.js` (§53.7). Syntaxe (script extrait, `new Function(...)`) OK.
+Suite existante rejouée sans régression : `repro_case_par_case.js`, `repro_jalon_note_precis.js`,
+`repro_mode_selection.js`, `repro_absence_case_par_case.js`, `repro_case_sur_2.js`, `repro_note.js`
+(échec — fixture `Index_before.html` absente, préexistant, sans rapport avec ce round),
+`repro_selection_overlay.js`, `repro_tache_matin_seul.js`, `repro_tache_split.js`, `repro_task.js`,
+`repro_vacances.js`, `test_demi_unseuljour.js`, `test_deplacement_note_demi.js`. `repro_jalon.js`/
+`repro_task2.js`/`repro_task2_before.js` restent des scripts obsolètes d'avant la refonte du descriptif
+(round du 11-12.09.2026, sélecteur `.f-texte` disparu) — sans rapport avec ce round, non corrigés ici.
