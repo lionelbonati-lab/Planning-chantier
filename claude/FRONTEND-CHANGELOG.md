@@ -1,0 +1,3162 @@
+# FRONTEND-CHANGELOG.md — Portage V3 (prototype-bulles.html → Index.html)
+
+Ce document décrit l'état du portage de l'interface V3 (`prototype-bulles.html`, statique, données en dur)
+vers le vrai client Google Apps Script (`Index.html`) branché sur `WebApp.gs` / Google Sheets, selon le
+contrat gelé dans `TRANSFERT-V3-SPEC.md`.
+
+Session précédente (interrompue) : moteur de séries, chargement serveur (`apiDemarrer`, `gs`/`gsP`,
+cache scoping par semaine), grille de planning (bulles, drag/resize, sélection).
+Cette session : reprise du fichier partiel (2986 lignes) sans repartir de zéro, ajout de la coquille de
+navigation multi-pages et des 6 pages CRUD manquantes, réparation d'un fichier qui ne parsait plus.
+
+## 0. Bugs bloquants trouvés et corrigés dans cette session
+
+- **IIFE jamais refermée** : le fichier hérité de la session précédente se terminait au milieu du script,
+  sans le `})();` final de `(function () { "use strict"; ... })();`. Le fichier ne parsait plus du tout
+  (`SyntaxError: Unexpected end of input`). Corrigé en ajoutant `demarrer(); })();` juste avant
+  `</script>`.
+- **Sous-système de sélection multiple absent** : `copierSelection`/`couperSelection`/`collerPressePapier`
+  (déjà présents) appelaient `basculerSelection`, `majBarreSelection`, `viderSelection`,
+  `quitterModeSelection`, `supprimerSelection`, `afficherChoixDeplacerCopier`/`masquerChoixDeplacerCopier`,
+  et référençaient `barreActionEl` et les boutons de la barre d'action — rien de tout cela n'existait.
+  Reporté depuis le prototype (lignes ~3800-3990), y compris le raccourci clavier global
+  (Échap/Entrée/Suppr/Ctrl+Z/Y/X/C/V).
+- **`naviguerSemaine` et `ouvrirAllerSemaine` non définies** : appelées par les flèches de navigation de
+  semaine et le clic sur le titre « Semaine N » dans `construireGrille()`, mais jamais écrites. Ajoutées
+  juste avant `construireGrille()`.
+- **`legendeEl` référencée avant assignation** dans certains chemins de rendu appelés hors `demarrer()` —
+  rendue paresseuse (`if (!legendeEl) legendeEl = document.getElementById("legende");`).
+- **`CATS_FERIES`-équivalent** aurait référencé `COULEUR_FERIE`/`COULEUR_VACANCES_ENTREPRISE` avant leur
+  initialisation (ordre des `var` top-level) — converti en fonction paresseuse `catsFeries()`.
+
+### Vérification de syntaxe effectuée
+
+`/tmp/mockups/synchk.js` n'existait pas dans cet environnement. Méthode utilisée à la place :
+1. Extraction du contenu de la (seule) balise `<script>` d'`Index.html` vers un fichier `.js` isolé
+   (regex Python `re.findall(r'<script>(.*?)</script>', html, re.DOTALL)`).
+2. `node --check script_0.js` — vérifie que le fichier parse (détecte les erreurs de syntaxe, accolades
+   non fermées, etc.). **OK, aucune erreur.**
+3. `acorn.parse()` en second avis pour confirmer.
+4. Recherche des doublons de noms de fonctions/variables top-level (`grep` + `sort | uniq -c`) — aucun
+   doublon anormal (seules des fonctions locales de même nom dans des closures différentes, normal en JS).
+5. Analyse de portée avec `acorn-globals` (npm installé localement dans le scratchpad, pas dans le repo)
+   pour lister tous les identifiants référencés mais jamais déclarés nulle part dans le fichier (couvre
+   à la fois les appels `f()` et les références passées par valeur comme `addEventListener("click", f)`,
+   ce qu'une simple recherche des appels ne couvre pas). **Dernière exécution : liste vide** — aucun
+   identifiant non déclaré en dehors des globales navigateur/GAS attendues (`window`, `document`,
+   `google`, `Math`, `Promise`, etc.).
+6. Recherche de données de démonstration en dur (`TACHES`/`JALONS`/`NOTES` initialisés avec des valeurs
+   littérales, ou `PERSONNES`/`CHANTIERS`/`STATUTS`/`FORMULAIRES_RAPIDES` pré-remplis) — tous ces tableaux
+   s'initialisent vides (`var TACHES = [], JALONS = [], NOTES = [];`, `var PERSONNES = [], CHANTIERS = {},
+   STATUTS = {}, ...`) et ne sont peuplés qu'à partir du cache serveur. Les seuls tableaux littéraux
+   restants dans le fichier sont la liste des jours fériés suisses/jurassiens fixes et mobiles utilisée
+   par `calculerFeries()` (Nouvel an, Vendredi Saint, Pâques, etc.) — ce n'est pas une donnée de démo mais
+   la logique métier réelle de calcul assisté, portée du prototype (fonctionnalité demandée en §5).
+
+Cette vérification ne remplace pas un test dans un vrai environnement Apps Script (impossible ici, pas
+d'accès à un compte Google/Sheets) : elle garantit que le JavaScript est syntaxiquement valide et sans
+référence à une fonction/variable manquante, pas que chaque interaction produit le résultat voulu à
+l'exécution. Un passage manuel dans le déploiement réel reste nécessaire avant mise en production.
+
+## 1. État des 8 pages
+
+| Page | État | Détails |
+|---|---|---|
+| **Planning** | Complet | Grille, bulles, drag/déplacer/redimensionner, sélection multiple + barre d'action, undo/redo (session), séries, week-end fusionné (voir §3), navigation de semaine (flèches + « aller à… »), toggle 1/2 semaines, bouton « Recharger ». |
+| **Personnel** | Complet | Liste, ajout (`apiAjouterPersonne`), renommage (`apiRenommerPersonne`), suppression avec choix de portée (`apiSupprimerPersonne`). |
+| **Intervenants** | Complet | Même mécanique que Personnel, filtrée sur `estSousTraitant`. |
+| **Chantiers** | Complet | Liste + ajout + couleur + renommage + suppression (`apiListerChantiers`/`apiEnregistrerChantiers`/`apiRenommerChantier`/`apiCompterUtilisationsChantier`/`apiSupprimerChantier`, ces 3 dernières NOUVELLES round §12). |
+| **Statuts** | Complet avec simplification | Liste + ajout + modification + suppression (`apiListerStatuts`/`apiEnregistrerStatuts`, contrat `{cle,nom,couleur,ordre}`). L'éditeur de style de texte du prototype n'a pas été porté (le contrat serveur ne prévoit que couleur+nom+ordre). |
+| **Entrée rapide** | Complet | Liste, constructeur de formulaire (champs texte/select/nombre/case), édition, suppression, assignation à une personne précise (`apiListerFormulairesRapides`/`apiEnregistrerFormulaireRapide`/`apiSupprimerFormulaireRapide`, "Assigné à" NOUVEAU round §12). Le bug du point 111 (champ Statut absent pour Personnel) est reporté via `estSousTraitantDyn` dans `ouvrirFormulaireDynamique`. |
+| **Fériés** | Complet, refonte | Calendrier annuel réel, backend par `apiListerFeries`/`apiEnregistrerFeries`. Fusion des deux systèmes déconnectés du prototype (liste d'affichage + `FERIES_ETAT`/`CATS_FERIES`) en un seul système serveur — voir §2. |
+| **Général** | Partiel, assumé | Seul le réglage « Afficher les week-ends » est porté (case à cocher locale, `localStorage`, comme dans le prototype — non persisté côté serveur, le prototype ne le persistait pas non plus). Les autres réglages du prototype (thème, densité, etc. s'il y en avait) n'ont pas été retrouvés comme persistants côté serveur et n'ont pas été ajoutés arbitrairement. |
+
+## 2. Déviations par rapport au contrat serveur / au prototype
+
+- ~~Chantiers — pas de renommage ni de suppression depuis l'UI.~~ **Restauré, voir §12** — le nom du
+  chantier sert de clé de reconnaissance texte dans les cases déjà écrites du planning, ce qui exigeait une
+  fonction de migration en masse côté serveur avant de pouvoir rouvrir ces actions ; c'est fait
+  (`apiRenommerChantier`/`apiSupprimerChantier`). Ce n'était pas un choix de design définitif, seulement une
+  limite du contrat serveur figé de ce round-là.
+- **Statuts — éditeur de style de texte du prototype non porté.** Le contrat serveur
+  (`apiEnregistrerStatuts`) n'accepte que `{cle,nom,couleur,ordre}` ; aucune option de style de texte
+  n'existe côté sheet « Statuts ». Le formulaire ne propose donc que nom + couleur.
+- ~~Formulaires rapides — champs `type`/`assigné à`/`unité` du prototype abandonnés~~ — **« assigné à »
+  restauré, voir §12** (`AssigneA`, 8e colonne côté serveur). `type` (Tâche/Absence par formulaire) et
+  `unité` (champ dédié pour un champ Nombre) restent absents du contrat serveur, non traités ce round. Le
+  type de champ **« case à cocher »** a été ajouté (présent dans le CSS/prototype comme `case`, en plus de
+  texte/select/nombre) car son rendu et sa sérialisation dans le texte de tâche étaient déjà prévus par le
+  contrat de champs génériques.
+- **Fériés — seulement 2 catégories** (`ferie` / `vacances_entreprise`), conformément à la spec §5 qui
+  restreint volontairement les catégories du prototype (qui semblait n'en avoir que 2 exploitées de toute
+  façon). Les couleurs des catégories ne sont **pas éditables** depuis l'UI — elles sont fixées en constantes
+  (`COULEUR_FERIE`, `COULEUR_VACANCES_ENTREPRISE`) car le contrat serveur ne stocke pas de couleur par
+  catégorie, seulement `{iso, categorie}` par jour.
+- **Personnel — suppression exige un choix de portée** (comme les séries), remplaçant l'undo local du
+  prototype pour les opérations destructrices, conformément à la spec §8 (« Undo/redo » retiré des CRUD
+  destructifs, remplacé par une confirmation serveur explicite).
+- **Personnel — renommage sans confirmation de portée visible**, contrairement à la suppression : le
+  serveur (`apiRenommerPersonne`) réécrit directement le nom sans notion de « portée » (ce n'est pas une
+  opération de série), donc pas de popup de portée nécessaire ici — juste une confirmation simple.
+- **Bouton « Réinitialiser » du prototype → « Recharger » dans le planning.** Dans le prototype (données
+  100% locales), « Réinitialiser » remettait les données en dur d'origine. Ici, il n'y a plus de données
+  en dur à réinitialiser : le bouton recharge la semaine courante depuis le serveur (avec avertissement
+  que les modifications non synchronisées seraient perdues), ce qui est la fonctionnalité la plus proche
+  en sens utile dans une architecture serveur.
+- **Week-end fusionné — ligne « matin » choisie comme propriétaire.** La spec impose une seule cellule
+  physique serveur pour Samedi+Dimanche (§2), tandis que la grille visuelle du prototype conserve 2
+  lignes (matin/après-midi) par personne comme le reste de la semaine. Décision : la ligne « matin » de
+  chaque personne est la ligne interactive pour le week-end (création/édition de bulles), la ligne
+  « après-midi » y affiche une cellule de remplissage visuel inerte (`case-weekend`, non cliquable) pour
+  garder l'alignement de la grille. Les lectures (`construireVueDepuisCache`) placent toutes les tâches
+  de week-end sur `demi:"matin"`, quel que soit le contenu réel du côté serveur, puisque le serveur ne
+  distingue pas non plus matin/après-midi pour le week-end (`jourIdx` 6/7 = Samedi/Dimanche, `demi` ignoré
+  à l'écriture mais requis par la signature `apiEnregistrerCellulePersonne`).
+
+## 3. Points nécessitant une vérification humaine / suite possible
+
+- Le fichier n'a **jamais été exécuté** dans un vrai environnement Apps Script/Sheets (aucun accès
+  disponible ici) — seule la validité syntaxique JS a pu être vérifiée mécaniquement (voir §0). Un premier
+  déploiement de test doit vérifier en particulier : le rendu de la grille avec des données serveur
+  réelles, le comportement du week-end fusionné en écriture réelle, et l'ouverture du panneau de
+  construction de formulaire dans Entrée rapide (zone la plus complexe ajoutée cette session).
+- ~~`apiGenererPdf` n'a pas été câblée dans l'UI~~ — **corrigé, voir §4** : c'était une régression (une
+  fonctionnalité réelle de production disparue au portage, pas un simple manque de périmètre côté V3) et
+  non un choix de scope à réévaluer plus tard.
+- La page **Général** reste la plus mince des 8 : si le prototype avait d'autres réglages qui n'ont pas
+  été retrouvés lors du parcours du fichier (au-delà de l'affichage des week-ends), ils n'ont pas été
+  ajoutés faute de les avoir identifiés avec certitude comme faisant partie du périmètre demandé.
+- Pas de test end-to-end automatisé écrit (aucun framework de test front existant dans le projet) — la
+  seule couche de vérification est statique (parsing + portée des identifiants), à compléter par des
+  tests manuels guidés par `v3-inventory.md` (catalogue des ~111 fonctionnalités) page par page.
+
+## 4. Session de réintégration (01.09.2026) — 3 fonctionnalités V2 disparues au portage
+
+Le portage V3 décrit ci-dessus a fait disparaître 3 fonctionnalités réelles de production (usage
+hebdomadaire de Lionel, jamais présentes dans le prototype V3 — donc rien à en « porter », l'agent du
+portage ne les a simplement pas recréées). Elles n'étaient pas un choix de périmètre : c'est une
+régression, corrigée dans cette session par réintégration depuis l'ancien `Index.html` V2 (conservé dans
+le Projet Claude, chemin `claude/Index.html`), adaptée aux conventions du nouveau fichier (modèle
+`TACHES`/`JALONS`/`NOTES` reconstruit depuis `etat.cache`, modales `.pop`/`.voile-confirm` au lieu des
+« sheets » plein écran de V2, `gsP()`/`toast()` au lieu de `gs()`/`showToast()`). **Logique métier et
+contrat serveur inchangés** : les 4 fonctions `apiApercuDecalage`, `apiAppliquerDecalage`,
+`apiAttribuerChantierGroupe`, `apiGenererPdf` existaient déjà, intactes, dans `WebApp.gs` — seul le client
+ne les appelait plus. Aucune modification de `WebApp.gs`/`Planning_Format.gs` n'a été nécessaire.
+
+### 4.1 Décalage en masse du planning
+
+- **Point d'entrée** : clic sur l'en-tête d'un jour (Lun-Ven) dans la grille de planning — classe CSS
+  `.th-jour` ajoutée dans `construireGrille()`, avec `title` explicite (« Décaler le planning à partir de
+  ce jour ») et surbrillance au survol. Uniquement les 5 en-têtes de jour de semaine ; les en-têtes
+  week-end (`.th-weekend`, construits séparément) n'ont jamais ce comportement, cf. §4.4 (portée).
+- **Flux** : `ouvrirDecalagePlanning_(gi, preset)` ouvre une modale (portée « tout le monde »/« une ligne »,
+  personne concernée si « une ligne », sens avancer/reculer, nombre de jours ouvrables) → bouton « Aperçu »
+  appelle `apiApercuDecalage(labG, jourIdx, portee, ancre, sens, nJours)` → `ouvrirApercuDecalage_(...)`
+  affiche le résumé chiffré (déplacements directs / conflits / ignorés) et, pour chaque case déjà occupée à
+  la destination, un choix **Ne rien faire (défaut) / Ajouter / Écraser** — exactement le même vocabulaire
+  et la même mécanique qu'en V2, aucune réinvention. « Retour » revient à l'étape précédente avec les
+  réglages déjà choisis (`preset`). « Confirmer » appelle `apiAppliquerDecalage(labG, jourIdx, portee,
+  ancre, sens, nJours, resolutions)` ; le serveur recalcule tout depuis l'état réel de la feuille (jamais
+  confiance dans l'aperçu mis en cache côté client — comportement serveur inchangé).
+- **Rafraîchissement après écriture** : nouvelle fonction `apresEcritureDepuis(labGDepart, semaineMaj)` —
+  met en cache la semaine fraîchement relue, invalide le cache de toutes les semaines déjà chargées à
+  partir de `labGDepart` (un décalage peut pousser des éléments au-delà de la semaine affichée, donc les
+  semaines suivantes déjà en cache peuvent être devenues obsolètes), la remet aussitôt en cache pour éviter
+  un aller-retour superflu, puis recharge la fenêtre affichée et re-rend. Équivalent exact du scope
+  « suivantes » du cache déjà utilisé ailleurs dans ce fichier (cf. `apresEcritureSerie`,
+  `rafraichirApresPersonnel`), appliqué ici au bon point de départ.
+
+### 4.2 Assignation groupée d'un chantier
+
+- **Point d'entrée** : nouveau bouton « Assigner » dans la barre d'actions de la page Planning (à côté de
+  « Imprimer » et « Recharger »), câblé une fois dans `cablerPagePlanning()`.
+- **Flux** : `openAssignationGroupeSheet()` — modale avec choix du chantier (liste de `CHANTIERS`, pastille
+  de couleur) et de la cible (un jour de la semaine, ou « Toute la semaine ») → bouton « Assigner » appelle
+  `apiAttribuerChantierGroupe(labG, chantier, jours)`. Comportement serveur inchangé : personnel uniquement
+  (jamais les intervenants/sous-traitants), absences sautées automatiquement. Ne touche que la semaine
+  actuellement affichée (`labGCourant()`, pas de portée « suivantes ») — le rafraîchissement réutilise donc
+  directement `apresEcritureSerie(r)` (déjà générique : met en cache `r.semaine`, reconstruit, re-rend),
+  sans avoir besoin d'`apresEcritureDepuis`.
+
+### 4.3 Aperçu d'impression + génération PDF
+
+- **Point d'entrée** : nouveau bouton « Imprimer » dans la barre d'actions de la page Planning (classe CSS
+  `.btn-imprimer`, qui existait déjà — définie dans le fichier issu du portage mais jamais utilisée par
+  aucun élément HTML, signe que ce bouton était prévu puis oublié).
+- **Flux** : `openPrintSheet()` construit l'aperçu **directement depuis la forme serveur brute de la
+  semaine affichée** (`etat.cache[labGCourant()]`, la même structure que renvoie `apiChargerSemaine`) —
+  PAS depuis les bulles `TACHES`/`JALONS`/`NOTES` reconstruites. C'est délibéré : c'est exactement ce que
+  la vraie feuille imprime, donc la source la plus fidèle, et ça découple entièrement l'aperçu du moteur de
+  bulles (jamais de risque qu'un détail de reconstruction de bulle — fusion de plages, slots de notes —
+  fasse diverger l'aperçu de ce que `apiGenererPdf` produira réellement). Reprend telles quelles la mise en
+  forme et les règles V2 : personnes sans rien cette semaine masquées (`personneVide`), fond de case par
+  absence/chantier (`fondCase`/`detailJoint`, alignés sur `estAbsence`), légende des chantiers utilisés,
+  pastille de statut par tâche pour les sous-traitants (couleur dynamique depuis `STATUTS`, plus de mapping
+  figé à 4 couleurs comme en V2 — la page Statuts du portage V3 permet d'en configurer un nombre
+  quelconque). Bouton « Générer le PDF » → `apiGenererPdf(labG)`, message et gestion de l'onglet temporaire
+  `📋 S<n>` (gardé seulement si l'export Drive échoue) repris à l'identique de V2.
+- Aucun rafraîchissement de cache après cette action : `apiGenererPdf` ne modifie jamais le contenu
+  affiché du planning (juste un onglet d'export éphémère), comportement V2 inchangé.
+
+### 4.4 Fonctions utilitaires réintégrées
+
+`dateCourte(iso)` (réutilise le tableau `MOIS_ABBR` déjà présent dans le fichier plutôt que de le
+dupliquer), `personneVide(p)`, `detailJoint(cell)`, `fondCase(cell)` — portées depuis V2, opèrent sur la
+forme de case serveur brute (`{chantier, taches:[...]}`), pas sur les bulles. `decalerJoursOuvrables_` et
+`fusionnerCellules_` de V2 n'ont **pas** été portées : à la relecture du code V2, elles ne sont utilisées
+que par des fonctionnalités hors périmètre de cette session (le raccourci de décalage rapide d'un
+jalon/note isolé, et la résolution de conflit du déplacement d'une case unique par glisser — pas le
+décalage en masse, qui délègue toute la résolution de conflit au serveur via `resolutions`). Les ajouter
+sans point d'appel aurait été du code mort ; à réévaluer si ces 2 fonctionnalités-là sont un jour
+réclamées séparément.
+
+## 5. Retrait du décalage en masse et de l'assignation groupée (01.09.2026, suite à retour de Lionel)
+
+Message de Lionel après réception du premier envoi complet : *"plus besoin du décalage en masse grâce à la
+sélection multiple de la nouvelle feuille. plus besoin de l'assignation groupé non plus."* — la sélection
+multiple de bulles de V3 (copier/déplacer un groupe de bulles à la fois, cf. la barre d'action de la page
+Planning) couvre désormais les deux usages que ces fonctionnalités V2 servaient.
+
+**Retiré du client** (`Index.html`) : le bouton "Assigner" de la barre d'actions Planning, le clic sur
+l'en-tête d'un jour (classe `.th-jour` et son CSS de survol, redevenu un simple en-tête `.th` non
+cliquable), et les fonctions `ouvrirDecalagePlanning_`, `ouvrirApercuDecalage_`, `openAssignationGroupeSheet`,
+`apresEcritureDepuis` (utilitaire de rafraîchissement de cache qui ne servait qu'au décalage en masse).
+Aucun autre code n'en dépendait (vérifié : `apresEcritureSerie`, seule autre fonction de rafraîchissement de
+cache dans le fichier, est indépendante et reste utilisée par tout le reste).
+
+**Non touché** : `apiApercuDecalage`/`apiAppliquerDecalage`/`apiAttribuerChantierGroupe` restent intactes
+dans `WebApp.gs` — ce sont des fonctions V2 préexistantes, sans risque à laisser inutilisées, et faciles à
+rebrancher si ce choix était reconsidéré. L'aperçu d'impression/PDF (`openPrintSheet`/`apiGenererPdf`) n'est
+pas concerné par ce retrait, Lionel ne l'ayant pas mentionné.
+
+Vérifié après retrait : syntaxe JS (extraction `<script>` + `node --check`, OK), aucune référence orpheline
+à `ouvrirDecalagePlanning_`/`ouvrirApercuDecalage_`/`openAssignationGroupeSheet`/`apresEcritureDepuis`/
+`apiApercuDecalage`/`apiAppliquerDecalage`/`apiAttribuerChantierGroupe` restante dans le code exécutable
+(seules des mentions explicatives dans les commentaires).
+
+### 4.5 Portée : week-end fusionné explicitement exclu
+
+Les 3 fonctionnalités réintégrées ne géraient, côté V2, que les jours de semaine (`jourIdx` 0-4) — le
+week-end fusionné (`jourIdx` 6/7, §2 du spec) n'existait pas encore comme case interactive à l'époque de
+V2, donc n'a jamais été conçu pour elles, **y compris côté serveur** : `apiApercuDecalage`/
+`apiAppliquerDecalage` retrouvent leurs colonnes via `colonnesJoursOuvres_` (jours de semaine uniquement)
+et `apiAttribuerChantierGroupe` valide explicitement `0 <= jour <= 4`. Décision assumée pour cette
+session : **exclusion explicite** plutôt qu'extension —
+- Le clic de décalage en masse n'est câblé que sur les en-têtes de jour de semaine (`.th-jour`, jamais
+  `.th-weekend`) ; la modale le documente dans son texte d'aide ("Le week-end fusionné n'est pas
+  concerné").
+- L'assignation groupée ne propose que Lun-Ven + "Toute la semaine" (jamais Sam/Dim) ; même mention
+  explicite dans sa modale.
+- L'aperçu d'impression n'est pas concerné par cette question (il imprime déjà tout ce qui existe,
+  week-end inclus, comme la vraie feuille).
+
+Étendre le décalage en masse et l'assignation groupée au week-end fusionné demanderait de faire évoluer
+`calculerPlanDecalage_`/`apiAttribuerChantierGroupe` côté serveur pour comprendre la convention de tag
+`[S]`/`[D]` de la cellule week-end (§2 du spec) — non fait ici : la sécurité (ne pas casser un
+comportement déjà validé par Lionel) prime sur l'exhaustivité, conformément à la consigne de cette
+session.
+
+### 4.6 Vérification effectuée
+
+Même méthode que les sessions précédentes (§0) : extraction du contenu de la balise `<script>` vers un
+fichier `.js` isolé, `node --check` (aucune erreur), puis `acorn.parse()` + `acorn-globals` pour lister les
+identifiants référencés mais jamais déclarés (liste vide — aucune référence orpheline aux 4 nouvelles
+fonctions `apiXxx`, ni à `ouvrirDecalagePlanning_`/`ouvrirApercuDecalage_`/`openAssignationGroupeSheet`/
+`openPrintSheet`/leurs helpers). Recherche des doublons de noms de fonctions top-level : aucun doublon
+anormal introduit (les seuls noms dupliqués sont des fonctions locales `nettoyer`/`onMove`/etc. dans des
+closures différentes, déjà le cas avant cette session). Signatures et formes de retour des 4 fonctions
+serveur (`apiApercuDecalage`, `apiAppliquerDecalage`, `apiAttribuerChantierGroupe`, `apiGenererPdf`)
+revérifiées une à une contre `WebApp.gs`/`Planning_Format.gs` pour s'assurer que chaque champ lu côté
+client (`plan.nbSimples`, `plan.conflits[].{id,nom,demi,jourSourceIso,jourDestIso,source,dest}`,
+`plan.impossibles[].{nom,demi,jourSourceIso}`, `r.deplaces/ecrases/ajoutes/ignores`, `r.personnes`,
+`r.pdf.msg`, `r.supprimee`, `r.feuille`) existe bien tel quel côté serveur.
+
+Comme pour les sessions précédentes, cette vérification reste statique : pas d'exécution dans un vrai
+environnement Apps Script/Sheets (aucun accès disponible ici). Un passage manuel réel doit en particulier
+vérifier : l'ouverture de la modale de décalage depuis chaque en-tête de jour (semaine affichée seule et
+fenêtre 2-semaines), le rendu de l'aperçu avec au moins un vrai conflit, l'assignation groupée sur une
+semaine avec des absences (pour confirmer qu'elles sont bien sautées), et l'aperçu d'impression /
+génération PDF sur une semaine avec jalons, notes multiples et sous-traitants avec statut.
+
+## 6. Jalon/note de série : `serieId` jamais propagé jusqu'à la bulle (01.09.2026, suite à retour de Lionel)
+
+Retour de Lionel : *"idem pour les modification de série"* — même symptôme que les tâches avant leur
+propre correctif (déjà correct côté tâches, cf. `itt.serieId = t0.serieId || null;`) : après rechargement
+de la page, un jalon ou une note issu d'une série n'était plus reconnu comme tel (la fiche d'édition ne
+proposait plus le choix de portée "cette occurrence / à partir d'ici / toute la série").
+
+### 6.1 Cause
+
+Deux bugs distincts, l'un serveur l'autre client (détail serveur complet dans `BACKEND-CHANGELOG.md` §7) :
+
+- **Jalon** : le serveur ne décodait jamais le champ `jalons` (chaîne brute) — un jalon de série affichait
+  littéralement son tag `[Série:xxxxxx]` en texte visible. Corrigé côté serveur (`apiChargerSemaine` /
+  `chargerSemaine_` renvoie désormais `{texte, serieId}` par jour au lieu d'une chaîne).
+- **Note** : le serveur renvoyait déjà `serieId` correctement (`decoderNotesJour_`) — seule la construction
+  de la bulle côté client l'ignorait (`itemPlage("note", entree.texte, ..., {important: entree.important})`,
+  sans jamais lire `entree.serieId`).
+
+### 6.2 Corrections apportées (`Index.html`)
+
+- **Construction des bulles JALONS** (`construireVueDepuisCache`) : `data.jalons[j]` est maintenant traité
+  comme un objet `{texte, serieId}` (plus une chaîne) ; la fusion des jours contigus au même texte compare
+  `.texte` au lieu de comparer directement l'ancienne chaîne ; `it.serieId = jd.serieId || null;` ajouté sur
+  l'item construit — même principe que les tâches.
+- **Helper `jalonAuGi(donnees, gi)`** : renvoie désormais `{texte, serieId}` ou `null` (au lieu d'une chaîne
+  ou `""`), même contrat que `noteSlotAuGi`.
+- **Construction des bulles NOTES** : `itn.serieId = entree.serieId || null;` ajouté (le serveur le
+  fournissait déjà — seul le client ne le lisait pas).
+- **Aperçu d'impression** (`ouvrirApercuImpressionSemaine` / la modale d'aperçu) : la ligne des jalons lit
+  désormais `t.texte` au lieu de `t` directement, pour rester compatible avec le nouveau format objet.
+
+Aucun autre site ne lisait `data.jalons`/`jalonAuGi`/`noteSlotAuGi` (recherche exhaustive par grep, cf.
+`BACKEND-CHANGELOG.md` §7.3 — leçon déjà appliquée lors de round précédents de ce projet : toute migration
+chaîne → structure doit être recherchée exhaustivement avant d'être considérée terminée).
+
+### 6.3 Chantier d'une tâche de série ignoré par `apiModifierSerie`
+
+Bug purement serveur (aucun changement côté `Index.html` : le client envoyait déjà `modifs.chantier`
+correctement depuis longtemps, cf. `ouvrirEdition`) — détail complet dans `BACKEND-CHANGELOG.md` §7.2.
+
+### 6.4 Vérification effectuée
+
+Même méthode que les sessions précédentes : extraction du `<script>`, `node --check` (OK), `acorn.parse()`
++ `acorn-globals` (aucun identifiant non déclaré), grep exhaustif des 4 sites lisant les jalons avant/après
+correctif, `node test_backend_pures.js` (36/36, cf. `BACKEND-CHANGELOG.md` §7.3 pour les 5 nouvelles
+assertions). Comme toujours, pas d'exécution dans un vrai environnement Apps Script/Sheets disponible ici —
+un passage manuel réel doit en particulier vérifier : la fiche d'édition d'un jalon/note de série propose
+bien le choix de portée après rechargement de la page (pas seulement juste après création, dans la même
+session), et que modifier le chantier d'une tâche de série avec la portée "toute la série" l'applique bien
+à toutes les occurrences attendues sans toucher au week-end.
+
+## 6bis. Même round (01.09.2026) — entrées rapides Armature/Béton/Livraison armature disparues
+
+Retour de Lionel, envoyé juste avant celui traité au §6 ci-dessus : les 3 formulaires rapides historiques
+n'apparaissaient plus dans le menu "Ajouter". Cause racine et correction principale entièrement côté
+serveur — détail complet dans `BACKEND-CHANGELOG.md` §7bis (feuille de config jamais peuplée au premier
+transfert, repli par défaut ajouté sur le modèle de "Statuts"). Point notable : il s'avère que ces 3
+formulaires ne sont **pas** rattachés à un intervenant particulier côté vrai backend (contrairement au
+modèle en mémoire du prototype V3) — aucune question à poser à Lionel n'a donc été nécessaire.
+
+### Garde ajoutée côté client (`Index.html`)
+
+Ces 3 formulaires ont chacun leur propre interface dédiée, codée en dur (`ouvrirFormulaireArmature`/
+`ouvrirFormulaireBeton`/`ouvrirFormulaireLivraisonArmature`), reconnue par **correspondance exacte de
+nom** dans `cablerBoutonsMenuAjout` — jamais par le formulaire générique (`ouvrirFormulaireDynamique`).
+Maintenant que ces 3 noms peuvent apparaître dans la page de réglages "Entrée rapide" (générique,
+CRUD complet), les y **renommer** casserait silencieusement cette correspondance de nom et ferait perdre
+l'interface dédiée au profit du formulaire générique vide. Ajout d'une constante
+`NOMS_FORMULAIRES_SPECIAUX = ["Armature", "Béton", "Livraison armature"]` et d'une garde dans le handler
+"Modifier" de `renderFormulaires()` : cliquer "Modifier" sur l'un de ces 3 noms affiche un toast
+explicatif ("« Armature » a sa propre interface dédiée — pas de champs à modifier ici.") au lieu d'ouvrir
+l'éditeur générique. "Supprimer" reste permis sans garde particulière (retire juste le bouton du menu
+"Ajouter" — sans danger, ces formulaires n'étant que de la configuration, pas des données de planning).
+
+### Vérification effectuée
+
+Même méthode que d'habitude : `node --check` sur le `<script>` extrait (OK), `acorn-globals` (aucun
+identifiant non déclaré, y compris la nouvelle constante `NOMS_FORMULAIRES_SPECIAUX`). Pas de changement
+aux 3 fonctions `ouvrirFormulaireXxx` elles-mêmes (déjà correctes, jamais le problème) ni au dispatcher de
+`cablerBoutonsMenuAjout` (comparaison de noms déjà par correspondance exacte, inchangée).
+
+## 7. Bulle (jalon/note/tâche) traversant un week-end : mauvaise largeur à l'affichage (02.09.2026, retour de Lionel)
+
+Retour de Lionel : *"quand j'active le week-end, le jalon qui passent du vendredi au lundi s'étendent, mais
+quand j'enlève les week-end ils se décalent de 2 jours modifiant toute la suite"*.
+
+### Cause
+
+`colonneGrille(gi)` traduit un jour (repère `gi`, en jours ouvrés) en colonne CSS réelle de la grille —
+quand les week-ends sont affichés, elle insère +2 colonnes (Samedi/Dimanche) à chaque frontière de
+semaine, ce qui est correct et voulu (§2 du spec, cellule week-end). Le bug était dans le calcul de la
+**largeur** (span CSS `grid-column: col / span N`) des bulles multi-jours (jalon, note, tâche) : `N` était
+posé directement égal à la durée en JOURS OUVRÉS de l'item (`dureeVisible`, ex. 2 pour une plage
+Vendredi→Lundi : gi et gi+1, le week-end n'existant jamais dans ce repère), **sans jamais tenir compte des
+2 colonnes de week-end insérées entre les deux**. Résultat, quand les week-ends étaient affichés : une
+bulle Vendredi→Lundi ne s'étendait que sur 2 colonnes à partir de Vendredi — donc jusqu'à Samedi, en plein
+milieu du week-end — au lieu des 4 colonnes nécessaires pour atteindre réellement Lundi. Le prototype
+(prévu à l'origine avec les 2 jours de week-end comme des jours ouvrés à part entière) n'avait jamais eu
+à distinguer "durée en jours" de "largeur en colonnes CSS" ; la fusion week-end du round de transfert V3
+(cellule unique Sam+Dim, §2) a introduit cet écart sans que le calcul de span en tienne compte.
+
+C'est ce décalage de 2 colonnes qui explique les deux symptômes rapportés : week-ends affichés, la bulle
+paraît "s'étendre" dans le week-end sans jamais l'atteindre franchement (elle s'arrête au milieu) ; puis en
+repassant les week-ends à masqué, la même bulle (toujours ancrée sur le même jour de départ réel) se
+retrouve à une position visuelle différente de 2 colonnes — d'où l'impression de décalage touchant "toute
+la suite" de la grille (chaque bulle traversant une frontière de semaine est affectée de la même façon).
+
+**Précision importante** : ce bug était purement un défaut d'AFFICHAGE (calcul de largeur CSS) — aucune
+donnée n'était modifiée en base ni resynchronisée vers le serveur ; le `giDebut`/`duree` réel des items en
+mémoire (`JALONS`/`NOTES`/`TACHES`) et sur la feuille n'a jamais été altéré par ce bug, seule leur bulle
+s'affichait avec une largeur trop courte quand les week-ends étaient visibles.
+
+### Correction
+
+Nouvelle fonction `spanColonnes(giDebut, dureeVisible)`, à côté de `colonneGrille` : calcule la largeur
+CSS correcte par différence de colonnes (`colonneGrille(giDebut + dureeVisible) - colonneGrille(giDebut)`)
+plutôt qu'en recopiant directement la durée en jours — `colonneGrille` reste valide pour un `gi` "virtuel"
+juste après la fin de la plage (aucune case n'y est réellement dessinée), exactement la borne exclusive
+dont ce calcul a besoin. Appliquée aux 2 sites qui posaient une bulle multi-jours avec `dureeVisible` en
+colSpan direct : la ligne Jalons/Notes et les lignes personnel/intervenants (tâches). Les items ancrés sur
+une case week-end isolée (jamais redimensionnables, toujours 1 seule case, cf. commentaire existant)
+gardent leur ancien calcul, inchangé — `spanColonnes` ne s'applique qu'aux items ancrés sur un jour ouvré.
+Le calcul de la position de DÉPART (`colonneGrille(it.giDebut)`) était, lui, déjà correct — seule la
+LARGEUR était en cause.
+
+Non concerné : le rectangle de prévisualisation pendant un glisser-déposer (`rectanglePlage`/
+`celluleAPosition`) — celui-ci retrouve la vraie case DOM de fin par son `gi` réel (pas par un comptage de
+colonnes), donc déjà correct par construction, jamais affecté par ce bug.
+
+### Vérification effectuée
+
+`node --check` sur le `<script>` extrait (OK), `acorn-globals` (aucun identifiant non déclaré, y compris
+la nouvelle fonction `spanColonnes`). Vérification arithmétique du calcul de span par un script Node
+autonome reproduisant exactement `colonneGrille`/`spanColonnes` : pour une plage Vendredi(gi=4)→Lundi
+(gi=5, duree=2 jours ouvrés), colonne de départ 6 dans les deux cas ; largeur passée de 2 (arrivant en
+colonne 7, milieu du week-end) à 4 (arrivant en colonne 9, exactement la colonne réelle de Lundi) une fois
+les week-ends affichés — colonne de fin confirmée identique à `colonneGrille(5)` (Lundi) calculée
+indépendamment. Aucun changement côté serveur (bug purement client) ; `test_backend_pures.js` toujours
+38/38. Comme toujours, pas d'exécution dans un vrai navigateur/Apps Script disponible ici — Lionel doit
+confirmer visuellement qu'une bulle traversant un week-end atteint désormais bien sa vraie case de fin,
+dans les deux états du bouton "Afficher les week-ends", et qu'aucune bulle ne se déplace plus en basculant
+ce réglage.
+
+## 8. Round du 02.09.2026 — "vérifie et optimise le script, j'ai l'impression qu'il manque des choses"
+
+Demande ouverte de Lionel. Traitée comme un audit systématique (cf. `BACKEND-CHANGELOG.md` §8 pour le
+volet serveur) — chaque point ci-dessous vient de cet audit, vérifié avant correction.
+
+### 8.1. 3e site touché par le bug "bulle traversant un week-end" (§7 ci-dessus)
+
+Le correctif `spanColonnes` du §7 avait été appliqué aux 2 sites qui POSENT une bulle multi-jours (rendu
+Jalons/Notes, rendu personnel/intervenants), mais pas à celui qui la RE-POSITIONNE PENDANT un
+redimensionnement à la poignée (`cablerPoigneeRedim`) — même calcul fautif (`dureePrevisu`/`dureeOrig` en
+colSpan direct), même symptôme : agrandir/annuler le redimensionnement d'une tâche/absence qui traverse un
+week-end affiché la faisait rebondir à une largeur trop courte pendant le geste, avant de se corriger au
+prochain rechargement. `appliquerPrevisu()` et `onCancel()` utilisent maintenant `spanColonnes(...)`,
+comme les 2 sites déjà corrigés.
+
+### 8.2. Nettoyage — code mort et CSS orpheline
+
+Aucun changement de comportement, seulement des suppressions vérifiées "zéro appelant" avant retrait :
+
+- **4 fonctions jamais appelées** : `descriptionCell(cell)` (construisait une description texte d'une
+  case, jamais utilisée), `masquerChoixDeplacerCopier()` et `viderSelection()` (cette dernière un
+  quasi-doublon de `quitterModeSelection`, toujours utilisée, elle), `dateCourte(iso)` (l'aperçu
+  d'impression utilise directement `data.dates[i]`).
+- **CSS orpheline** dans le bloc `<style>` : `.confirm-pop-grand` et ses règles descendantes, `.decalage-resume`/
+  `.decalage-stat` (+ variantes), `.conflit-item`/`.conflit-titre`/`.conflit-resume`, `.impossibles-bloc` —
+  vestiges de fonctionnalités retirées (décalage en masse, §5 ci-dessus) ou jamais branchées. Une règle
+  combinée sur la même ligne que `.confirm-pop-grand .cp-titre` stylait AUSSI `.impression-modal .cp-titre`
+  (encore utilisée par l'aperçu d'impression) — repérée en relisant le fichier après coup, séparée en sa
+  propre règle avant suppression du reste pour ne rien perdre.
+
+### 8.3. Nouvelle fonctionnalité — "nombre de tâches en cours" par personne (point 101, `V3-spec-suite.md`)
+
+Cf. `BACKEND-CHANGELOG.md` §8.2 pour le calcul serveur (`apiCompterTachesPersonnes`). Côté client :
+
+- **`ligneFichePersonne`** affiche maintenant un badge (`<span class="compte">`, déjà stylé — une règle CSS
+  jamais utilisée, laissée par le prototype, exactement ce trou) : "Aucune tâche en cours" / "1 tâche en
+  cours" / "N tâches en cours". Vide pendant le chargement (jamais un "0" trompeur avant d'avoir la vraie
+  réponse du serveur).
+- **Chargement paresseux, jamais dans `apiDemarrer`** : `chargerCompteursTaches()` appelle
+  `apiCompterTachesPersonnes()` une seule fois par ouverture d'une des 2 pages Personnel/Intervenants
+  (mémorisé dans `TACHES_PAR_PERSONNE`/`promesseTachesParPersonne`), puis patche directement les badges
+  déjà à l'écran (`appliquerCompteursTaches`) — jamais un re-render complet depuis ce callback, qui aurait
+  rebouclé sur lui-même (`renderPersonnel`/`renderIntervenants` appellent elles-mêmes
+  `chargerCompteursTaches`). Invalidé dans `rafraichirApresPersonnel` (donc après tout ajout/suppression) :
+  un simple renommage n'a pas besoin d'invalider le cache, mais distinguer les cas coûtait plus cher que de
+  toujours recharger (un appel Sheets de plus, seulement quand cette page est ouverte).
+- **`supprimerPersonneServeur`** : le titre de la confirmation intègre maintenant le compte quand il est
+  connu — *"Supprimer « Armature / Béton » et ses 3 tâches ?"*, exactement l'exemple du point 101 — et
+  retombe sur le titre neutre si le compteur n'est pas encore chargé (pas de chiffre inventé).
+- **CSS** : `.ligne-intervenant` utilisait `justify-content: space-between` pour pousser `.ligne-actions` à
+  droite — correct avec 2 enfants (nom + actions), mais aurait isolé le nouveau badge au milieu de la ligne
+  avec 3 enfants. Remplacé par `margin-left: auto` sur `.ligne-actions` (indépendant du nombre d'enfants) —
+  sans effet visuel sur les autres pages qui réutilisent `.ligne-intervenant` avec seulement 2 enfants
+  (Chantiers, Statuts).
+
+### 8.4. Vérifications faites
+
+`node --check` sur le `<script>` extrait (OK), `acorn-globals` (aucun identifiant non déclaré). Relecture
+du fichier après le nettoyage CSS pour confirmer qu'aucune règle encore utilisée n'a été perdue (cf. §8.2).
+`test_backend_pures.js` : 40/40 (2 nouvelles assertions, cf. `BACKEND-CHANGELOG.md` §8.4). Comme toujours,
+pas d'exécution dans un vrai navigateur/Apps Script disponible ici — Lionel doit confirmer visuellement le
+comportement du redimensionnement (§8.1) et les compteurs affichés sur les pages Personnel/Intervenants
+(§8.3), en particulier qu'ils correspondent au nombre de tâches qu'il voit réellement dans la grille.
+
+## 9. Round du 02.09.2026 (suite) — "les temps de chargement me semble long"
+
+Cf. `BACKEND-CHANGELOG.md` §9 pour l'optimisation serveur (un seul classeur/une seule feuille récupérés et
+partagés dans `apiDemarrer()`, au lieu de chacune de ses 6 étapes les redemandant séparément). Côté
+client, un seul changement : `formulairesRapides` ne fait plus partie de la réponse d'`apiDemarrer()`
+(cette donnée ne sert que dans le menu "Ajouter" d'un intervenant et la page "Entrée rapide", jamais pour
+afficher le planning) — chargée à part, **en arrière-plan**, exactement comme demandé.
+
+**`chargerFormulairesRapides()`** (nouvelle fonction, à côté de `appliquerStatutsEtFormulaires`) :
+mémorisée (`formulairesRapidesCharges`/`promesseFormulairesRapides`, même motif que
+`chargerCompteursTaches` du round précédent — un seul appel réseau, jamais répété) et appelée à 3
+endroits : juste après le premier rendu du planning dans `demarrer()` — l'écran de chargement est déjà
+fermé, l'utilisateur voit sa grille pendant que cet appel se termine en tâche de fond ; à l'ouverture du
+menu "Ajouter" d'un intervenant (`ouvrirAjout`) ; à l'ouverture de la page "Entrée rapide"
+(`renderFormulaires`). Les 2 derniers sont des filets de sécurité pour le cas, très improbable en usage
+réel (il faudrait agir plus vite qu'une lecture Sheets), où l'un des deux serait ouvert avant la fin du
+chargement d'arrière-plan — sans effet et sans coût si c'est déjà chargé.
+
+**Limite assumée** : le menu "Ajouter" (`boutonsMenuAjout`) construit sa liste de boutons de façon
+synchrone à partir de `FORMULAIRES_RAPIDES` au moment du clic — si ce menu est ouvert avant que le
+chargement d'arrière-plan soit terminé, il n'affichera que "Tâche" (+ Absence/Congé/Vacances pour le
+personnel interne), sans les formulaires "Entrée rapide" cette fois-là. Rendre ce menu lui-même
+asynchrone aurait ajouté de la complexité pour un cas quasiment jamais rencontré en pratique (le
+chargement démarre dès l'affichage du planning, et il faut d'abord naviguer jusqu'à une case pour ouvrir
+ce menu) — non traité, mais nommé explicitement plutôt que laissé silencieux.
+
+### Vérifications faites
+
+`node --check` sur le `<script>` extrait (OK), `acorn-globals` (aucun identifiant non déclaré, y compris
+les 3 nouveaux points d'appel de `chargerFormulairesRapides`). Relecture de `boutonsMenuAjout`/
+`renderFormulaires` pour confirmer qu'aucun autre site ne lit `FORMULAIRES_RAPIDES`/
+`etat.formulairesRapidesServeur` de façon synchrone au démarrage (seuls ces 2, déjà couverts). Comme
+toujours, pas d'exécution dans un vrai navigateur ici — Lionel doit confirmer que l'ouverture de l'appli
+est perceptiblement plus rapide, que le menu "Ajouter" d'un intervenant propose bien ses formulaires
+"Entrée rapide" habituels (après le court instant de chargement d'arrière-plan), et que la page "Entrée
+rapide" affiche bien la liste complète.
+
+## 10. Round du 02.09.2026 (suite) — retours après test réel dans Google Sheets
+
+Premier essai de Lionel dans le vrai classeur après le round §9 : chargement "mieux", plus 4 demandes,
+toutes traitées dans ce round (§10.1 à §10.3 — §10.3 après clarification, cf. sa propre section).
+
+### 10.1. Hauteur des lignes réduite — étiquette retirée des bulles + titres de ligne Jalons/Notes
+
+Demande : *"on peut réduire les hauteurs de ligne en enlevant les noms de chantier, les titres notes et
+jalons. on a déjà une légende."*
+
+- **`bulleEl`** : chaque bulle affichait, au-dessus de son texte, une 2e ligne en petites capitales — le
+  nom du chantier pour une tâche, ou "Absence"/"Jalon"/"Note" selon le type — sur son propre span
+  (`.b-chantier`), en plus de la couleur de fond qui encode déjà cette même information. Cette 2e ligne
+  est retirée : chaque bulle est maintenant sur une seule ligne, ce qui réduit directement la hauteur de
+  TOUTES les lignes de la grille (elle est dictée par le contenu le plus haut de la ligne). L'info n'est
+  pas perdue : `tag` (nom de chantier / type) reste calculé et posé en `title` (infobulle au survol), et
+  `construireLegende()` couvre déjà chantiers ET absence/jalon/note avec la couleur correspondante — rien
+  de nouveau à construire là, la légende demandée existait déjà.
+- **Lignes "Jalons"/"Notes"** : le texte en tête de ligne (colonne label) est retiré de la même façon —
+  gardé en `title` de la case, qui reste sinon inchangée (fond, position sticky).
+- **Nettoyage** : `.b-chantier` (CSS) et le jeton de couleur `--bubble-tag` qu'elle utilisait seul sont
+  devenus orphelins par ce changement — supprimés (vérifié : aucune autre référence dans le fichier).
+
+### 10.2. Bouton "Aujourd'hui"
+
+Demande : *"il manque un bouton aujourd'hui pour revenir à la semaine actuelle."* Ajouté dans l'en-tête du
+planning, à côté des flèches ‹ / › et du titre "Semaine N" cliquable. `indexSemaineAujourdhui_()` reproduit
+côté client exactement la règle déjà utilisée côté serveur (`indexSemaineDuJour_`, `WebApp.gs`, appelée
+par `apiDemarrer`) : la semaine contenant aujourd'hui, sinon la première à venir, sinon la dernière du
+planning — recalculée en mémoire à partir de `etat.semaines`/`etat.aujourdhui` (déjà en main depuis le
+démarrage), sans aller-retour réseau. Un clic alors qu'on y est déjà affiche un toast ("Déjà sur la
+semaine actuelle.") plutôt que de ne rien faire silencieusement, même logique que les flèches ‹ / › en
+bout de planning.
+
+### 10.3. Menu "Fériés" — les 2 écarts avec la maquette restaurés
+
+Demande : *"le menu fériés n'est pas comme décidé lors de la maquette."* En relisant `V3-spec-suite.md`
+point 104 (la maquette `ferie-calendrier.html`, validée par étapes à l'époque) contre l'implémentation
+réelle, 2 écarts DÉJÀ DOCUMENTÉS comme des simplifications délibérées du round de transfert V3 étaient
+ressortis :
+
+1. 3 catégories dans la maquette (Vacances/Férié/Compensés) → 2 dans le vrai backend (Férié/Vacances
+   entreprise), "Compensés" replié dans "Férié".
+2. Couleur de chaque catégorie éditable dans la maquette (clic sur la pastille → sélecteur natif) → fixe
+   dans le vrai backend (même couleur que celle utilisée pour teinter les jours du planning).
+
+Question posée en retour avant tout code — réponse de Lionel : **"les 2"**. Les 2 écarts sont donc
+restaurés dans ce round, en conservant cette fois les couleurs pastel déjà validées en usage réel pour
+Férié/Vacances entreprise (`#e8a3a3`/`#a9c6ea`) plutôt que de revenir aux couleurs saturées de la maquette
+d'origine (`#FF5050`/`#92D050`), pour ne pas provoquer un changement visuel de coloration inattendu — seule
+"Compensés" (nouvelle) reçoit une couleur par défaut inédite (`#e8dba3`, même famille pastel).
+
+- **3e catégorie "Compensés" restaurée.** `catsFeries()` ne renvoie plus une liste figée de 2 entrées codées
+  en dur : elle lit désormais `etat.categoriesFeriesServeur`, alimenté par le serveur au démarrage (cf.
+  BACKEND-CHANGELOG.md §10, `apiListerCategoriesFeries`) — 3 catégories, dans l'ordre de la maquette
+  (Vacances entreprise, Férié, Compensés). `CATEGORIES_FERIES_DEFAUT` sert de filet de sécurité (même 3
+  valeurs par défaut que le serveur) si la fonction était appelée avant le 1er `apiDemarrer()` — en
+  pratique jamais le cas, la page Fériés n'étant accessible qu'après un chargement réussi.
+- **Couleurs redevenues éditables.** `renderFerieCategories()` reprend le comportement exact de la
+  maquette d'origine : la pastille de chaque catégorie est un `<input type="color">` natif (repris tel
+  quel, CSS `.categorie .pastille-cat` déjà présente, complétée de resets `appearance`/`::-webkit-color-swatch`
+  pour qu'elle reste un rond plein malgré le chrome natif du sélecteur). Cliquer dessus n'ouvre plus le
+  menu de sélection de catégorie active (`ev.target.classList.contains("pastille-cat")` court-circuite ce
+  clic) : ça ouvre le sélecteur de couleur du navigateur. Un évènement `input` (pendant que le sélecteur
+  est ouvert) reteinte immédiatement le calendrier ET la grille du planning en mémoire — aperçu live, comme
+  dans la maquette — sans rien envoyer au serveur ; un évènement `change` (sélecteur refermé) déclenche
+  `enregistrerCouleurCategorieFerie(id, couleur)`, qui appelle `apiEnregistrerCategoriesFeries` et
+  resynchronise `etat.categoriesFeriesServeur` avec la réponse serveur (source de vérité après coup, au cas
+  où un autre poste aurait changé la même couleur entre-temps).
+- **Teinte de la grille (`feriePourJour`).** Ne lit plus 2 couleurs fixes (`COULEUR_FERIE`/
+  `COULEUR_VACANCES_ENTREPRISE`, supprimées) : cherche désormais la catégorie du jour dans `catsFeries()` —
+  fonctionne pour les 3 catégories sans code spécifique à "Compensés", et reste la même source de vérité
+  que la page Fériés (pas de 2e copie des couleurs).
+- **`apiEnregistrerFeries` (WebApp.gs)** : la validation de la catégorie envoyée par le client (bloquée sur
+  2 branches, cf. BACKEND-CHANGELOG.md §10) est passée à une whitelist des 3 catégories valides — un férié
+  posé ou modifié en catégorie "Compensés" est maintenant enregistré tel quel, plus replié sur "Férié".
+- **Chargement.** `categoriesFeries` est render-critical (teinte des jours fériés dès le 1er affichage de
+  la grille, même raisonnement que `statuts`/`feries` au round §9) : chargé dans `apiDemarrer()`, jamais en
+  arrière-plan comme les formulaires rapides.
+
+## 11. Round du 02.09.2026 (suite) — "à l'enregistrement toutes les vacances et compensés sont devenu rouge fériés"
+
+Retour de Lionel juste après le round §10 : en enregistrant des jours "Vacances entreprise"/"Compensés",
+ils reviennent en "Férié" (rouge). Simulation complète du round-trip serveur (cf. BACKEND-CHANGELOG.md §11)
+: la logique de `apiEnregistrerFeries`/`apiListerFeries` elle-même préserve correctement la catégorie, dans
+tous les scénarios testés (nouvelles entrées, recatégorisation d'entrées existantes). **La cause la plus
+probable est un déploiement partiel** — si `WebApp.gs` (envoyé au round §10 en même temps qu'`Index.html`)
+n'a pas encore été recollé dans le vrai projet Apps Script, le serveur tourne toujours sur l'ancienne
+version à 2 catégories, qui ramène tout ce qui n'est pas exactement `"vacances_entreprise"` sur `"ferie"` —
+exactement ce symptôme. À vérifier en premier.
+
+Cela dit, en creusant j'ai trouvé et corrigé 2 vrais trous côté client, indépendants de cette hypothèse
+(aucun n'est confirmé comme LA cause, mais chacun produit un symptôme très proche) :
+
+1. **`calculerFeries()` (bouton "Calculer les fériés") écrasait les catégorisations manuelles.** Cliquer
+   ce bouton remplissait le calendrier avec les fériés légaux calculés (Nouvel an, Noël, etc.), en écrasant
+   SANS CONDITION tout jour déjà marqué "Vacances entreprise"/"Compensés" s'il coïncidait avec une de ces
+   dates — ce qui peut concerner beaucoup de jours à la fois (les vacances de fin d'année contiennent
+   souvent Noël ET le Nouvel an, par exemple). Un jour déjà catégorisé autrement que "ferie" n'est
+   maintenant plus touché par ce recalcul — seuls les jours encore vides ou déjà "ferie" sont
+   (re)remplis. Si c'était la cause réelle du problème de Lionel, le déclencheur exact aurait été le clic
+   sur "Calculer les fériés" (pas sur "Enregistrer" lui-même), mais l'effet visible — beaucoup de jours
+   d'un coup en rouge — colle bien à sa description.
+2. **`feriePourJour` maquillait un échec de correspondance en "Férié".** Si jamais la catégorie d'un jour
+   ne correspondait à aucune catégorie connue (données corrompues, ou classeur pas encore sur cette version
+   du script — cf. l'hypothèse de déploiement partiel ci-dessus), la fonction retombait sur la couleur de
+   "Férié" (`#e8a3a3`) au lieu de signaler clairement un problème — un futur bug de ce genre serait resté
+   invisible, pris pour un résultat plausible. Retombe maintenant sur un gris neutre (`#c9c9c9`), pour que
+   ce genre de souci saute aux yeux au lieu de se déguiser en "Férié".
+
+### Vérifications
+
+- `node --check` sur `WebApp.gs`, `new Function()` sur le script inline d'`Index.html` : syntaxe OK.
+- `acorn-globals` sur les deux : rien d'inattendu.
+- `node test_backend_pures.js` : 53/53.
+- **Priorité pour Lionel : confirmer qu'il a bien recollé/redéployé LES DEUX fichiers** (`WebApp.gs` ET
+  `Index.html`) — c'est le point qu'aucun test ici ne peut vérifier à sa place, et l'hypothèse la plus
+  probable pour expliquer le symptôme décrit.
+
+### 11bis. Round du 02.09.2026 (suite, même jour) — "non, presque tout est écrasé lors de l'enregistrement"
+
+Lionel a écarté l'hypothèse du redéploiement partiel et confirmé, capture d'écran à l'appui, que le
+problème persiste : de larges blocs de jours qu'il avait marqués "Vacances entreprise"/"Compensés"
+reviennent en "Férié" (rouge) une fois enregistrés. Simulé une fois de plus, cette fois en recatégorisant
+via `modifs` des lignes déjà existantes (round §11 déjà) : `apiEnregistrerFeries`/`apiListerFeries`
+préservent toujours correctement la catégorie dans le harnais Node. Sans accès à son classeur réel pour
+reproduire exactement, plutôt que de continuer à deviner à l'aveugle, **`btnEnregistrerFeries` diagnostique
+maintenant lui-même l'écart** :
+
+- Avant l'appel serveur, la catégorie ENVOYÉE pour chaque jour modifié/nouveau est retenue
+  (`categoriesEnvoyees`, indexée par iso).
+- Une fois la réponse du serveur arrivée, comparée à la catégorie RENVOYÉE pour ce même iso
+  (`categoriesRevenues`) — en ignorant les jours où "ferie" était déjà la catégorie demandée (rien à
+  détecter dans ce cas).
+- **Si AUCUNE des catégories "Vacances entreprise"/"Compensés" envoyées n'a survécu** : toast explicite
+  pointant vers `WebApp.gs` pas à jour dans Apps Script, plutôt que le générique "Enregistré." qui masquait
+  la perte jusqu'ici.
+- **Si SEULEMENT UNE PARTIE a un écart** : toast donnant le compte exact ("X jour(s) sur Y").
+- **Si tout correspond** : toast "Enregistré." inchangé.
+
+Objectif : le prochain "Enregistrer" de Lionel produira un message qui, à lui seul, confirme ou infirme
+définitivement l'hypothèse du déploiement — sans qu'il ait besoin de comparer des couleurs de cases à l'œil,
+et sans que je continue à deviner en aveugle depuis ici.
+
+### 11ter. Round du 02.09.2026 (suite, même jour) — "ne marche pas même avec un nouveau déploiement"
+
+Le diagnostic du §11bis a confirmé l'écart ("le serveur n'a gardé aucune des catégories..."), et Lionel a
+suivi la procédure de redéploiement (`Installation.md`) — sans effet. Ça élimine l'hypothèse la plus simple
+("il suffit de redéployer"), mais ne prouve pas que le déploiement actif sert bien le fichier envoyé (URL de
+déploiement différente de celle testée, plusieurs déploiements créés par erreur au lieu d'un seul mis à
+jour, etc.) — plutôt que de deviner encore, **un marqueur de version vérifiable des deux côtés** :
+
+- **`WebApp.gs`** : `var VERSION_WEBAPP = "2026-09-02-r11-categories-feries";` + `apiVersionServeur()` qui la
+  renvoie telle quelle. À changer à chaque envoi touchant ce fichier — le prochain round portera une chaîne
+  différente, immédiatement reconnaissable.
+- **`Index.html`** : la page Fériés affiche maintenant, sous la légende, une ligne discrète "Version du
+  serveur en ligne : ..." (`afficherVersionServeur()`, appelée à chaque `renderFeries()`). Si l'appel
+  échoue carrément (fonction inconnue), le message d'erreur s'affiche tel quel au lieu d'être masqué — c'est
+  la preuve la plus nette possible que le déploiement actif ne sert pas ce `WebApp.gs`.
+
+Ce que Lionel doit juste lire et me rapporter, sans rien déduire lui-même : le texte affiché sous le
+calendrier de la page Fériés une fois `Index.html` réenvoyé (celui-ci n'a pas besoin de redéploiement
+Apps Script pour être testé, contrairement à `WebApp.gs` — cf. remarque déjà connue). S'il affiche
+"2026-09-02-r11-categories-feries", le déploiement actif sert bien le bon `WebApp.gs` et le bug est ailleurs
+qu'un problème de déploiement ; sinon, ce qu'il affiche à la place (une erreur, ou rien) dit où chercher.
+
+## 12. Round du 02.09.2026 (suite) — "reverifie 1x que tu a tout fait ce qui etait dans la maquette"
+
+Cf. BACKEND-CHANGELOG.md §12.2 pour le contexte complet (audit + ce qui était réellement une déviation
+assumée vs déjà complet). Point 3 de la demande (modifier/supprimer un ouvrier/intervenant) était déjà fait
+— rien à changer côté Personnel/Intervenants. Les 2 autres points sont traités ici.
+
+### 12.1. Chantiers — renommer / supprimer
+
+- **`page-sous` de la page Chantiers** réécrite : n'affirme plus l'impossibilité de renommer/supprimer,
+  explique au contraire ce que fait chaque action (renommage = migre toutes les cases y compris les
+  semaines passées ; suppression = vide la semaine affichée et les suivantes seulement).
+- **`ligneFicheChantier`** : 2 boutons ajoutés à côté de « Couleur » — « Renommer » et « Supprimer »
+  (`.lien-renommer` nouveau, CSS mutualisé avec `.lien-modifier` ; `.lien-supprimer` déjà stylé,
+  réutilisé tel quel comme pour les autres pages CRUD).
+- **`ouvrirRenommerChantier(c)`** (nouveau) : mêmes popup/positionnement/`fermerAuClicExterieur` que
+  `ouvrirModifierPersonne`. Appelle `apiRenommerChantier(c.ligne, nom)`, toast avec le nombre de cases
+  migrées renvoyé par le serveur.
+- **`supprimerChantierServeur(c)`** (nouveau) : appelle d'abord `apiCompterUtilisationsChantier` pour
+  afficher un titre de confirmation avec le compte exact (même formulation que « Supprimer « Nom » et ses N
+  tâches ? » pour une personne, cf. `supprimerPersonneServeur`), puis `apiSupprimerChantier(c.ligne,
+  labGCourant(), true)` — `forcer:true` d'emblée puisque le compte a déjà été obtenu et montré à
+  l'utilisateur juste avant, pas besoin d'un 2e aller-retour serveur pour la même information.
+
+### 12.2. Entrée rapide — "Assigné à"
+
+- **`htmlPageEntreeRapide()`** : un `<select class="nf-assigne">` ajouté entre le nom du formulaire et ses
+  champs, option par défaut "Tout le monde".
+- **`remplirSelectAssigneFormulaire(assigneActuel)`** (nouveau) : repeuple les `<option>` depuis `PERSONNES`
+  (2 `<optgroup>` — Personnel / Intervenants) à CHAQUE ouverture du panneau (jamais mis en cache, même
+  principe que `renderFormulaires()`), puis fixe la sélection. Appelé par le bouton « + Nouveau formulaire »
+  (sélection vide) et par `ouvrirEditeurFormulaire(f)` (préremplit avec `f.assigneA`).
+- **`nfOk`** (bouton Enregistrer du panneau) : lit `.nf-assigne`, l'envoie en 4e argument à
+  `apiEnregistrerFormulaireRapide`.
+- **`renderFormulaires()`** : le résumé de chaque carte affiche désormais aussi "Assigné à : <nom>" (ou
+  "Tout le monde"), via `nomAssigneAffiche(f)` (nouveau — retombe sur `"#" + id` si la personne n'est plus
+  trouvable, ex. supprimée depuis, plutôt que de masquer l'info silencieusement).
+- **`boutonsMenuAjout(personneId)`** : chaque formulaire de `FORMULAIRES_RAPIDES` n'est listé que si
+  `assigneA` est vide (tout le monde) ou correspond exactement à `personneId`. L'indexation `data-form`
+  reste celle du tableau GLOBAL non filtré (`cablerBoutonsMenuAjout` relit `FORMULAIRES_RAPIDES[+dataset
+  .form]`) — filtrer directement le tableau aurait décalé les index et fait cliquer le mauvais formulaire.
+
+### 12.3. Vérifications
+
+- Script inline d'`Index.html` extrait et passé à `node --check` : syntaxe OK.
+- `acorn-globals` : rien d'inattendu (cf. BACKEND-CHANGELOG.md §12.3, même passe pour les deux fichiers).
+- Pas de test automatisé pour ce round côté client (aucun framework de test front dans ce projet, cf. §3) —
+  **à tester manuellement par Lionel** : renommer un chantier utilisé sur le planning et vérifier que les
+  cases suivent (passées comprises) ; supprimer un chantier utilisé et vérifier le message de confirmation ;
+  créer un formulaire "Entrée rapide" assigné à une personne précise et vérifier qu'il n'apparaît QUE dans
+  le menu « Ajouter » de cette personne (et toujours pour tout le monde si "Tout le monde" est choisi).
+
+## 13. Round du 02.09.2026 (suite, même jour) — hypothèse "déploiement pas à jour" ÉLIMINÉE
+
+Lionel a confirmé, via la ligne "Version du serveur en ligne" ajoutée au §11ter, que le déploiement actif
+sert bien `2026-09-02-r11-categories-feries` — donc le bon `WebApp.gs`, celui qui connaît les 3 catégories.
+Et le bug persiste : même toast "Le serveur n'a gardé aucune des catégories..." qu'avant. Ça élimine
+définitivement l'hypothèse poursuivie depuis 3 rounds (§11/§11bis/§11ter) — ce n'est PAS un problème de
+déploiement. Deux changements dans ce round :
+
+1. **Le toast diagnostic (`btnEnregistrerFeries`) ne pointe plus vers "WebApp.gs pas à jour"** — ce message
+   était devenu factuellement faux et n'aurait fait que renvoyer Lionel vers une fausse piste déjà écartée.
+2. **Diagnostic rendu plus précis** : au lieu d'un simple compte d'écarts, le toast affiche maintenant
+   jusqu'à 3 exemples concrets `iso : envoyé « X », revenu « Y »` (ou "(absent de la réponse)" si le
+   serveur n'a même pas renvoyé cet iso) et le nombre total de jours renvoyés par le serveur. L'objectif :
+   voir directement si le problème est "la catégorie revient toujours à ferie" (bug de normalisation/
+   écriture), "l'iso n'est simplement pas dans la réponse" (bug de correspondance de date), ou autre chose
+   — sans deviner une 4e fois depuis ici, à l'aveugle, ce qui a déjà coûté 3 rounds pour rien.
+
+Piste du fuseau horaire : d'abord écartée trop vite ici (« les deux côtés utilisent le fuseau du script,
+donc symétriques »), **puis retenue comme cause la plus probable après analyse correcte** — le raisonnement
+initial oubliait que Sheets ne stocke pas un instant mais un JOUR CIVIL, et le reconvertit avec le fuseau
+DE LA FEUILLE, pas celui du script. Cf. BACKEND-CHANGELOG.md §13 pour la démonstration complète et le
+correctif (`test_fuseau_feries.js`, 13/13, reproduit le bug puis vérifie sa disparition). Le symptôme
+n'était pas une catégorie perdue mais une DATE décalée d'un jour au retour : l'iso renvoyé ne
+correspondant plus à l'iso envoyé, le diagnostic client concluait — correctement — que rien n'avait été
+gardé.
+
+La ligne « Version du serveur en ligne » de la page Fériés affiche désormais, en plus de la version, les
+deux fuseaux et le résultat d'un vrai aller-retour de date à travers Sheets (tout est construit côté
+serveur dans une seule chaîne, donc **cette ligne fonctionne même avec un `Index.html` pas encore remis à
+jour** — cf. BACKEND-CHANGELOG.md §13.4).
+
+## 14. Round du 02.09.2026 — affichage compact : 1 ligne par personne, 2 colonnes par jour
+
+Demande de Lionel, après une question de cadrage (« quel travail cela représente de passer plutôt à
+2 colonnes par jour ouvrable et réduire à 1 ligne par ouvrier ? ») : **« Code et met un toggle dans le
+menu général pour pouvoir switcher »**.
+
+### 14.1. Pourquoi c'est beaucoup moins lourd qu'annoncé au premier abord
+
+Première estimation donnée à Lionel : « de l'ordre du portage V3 ». **Fausse, et révisée après
+vérification dans le code** — le point décisif étant la façon dont une tâche multi-jours est stockée :
+
+- l'écriture est **par case** : `apiEnregistrerCellulePersonne(labG, ancre, demi, jourIdx, payload)` ;
+- une tâche qui dure 3 jours, c'est **le même texte recopié dans 3 cases voisines** ;
+- la « bulle » continue est **reconstruite à la lecture** (`construireVueDepuisCache`, fusion des cases
+  adjacentes de contenu identique).
+
+Autrement dit, la disposition à l'écran n'est **pas** le modèle de données. Changer l'une n'oblige donc
+pas à toucher l'autre : ni la feuille, ni l'enregistrement, ni les séries, ni les décalages, ni
+l'impression, ni les PDF ne bougent. Le réglage est **réversible à tout instant, sans conversion et sans
+perte** — c'est ce qui rend l'ajout sûr, et ce qui justifiait de vérifier avant de chiffrer.
+
+### 14.2. Ce qui a été ajouté
+
+- **`modeCompact`** — réglage LOCAL à l'appareil (`localStorage`, clé `planning.modeCompact`), comme
+  « Afficher les week-ends » : chacun règle son écran sans imposer son choix aux autres. Lecture et
+  écriture sous `try/catch` (navigation privée, stockage bloqué) : au pire le réglage ne vaut que pour la
+  session, jamais d'erreur visible.
+- **Interrupteur dans la page Général**, avec le compromis annoncé en toutes lettres dans le libellé
+  (deux fois plus de monde à l'écran, deux fois moins de largeur pour le texte).
+- **`colsParJour()`** (1 ou 2) et **`colonneDemi(gi, demi)`** — toute la géométrie passe désormais par là.
+  `colonneGrille(gi)` généralisée : en compact elle renvoie la colonne du MATIN, `colonneDemi` ajoute le
+  décalage de l'après-midi. Le week-end garde **une seule case par personne** (§2 du spec), jamais scindée.
+- **`ligneGroupePersonnesCompact`** — une ligne par personne, les deux demi-journées côte à côte. La
+  fonction classique est conservée telle quelle sous le nom `ligneGroupePersonnesClassique` : les deux
+  chemins sont séparés, le mode actuel n'est pas « adapté », il est **intact**.
+- **`assignerPistesCompact`** — l'empilement raisonne sur les DEMI-JOURNÉES occupées (jour × 2 + 0/1) et
+  non sur des intervalles de jours : matin et après-midi du même jour cohabitent donc sur une seule piste
+  (sans ça, aucun gain de hauteur — c'était tout l'objet du mode), tandis que deux tâches d'une même
+  demi-journée s'empilent normalement.
+- **Segments** — une tâche de plusieurs jours n'est plus un rectangle continu (les après-midi
+  s'intercalent entre ses matins) : elle est dessinée en un segment par demi-journée occupée, **tous
+  porteurs du même `data-id`**. `itemDepuisBulle()` les résout vers le même item : clic, sélection et
+  ouverture fonctionnent depuis n'importe quel segment. Un liseré et des coins droits signalent « suite de
+  la même tâche » plutôt que « autre tâche ».
+- **Repères visuels** : fine ligne d'en-tête `M | A` sous chaque jour (sans elle, rien ne distinguerait les
+  deux colonnes une fois l'étiquette « Matin »/« Après-midi » disparue), après-midi légèrement teinté.
+
+### 14.3. Vérifications — première couverture automatisée de l'affichage
+
+**`node test_grille_compacte.js` : 23/23 (NOUVEAU fichier).** Ce projet n'avait aucun test d'écran
+(cf. §3) ; celui-ci en pose un premier jalon, et surtout il **extrait les fonctions RÉELLES de
+`Index.html`** (par leur nom, depuis la source, avec équilibrage des accolades) au lieu d'en tester une
+copie — une divergence entre le testé et le livré est donc impossible.
+
+Priorité assumée du test : **prouver que le mode classique est inchangé**. Les valeurs de référence du §1
+ont été recalculées à la main depuis l'ancienne formule, jamais copiées du nouveau code, et le §4 rebascule
+en classique après un passage en compact pour vérifier que le réglage est réellement sans trace. Le mode
+compact, lui, est neuf et facultatif : un défaut y serait gênant, pas dommageable.
+
+Couvert : géométrie des colonnes dans les 2 modes, avec et sans week-ends ; frontières de semaine ;
+la bulle Vendredi→Lundi qui enjambe le week-end (comportement déjà corrigé pour Lionel, préservé) ;
+cohabitation matin/après-midi sur une piste ; empilement de deux tâches d'une même demi-journée ;
+tâche de week-end.
+
+### 14.4. Limites connues de cette première version
+
+- **Une tâche ne peut toujours pas aller de mardi après-midi à jeudi matin.** C'était le second besoin
+  exprimé par Lionel, et il demande un vrai changement de modèle (la « bulle » devient un intervalle de
+  demi-journées, ce qui touche la fusion à la lecture, le glisser-déposer et le redimensionnement).
+  Le mode compact est le **socle** de cette évolution : les demi-journées y sont déjà rangées dans
+  l'ordre du temps, de gauche à droite. À faire au round suivant.
+- **Le fantôme de déplacement** d'une tâche multi-jours (`rectanglePlage`) trace un rectangle continu, donc
+  trop large en compact pendant le glissement. Purement visuel, le temps du geste.
+- **L'impression reste en mode classique** (jours en colonnes, une ligne par demi-journée). Écran et
+  papier ont donc des dispositions différentes tant que l'impression n'a pas été portée — ce qui, elle,
+  toucherait `Code.gs`.
+
+## 15. Round du 02.09.2026 (suite) — retours de Lionel sur le compact + page "Entrée rapide"
+
+### 15.1. Bordures entre les jours (mode compact)
+
+« C'est parfait sur ordinateur, cependant il faudrait marquer un peu plus les bordures entre les jours. »
+Une hiérarchie à trois niveaux, portée par `.grille-compacte` uniquement (le mode classique n'est touché
+par aucune de ces règles) : séparation matin/après-midi = le filet de grille ordinaire ; **frontière de
+jour = 2px `--border-strong`** (nouvelle classe `jour-frontiere`, posée sur la colonne du matin) ;
+frontière de semaine = 3px, plus forte encore. Sans ça, les 10 colonnes d'une semaine se lisaient comme
+une bouillie régulière.
+
+### 15.2. "Assigné à" : une CATÉGORIE, pas une personne — correction d'une sur-interprétation
+
+« Les ajouts rapides doivent être pour le personnel en général, pas une seule personne. »
+
+La demande d'origine (« les entrées rapides par intervenant ou ouvrier », round §12) désignait les deux
+**catégories** — le personnel d'un côté, les intervenants de l'autre — et non une assignation individuelle.
+C'est ce qui explique le symptôme signalé ici : « ils sont attachés au personnel et second œuvre alors
+qu'ils ne devraient pas ». Valeurs stockées en 8e colonne : `""` (tout le monde), `"@personnel"`,
+`"@intervenants"`.
+
+**Rétrocompatibilité assurée** : une valeur numérique (assignation individuelle du round précédent) reste
+honorée au filtrage comme à l'affichage, et l'option correspondante reste proposée dans le sélecteur tant
+que le formulaire la porte — ouvrir puis enregistrer un tel formulaire ne change donc pas son réglage à
+l'insu de Lionel. Aucune migration de données.
+
+`formulaireVisiblePour(f, personneId)` centralise la règle ; `boutonsMenuAjout` s'y ramène.
+
+### 15.3. Les 3 formulaires historiques deviennent modifiables
+
+« Les 3 ajouts créés ensemble doivent pouvoir être modifiés. » « Modifier » était purement bloqué pour
+Armature / Béton / Livraison armature (toast d'explication). Trop brutal : ce qu'il faut protéger, c'est
+**uniquement leur NOM**, clé exacte reliant le bouton à son interface dédiée (`cablerBoutonsMenuAjout`) —
+les renommer ferait silencieusement perdre cette interface au profit du formulaire générique. Le champ nom
+est donc désactivé pour ces 3-là, avec une note d'explication (`#noteFormSpecial`), et **tout le reste est
+modifiable** — au premier chef « Assigné à », qui est précisément ce dont Lionel a besoin pour qu'ils
+cessent d'apparaître dans les deux catégories.
+
+### 15.4. Champs : réordonner et modifier
+
+« J'aimerais pouvoir changer l'ordre ou modifier un champ dans ce formulaire. » Chaque champ reçoit
+↑ / ↓ / Modifier, en plus du retrait qui existait seul. L'ordre des champs étant celui du texte de tâche
+produit, pouvoir le corriger sans tout resaisir n'a rien de cosmétique. `ouvrirConstructeurChamp(idx)`
+sert désormais l'ajout ET la modification. **La CLÉ d'un champ modifié est conservée** : c'est elle qui
+l'identifie dans les formulaires déjà remplis, la régénérer depuis le nouveau libellé les orphelinerait.
+
+### 15.5. Bouton d'ajout replacé
+
+« Le bouton ajout de formulaire est mal placé. » Il était seul de son espèce en haut, dans le titre de
+page ; il rejoint le bas de liste (`.ligne-ajouter`), comme sur Chantiers, Statuts, Personnel et
+Intervenants.
+
+### 15.6. Vérifications
+
+- `node --check` sur le script inline d'`Index.html` : OK.
+- `node test_grille_compacte.js` : 23/23 (inchangé — le mode classique reste prouvé identique).
+- **`node test_formulaires_assignation.js` : 10/10 (NOUVEAU)** — extrait `formulaireVisiblePour` et
+  `nomAssigneAffiche` de `Index.html` (fonctions réelles, pas une copie) et couvre : les 3 catégories,
+  la rétrocompatibilité de l'assignation individuelle, une assignation vers une personne supprimée
+  (ne doit rien faire planter), et les libellés affichés.
+
+### 15.7. Reste à traiter (demandé dans le même message)
+
+- **Jalons et notes sur des demi-journées** : côté feuille, un jalon/une note = UNE case par jour
+  (lignes 4 et 5). Faisable sans changer la structure en réutilisant le procédé déjà en place pour le
+  week-end (`decoderCelluleWeekend_`, tags `[S]`/`[D]` dans une seule cellule) avec des tags `[M]`/`[A]` —
+  mais ça touche `WebApp.gs`, le client ET l'impression. À cadrer avant de coder.
+- **Ajout lointain** (poser une tâche/absence/congé à une date éloignée sans faire défiler le calendrier,
+  avec une durée) : la plomberie serveur existe déjà (`ecrireOccurrenceSerie_`, `semainesACriblePourSerie_`
+  écrivent dans des semaines arbitraires). C'est le plus gros morceau des trois, et le plus utile.
+- **« Ajouter les absences »** : demande à préciser (types d'absence configurables ? absences proposées
+  aussi aux intervenants ?).
+
+## 16. Round du 02.09.2026 (suite) — assignation par intervenant + absences éditables
+
+### 16.1. "Assigné à" : tout le monde / le personnel / CHAQUE intervenant
+
+Précision de Lionel, en deux temps : « les ajouts rapides doivent être pour le personnel en général, pas
+une seule personne », puis « tout le monde, personnel, et ensuite chaque intervenant séparé. L'électricien
+n'a pas besoin des ajouts béton. »
+
+Le modèle final n'est donc ni tout-groupe ni tout-nominatif : **le personnel interne en un seul groupe**
+(même métier, mêmes entrées rapides), **chaque intervenant à part** (chacun est un corps de métier
+distinct). Le sélecteur propose Tout le monde · Personnel · puis un groupe « Un intervenant en
+particulier » listant les sous-traitants. `formulaireVisiblePour()` n'a pas eu à changer : assigner
+l'ancre d'un intervenant le réservait déjà à cette seule personne.
+
+Tout réglage déjà enregistré qui ne figure pas dans la liste (« tous les intervenants », proposé un temps ;
+une personne du personnel ; un intervenant supprimé depuis) reste **honoré ET proposé comme option** tant
+que le formulaire le porte : ouvrir puis enregistrer ne change jamais un réglage à son insu.
+
+### 16.2. Congé et Vacances deviennent des entrées rapides ordinaires
+
+Ils étaient codés en dur dans `boutonsMenuAjout`. Ils viennent maintenant de la liste configurable, grâce
+à la 9e colonne `TypeEntree` (cf. BACKEND-CHANGELOG.md §21) :
+
+- **Sélecteur « Type d'entrée »** (Tâche / Absence) dans l'éditeur de formulaire.
+- `ouvrirFormulaireDynamique` et l'ajout en un clic posent une bulle du bon type — « Congé » réglé en
+  absence pose bien un congé (orange), pas une tâche.
+- **Repli conservateur** : les 2 boutons historiques restent affichés **tant qu'aucune** entrée rapide de
+  type « absence » n'existe. Rien ne disparaît du menu de Lionel avant qu'il ne les ait créées.
+- **Bouton « Reprendre les absences (Congé, Vacances) pour pouvoir les modifier »**, en bas de la page
+  Entrée rapide : les crée en un clic (type absence, sans champ, réservées au personnel — comportement
+  identique aux boutons qu'elles remplacent), puis disparaît. Un geste explicite plutôt qu'une écriture
+  automatique dans sa feuille.
+- « Absence » (qui ouvre l'éditeur pour saisir un motif) reste un type de bulle à part entière, inchangé.
+
+### 16.3. Vérifications
+
+- `node --check` sur le script inline d'`Index.html` : OK.
+- `node test_formulaires_assignation.js` : **13/13** — dont le cas cité par Lionel vérifié de bout en bout
+  (un formulaire « Béton » réglé sur Personnel n'apparaît jamais chez l'électricien), chaque intervenant
+  isolé des autres, et les 3 formes de réglages hérités toujours honorées.
+- `node test_grille_compacte.js` : 23/23 · `node test_backend_pures.js` : 79/79.
+
+## 17. Round du 02.09.2026 — bouton « Ajout lointain »
+
+Nouveau bouton dans l'en-tête du planning, à côté d'Imprimer. Ouvre un formulaire : **quoi** (congé/absence,
+tâche, note, jalon) · **pour qui** (personnel et intervenants, masqué pour une note ou un jalon, qui
+appartiennent à la journée et non à une personne) · **chantier** (tâches seulement) · **matin /
+après-midi / journée entière** · **date de début** · **durée** (raccourcis 1 jour, 3 jours, 1 semaine,
+2 semaines, ou saisie libre en jours ouvrés) · **texte**.
+
+Tout part en UN SEUL appel (`apiAjoutLointain`, cf. BACKEND-CHANGELOG.md §22) : le serveur crée au besoin
+les semaines manquantes puis pose l'entrée sur chaque jour ouvré. Le formulaire n'écrit jamais dans le
+modèle local — la période visée est presque toujours hors de la fenêtre affichée : le cache est oublié et
+la fenêtre rechargée, et `etat.semaines` est remplacé par la liste renvoyée (sans quoi le client ignorerait
+les semaines fraîchement créées et ne pourrait pas naviguer jusqu'à ce qu'il vient de poser).
+
+Le message de confirmation dit ce qui s'est réellement passé — « Ajouté sur 5 jour(s) ouvré(s), du … au … »
+et, le cas échéant, « N semaine(s) ont été créées dans le planning pour l'occasion » : créer des semaines
+dans sa feuille n'est pas anodin, ça ne doit pas se faire en silence.
+
+Détails d'ergonomie : le type par défaut est « Congé / absence » avec le texte pré-rempli « Congé » (le cas
+qu'il a décrit), la durée par défaut « 1 semaine », et saisir une durée libre désélectionne les raccourcis.
+
+Vérifications : `node --check` OK ; la logique de dates est couverte côté serveur par
+`test_ajout_lointain.js` (15/15) ; `test_grille_compacte.js` 23/23 et `test_formulaires_assignation.js`
+13/13 restent verts.
+
+## 18. Round du 02.09.2026 — jalons et notes sur des demi-journées (côté écran)
+
+Cf. BACKEND-CHANGELOG.md §23 pour le stockage (étiquettes `[M]`/`[A]`, aucune migration).
+
+- **Modèle** : `itemPlage` porte `demi` ("matin" | "aprem" | null = journée entière).
+- **Fusion à la lecture** : deux jours consécutifs ne se collent en une seule bulle que s'ils ont le même
+  texte ET la même demi-journée — un jalon du matin ne se soude pas à un jalon d'après-midi du lendemain.
+- **Synchronisation** : `jalonsMap` compare désormais `demi\0texte` et non plus le texte seul. Sans ça,
+  faire passer un jalon du matin à l'après-midi laissait le texte identique, ne déclenchait aucune
+  écriture, et la modification était perdue au rechargement **sans le moindre message**. Même correction
+  dans `diffsNotes` et `notesParId`.
+- **Formulaire** : trois puces « Journée entière / Matin / Après-midi » dans l'édition d'un jalon ou d'une
+  note, et le choix vaut aussi dans l'ajout lointain (le champ y est maintenant visible pour tous les
+  types, plus seulement pour les tâches et absences).
+- **Affichage** : en mode compact, l'entrée se pose exactement sur la bonne des deux colonnes du jour. En
+  mode classique, où un jour n'a qu'une colonne, elle occupe la moitié de la case, calée à gauche (matin)
+  ou à droite (après-midi), avec un liseré du côté concerné — une simple classe CSS, la géométrie de la
+  grille ne bouge pas.
+
+Vérifications : `node --check` OK · `test_grille_compacte.js` 23/23 · `test_formulaires_assignation.js`
+13/13 · `test_backend_pures.js` 94/94 · `test_ajout_lointain.js` 15/15.
+
+## 19. Round du 02.09.2026 (suite) — demi-journée retirée des jalons
+
+Cf. BACKEND-CHANGELOG.md §24. Le §18 ci-dessus avait ouvert la demi-journée aux jalons *et* aux notes ;
+Lionel a précisé aussitôt après : **jalons non, notes oui**. Correction côté écran, en miroir du serveur.
+
+- **Fiche d'édition** (`ouvrirEditionPlage`) : le bloc de puces « Journée entière / Matin / Après-midi »
+  n'est plus rendu du tout quand `kind === "jalon"` — pas grisé, absent. `demiInit` reste `null`, donc
+  rien ne part au serveur.
+- **Ajout lointain** : le champ « Quand dans la journée » est masqué quand le type choisi est « Jalon ».
+  Il est aussi **remis sur « Journée entière »** au passage : sans ça, un matin choisi pour une note puis
+  basculé en jalon serait resté sélectionné, invisible, et serait reparti au serveur.
+- **Lecture / fusion** : la fusion des jalons consécutifs ne compare plus que le texte (le §18 comparait
+  aussi la demi-journée), et l'item construit n'en porte plus.
+- **Synchronisation** : `jalonsMap` redevient une comparaison de texte seul — le `demi\0texte` du §18
+  n'avait plus d'objet. `diffsNotes` / `notesParId` gardent le leur, les notes étant inchangées.
+
+Les notes conservent tout le §18 : puces dans la fiche, demi-largeur en mode classique, bonne colonne en
+mode compact, liseré du côté concerné.
+
+Vérifications : `node --check` OK · `test_semaines.js` TOUT PASSE (dont 12 assertions neuves sur la règle
+notes-oui/jalons-non) · `test_backend_pures.js` 94/94 · `test_grille_compacte.js` 23/23 ·
+`test_formulaires_assignation.js` 13/13 · `test_ajout_lointain.js` 15/15.
+
+## 20. Round du 03.09.2026 — les champs d'une case décochée restaient affichés
+
+Signalé par Lionel : *« au niveau des formulaire ne pas afficher les entrées des séries quand pas coché »*
+— les champs de fréquence/répétitions de la case « Série (se répète) » restaient visibles même case
+décochée.
+
+### Cause
+
+Un piège CSS classique : `[hidden] { display: none }` est une règle du navigateur (origine « user-agent »),
+la plus faible priorité qui existe dans la cascade — **n'importe quelle règle d'auteur qui pose `display`
+sur ce même élément l'emporte automatiquement**, quelle que soit sa spécificité. Trois règles du fichier
+posaient un `display` sans s'en douter :
+
+- `.serie-options { display: flex; ... }` — la case « Série » elle-même.
+- `.form-pop .chk-ligne { display: flex; ... }` — les lignes « Répétitions » / « Se termine le » à
+  l'intérieur.
+- `.champ-ligne { display: flex; ... }` — touchait aussi, dans le formulaire d'ajout lointain, les champs
+  « Pour qui », « Chantier » et « Quand dans la journée » censés se cacher selon le type choisi (jalon /
+  note / tâche / absence).
+
+Le JS qui posait bien `element.hidden = true` fonctionnait normalement — c'est uniquement l'affichage qui
+n'en tenait pas compte.
+
+### Correctif
+
+Un seul filet de sécurité générique plutôt que corriger chaque règle une par une : `[hidden] { display:
+none !important; }` tout en haut de la feuille de style. Un `hidden` reste caché quoi qu'il arrive, même si
+une règle plus bas lui pose un `display` — et rien d'autre dans le fichier ne pose de `display` en inline
+ni de `!important` qui aurait pu en avoir besoin (vérifié).
+
+Vérifications : `node --check` OK · reconstruction empirique de l'arbre de styles (élément avec `hidden` +
+chacune des 3 classes ci-dessus) confirmant `display: none` après correctif · les 7 suites de tests
+(`test_backend_pures.js`, `test_grille_compacte.js`, `test_formulaires_assignation.js`,
+`test_ajout_lointain.js`, `test_fusion_feries.js`, `test_fuseau_feries.js`, `test_semaines.js`) toutes
+vertes — cette correction ne touche que du CSS, aucune n'était censée bouger.
+
+## 21. Round du 03.09.2026 — impossible d'étendre une note en demi-journée
+
+Signalé par Lionel : *« je n'arrive pas à étendre une bulle note sur une demi journée. »*
+
+### Cause
+
+Le redimensionnement par glissement (poignées gauche/droite d'une bulle, `cablerPoigneeRedim`) existait
+avant les demi-journées (§18/§23) et n'en a jamais tenu compte. Pendant le glissement, l'aperçu en direct
+(`appliquerPrevisu`) recalculait la position avec `colonneGrille`/`spanColonnes` — les mêmes formules
+« pleine journée » que pour une bulle normale — au lieu de `colonneDemi` + span réduit qu'utilise le rendu
+statique pour une note du matin ou de l'après-midi. En mode compact (celui que Lionel a mis en place
+justement « surtout pour les demi-journées »), ça se voyait tout de suite : dès qu'on touchait à la
+poignée, la bulle sautait sur la colonne du matin — même pour une note de l'après-midi — et s'étalait sur
+les 2 colonnes du jour plutôt que sur sa demi-colonne, rendant impossible de viser où la déposer. Le
+`onCancel` (glissement annulé) avait le même défaut.
+
+Les données elles-mêmes n'étaient jamais en cause : le redimensionnement ne touche que `giDebut`/`duree`,
+jamais `demi`. Seul l'aperçu — donc l'utilisabilité du geste — était cassé.
+
+### Correctif
+
+Plutôt que rafistoler l'aperçu de glissement séparément, la formule de positionnement (colonne + span en
+tenant compte de `demi`) a été **extraite en une seule fonction partagée**, `colonneEtSpanDemi(gi, duree,
+demi)`, utilisée à la fois par le rendu statique et par `appliquerPrevisu`/`onCancel`. Les deux ne peuvent
+plus diverger : une future modification de l'un s'applique automatiquement à l'autre.
+
+Vérifications : `node --check` OK · `test_grille_compacte.js` passe de 23/23 à **31/31** (8 assertions
+neuves sur `colonneEtSpanDemi`, dont le scénario concret de Lionel — étendre une note du matin de 1 à 3
+jours, à chaque étape identique au rendu statique) · les 6 autres suites restent vertes.
+
+## 22. Round du 03.09.2026 (suite) — chantier par défaut des formulaires
+
+Demande de Lionel : *« pouvoir sélectionner un chantier dans la légende pour qu'il soit sélectionné par
+défaut dans les formulaires. »*
+
+- **La légende** (`construireLegende`) : chaque chantier y est désormais cliquable (curseur, surbrillance
+  au survol, infobulle). Cliquer un chantier le marque actif (fond teinté + liseré sur la pastille de
+  couleur) et en fait le choix pré-coché de tous les selects « Chantier » des formulaires — cliquer à
+  nouveau le même chantier désélectionne (retour à l'ancien comportement : le 1er chantier de la liste).
+  Réglage **local à l'appareil** (`localStorage`, même famille que le mode compact / l'affichage des
+  week-ends) : chacun garde le sien, rien n'est partagé côté feuille.
+- **Formulaires concernés** : les 3 formulaires historiques (Armature/Béton/Livraison armature), tout
+  formulaire rapide personnalisé de type Tâche, la fiche d'édition d'une tâche (nouvelle tâche uniquement —
+  modifier une tâche existante garde son propre chantier, inchangé), et le champ Chantier de l'ajout
+  lointain.
+- **Jamais de valeur périmée** : si le chantier choisi est renommé ou supprimé entre-temps,
+  `chantierParDefautValide()` renvoie `null` plutôt que de pointer sur un chantier qui n'existe plus — repli
+  silencieux sur le comportement d'avant (1er chantier de la liste, ou « — aucun — » pour l'ajout lointain).
+
+Vérifications : `node --check` OK · nouvelle suite `test_chantier_defaut.js` (7/7) : aucun choix -> repli
+sur le 1er chantier, choix valide -> pré-coché, choix périmé -> ignoré proprement · les 7 autres suites
+restent vertes.
+
+## 23. Round du 03.09.2026 (suite) — vraiment étendre/déplacer une note en demi-journée
+
+Lionel, après le §21 : *« les notes sont toujours pas extensible ni déplaçable en demi journée. »* Il avait
+raison : le §21 n'avait réparé que l'APERÇU d'une note DÉJÀ en demi-journée qu'on étend sur plusieurs
+jours. Il restait strictement impossible de FAIRE APPARAÎTRE une demi-journée par glissement — ni en
+réduisant une note (poignées), ni en la déplaçant (glisser la bulle entière). Seule la fiche d'édition
+(double-clic) le permettait.
+
+### Redimensionnement (poignées gauche/droite)
+
+Avant, réduire une note butait sur « 1 jour minimum » sans jamais poser de demi-journée — `it.demi` n'était
+tout simplement jamais touché par un redimensionnement. Désormais, **tant que la poignée reste dans le seul
+jour qu'elle peut encore réduire** (le 1er jour pour la poignée droite, le dernier pour la gauche), sa
+position **horizontale** dans la cellule choisit matin / après-midi / journée entière — exactement le geste
+qu'on ferait pour « recadrer » un bloc. Dès qu'elle ressort de ce jour pour étendre sur plusieurs jours, la
+demi-journée d'origine est simplement reconduite (comportement du §21, inchangé).
+
+### Déplacement (glisser la bulle entière)
+
+Avant, déposer une note sur le MÊME jour qu'elle occupait déjà (`delta = 0`, ex. essayer de la faire glisser
+du matin vers l'après-midi sans changer de jour) ne faisait STRICTEMENT rien — un pur no-op silencieux.
+Désormais :
+- **même jour** : la position du relâchement choisit la demi-journée — c'est précisément le geste "matin
+  -> après-midi" que Lionel décrivait.
+- **jour différent, note déjà en demi-journée** : la position choisit sa nouvelle demi-journée sur le jour
+  d'arrivée (glisser une note du matin du lundi vers l'après-midi du mardi, en un seul geste).
+- **jour différent, note en JOURNÉE ENTIÈRE** : reste en journée entière — glisser une note "normale" vers
+  un autre jour ne la réduit JAMAIS à une demi-journée par accident. C'est le cas le plus fréquent ; zéro
+  régression dessus était la priorité.
+
+Restreint à la souris et à une note SEULE (pas de sélection groupée, pas de tactile) — le geste tactile
+garde le comportement jour-entier déjà existant, plus simple au doigt ; une sélection groupée n'a pas de
+position de relâchement non ambiguë à assigner à plusieurs bulles à la fois. Les jalons ne sont jamais
+concernés (plus de demi-journée pour eux depuis BACKEND-CHANGELOG.md §24), ni les tâches personnel (leur
+demi-journée est la ligne/colonne qu'elles occupent, pas une propriété qu'un redimensionnement ou un
+déplacement changerait).
+
+Corrigé au passage : **copier** une note du matin par glissement (Maj+glisser, chemin de sélection groupée)
+faisait disparaître sa demi-journée en silence dans la copie — `demi` n'était pas transmis à la copie.
+
+### Ce qui rend ça fiable
+
+La détection ("quelle moitié de la cellule survole le pointeur") et les deux RÈGLES ("quelle demi-journée
+en résulte pour un redimensionnement", "… pour un déplacement") sont chacune une fonction pure et partagée
+— `demiDepuisPointeur`, `demiPourRedimNote`, `demiCiblePourDeplacementNote` — testées indépendamment de
+tout DOM/pointeur.
+
+Vérifications : `node --check` OK · `test_grille_compacte.js` passe de 31/31 à **46/46** (15 assertions
+neuves sur les 3 nouvelles fonctions, dont le scénario exact de Lionel : même jour, matin -> après-midi) ·
+les 7 autres suites restent vertes.
+
+## 25. Round du 03.09.2026 (suite) — un bord de demi-journée par extrémité (« 1 jour et demi »)
+
+Lionel, après avoir vérifié le §23/24 : *« je peux reduire de 1 jour à 1 demi jour, mais je ne peux pas
+augmenter à 1 jour et demi. »* Cause : une note ne portait qu'UNE SEULE demi-journée pour toute sa plage —
+en étendre une déjà réduite à « matin » sur un 2e jour ne pouvait donc que reconduire « matin » aux deux
+jours (jamais « 1 jour et demi ») ou revenir en journée entière. Consulté sur l'ampleur du correctif
+(cf. `AskUserQuestion` : contournement à 2 notes séparées, ou refonte propre), Lionel a choisi *« Le faire
+correctement. »* — chaque BORD de la plage porte maintenant sa propre demi-journée (`demiDebut`/`demiFin`
+au lieu d'un `demi` unique), tout jour strictement entre les deux restant toujours une journée entière (cf.
+BACKEND-CHANGELOG.md §25 pour le détail serveur, symétrique).
+
+### Ce qui change dans le modèle en mémoire
+
+`itemPlage()` porte désormais `demiDebut`/`demiFin` au lieu de `demi` (invariant maintenu par tous les
+appelants : `demiDebut === demiFin` quand `duree === 1`). Répercuté partout où une note transitait par ce
+champ unique :
+
+- **`construireVueDepuisCache`** (fusion des jours en une bulle) : un run de jours ne se prolonge au-delà
+  du 1er jour que si le jour courant est une journée entière — sinon ce jour devient le bord de fin du run,
+  la fusion s'arrête là. `demiDebut`/`demiFin` de l'item fusionné sont simplement la demi du 1er et du
+  dernier jour du run.
+- **`notesParId`/`diffsNotes`/`synchroniser`** : le diff compare les 2 champs, et l'appel à
+  `apiEnregistrerPlage` envoie maintenant `demiDebut`/`demiFin` — pour la NOUVELLE plage comme pour
+  l'ORIGINE (nécessaire côté serveur pour ne retirer que l'entrée qui portait vraiment cette
+  demi-journée-là, cf. BACKEND-CHANGELOG.md §25.2).
+- **`colonneEtSpanDemi`** (rendu ET aperçu de glissement, fonction partagée depuis le §21) : la colonne de
+  départ ne dépend plus que de `demiDebut`, la fin du span que de `demiFin` — chaque bord se dessine
+  indépendamment. Sur plusieurs jours en mode compact, seul `demiFin === "matin"` raccourcit visuellement
+  la fin (le dernier jour s'arrête après sa sous-colonne matin) ; `demiDebut === "aprem"` décale le départ
+  (le 1er jour démarre à sa sous-colonne après-midi). Les 2 autres combinaisons (`demiDebut === "matin"`,
+  `demiFin === "aprem"`) n'ont pas de représentation contiguë possible sur plusieurs jours (elles
+  creuseraient un trou non contigu dans la bulle) et restent volontairement **inertes** — identiques à
+  l'absence de demi-journée, jamais une exception ni un décalage surprenant. En mode classique, la classe
+  CSS `.bulle-demi` (largeur 50 %, pensée pour UN SEUL jour) reste réservée aux notes de `duree === 1` ;
+  une note multi-jours avec un bord en demi-journée s'y affiche en rectangle plein (le titre au survol
+  continue de le signaler), la géométrie correcte restant réservée au mode compact.
+- **`demiPourRedimNote`** (redimensionnement) — LE cœur du correctif : renvoie maintenant
+  `{demiDebut, demiFin}`. Chaque poignée ne gouverne plus que SON PROPRE bord (droite -> `demiFin`, gauche
+  -> `demiDebut`) — **l'autre bord n'est plus jamais figé sur sa valeur de départ**, quelle que soit la
+  durée de l'aperçu. C'est précisément ce qui manquait : avant, dès que l'aperçu dépassait 1 jour, la
+  fonction retournait purement et simplement `demiOrig` sans plus regarder le pointeur, empêchant tout
+  « 1 jour et demi ». Sur un seul jour restant (les 2 bords fusionnent), le comportement historique est
+  inchangé.
+- **`demiCiblePourDeplacementNote`** (déplacement, bulle entière) : gagne un paramètre `duree` en tête — sur
+  PLUSIEURS jours, un simple déplacement (qui ne change jamais la durée) reconduit la forme des 2 bords
+  telle quelle, sans tenter de deviner laquelle des 2 extrémités le point de relâchement concernerait.
+  Sur 1 seul jour, comportement du §23 inchangé (position du relâchement = nouvelle demi-journée).
+- **La fiche d'édition (`ouvrirEditionPlage`)** : sur 1 seul jour, toujours l'unique rangée à 3 choix
+  (Journée entière / Matin / Après-midi). Sur plusieurs jours, 2 rangées indépendantes — « Premier jour »
+  (Journée entière / Après-midi seulement) et « Dernier jour » (Journée entière / Matin seulement), les
+  2 seules valeurs qui ont un sens comme bord de départ ou de fin. Le bloc se régénère quand le champ
+  Durée change (repli automatique sur la rangée unique en repassant à 1 jour, pour ne jamais enregistrer 2
+  bords divergents sur une plage d'un seul jour).
+- Copie par glissement groupé (`appliquerDelta`, corrigé au §23 pour ne plus perdre la demi-journée d'une
+  copie) : transmet maintenant `demiDebut`/`demiFin` au lieu de `demi`.
+
+### Vérifications
+
+- **`test_grille_compacte.js` : 46/46 -> 51/51** — `colonneEtSpanDemi` re-testée avec des bords
+  indépendants (« 1 jour et demi » sur chacun des 2 bords, « 2 jours et demi », inertie de `matin`/`aprem`
+  côté non pertinent) ; `demiPourRedimNote`/`demiCiblePourDeplacementNote` re-testées avec leurs nouvelles
+  signatures, dont le scénario exact de Lionel (poignée droite, plusieurs jours, la position du pointeur
+  choisit désormais `demiFin` au lieu d'être ignorée) et le nouveau cas multi-jours de
+  `demiCiblePourDeplacementNote` (forme des 2 bords préservée par un déplacement).
+- `node --check` : OK. Les autres suites (backend + les 7 autres suites client) restent vertes — détail
+  dans BACKEND-CHANGELOG.md §25.
+
+## 26. Round du 03.09.2026 (suite) — poser une tâche ne doit plus changer le chantier de l'autre
+
+Lionel, capture d'écran à l'appui (2 tâches empilées sur la même case, toutes deux passées en rouge/rose au
+lieu de mauve pour l'une d'elles) : *« lorsque je pose une tache sur une demi journée, l'autre tâche prend
+le chantier de la nouvelle créer. il doit etre possible de rentrer des tache sans changer le chantier de
+l'autre tâche. »*
+
+### Diagnostic
+
+Une case (personne + demi-journée + jour) ne porte qu'**UN SEUL chantier** côté feuille — c'est une cellule
+séparée sur la feuille Planning, partagée par toutes les tâches empilées dessous (`apiEnregistrerCellulePersonne`,
+WebApp.gs : « Chantier » et « détail » sont 2 lignes distinctes, jamais une par tâche empilée). Deux bugs
+distincts, chacun nécessaire ET suffisant pour reproduire le symptôme :
+
+1. **`calculerEtatLocal`** (ligne ~2760) construit l'objet `{chantier, taches}` envoyé au serveur en
+   parcourant toutes les tâches de la case et en gardant `if (t.chantier) cellules[cle].chantier = t.chantier;`
+   — la DERNIÈRE tâche du tableau à porter un chantier l'emporte, sans détection de conflit ni avertissement.
+2. **Le formulaire d'ajout** (`ouvrirEdition` et les 3 formulaires historiques Armature/Béton/Livraison
+   armature + tout formulaire dynamique) ne propose JAMAIS de case vide dans son select Chantier — une
+   nouvelle tâche part donc toujours avec une valeur concrète (le chantier par défaut de la légende, §22,
+   ou par repli le 1er chantier de la liste), quasiment jamais celui de la tâche déjà posée sur cette case.
+   Résultat : ajouter une 2e tâche sans même toucher au champ Chantier envoie presque toujours un chantier
+   *différent* de celui déjà en place — et le bug 1 l'applique alors silencieusement à toute la case.
+
+### Correctif
+
+Nouvelle fonction pure `chantierExistantDansCase(cibles, giDebut, duree)` : cherche, parmi les cases
+ciblées et les jours couverts, une tâche EXISTANTE qui porte déjà un chantier, et le renvoie (`null` si la
+case est vide). Utilisée en PRIORITÉ sur le chantier par défaut de la légende pour pré-cocher le select
+Chantier d'une NOUVELLE tâche — dans `ouvrirEdition` et les 4 formulaires (Armature/Béton/Livraison
+armature/dynamique). Concrètement : poser une 2e tâche sur une case déjà occupée pré-coche désormais le
+chantier déjà en place ; si l'utilisateur ne touche pas au champ, les 2 tâches partagent le MÊME chantier
+dès l'ajout — le bug 1 (dernier gagnant) devient sans effet visible puisque les 2 valeurs sont identiques.
+Si l'utilisateur choisit explicitement un AUTRE chantier, c'est un choix délibéré : la case (et donc
+l'affichage de la tâche déjà en place) en hérite, comme le veut la limite du modèle serveur — un seul
+chantier physiquement possible par case.
+
+Une tâche existante SANS chantier (une absence, qui n'en porte jamais) est ignorée par la recherche — pas
+de faux positif. Une plage de plusieurs jours cherche sur CHAQUE jour couvert, pas seulement le 1er.
+Plusieurs cibles (sélection multi-personnes) : la 1ère case occupée trouvée dans la sélection donne son
+chantier — pas de tentative de résoudre un conflit entre plusieurs chantiers déjà en place, cas non
+rencontré en usage réel.
+
+### Vérifications
+
+`test_chantier_defaut.js` : 7/7 -> **16/16** (9 assertions neuves sur `chantierExistantDansCase`) — le
+scénario exact de Lionel (case occupée par une tâche avec chantier -> ce chantier-là), case occupée
+seulement par une absence -> `null`, case vide -> `null`, personne/cible inconnue -> `null` (jamais une
+exception), tâche de plusieurs jours détectée sur un jour du milieu de sa plage, plusieurs cibles. `node
+--check` : OK. Les 8 autres suites restent vertes.
+
+## 27. Round du 03.09.2026 (suite) — bordures du mode compact : jour fin, plus de trait entre matin/aprem
+
+Retour de Lionel : « Je n'aime pas les bordures épaisse entre les jours, laisse les fine mais enlève celle
+des demi jours. » Ce round (02.09.2026, §... mode compact) avait volontairement épaissi le trait entre deux
+JOURS (`.jour-frontiere`, `border-left: 2px solid var(--border-strong)`) pour qu'on ne le confonde pas avec
+la simple séparation matin/après-midi. À l'usage, ce trait de 2px est jugé trop marqué.
+
+### Changement (CSS uniquement, `Index.html`, portée `.grille-compacte` — mode classique inchangé)
+
+- **Frontière de JOUR** (`.jour-frontiere`) : `border-left` passe de **2px** à **1px**, toujours en
+  `var(--border-strong)` — un trait fin mais volontairement un peu plus soutenu que le quadrillage de base,
+  pour rester repérable sans être épais.
+- **Séparation matin/après-midi** : supprimée entièrement. Elle n'était déjà portée que par le fin
+  quadrillage de base (`gap: 1px` de `.grille`, jamais une classe dédiée) ; comme CSS Grid applique ce
+  `gap` uniformément à toutes les colonnes, il fallait le masquer spécifiquement à cet endroit. Technique :
+  `.cell.cell-aprem` / `.th.th-demi-aprem` reçoivent `margin-left: -1px` (empiète de 1px sur le trait de
+  grille à leur gauche, entre matin et aprem) compensé par un `padding-left` égal à `padding-left habituel +
+  1px` (pour ne pas déplacer leur contenu). N'affecte jamais le trait à leur DROITE, qui est la frontière du
+  jour suivant (gérée séparément par `.jour-frontiere`, portée par la colonne "matin" suivante).
+- Seule la teinte de fond de l'après-midi (`.cell-aprem`, `.th-demi-aprem`, déjà existante) distingue encore
+  visuellement matin et après-midi d'un même jour.
+
+### Vérifications
+
+Changement CSS pur, aucune fonction JS touchée : les 9 suites de tests (216 assertions au total) restent
+toutes vertes, `node --check` OK (accolades du bloc `<style>` comptées et équilibrées : 356/356). Rendu
+vérifié par capture d'écran isolée (mini-grille compacte hors-application, mêmes classes CSS réelles) :
+transition matin→aprem parfaitement continue (aucun trait), frontière de jour fine mais visible, frontière
+de semaine toujours la plus marquée des trois — hiérarchie semaine > jour > demi-journée préservée.
+
+## 28. Round du 03.09.2026 (suite) — bordure entre jours : encore trop lourde, alignée sur le reste du quadrillage
+
+Après §27, nouveau retour de Lionel sur capture d'écran : « cette ligne ne me convient pas met la comme les
+autres du planning » puis, après clarification (choix « autre chose » + précision) : « la ligne [bordure]
+entre les jours est trop "lourde" ». Le trait de 1px laissé par §27 utilisait toujours `var(--border-strong)`
+(`#1a2129` en thème clair — littéralement la couleur du texte, quasi noir), donc visuellement lourd même fin.
+
+### Changement (CSS uniquement, `Index.html`, portée `.grille-compacte`)
+
+`.grille-compacte .th.jour-frontiere, .grille-compacte .cell.jour-frontiere` : plus AUCUNE règle dédiée. La
+frontière de jour retombe simplement sur le quadrillage de base de `.grille` (`gap: 1px; background:
+var(--border)`, un gris clair `#d7dad2`) — strictement la même apparence que n'importe quel autre trait du
+planning, ce qui répond littéralement à « comme les autres ». Comme §27 a par ailleurs supprimé toute
+séparation matin/après-midi, ce fin trait de base n'apparaît plus QU'aux frontières de jour dans la grille
+compacte : il reste donc parfaitement lisible comme repère "par jour" sans avoir besoin d'être plus sombre
+ou plus épais — le problème de lisibilité qui avait motivé l'épaississement initial (round du 02.09.2026)
+est résolu par la disparition du bruit visuel des demi-journées, pas par un trait plus marqué.
+
+La frontière de SEMAINE (`.sem-frontiere`, 3px `var(--ink-faint)`) n'est pas concernée — Lionel n'a jamais
+visé qu'elle.
+
+### Vérifications
+
+CSS pur, aucune fonction JS touchée : 9 suites toujours vertes (216 assertions), `node --check` OK, accolades
+du bloc `<style>` équilibrées (355/355 après suppression de la règle). Rendu revérifié par capture d'écran
+isolée : le trait de jour est maintenant visuellement identique aux autres traits de la grille.
+
+## 29. Round du 03.09.2026 (suite) — texte des bulles : jusqu'à 2 lignes si nécessaire
+
+Retour de Lionel : « autoriser les bulles a faire 2 hauteur de texte si nécessaire. » Jusqu'ici `.b-txt`
+(le texte affiché dans une bulle tâche/absence/jalon/note, `bulleEl` — un seul composant partagé par tous
+les types) était strictement 1 ligne (`white-space: nowrap`) : tout texte trop long pour la largeur de la
+bulle était tronqué avec "…", parfois dès les premiers mots.
+
+### Changement (CSS uniquement, `Index.html`, `.b-txt`)
+
+`white-space: nowrap` → autorisé à revenir à la ligne, mais borné à 2 lignes via `-webkit-line-clamp: 2`
+(+ `line-clamp: 2` pour les navigateurs récents qui supportent la version non préfixée) : 1 seule ligne
+quand le texte tient dedans (la bulle ne grandit pas pour rien), jusqu'à 2 lignes pour un texte plus long,
+et toujours un "…" au-delà pour ne jamais avoir une bulle qui grandit sans limite. `overflow-wrap: anywhere`
+ajouté en sécurité pour un mot isolé trop long pour une ligne.
+
+Aucun changement de layout nécessaire au-delà de ça : ni `.bulle` ni `.cell` n'ont de hauteur fixe (flex +
+`min-height` seulement), et la grille n'a pas de `grid-template-rows`/`grid-auto-rows` fixé en dur — les
+rangées de `.grille` se dimensionnent déjà sur leur contenu (comportement par défaut de CSS Grid). Une
+bulle qui passe sur 2 lignes agrandit donc automatiquement SA rangée (et powers qu'elle, jamais les autres)
+sans aucun code JS à toucher pour les pistes/hauteurs.
+
+### Vérifications
+
+CSS pur : 9 suites toujours vertes (216 assertions), `node --check` OK, accolades du bloc `<style>`
+équilibrées (355/355). Rendu vérifié par capture d'écran isolée (3 bulles : texte court -> 1 ligne
+inchangée, texte moyen -> passe proprement sur 2 lignes, texte très long -> 2 lignes puis "…").
+
+## 30. Round du 03.09.2026 (suite) — popup "Aller à…" : dates au format dd.mm.aaaa
+
+Retour de Lionel : « dans aller à: semaine X et date, le format date à changer, dd.mm.aaa[a]. » La popup
+"Aller à…" (`ouvrirAllerSemaine`) listait chaque semaine avec ses dates de début/fin au format ISO brut
+reçu du serveur (`s.debut`/`s.fin`, ex. "2026-09-01"), jamais reformaté côté client — contrairement au
+reste de l'appli qui affiche toujours les dates en "jour + mois" via `libelleJourGi`.
+
+### Changement (`Index.html`)
+
+Nouvelle fonction pure `isoAffiche(iso)` (à côté de `isoDeDate`, section "DATES RÉELLES ↔ gi") : convertit
+une date ISO `"AAAA-MM-JJ"` en `"jj.mm.aaaa"` par un simple découpage/réordonnancement de la chaîne (pas de
+`Date`/fuseau horaire en jeu, donc aucun risque du type de bug déjà corrigé pour les jours fériés,
+cf. `test_fuseau_feries.js`) ; entrée vide/`null`/`undefined` ou déjà mal formée renvoyée telle quelle,
+jamais d'exception. Câblée dans `ouvrirAllerSemaine` : chaque option du select affiche désormais
+"Semaine 36 (01.09.2026 – 05.09.2026)" au lieu de "Semaine 36 (2026-09-01 – 2026-09-05)".
+
+### Vérifications
+
+Nouveau `test_aller_a.js` (7/7 : date classique, fin d'année, jour ET mois à 1 chiffre, entrées vides/nulles/
+non définies, entrée mal formée) — 10 suites au total désormais, toutes vertes (231 assertions), `node
+--check` OK.
+
+## 31. Round du 03.09.2026 (suite) — formulaires en plein écran sur téléphone, demi-page sur tablette
+
+Retour de Lionel : « J'aimerais que tous les formulaires remplissent la page complète téléphone, comme si
+c'était une nouvelle fenêtre qui s'ouvrait, puis je pense la demi-page sur la tablette suffit. » Jusqu'ici
+TOUS les popups (`.pop`, positionnés par `positionnerPop()`) avaient une taille fixe en pixels (220 à
+280px de large selon le type, jusqu'à 380px pour l'ajout lointain, 900px pour l'aperçu d'impression) et se
+plaçaient près du point de clic — pensé pour desktop/souris, minuscule et peu pratique au doigt sur un
+téléphone de chantier.
+
+### Portée du changement
+
+Uniquement `.form-pop` : les vrais FORMULAIRES (ajout/modification tâche, absence, note, jalon, personne,
+chantier, statut, "Aller à…", ajout lointain…) — une vingtaine d'endroits dans le code, tous déjà unifiés
+sous cette même classe. Volontairement laissés tels quels : les menus contextuels (`.menu-pop`, juste une
+liste de boutons) et les simples confirmations oui/non (`.confirm-pop`, y compris l'aperçu d'impression) —
+déjà assez petits et rapides à l'usage pour ne pas avoir besoin de prendre tout l'écran.
+
+### Changement (CSS uniquement, `Index.html`, 2 nouvelles règles `@media`)
+
+- **Téléphone (`max-width: 600px`)** : `.form-pop` passe en plein écran — `position: fixed; inset: 0`
+  (via `left/top: 0`), `width`/`height: 100%` (`100dvh`, pas `100vh`, pour rester correct même quand la
+  barre d'adresse du navigateur mobile change de taille), coins non arrondis — exactement l'effet
+  "nouvelle fenêtre qui s'ouvre" demandé.
+- **Tablette (`601px` à `1024px`)** : `.form-pop` centré, largeur `50vw` (mini 320px pour rester utilisable
+  en portrait sur une petite tablette, jamais plus large que l'écran moins ses marges), hauteur toujours
+  limitée par le contenu (`max-height` généreux, scroll interne existant conservé).
+- **Desktop (`> 1024px`)** : strictement inchangé — popup compact positionné près du clic, comme avant.
+- Comme `positionnerPop()` pose `left`/`top` en pixels via JS à CHAQUE ouverture (jamais modifié — le
+  comportement desktop de positionnement près du clic reste le même code), les 2 règles ci-dessus utilisent
+  `!important` pour prendre le dessus sur ce style inline en dessous du seuil desktop ; aucune autre
+  fonction JS touchée.
+
+### Vérifications
+
+CSS pur, aucune fonction JS modifiée : 10 suites toujours vertes (238 assertions), `node --check` OK,
+accolades du bloc `<style>` équilibrées. Rendu vérifié par 3 captures d'écran isolées (même popup réel,
+mêmes classes CSS, `positionnerPop()` réellement exécuté) à 375px (téléphone : plein écran, coins droits),
+800px (tablette : panneau centré à moitié de la largeur, coins arrondis conservés) et 1400px (desktop :
+petit popup ancré près du point de clic, identique à avant).
+
+## 32. Round du 03.09.2026 (suite) — 4 signalements de Lionel ("à nouveau des erreurs")
+
+Lionel a signalé 4 problèmes d'un coup sur une capture d'écran du planning réel. Deux sont de vrais bugs
+corrigés ci-dessous ; les deux autres ne sont pas des bugs de `Index.html`/CSS et sont expliqués à part.
+
+### 32.1 CORRIGÉ — trait résiduel entre matin et après-midi dès qu'une tâche occupe l'après-midi
+
+« le lundi matin de la semaine 2 a une bordure bizarre. » Le round précédent (§27) supprimait le trait de
+grille entre les colonnes matin/aprem d'un même jour en décalant `.cell.cell-aprem` de 1px vers la gauche
+(`margin-left: -1px` + `padding-left` compensé) — mais UNIQUEMENT la case de FOND. Une bulle (tâche,
+absence, note) n'est pas un enfant de `.cell` : `ligneGroupePersonnesCompact` la pose comme un élément
+SÉPARÉ, directement sur la grille, à sa propre colonne. Résultat : invisible sur une case vide (d'où mes
+vérifications précédentes, toutes faites sur des cases vides, qui ne l'ont pas révélé), le trait reparaissait
+dès qu'une vraie tâche occupait l'après-midi — exactement le cas visible sur la capture (2 tâches empilées
+matin+aprem un lundi).
+
+Correctif : nouvelle classe `.demi-aprem`, même empiètement que `.cell.cell-aprem` (`margin-left: -1px`),
+avec son propre `padding-left` de compensation (9px, la bulle ayant 8px de padding gauche contre 6px pour
+`.cell`). Posée en JS sur tout segment de tâche/absence dont `it.demi === "aprem"` (`ligneGroupePersonnesCompact`)
+et sur toute note dont `demiDebut === "aprem"` (seul ce bord compte pour la colonne de départ posée par
+`colonneEtSpanDemi`, quelle que soit la durée).
+
+Vérifié par rendu isolé (vraie bulle posée dans la case aprem, pas une case vide comme au round précédent) :
+transition matin→aprem bien seamless même avec une tâche des deux côtés.
+
+### 32.2 CORRIGÉ — "Congé"/"Vacances" en double dans le menu "Ajouter"
+
+« menu ajout rapide a des absences en double. » Cause racine, plus profonde que le simple affichage :
+`appliquerStatutsEtFormulaires()` reconstruit le tableau GLOBAL `FORMULAIRES_RAPIDES` (celui que lit le menu
+"Ajouter" de la grille, `boutonsMenuAjout`) via un `.map()` qui ne gardait que `{nom, champs}` — perdant
+`typeEntree` et `assigneA` au passage, pourtant bien renvoyés par `apiListerFormulairesRapides` (WebApp.gs)
+et déjà utilisés ailleurs dans ce même fichier (page "Formulaires", `ouvrirFormulaireDynamique`...).
+
+Conséquence dans le menu "Ajouter" : `f.typeEntree` valant toujours `undefined`, `aDesAbsencesConfigurees`
+n'était jamais vrai, donc les boutons "Congé"/"Vacances" codés en dur (le repli historique, prévu pour
+disparaître une fois qu'elle configure ses propres absences) continuaient de s'afficher EN PLUS du bouton
+du formulaire qu'elle avait justement configuré pour les remplacer — d'où le doublon "Congé"/"Congé". Bug
+invisible depuis la page "Formulaires" (admin) : celle-ci lit `etat.formulairesRapidesServeur` directement,
+jamais ce `.map()` défaillant, d'où son comportement correct (elle reconnaît bien l'absence configurée).
+
+Deuxième conséquence, plus grave quoique invisible depuis le menu lui-même : un formulaire rapide configuré
+en type "Absence" était malgré tout enregistré comme une TÂCHE en cliquant dessus (`ajoutRapide`/
+`ouvrirFormulaireDynamique` retombent sur `"tache"` par défaut quand `typeEntree` est absent) — donc toute
+absence personnalisée (autre que les 2 boutons codés en dur, qui eux passent bien par leur propre chemin
+`"absence"` fixe) créée depuis LE MENU AJOUTER se serait retrouvée comptée comme une tâche.
+
+Correctif : le `.map()` conserve désormais `typeEntree` et `assigneA` en plus de `nom`/`champs`.
+
+### 32.3 EXPLIQUÉ, pas un bug de ce fichier — tags `[M]`/`[Important]` affichés en texte brut sur 2 notes
+
+Sur la capture, 2 notes affichent littéralement `[M] [Important]` / `[A]` dans leur texte au lieu du rendu
+attendu (demi-journée + style "important", tags invisibles). `decoderLigneTache_`/`decoderNotesJour_`
+(WebApp.gs) reconnaissent et retirent bien ces crochets à la lecture — vérifié ligne par ligne, logique
+intacte et cohérente avec l'encodeur. Une 3e note du même lot ("Fermeture matériaux") s'affiche d'ailleurs
+correctement (style important actif, aucun crochet visible), sur le MÊME chargement — ce qui écarte un
+décodeur globalement absent ou cassé (il aurait alors fauté pour les 3, pas 1 sur 3).
+
+Plus probable : ces 2 notes précises ont été saisies en tapant littéralement `[M]`/`[Important]` dans le
+champ Texte plutôt qu'en utilisant les pastilles Matin/Après-midi + la case "Important" du formulaire (qui,
+elles, encodent proprement ces tags). Le décodeur les relira normalement dès que le texte réel de la case
+sera juste "Fermeture matériaux" et que demi/important seront posés par les VRAIS contrôles du formulaire.
+Autre piste à ne pas exclure : un `WebApp.gs` pas encore redéployé (Déployer > Gérer les déploiements >
+Nouvelle version — un simple Ctrl+S dans l'éditeur ne suffit jamais pour ce fichier) qui daterait d'avant le
+support `[M]`/`[A]`/`[Important]` ; mais l'incohérence 2 notes sur 3 sur le même chargement pointe plutôt
+vers la 1ère piste. À vérifier avec Lionel : republier ces 2 notes en tapant seulement le texte et en
+utilisant les contrôles dédiés.
+
+### 32.4 EXPLIQUÉ, limite structurelle — 2 chantiers sur une même demi-journée
+
+« toujours pas possible d'assigner 2 chantiers a une demi journée. » Confirmé : ce n'est pas un bug mais une
+limite du modèle de feuille actuel. Une case (personne + demi-journée + jour) ne porte qu'UNE valeur
+"Chantier" côté feuille — une ligne physique séparée de la ligne "détail" (tâches), écrite en une seule fois
+par `ecrireDemiJournee_` (WebApp.gs). Toutes les tâches empilées dans cette case-là partagent donc
+forcément ce même chantier ; le correctif du 03.09.2026 (§26, `chantierExistantDansCase`) ne fait que
+pré-cocher intelligemment ce chantier existant par défaut, il ne crée pas de 2e emplacement. Rendre le
+chantier propre à CHAQUE tâche empilée (comme `[Important]`/`[Série:xxx]` le sont déjà) est possible mais
+demande une restructuration plus large — nouveau tag `[Chantier:xxx]` dans `encoderLigneTache_`/
+`decoderLigneTache_`, arrêt de l'écriture d'une ligne "Chantier" séparée, mise à jour de tout ce qui lit
+cette ligne (couleurs, légende, impression...). Pas engagé sans confirmation explicite : à valider avec
+Lionel avant de s'y attaquer, vu l'ampleur du changement de modèle.
+
+### Vérifications (32.1 et 32.2)
+
+`test_formulaires_assignation.js` : 13/13 -> **18/18** (5 assertions neuves sur `appliquerStatutsEtFormulaires`,
+section 4 : `typeEntree`/`assigneA` survivent bien à la transformation, formulaire "tache" jamais confondu
+avec "absence", statuts non affectés). 10 suites au total, toutes vertes (232 assertions cumulées côté
+`node`, plus les 2 suites à comptage narratif `test_markers.js`/`test_semaines.js`). `node --check` OK,
+accolades du bloc `<style>` équilibrées (360/360). 32.1 vérifié en plus par rendu isolé (bulle réelle dans
+la case aprem, cf. ci-dessus).
+
+## 33. Round du 04.09.2026 — migration Supabase, phase 4/étape 3 : "config simple"
+
+Suite des étapes 1 (connexion) et 2 (chargement) du §6bis de `MIGRATION-GITHUB-PLAN.md` : les 14 `apiXxx`
+"mécaniques" restants (Personnel/Intervenants, Chantiers, Statuts, Formulaires rapides, Fériés+catégories)
+sont portés en lecture/écriture directe des tables Supabase (`sbClient.from(...)`, section "CONFIG SIMPLE"
+d'`Index.html`) — aucun n'avait besoin d'une Edge Function (§5 du plan), contrairement aux 4 fonctions déjà
+déployées (jalon/note, série, décalage).
+
+### Déviations assumées par rapport au contrat `apiXxx` d'origine
+
+Le portage n'est volontairement PAS littéral : plusieurs paramètres de l'ancien contrat n'ont plus de sens
+une fois qu'une personne/un chantier est une vraie ligne de table, identifiée par un vrai id, au lieu d'une
+position de cellule partagée par toutes les semaines d'un classeur.
+
+- **Personnel — la "portée" disparaît.** `apiRenommerPersonne`/`apiSupprimerPersonne` demandaient "cette
+  semaine seulement" ou "et les suivantes" : un contournement du classeur, où une personne était 4 lignes
+  RÉPÉTÉES par semaine. Une personne est maintenant une seule ligne `personnes`, valable pour toutes les
+  semaines à la fois (passées et futures) — renommer/désactiver s'applique donc toujours partout, sans
+  qu'aucun prompt de portée n'ait plus de sens à proposer (`demanderPortee2` retiré). "Supprimer" reste,
+  comme avant, une désactivation (`actif = false`) plutôt qu'un vrai `DELETE` — l'historique (tâches/
+  assignations déjà posées) doit survivre, jamais être perdu.
+- **Chantiers — renommer ne migre plus aucune case.** Les cases du planning renvoient à un chantier par son
+  id (`assignations.chantier_id`, une vraie clé étrangère) et non plus par son nom : ce qu'`apiRenommerChantier`
+  devait faire à la main côté classeur (balayer toutes les cases pour recopier le nouveau nom) devient un
+  simple `update` de la ligne `chantiers`, rien à propager. Supprimer compte et vide TOUTES les assignations
+  concernées, passées comprises — déviation assumée par rapport à l'ancien "semaine affichée et suivantes
+  seulement" : la contrainte de clé étrangère (`chantier_id not null`) l'exige de toute façon avant de
+  pouvoir retirer la ligne `chantiers`.
+- **Statuts — la clé (`cle`) devient stable.** Elle était recalculée à la lecture depuis le nom
+  (`slugifierStatut_`, WebApp.gs) ; c'est maintenant une vraie colonne persistée qui ne change plus au
+  renommage (portée en JS : `genererCleStatut_`, testée).
+- **Fériés — 3e catégorie "Compensés" ajoutée en base.** Gap découvert en portant `apiEnregistrerFeriesV3` :
+  la contrainte `feries.categorie` (migration 0001) n'autorisait que `ferie`/`vacances_entreprise`, jamais
+  remarqué avant faute d'avoir testé cette 3e catégorie en conditions réelles — corrigé par
+  `sql/0005_categories_feries.sql`.
+- **Catégories de fériés — nouvelle table.** `categories_feries` n'existait dans aucune migration
+  précédente (l'étape 2 avait laissé `etat.categoriesFeriesServeur = []` avec repli sur
+  `CATEGORIES_FERIES_DEFAUT`, en attendant). `sql/0005_categories_feries.sql` crée la table (3 lignes fixes,
+  seule la couleur est éditable), avec RLS — le `GRANT` à `authenticated`, comme pour `sql/0004`, reste à
+  coller par Lionel dans l'Éditeur SQL Supabase (bloqué pour cette session par les garde-fous de sécurité de
+  l'environnement d'agent).
+
+### Vérifications
+
+Nouveau `test_config_simple.js` couvrant la logique pure extraite du fichier (jour ouvré/week-end,
+`compterTachesParPersonne_` — même règle de fusion "jours ouvrés consécutifs, jamais le week-end" que côté
+serveur ET que `construireVueDepuisCache` —, `slugifierStatut_`/`genererCleStatut_`). Suite complète de
+`test_*.js` toujours verte, `node --check` OK sur le bloc `<script>` extrait. Pas encore vérifié en
+conditions réelles contre le vrai projet Supabase (comme les Edge Functions et le reste de la phase 4 —
+limite réseau de cet environnement).
+
+## 34. Round du 07.09.2026 — migration Supabase, phase 4/étape 4 : brancher les Edge Functions
+
+Suite de l'étape 3 (§33) : les 3 Edge Functions dont `Index.html` a réellement l'usage aujourd'hui
+(`enregistrer-plage`, `enregistrer-serie`, `gerer-serie` — déjà déployées et testées côté serveur depuis la
+phase 3, cf. §5 du plan) sont enfin appelées depuis le client, à la place de `gsP("apiEnregistrerJalonNote"/
+"apiEnregistrerPlage"/"apiEnregistrerSerie"/"apiModifierSerie"/"apiSupprimerSerie"/"apiAjoutLointain", ...)`.
+`decalage-masse` reste NON branchée : aucune interface de décalage en masse n'existe côté client (confirmé
+par grep — un point ouvert à construire séparément, pas fait ici).
+
+### `invoquerFonctionServeur(nom, body)` — l'équivalent `gsP()` pour les Edge Functions
+
+Petit helper ajouté juste après `gsP()` : appelle `sbClient.functions.invoke(nom, {body})` et renvoie une
+promesse qui résout avec `data` ou rejette avec une vraie `Error`, dans les deux cas d'échec possibles
+(mêmes réflexes que partout ailleurs dans le fichier — `if (res.error) throw res.error;`). Deux points
+vérifiés dans le code source réel (`npm pack @supabase/supabase-js`/`@supabase/functions-js`, aucun accès
+réseau direct possible dans cet environnement pour les tester en conditions réelles) plutôt que supposés :
+
+- **Le JWT de la session est attaché automatiquement.** `functions.invoke()` n'a besoin d'aucun header
+  `Authorization` manuel — `SupabaseClient` construit son client `functions` avec un `fetch` dédié qui relit
+  le token de la session active à CHAQUE appel (`_getSessionToken`), pas seulement à la création du client.
+- **Un échec métier n'arrive jamais en `data.ok===false` en pratique.** Les 4 fonctions renvoient
+  systématiquement un code HTTP non-2xx sur erreur (400/401/405/500, cf. leurs `index.ts`) : côté
+  `functions-js`, ça devient toujours un `FunctionsHttpError` dans `error`, jamais un 200 avec
+  `ok:false` dans `data`. Seul souci : `error.message` est alors le générique "Edge Function returned a
+  non-2xx status code", pas le vrai texte — `invoquerFonctionServeur` relit `error.context` (la `Response`
+  clonée) en JSON pour remonter le vrai `{erreur: "..."}` au toast. Le chemin `data.ok===false` reste quand
+  même géré, au cas où une future fonction choisirait de répondre en 200.
+
+### Jalon/note — le moteur de diff (`synchroniser()`)
+
+C'était le morceau le plus délicat de cette étape : `diffsJalons`/`diffsNotes` adressent chaque changement
+par `(labG, jourIdx)` — une coordonnée héritée du classeur — alors qu'`enregistrer-plage` attend de vraies
+dates ISO. Choix retenu : **ne rien changer au moteur de diff lui-même** (`calculerEtatLocal`/
+`diffsCellulesPersonne`/`diffsJalons`/`diffsNotes` restent identiques, ils sont profondément imbriqués avec
+le reste du rendu) et traduire seulement au point d'appel, via un petit helper pur
+`isoDeLabGJourIdx(labG, jourIdx)` qui réutilise `infosSemaineDepuisLabG()` (déjà écrite à l'étape 2) — pas
+besoin du cache, `jourIdx` y est toujours 0..4 (lundi..vendredi, les jalons n'existent jamais le week-end).
+Chaque jalon diffé est TOUJOURS un seul jour (`dateDebut === dateFin`), en mode `"remplacement"` — un
+enregistrement diffé représente l'état COMPLET du jour, jamais un ajout, exactement comme l'ancien
+`apiEnregistrerJalonNote` qui écrasait sans condition la cellule entière ; `origine` reste `null` (pas de
+notion de "déplacement" pour une case isolée). Les notes portaient déjà de vraies dates ISO
+(`dateDebutIso`/`isoDeApres`) — seul changement là : les clés de l'objet `origine` passent de `debut`/`fin`
+(ancien contrat WebApp.gs) à `dateDebut`/`dateFin` (contrat réel d'`enregistrer-plage`, vérifié dans
+`functions/enregistrer-plage/logic.js`) — un vrai bug en puissance si j'avais fait confiance au nom des
+champs sans relire le code source de la fonction.
+
+Autre conséquence : ni `enregistrer-plage` ni (une fois porté) `apiEnregistrerCellulePersonne` ne renvoient
+plus la semaine entière rafraîchie en un seul aller-retour, contrairement à tous les anciens `apiXxx`. Après
+un envoi réussi, `synchroniser()` oublie tout le cache et recharge la fenêtre affichée depuis Supabase
+(`oublierCache()` + `assurerFenetreChargee()`) — même filet que celui déjà utilisé dans le `.catch()` de
+secours. Un aller-retour réseau de plus par synchronisation, mais un seul chemin de code pour "l'affichage
+doit refléter ce que le serveur vient d'accepter". `apresEcritureSerie()` (partagée par les 3 fonctions
+"série") suit le même principe et ignore maintenant son paramètre `r` — les appelants continuent de le
+passer, sans effet.
+
+### Série — `creerSerieServeur`/`gerer-serie` (5 sites d'appel)
+
+`enregistrer-serie` attend des id (`personneId`, `chantierId`, `statutId`) là où la vue ne connaît le
+chantier/statut que par nom/clé (`CHANTIERS`/`STATUTS`, cf. §33) — traduits via les lookups déjà posés au
+bootstrap (`etat.chantierParNom[nom].ligne`) ou ajoutés ici (`etat.statutIdParCle`, sens inverse de
+`etat.statutsParId`, qui ne suffisait pas). Point à noter : `type: "absence"` n'a jamais été une vraie
+catégorie côté serveur (la table `taches` n'a pas de colonne `type` — c'est le TEXTE qui rend une tâche
+visuellement "absence", cf. `estAbsence()`) — traduit en `"tache"` avant l'appel à `enregistrer-serie`, qui
+n'accepte que `tache`/`jalon`/`note`. Les portées `"unique"/"suivant"/"serie"` (menu "Cet élément
+seul"/"...et les suivants"/"Toute la série") correspondaient déjà exactement aux valeurs attendues par
+`gerer-serie` — aucune traduction nécessaire là.
+
+### Ajout lointain (`ouvrirAjoutLointain`)
+
+Simplification de fond permise par l'étape 2 : l'ancien `apiAjoutLointain` (WebApp.gs) devait d'abord faire
+exister les semaines visées (`assurerSemainesJusqua_`, plafonné, avec message d'erreur si la date demandée
+dépassait la limite) puisque le planning n'était créé que 5 semaines à l'avance. `etat.semaines` étant
+maintenant calculé localement sur ~5 ans devant/derrière (pure arithmétique de dates), cette étape entière
+disparaît — aucune "création de semaine" n'a plus de sens.
+
+- **Jalon/note** : réutilise `enregistrer-plage`, mode `"ajout"` — exactement le même principe que l'ancien
+  code, qui appelait déjà `apiEnregistrerPlage` en interne pour ces deux types.
+- **Tâche/absence** : pas d'Edge Function dédiée (§6bis : "même principe à reprendre pour la partie tâche")
+  — écriture directe des tables `taches`/`assignations`. Logique extraite en fonction pure,
+  `construireLignesAjoutLointain` (lit l'existant déjà en base, renvoie les lignes à insérer, n'écrit jamais
+  elle-même), qui reprend la même règle que `construireOccurrencesSerie`
+  (`functions/enregistrer-serie/logic.js`) plutôt que d'en réinventer une : le chantier est posé, mais
+  JAMAIS à la place d'un chantier déjà présent sur le créneau — peu importe qui l'a posé.
+- Nouvelle fonction pure `joursOuvresDepuis(isoDebut, nbJours)`, port fidèle de l'ancien
+  `joursOuvresDepuis_` (WebApp.gs, même sémantique : un départ un week-end décale seulement le point de
+  départ, jamais `nbJours`).
+
+### Vérifications
+
+Nouveau `test_edge_functions.js` (14 vérifications) couvrant les 3 morceaux de logique pure ajoutés
+(`isoDeLabGJourIdx`, `joursOuvresDepuis`, `construireLignesAjoutLointain` — en particulier la règle "chantier
+jamais écrasé" et le calcul d'`ordre`). Suite complète de `test_*.js` toujours verte (17 fichiers), `node
+--check` OK sur le bloc `<script>` extrait. Pas de test Playwright structurel cette fois (jugé pas
+indispensable vu l'ampleur déjà couverte par les tests unitaires + la relecture ligne à ligne de chaque
+site d'appel contre `WebApp.gs`/les `index.ts`/`logic.js` des Edge Functions) — comme le reste de la phase 4,
+pas encore vérifié en conditions réelles contre le vrai projet Supabase (limite réseau de cet
+environnement) : ce sera l'objet de l'étape 5.
+
+## 35. Round du 07.09.2026 (suite) — correctif : ajout d'une tâche impossible ("google is not defined")
+
+Retour de Lionel en testant l'étape 4 en conditions réelles : « ça fonctionne pour note et jalon », mais
+ajouter une tâche sous un ouvrier échoue avec le toast « Échec de la synchronisation : google is not
+defined — rechargement… ». Diagnostic : `apiEnregistrerCellulePersonne` (WebApp.gs) — l'écriture d'une case
+personnel (tâches + chantier d'une demi-journée) — n'avait jamais été portée. Le §6bis du plan la
+mentionnait bien à part ("écriture directe des tables taches/assignations, pas de fonction dédiée") mais
+elle n'était rattachée à AUCUNE des étapes numérotées 1 à 6 : ni "config simple" (étape 3, qui ne couvrait
+que Personnel/Chantiers/Statuts/Formulaires/Fériés en tant que TABLES DE CONFIG, pas les tables
+tâches/assignations elles-mêmes) ni "brancher les Edge Functions" (étape 4, qui ne couvrait que les 4
+fonctions serveur déjà déployées — celle-ci n'en est justement pas une). Un vrai trou de planning, repéré
+seulement parce que Lionel a testé une action qu'aucune des étapes précédentes n'avait explicitement listée.
+
+### Changement (`Index.html`)
+
+Nouvelle fonction `enregistrerCellulePersonneServeur(labG, ancre, demi, jourIdx, payload)`, appelée par
+`synchroniser()` à la place de l'ancien `gsP("apiEnregistrerCellulePersonne", ...)`. Même règle métier que
+l'ancien code : la case reçoit un état COMPLET à chaque appel (jamais un ajout incrémental) — toutes les
+lignes `taches`/`assignations` existantes du `(personne_id, date, demi)` concerné sont retirées, les
+nouvelles insérées à la place, dans l'ordre du tableau `payload.taches` (colonne `ordre`). `chantier`/
+`statut` arrivent en nom/clé (comme le reste de la vue) et sont traduits en `chantier_id`/`statut_id` via
+les lookups déjà construits au bootstrap (étape 2/3).
+
+Nouvelle fonction pure `isoDeLabGJourIdxCase_(labG, jourIdx)` : traduit `(labG, jourIdx 0..7)` en date ISO —
+`jourIdx` va jusqu'à 7 ici (0..4 = lundi..vendredi, 6/7 = Samedi/Dimanche, 5 n'existe jamais, hérité des
+anciennes colonnes physiques), contrairement à `isoDeLabGJourIdx` de l'étape 4 (jalons, 0..4 seulement). Le
+week-end n'a plus besoin de la mécanique de cellule fusionnée Samedi/Dimanche de l'ancien classeur (tag
+`[S]`/`[D]`, une seule colonne physique pour les 2 jours) : chaque jour a sa propre date, donc sa propre
+ligne — jourIdx 6 et 7 s'écrivent indépendamment, avec la même fonction que n'importe quel jour de semaine.
+
+### Vérifications
+
+Nouveau `test_ecriture_case_personne.js` (7/7 : jourIdx 0/4 en semaine normale, jourIdx 6/7 vérifiés
+INDÉPENDANTS l'un de l'autre — le risque le plus concret d'une régression style "les 2 jours du week-end
+partagent encore la même case" —, plus un changement de mois). Suite complète toujours verte (18 fichiers),
+`node --check` OK. Pas encore re-testé par Lionel en conditions réelles au moment d'écrire ceci.
+
+## 36. Round du 07.09.2026 (suite) — étape 5, chasse aux trous restants
+
+Lionel a demandé de laisser tomber le décalage en masse pour le moment (pas d'UI construite — reste
+explicitement hors scope, cf. §6bis étape 4/5 du plan) et de continuer sur l'étape 5 (vérification bout en
+bout + recherche d'éventuels autres `apiXxx` oubliés, dans l'esprit du trou trouvé au §35). Un grep de tous
+les appels `gs(`/`gsP(` restants dans `Index.html` (les deux seules portes vers `google.script.run`,
+maintenant inexistant hors Apps Script) donne exactement 2 sites, tous deux déjà identifiés et documentés
+comme hors scope de la phase 4 (§6bis) — pas de nouveau trou du genre "§35" trouvé. Mais l'un des deux avait
+un vrai défaut, corrigé ici :
+
+- **`apiVersionServeur` (page Fériés, `afficherVersionServeur()`) — supprimé.** C'était un diagnostic du
+  round du 02.09.2026 ("le déploiement Apps Script sert-il bien le dernier WebApp.gs envoyé ?"), qui
+  s'exécutait automatiquement à CHAQUE ouverture de la page Fériés. Concept qui n'a plus aucun sens une fois
+  hébergé sur GitHub Pages (plus de "déploiement" à vérifier) — mais surtout, il appelait encore `gsP()`
+  donc `google.script.run`, absent de ce nouvel environnement : sans le fix, Lionel aurait vu un message
+  d'erreur permanent ("Impossible de lire la version du serveur (google is not defined)…") en bas de la
+  page Fériés, jamais signalé jusqu'ici probablement parce que ce n'est pas bloquant (le reste de la page
+  fonctionne). Fonction, appel et CSS associée supprimés plutôt que portés.
+- **`apiGenererPdf` (bouton "Générer le PDF") — laissé en l'état fonctionnel (PDF reste une étape 6 séparée,
+  §8), mais sécurisé.** Contrairement au cas ci-dessus, cet appel n'est déclenché que sur un clic explicite
+  — pas automatique — donc pas de nouveau trou "cassé sans le vouloir". Mais `gs()` lève une exception
+  synchrone (`google is not defined`) non rattrapée par un `try/catch`, ce qui aurait laissé le bouton
+  bloqué indéfiniment sur "Génération…" si Lionel cliquait dessus avant l'étape 6. Ajout d'un `try/catch`
+  autour de l'appel : message clair ("Export PDF pas encore disponible sur la nouvelle version (à venir).")
+  et bouton réactivé, en attendant l'étape 6.
+
+### Vérifications
+
+Suite complète de `test_*.js` toujours verte (19 fichiers), `node --check` OK sur le bloc `<script>`
+extrait. Test structurel Playwright : navigation vers la page Fériés avec des données mockées réalistes
+(y compris `categories_feries` peuplée) — plus aucune erreur JS levée (avant le correctif, le message
+d'erreur apparaissait mais silencieusement, sans lever d'exception JS visible dans la console ; après,
+l'appel a purement disparu). Toujours pas de test en conditions réelles contre le vrai projet Supabase pour
+`enregistrer-plage`/`enregistrer-serie`/`gerer-serie` (limite réseau de cet environnement, inchangée) — ce
+sera à Lionel de le confirmer en utilisant l'appli avec ses vraies données, comme prévu à l'étape 5.
+
+## 37. Round du 07.09.2026 (suite) — 3 bugs de demi-journée signalés par Lionel
+
+Lionel, captures d'écran à l'appui : *« les jalons ne fonctionne pas en case d'une demi journée, le
+déplacement d'une demi journée ne fonctionne pas. une tache que je veux étendre saute les demi journée. »*
+Rien à voir avec la migration Supabase (§6bis) : les 3 symptômes touchent la mécanique CSS Grid/JS de la
+grille (demi-journées, round du 02-03.09.2026, §18/§21/§23/§25/§26 ci-dessus), présente avant même le
+portage. Reproduit et diagnostiqué avec Playwright (chromium headless, `window.supabase.createClient` mocké
+avec un magasin en mémoire STATEFUL — contrairement aux mocks précédents de ce projet, celui-ci exécute
+vraiment le port JS de la logique serveur d'`enregistrer-plage` pour que les écritures locales survivent
+réellement au cycle "sync -> oublierCache -> rechargement" que fait l'appli après chaque geste, faute de
+quoi un déplacement/redimensionnement retombait toujours à zéro dès le rechargement suivant qu'il ait
+vraiment un bug ou non) : événements pointer réels (pointerdown/pointermove/pointerup) sur les poignées de
+redimensionnement et sur le corps des bulles, en mode compact.
+
+### 1. « les jalons ne fonctionne pas en case d'une demi journée » — PAS un bug, limite déjà voulue
+
+Un jalon n'a **jamais** de demi-journée — décision confirmée par Lionel le 02.09.2026 et déjà documentée à
+3 endroits du code (`itemPlage`, `ouvrirEditionPlage` : "pour les jalons pas de demi-journée, pour les
+notes par contre j'aimerais pouvoir le mettre en demi-journée", et BACKEND-CHANGELOG.md §24). Le formulaire
+d'un jalon n'affiche même pas le bloc de choix matin/après-midi. Zoomé sur la 1ère capture de Lionel, un
+fragment de texte semblait dépasser sous le coin d'un jalon violet ("test" sur LUN-MER, avec un "st"
+fantôme pile à la frontière MAR/MER) — hypothèse la plus probable : un doublon DOM (bulle fantôme de
+glissement mal nettoyée) ou une désynchronisation de rendu. Reproduit intensivement en Playwright (ajout
+d'un jalon, extension par poignée sur plusieurs jours à cheval sur la frontière visible dans la capture,
+déplacement de la bulle entière, vérification à chaque étape de `document.querySelectorAll('.fantome-glisse')`
+et du nombre de bulles jalon dans le DOM) : **aucune duplication, aucun fantôme laissé en place, aucune
+géométrie fausse** dans tous les scénarios testés — chaque opération se nettoie correctement
+(`nettoyerFantomes()` est bien appelé sur tous les chemins de sortie du geste, y compris annulation).
+Faute de pouvoir reproduire un vrai défaut, je n'ai rien changé sur les jalons eux-mêmes : le "bug" signalé
+est très probablement soit une incompréhension de la limite volontaire ci-dessus (Lionel voulait poser un
+jalon calé sur une demi-journée, ce qui n'a jamais été possible), soit un symptôme ponctuel du bug §2
+ci-dessous vu sur une bulle voisine (une note, dans la même zone de la capture) au moment de la capture.
+**À valider avec Lionel** après les 2 correctifs ci-dessous : si le glitch visuel réapparaît, il me faudra
+les étapes exactes (quel geste, quelle bulle, mode compact ou classique) pour le reproduire précisément —
+les captures seules ne suffisaient pas à retrouver un défaut réel malgré une recherche poussée.
+
+### 2. « le déplacement d'une demi-journée ne fonctionne pas » — confirmé, corrigé
+
+Reproduit très simplement : glisser une note (bulle entière, pas une poignée) d'un jour à un autre annule
+silencieusement le déplacement dès que la synchronisation avec le serveur se termine — la bulle "revient"
+à sa position de départ après coup, donnant l'impression que rien ne s'est passé. Idem pour un
+redimensionnement par poignée : l'aperçu pendant le geste est correct, mais la nouvelle taille ne "tient"
+pas après le rechargement qui suit la synchronisation.
+
+**Cause** : chaque jalon/note porte un champ `dateDebutIso` — la vraie date ISO absolue de son 1er jour —
+posé une seule fois par `construireVueDepuisCache()` au moment où l'item est reconstruit depuis le serveur.
+Ce champ sert ensuite de raccourci dans 2 endroits du moteur de synchronisation : `isoDeApres(item)` (date
+de fin, `dateDebutIso + duree - 1` jours) et le calcul du `dateDebut` envoyé à `enregistrer-plage`
+(`d.apres.dateDebutIso || isoDeGi(d.apres.giDebut)`) — les DEUX préfèrent `dateDebutIso` dès qu'il est
+renseigné, plutôt que de le recalculer depuis `giDebut`. Or **aucun** code de déplacement/redimensionnement
+(`appliquerDelta`, `appliquerDeltaNote`, `appliquerCibleUnitaire`, l'`onUp` de `cablerPoigneeRedim`) ne
+rafraîchissait `dateDebutIso` après avoir changé `giDebut` — le champ restait figé sur l'ANCIENNE position.
+Résultat : la synchronisation qui suit un déplacement envoie encore l'ancienne date au serveur, qui écrit
+donc (silencieusement, sans erreur) à l'ancien endroit ; le rechargement qui suit immédiatement redessine
+alors la bulle à sa position de départ. Un JALON n'est pas touché par ce bug précis — `diffsJalons`
+recalcule `labG`/`jourIdx` à chaque fois depuis `giDebut` (jamais depuis `dateDebutIso`), ce que confirme
+la reproduction Playwright du point 1 ci-dessus (déplacement/extension de jalon : toujours correct).
+
+**Correctif** : `it.dateDebutIso = isoDeGi(it.giDebut);` ajouté juste après chaque mutation de `giDebut` sur
+un item existant (les 4 sites cités plus haut) — jamais sur la branche "copie" (`copieFinale`), où
+`itemPlage`/`itemPlageTache` ne posent de toute façon pas ce champ, et où le repli `|| isoDeGi(...)` déjà
+en place suffit. Sans effet sur les tâches/absences pour LEUR synchronisation propre (`diffsCellulesPersonne`
+recalcule aussi frais depuis `giDebut`, jamais concerné), mais garder leur `dateDebutIso` à jour reste
+correct par ailleurs (référence de série lue par `ouvrirEdition`/`gerer-serie`).
+
+Reproduit puis vérifié en Playwright, avant/après le correctif, sur le scénario exact de Lionel : glisser
+une note d'un jour vers un autre (avec choix explicite d'une demi-journée d'arrivée) — avant : la bulle
+revenait à sa position/geométrie de départ après le cycle de synchronisation complet ; après : elle reste
+exactement là où elle a été déposée, colonne CSS comprise, y compris pour un redimensionnement qui pose "1
+jour et demi" (round du §25).
+
+### 3. « une tache que je veux étendre saute les demi journée » — confirmé, corrigé
+
+Reproduit en ajoutant une tâche sur la ligne "après-midi" d'une personne (mode compact) puis en tirant sa
+poignée droite pour l'étendre sur plusieurs jours : pendant tout le geste, l'aperçu de la bulle "saute" sur
+la colonne du MATIN au lieu de rester sur celle de l'après-midi — un écart d'une demi-colonne entière,
+mesuré précisément en Playwright (`bulle.left` vs le bord réel de la cellule après-midi ciblée : 618px au
+lieu des 724px attendus, l'équivalent exact d'une sous-colonne de mode compact).
+
+**Cause** : `colonneEtSpanDemi()` (la fonction PARTAGÉE entre le rendu statique et l'aperçu de
+redimensionnement, cf. §21/§25 ci-dessus) ne connaît QUE `demiDebut`/`demiFin` — le champ propre aux
+NOTES. Une tâche/absence, elle, ne porte pas ces champs : sa demi-journée est `it.demi` (la ligne
+matin/aprem qu'elle occupe, fixe pour toute sa durée). `cablerPoigneeRedim` lisait `it.demiDebut || null`
+sans jamais se rabattre sur `it.demi` — pour une tâche, ce calcul valait donc TOUJOURS `null`, faisant
+retomber `colonneEtSpanDemi()` sur la colonne du matin par défaut pendant tout l'aperçu, quelle que soit
+la vraie demi-journée de la tâche. La mutation finale (`onUp`) ne touchant jamais `it.demi` pour une
+tâche, la position affichée APRÈS le geste (issue d'un rendu complet, via `colonneDemi(gi, it.demi)`,
+correct) redevenait juste — mais entre-temps, l'aperçu trompeur pendant tout le glissement donnait
+l'impression que la tâche "saute" par-dessus la frontière matin/après-midi.
+
+**Correctif** : nouvelle fonction pure `demiFixePourItem(it)` — renvoie `it.demi` pour une tâche/absence
+(`it.personneId` défini), `null` pour un jalon (jamais de repli, conformément à BACKEND-CHANGELOG.md §24).
+Utilisée dans `cablerPoigneeRedim` comme repli quand `it.demiDebut`/`it.demiFin` sont absents. Une NOTE
+n'est jamais concernée (elle porte déjà ses propres `demiDebut`/`demiFin`, gérés séparément). Aucun
+changement sur la mutation finale : seul l'aperçu PENDANT le geste était faux, comme au §21.
+
+Reproduit et vérifié en Playwright avant/après (voir ci-dessus) : après correctif, `bulle.left` pendant le
+geste correspond exactement au bord réel de la cellule après-midi ciblée à chaque étape, et les 3 segments
+posés à la fin (un par jour, mode compact = 1 élément DOM par jour pour une tâche, contrairement à une
+bulle unique qui s'étire pour un jalon/note) restent tous alignés sur la sous-colonne après-midi.
+
+### Vérifications
+
+- `test_grille_compacte.js` : 51/51 -> **56/56** (5 assertions neuves sur `demiFixePourItem` : tâche
+  matin/après-midi, absence, jalon jamais de repli, note jamais concernée par CE repli-ci).
+- Les 17 autres suites `test_*.js` restent vertes (18 fichiers au total, 0 échec).
+- `node --check` OK sur le bloc `<script>` extrait.
+- Reproduction Playwright (chromium headless, mock Supabase stateful décrit plus haut, non conservée dans
+  le dépôt — ce projet n'a pas encore de convention pour des tests Playwright commités, cf. absence de tel
+  fichier dans les 18 `test_*.js` existants) : scénarios avant/après pour les bugs §2 et §3 ci-dessus,
+  captures d'écran intermédiaires prises pour comparaison visuelle.
+- Pas pu reproduire de défaut réel sur les jalons (point 1) malgré une recherche poussée (extension,
+  déplacement, vérification de fantômes/doublons DOM) — **à revalider avec Lionel** une fois les 2 autres
+  correctifs en test réel : si le symptôme persiste, il me faudra les étapes précises pour le reproduire.
+
+## 38. Round du 07.09.2026 (suite) — déplacer une note à cheval sur 2 jours, en demi-journée
+
+Lionel, une 3e fois dans la même zone que le §37 : *« toujours impossible de déplacer une note qui mesure
+2 demi/journée de 1 demi journée. »* Après clarification (2 questions posées) : la note en cause est une
+note « un après-midi et un matin » — `duree=2`, `demiDebut="aprem"`, `demiFin="matin"` (round du 03.09.2026/
+§25 : deux jours calendaires consécutifs pour une seule journée de TRAVAIL) — et le geste souhaité est de la
+glisser (bulle entière, pas une poignée) pour qu'elle retombe, au choix selon le sens, sur une journée
+PLEINE d'un seul des 2 jours : un décalage d'exactement une demi-journée.
+
+Contrairement aux 3 bugs du §37, ce n'était pas une régression : `demiCiblePourDeplacementNote` (round du
+03.09.2026/§25) a toujours reconduit la forme des 2 bords TELLE QUELLE dès que `duree > 1` — « un simple
+déplacement… ne change jamais la durée ni ses bords » — sans jamais offrir de granularité demi-journée pour
+une note multi-jours. Un déplacement de note à 2 jours ne pouvait donc bouger que par JOUR ENTIER. Une vraie
+fonctionnalité à construire, jamais un défaut caché.
+
+### Le modèle retenu : le "demi-slot"
+
+Plutôt que de raisonner en `(giDebut, duree, demiDebut, demiFin)`, la position d'une note est traduite en
+une paire de bornes INCLUSES dans un espace de "demi-slots" — un entier par demi-journée ouvrée : le jour
+`gi` a pour matin le slot `2*gi`, pour après-midi le slot `2*gi+1`. Deux fonctions pures, symétriques :
+
+- `demiSlotsDepuisBornes(giDebut, duree, demiDebut, demiFin)` → `{halfStart, halfFinIncl}`.
+- `bornesDepuisDemiSlots(halfStart, halfFinIncl)` → `{giDebut, duree, demiDebut, demiFin}` (invariant
+  `demiDebut === demiFin` maintenu quand `duree === 1`, comme partout ailleurs dans le fichier).
+
+Translater une note d'un nombre ENTIER de demi-slots (`bordsDeplacementNoteMultiJours`) donne exactement le
+déplacement en demi-journée recherché, sans jamais changer le NOMBRE de demi-slots occupés — c'est-à-dire
+sans jamais changer la durée totale de travail de la note, qu'elle soit concentrée sur un seul jour
+calendaire ou répartie sur plusieurs. C'est très exactement le modèle suggéré au départ de ce round ;
+vérifié avant usage contre les assertions déjà existantes de `demiCiblePourDeplacementNote` (duree === 1) —
+aucun écart trouvé, mais **ce cas n'a volontairement pas été refondu dans ce modèle général** : il reste
+servi par son ancienne fonction, inchangée, pour ne courir aucun risque de régression sur un geste déjà
+testé et déjà en usage réel (cf. section suivante).
+
+### Où ça se branche
+
+`demiCiblePourDeplacementNote` (duree === 1) reste **strictement inchangée**, avec son seul appelant
+d'origine dans `resoudreCibleGroupe` — zéro risque de régression sur ce cas, déjà couvert par les 5
+assertions existantes de `test_grille_compacte.js`. Le nouveau mécanisme (`demiSlotsDepuisBornes` /
+`bornesDepuisDemiSlots` / `bordsDeplacementNoteMultiJours`) n'intervient QUE pour `duree > 1`, à l'intérieur
+de la MÊME branche existante (`!tactile && groupeIds.length === 1 && kindOrigineGeste() === "note" &&
+clientXFinal != null`) — pas une 2e branche séparée — et seulement en mode COMPACT (le commentaire déjà en
+place sur `colonneEtSpanDemi` le dit explicitement : la géométrie pixel-précise par demi-jour n'existe qu'en
+mode compact, jamais en classique). Le mode classique, le tactile, les jalons et les tâches personnel
+gardent donc tous EXACTEMENT le comportement d'avant ce round — granularité jour entier pour les 2 premiers,
+mécanique dédiée déjà existante (`estBulleUnitaireDeplacable`/`appliquerCibleUnitaire`) pour les tâches,
+jamais de demi-journée pour un jalon (BACKEND-CHANGELOG.md §24).
+
+Deux nouveaux morceaux, symétriques à l'existant :
+
+- **`offsetHalvesClic`** (pointerdown, `onPointerDownGroupeSelection`) — équivalent en demi-slots
+  d'`offsetJoursClic` (le calcul déjà en place pour la granularité jour) : où, dans la LARGEUR RÉELLE de la
+  bulle (`getBoundingClientRect()`), le clic est tombé, exprimé en fraction du nombre TOTAL de demi-slots
+  réellement occupés (`L`, cf. `demiSlotsDepuisBornes`) — pas `duree`, qui sous-compterait dès qu'un bord
+  est déjà en demi-journée. Calculé uniquement quand applicable (souris, compact, note, `duree > 1`) ; `0`
+  sinon, sans effet.
+- **`bordsDeplacementNoteMultiJours`** (relâchement, `resoudreCibleGroupe`) — combine `offsetHalvesClic` et
+  la position du relâchement (`giCibleBrut` + `demiDepuisPointeur`, déjà utilisés partout ailleurs dans ce
+  geste) en un delta de demi-slots, jamais un delta de jours entiers. La fenêtre de bornage est la même que
+  pour un déplacement en jours entiers (`[0, nTotal - duree]` jours), simplement exprimée en demi-slots
+  (`[0, nTotal*2 - L]`) — la LONGUEUR occupée (`L`) ne change jamais, seule sa position est bornée. Une
+  nouvelle fonction d'application, `appliquerDeltaNoteMultiJours` (symétrique à `appliquerDeltaNote`), écrit
+  `giDebut`/`duree`/`demiDebut`/`demiFin` en une fois et **rafraîchit `dateDebutIso`** — sans quoi le bug du
+  §37 (« le déplacement d'une demi-journée ne fonctionne pas », la note « revenant » à sa position de départ
+  après synchronisation) reviendrait pour ce nouveau chemin de code.
+
+### Une nuance découverte en vérifiant le modèle avant de l'utiliser
+
+L'énoncé de ce round envisageait qu'un déplacement d'une note déjà en « 1 jour et demi » puisse la faire
+« gagner encore une demi-journée dans le même sens (devient 2 jours et demi) ». Vérifié avant d'écrire quoi
+que ce soit : **mathématiquement impossible pour une pure TRANSLATION** — une translation en demi-slots
+préserve TOUJOURS `L` (le nombre de demi-slots occupés) par construction, c'est précisément ce qui distingue
+un DÉPLACEMENT (bulle entière) d'un REDIMENSIONNEMENT (poignée, `demiPourRedimNote`, qui lui change bien `L`).
+Une note « 1 jour et demi » glissée d'une demi-journée reste donc toujours « 1 jour et demi » au total —
+seule la répartition entre les 2 jours calendaires bouge (ex. « jour plein + matin du jour suivant » devient
+« après-midi du jour + jour suivant plein »). Comportement correct et voulu ; le modèle n'a pas été forcé
+pour coller à la formulation initiale, cf. `test_grille_compacte.js` pour les 2 sens vérifiés.
+
+### Vérifications
+
+- **`test_grille_compacte.js` : 56/56 → 69/69** (13 assertions neuves) — `demiSlotsDepuisBornes`/
+  `bornesDepuisDemiSlots` (aller-retour, y compris le scénario exact de Lionel), le scénario exact de Lionel
+  dans les 2 sens via `bordsDeplacementNoteMultiJours` (aprem+matin → jour plein, dans les 2 sens), un
+  déplacement de plusieurs jours PLEINS qui préserve la forme (non-régression du comportement jour-entier
+  déjà en place), une note « 1 jour et demi » glissée d'une demi-journée dans les 2 sens (nuance ci-dessus),
+  et les bornes de fenêtre `[0, nTotal*2-1]` des 2 côtés. Les 5 assertions existantes de
+  `demiCiblePourDeplacementNote` (duree === 1) restent identiques et toujours vertes — fonction non touchée.
+- Les 17 autres suites `test_*.js` restent vertes (18 fichiers au total, 0 échec).
+- `node --check` OK sur le bloc `<script>` extrait.
+- Reproduction Playwright (chromium headless, mock Supabase stateful comme au §37 — port réel de
+  `functions/enregistrer-plage/logic.js`, pas une approximation — non conservée dans le dépôt, cf. §37 pour
+  l'absence de convention Playwright commitée dans ce projet) : note "aprem lundi 07.09.2026 + matin mardi
+  08.09.2026" (le vrai scénario de Lionel, seedée en base mockée), glissée à la souris en mode compact —
+  **sens "vers le jour 1"** : relâchée sur le matin du lundi, devient une seule note pleine journée le lundi
+  (`demi: null` en base après le cycle complet sync → oublierCache → rechargement) ; **sens "vers le jour
+  2"** : relâchée sur le matin du mardi, devient une seule note pleine journée le mardi. Dans les 2 cas,
+  géométrie CSS finale vérifiée (largeur de bulle inchangée, position décalée exactement d'une sous-colonne)
+  ET état serveur mocké vérifié (une seule ligne `notes` en base après le cycle, `demi: null`, sur la bonne
+  date) — aucune duplication, aucun résidu de l'ancienne position.
+
+## 39. Round du 07.09.2026 (suite) — surbrillance de dépôt trop large (journée entière au lieu de la case)
+
+Lionel, capture d'écran à l'appui (note "test 2" en cours de glissement, mode compact) : *« comme tu peux le
+voir lors d'un déplacement d'une note la surbrillance ne se fait que sur les journée entière, je pense
+qu'on devrait plutôt parler de cases »*. La capture montre le rectangle bleu de survol couvrant MER+JEU en
+JOURS ENTIERS (colonnes matin+après-midi complètes des 2 jours), alors que la bulle réelle de destination
+n'occupe visuellement qu'une demi-journée de chaque côté — la surbrillance mentait donc sur la vraie zone
+de dépôt dès que la destination impliquait une demi-journée.
+
+### Cause
+
+`cellulesPlagePourSurvol()` (appelée par `survolerCible()` à chaque `pointermove` du glissement) calcule
+une liste de CELLULES DOM ENTIÈRES — une par jour, via `celluleAPosition(kind, extra, gi)` — et leur ajoute
+la classe CSS `drop-hover`/`cell-interdite`. Pour les jalons/notes, chaque jour n'a qu'UNE SEULE cellule de
+fond en arrière-plan (`creerCelluleFond`, jamais scindée en matin/après-midi même en mode compact — cf.
+son commentaire) : la scission visuelle matin/après-midi n'existe QUE pour les bulles elles-mêmes,
+positionnées par `colonneEtSpanDemi`. `cellulesPlagePourSurvol` ne pouvait donc structurellement surligner
+qu'un nombre entier de cellules — jamais une demi-cellule —, d'où le débordement systématique d'une
+demi-journée dès que la destination réelle (calculée par `demiCiblePourDeplacementNote`/
+`bordsDeplacementNoteMultiJours`, §37/§38 ci-dessus) tombait sur une demi-journée.
+
+### Correctif
+
+Nouvel élément de surbrillance DÉDIÉ (`.survol-precis`), positionné par `colonneEtSpanDemi(giDebut, duree,
+demiDebut, demiFin)` — la MÊME fonction qui pose déjà la bulle réelle et son aperçu de redimensionnement —
+plutôt que de dépendre des `.cell` de fond. Nouvelle fonction `cibleNotePreciseCompacte(cible, clientX)`
+(scopée dans `onPointerDownGroupeSelection`, comme `appliquerDeltaNote`/`resoudreCibleGroupe`) : calcule la
+géométrie FINALE exacte que produirait un relâchement maintenant, avec les MÊMES fonctions pures que
+`resoudreCibleGroupe` utilise déjà au relâchement (`demiCiblePourDeplacementNote` pour une note d'un seul
+jour, `bordsDeplacementNoteMultiJours` — modèle demi-slot, §38 — pour plusieurs jours) — aucune nouvelle
+règle métier, seulement la même règle appliquée un cran plus tôt, PENDANT le geste plutôt qu'au relâchement
+seul. `survolerCible()` pose l'élément dédié quand cette fonction renvoie un résultat, avec le MÊME
+`grid-row` que la bulle réelle en cours de glissement (`bulleDom.style.gridRow`, déjà posé par `poser()` au
+rendu) — jamais recalculé indépendamment, pour ne jamais pouvoir diverger de la vraie ligne. `nettoyerSurvol()`
+retire cet élément en plus des classes CSS des cellules entières.
+
+**Restreint à note + mode compact + souris + item seul, exactement le périmètre des rounds précédents
+(§37/§38)** : `cibleNotePreciseCompacte` renvoie `null` — et le survol retombe alors sur
+`cellulesPlagePourSurvol` (comportement par cellule entière, strictement inchangé) — pour un jalon
+(jamais de demi-journée, `kindOrigineGeste() !== "note"`), une tâche (mécanique de cellule déjà
+demi-précise via `data-demi`, `celluleAPosition`), le mode classique (`colonneEtSpanDemi` ne distingue la
+demi-journée qu'en mode compact), le tactile, une sélection groupée (`groupeIds.length !== 1`), et une
+cellule de destination invalide ou de week-end (`estGiWeekend`, aucune demi-journée côté week-end, §2 du
+spec).
+
+### Vérifications
+
+- `node --check` OK sur le bloc `<script>` extrait.
+- Les 18 suites `test_*.js` restent toutes vertes (0 échec) — aucune nouvelle fonction PURE testable au
+  sens de la convention `extraireFonction` du projet : `cibleNotePreciseCompacte` est scopée dans le geste
+  (ferme sur `itemClic`/`tactile`/`modeCompact`/`groupeIds`/`offsetHalvesClic`, comme `appliquerDeltaNote`/
+  `resoudreCibleGroupe` déjà non testés isolément) et ne fait qu'assembler des fonctions déjà couvertes
+  (`demiCiblePourDeplacementNote`, `bordsDeplacementNoteMultiJours`, tous deux dans `test_grille_compacte.js`)
+  — le correctif est essentiellement DOM/positionnement, vérifié en Playwright plutôt qu'en test pur.
+- Reproduction Playwright (chromium headless, mock Supabase non-stateful — aucune synchronisation testée
+  ici, seulement la géométrie de survol PENDANT le geste) reproduisant le scénario exact de la capture
+  (note "test 2", aprem MER 09.09.2026 + matin JEU 10.09.2026, mode compact) : glissement démarré sans
+  changer de position (pointerdown + léger mouvement) — l'élément `.survol-precis` créé correspond, à 1px
+  près, à la géométrie RÉELLE de la bulle (largeur ~211px) et non aux 2 jours entiers de référence
+  (~424px, mesurés indépendamment sur les cellules de fond MER+JEU), avec le même `grid-row` que la bulle.
+  Non-régression confirmée par 2 scénarios séparés : un jalon glissé en mode compact et une note glissée en
+  mode CLASSIQUE retombent tous deux sur le comportement historique (`.cell.drop-hover`, jamais de
+  `.survol-precis`) — vérifié également par lecture du code pour les cas non couverts par ces scripts
+  (tactile, sélection groupée, tâche personnel, week-end), chacun explicitement exclu par une condition de
+  garde dans `cibleNotePreciseCompacte`.
+
+## 40. Round du 07.09.2026 (suite) — `.survol-precis` débordait sous la bulle glissée
+
+Lionel, 2 vidéos de démo à l'appui (glissement d'une note "test" puis d'une note "test 2" en mode compact) :
+*« les notes sont vraiment bugée »*. Les vidéos montrent, à chaque glissement de note, un 2e rectangle qui
+dépasse visuellement sous la bulle en cours de déplacement — donnant l'impression que 2 bulles se
+chevauchent ou qu'une copie fantôme traîne derrière la vraie, alors qu'il n'y a bien qu'une seule note en
+mémoire (`NOTES`) avant et après le geste (vérifié en reproduisant le scénario en Playwright : la note
+reste unique, sa position finale est correcte, aucune duplication de donnée).
+
+### Cause
+
+Le §39 (ci-dessus, plus tôt le même jour) a ajouté `.survol-precis`, une simple `<div>` posée sur la grille
+CSS via `style.gridColumn`/`style.gridRow` pour représenter précisément la zone de dépôt d'une note. Or les
+vraies bulles (`.bulle.bulle-plage`, cf. leur CSS un peu plus bas) ont `align-self: start` — elles restent
+calées en HAUT de leur ligne de grille, avec leur propre hauteur naturelle (26px de mesuré, pour une note
+sur une ligne). `.survol-precis` n'avait PAS cette règle : sans `align-self` explicite, un élément de grille
+s'étire par défaut sur TOUTE la hauteur de sa ligne — mesuré à 52px (le double) dans une reproduction
+Playwright ciblée, alors que la bulle réelle glissée à côté ne fait que 26px. Ce débordement de 26px vers
+le BAS (le `top` de `.survol-precis` était lui correct, aligné sur la bulle — seule la hauteur débordait)
+est exactement le "2e rectangle qui dépasse" visible dans les 2 vidéos : la ligne Notes n'étant haute que
+d'une seule piste dans ces scénarios, ce débordement empiétait visuellement sur la ligne suivante (l'en-tête
+Personnel), créant l'illusion d'une duplication.
+
+### Correctif
+
+Deux changements complémentaires sur `.survol-precis` :
+- CSS : ajout de `align-self: start` (exactement la même règle que `.bulle-plage`), pour qu'il se comporte
+  comme une vraie bulle vis-à-vis de la hauteur de sa ligne de grille.
+- JS (`survolerCible()`) : hauteur posée explicitement en pixels, calquée sur `bulleDom.getBoundingClientRect().height`
+  (la bulle RÉELLEMENT en cours de glissement) — plus robuste que de compter uniquement sur `align-self`
+  (qui suffirait seul si l'élément avait le moindre contenu/padding pour calculer une hauteur "auto", ce
+  qui n'est pas le cas ici, `.survol-precis` restant une div vide).
+
+### Vérifications
+
+Reproduction Playwright ciblée (`/tmp/test_repro_notes.js`, scénario proche des 2 vidéos : jalon "test"
+Lun-Mar, note "test" Mar-matin, note "test 2" Mer-aprem→Jeu-matin, mode compact, glissement réel de la note
+"test" par événements pointer) : AVANT le correctif, `.survol-precis` mesurait 52px de haut (bulle réelle :
+26-29px) ; APRÈS, exactement 26px — identique à la bulle glissée. Confirmé aussi qu'aucune duplication de
+note n'a jamais eu lieu côté données (`NOTES` reste à 2 entrées avant/après le geste, la position finale de
+la note déplacée est correcte) : le bug était purement visuel (CSS), jamais un problème de synchronisation
+ou de duplication réelle — mais suffisamment déroutant à l'écran pour légitimement ressembler à un "vrai"
+bug pour Lionel. Suite complète `test_*.js` toujours verte (18 fichiers), `node --check` OK. Pas de nouvelle
+fonction pure (correctif CSS + une ligne de hauteur explicite en JS).
+
+## 41. Round du 08.09.2026 — notes multi-jours scindées ou rétrécies après un déplacement
+
+Lionel, 2 captures d'écran à l'appui (semaine du 07-11 sept. 2026, mode compact) : *« les bulles se
+retrouvent scindée ou retrecie après certains déplacmement »*. Sur les captures, la note "test 2" —
+censée être une seule bulle continue à cheval sur 2 jours (jeudi après-midi + vendredi matin) —
+apparaissait comme DEUX bulles indépendantes, chacune large d'une seule demi-journée, sur 2 pistes/lignes
+différentes.
+
+### Cause
+
+`construireVueDepuisCache()` fusionne les notes en bulles continues jour par jour. AVANT ce correctif,
+la fusion appariait le jour `gi` et le jour `gi+1` en comparant le **même index** dans le tableau de
+notes de chaque jour (`data.notes[gi][slot]` avec un même `slot` numérique pour les 2 jours) — un
+raccourci qui suppose qu'une note à cheval sur 2 jours occupe toujours le même rang parmi les notes de
+CHAQUE jour. Ce n'est vrai que tant qu'aucune AUTRE note ne partage l'un des 2 jours avec un rang
+différent.
+
+Or ce rang n'est pas stable : jalons/notes n'ont pas de colonne d'ordre dédiée en base, l'ID croissant en
+tient lieu (cf. commentaire de `construireDonneesSemaine`) — et `enregistrer-plage` (cf.
+`functions/enregistrer-plage/logic.js`, `planPlage`) réécrit chaque jour touché par un delete-puis-insert,
+donc la note reçoit un NOUVEL ID à chaque jour où elle est déplacée. Le déplacement en demi-journée d'une
+note multi-jours (§38) rend ce cas beaucoup plus fréquent qu'avant : il suffit qu'une autre note existe
+sur l'un des 2 jours de la note déplacée pour que son rang diffère d'un jour à l'autre après l'écriture.
+
+Reproduit isolément (sans passer par un glissement, juste en fixant l'état serveur) : une note "autre"
+seule sur un jour J (ID petit, donc indice 0 sur J), une note "test 2" à cheval sur J (après-midi) et J+1
+(matin) mais avec un ID plus grand — donc 2e du tableau (indice 1) sur J, tandis qu'elle est seule sur J+1
+(indice 0). La fusion cherchait l'indice 1 sur J+1 (qui n'existe pas) pour prolonger la moitié de J, et
+l'indice 0 sur J (déjà consommé) pour prolonger... résultat : 2 bulles indépendantes d'un seul jour
+chacune au lieu d'une seule bulle continue de 2 jours. C'est un bug **pré-existant** dans l'algorithme de
+fusion (pas introduit par les rounds précédents) mais son exposition a explosé avec le déplacement en
+demi-journée (§38), qui permet justement de rapprocher/superposer une note d'un jour à l'autre.
+
+### Correctif
+
+Remplacement de l'appariement « même rang entre les jours » par un appariement **par contenu, en
+consommant les indices déjà utilisés** : chaque jour garde son propre ensemble d'indices déjà pris par une
+bulle déjà construite (`consommes[gi]`) ; prolonger une bulle vers le jour suivant cherche, PARMI LES
+INDICES NON ENCORE CONSOMMÉS de ce jour-là, une note de même texte + même `important` — où qu'elle se
+trouve dans le tableau, peu importe son rang. Le cas légitime « 2 notes indépendantes de même texte le
+même jour » (ex. "Livraison" le matin et "Livraison" l'après-midi, cf. commentaire de `planPlage`) reste
+géré correctement : chaque note n'est consommée qu'une fois, donc si l'une sert à prolonger une bulle
+venue de la veille, l'autre reste disponible pour démarrer ou prolonger sa propre bulle indépendante.
+`noteSlotAuGi` (l'ancienne fonction d'accès par rang fixe) est supprimée, n'ayant plus aucun appelant.
+
+### Vérifications
+
+Reproduction Playwright ciblée (`/tmp/test_repro_split2.js`, état serveur fixe reproduisant exactement le
+cas décrit ci-dessus) : AVANT le correctif, "test 2" se rendait en 2 bulles (`9 / span 1` ligne 4 et
+`10 / span 1` ligne 5) ; APRÈS, une seule bulle continue (`9 / span 2`, une seule ligne). Un 2e script
+(`/tmp/test_repro_split.js`, glissement réel à la souris en mode compact d'une note à cheval sur 2 jours
+d'exactement 1 jour, avec un vrai aller-retour "serveur" — mock exécutant la véritable fonction pure
+`planPlage`) confirme que le cas déjà correct (aucune autre note sur les jours concernés) continue de bien
+fusionner en une seule bulle après le cycle complet déplacement → synchronisation → rechargement. Suite
+complète `test_*.js` toujours verte (18 fichiers), `node --check` OK.
+
+## 42. Round du 08.09.2026 (suite) — une note en journée entière rétrécie en demi-journée au moindre déplacement
+
+Lionel : *« j'ai un bug ou quand je déplace une note matin/aprem de 1/2 jour elle est retrecie en 1/2
+journée »*.
+
+### Cause
+
+`demiCiblePourDeplacementNote` (round du 03.09.2026, §25) gère le déplacement d'une note d'UN SEUL jour
+selon 2 cas : le jour d'arrivée est DIFFÉRENT du jour de départ, ou c'est le MÊME jour (delta === 0). Le
+cas "jour différent" protège déjà correctement la journée entière : *« si elle était en journée entière,
+elle LE RESTE (ne jamais réduire une note "normale" à une demi-journée par un simple déplacement) »* (cf.
+commentaire d'origine). Mais le cas "même jour" n'avait PAS cette protection — il choisissait TOUJOURS la
+demi-journée sous le pointeur au relâchement, y compris pour une note qui était en journée entière avant
+le geste. Ce cas "même jour" existe justement pour permettre de faire passer une note déjà en
+demi-journée du matin à l'après-midi (ou l'inverse) sans changer de jour (round du 03.09.2026) — mais rien
+ne le restreignait à ce cas-là : le moindre glissement d'une note NORMALE (journée entière) qui restait
+sur le même jour (une main qui tremble, un relâchement un peu trop tôt) la rétrécissait donc en
+demi-journée, sans rapport avec l'intention de Lionel.
+
+### Correctif
+
+`demiCiblePourDeplacementNote` applique désormais exactement la MÊME règle dans les 2 cas ("même jour" et
+"jour différent") : la position du relâchement ne choisit une nouvelle demi-journée que si la note en
+portait DÉJÀ une ; une note en journée entière reste en journée entière quel que soit l'endroit où on la
+repose, sur son jour d'origine ou ailleurs. Au passage, le déplacement d'une note en journée entière
+reposée sans changement (même jour, aucune demi choisie) est désormais correctement détecté comme un
+no-op par `resoudreCibleGroupe` (plus de undo/toast "Déplacé." parasite).
+
+### Vérifications
+
+`test_grille_compacte.js` mis à jour : l'assertion qui documentait EXPLICITEMENT l'ancien comportement
+("même jour (delta=0), note en journée entière -> la position choisit désormais sa demi-journée") est
+remplacée par son inverse ("-> reste en journée entière"), les autres cas (bascule matin/aprem d'une note
+déjà en demi-journée, jour différent, note multi-jours) restent inchangés et toujours verts. Suite
+complète `test_*.js` verte (18 fichiers), `node --check` OK.
+
+## 43. Round du 08.09.2026 (suite) — vérification "note 1 jour -> demi-journée" + durcissement du nettoyage de l'aperçu de glissement
+
+Lionel a signalé 2 choses dans le même message : *« les note de 1 jour caler sur un jour plein ne sont pas
+déplacable a la demi journee »* et *« j'ai un bug visuel récurant ou l'apercu de déplacement reste visible
+a l'ecran apres dépose de la note »*.
+
+### 1er point : clarifié, pas un bug de code
+
+Question posée à Lionel : pour une note d'1 jour en JOURNÉE ENTIÈRE, le simple DÉPLACEMENT (glisser toute
+la bulle) doit-il pouvoir la transformer en demi-journée selon l'endroit où on la dépose, ou est-ce que ça
+doit rester le rôle du REDIMENSIONNEMENT (la petite poignée sur le bord) ? Réponse : garder le
+redimensionnement pour ça — comportement du §42 ci-dessus confirmé comme voulu, aucun changement de code
+nécessaire sur le déplacement.
+
+Vérifié ensuite, via une reproduction Playwright avec un mock "intelligent" (exécutant la VRAIE fonction
+`planPlage`, cf. `functions/enregistrer-plage/logic.js`, contre des données mutables — pas juste un mock
+en lecture seule qui aurait donné un faux résultat) : le REDIMENSIONNEMENT d'une note d'1 jour en journée
+entière, via sa poignée droite, vers une demi-journée (matin) fonctionne bien de bout en bout — aperçu en
+direct correct, donnée locale correctement mise à jour, écriture serveur correcte (1 ligne, `demi: matin`),
+rendu final correct après rechargement (`bulle-demi bulle-demi-matin`). Rien à corriger ici non plus : le
+premier essai (avec un mock "bête" qui ne persiste rien) avait donné un faux négatif — corrigé et
+documenté pour éviter de refaire la même erreur de diagnostic.
+
+### 2e point : bug visuel réel, mais non reproduit malgré une recherche approfondie
+
+Plusieurs scénarios testés en Playwright (déplacement normal, dépôt sur place en no-op — bulle d'1 jour ET
+note multi-jours —, relâchement hors de toute cellule, 2 glissements enchaînés sans attendre la fin de la
+synchronisation, avec une latence réseau simulée réaliste) : aucun n'a laissé de `.fantome-glisse` ni de
+`.survol-precis` (ni classes `.drop-hover`/`.cell-interdite`) dans le DOM après le relâchement. Lionel,
+interrogée, ne sait pas identifier de déclencheur précis ("ça semble aléatoire").
+
+En creusant le code malgré tout, 2 fragilités RÉELLES ont été trouvées et corrigées par précaution (même
+sans confirmation qu'elles sont LA cause du signalement) :
+- `nettoyerFantomes()` (retire le ghost qui suit le curseur pendant un déplacement de bulle) et
+  `nettoyerSurvol()` (retire `.survol-precis`, §39) étaient 2 fonctions séparées. `detacher()` (appelé en
+  premier par tout `onUp`/`onCancel`) appelle bien `nettoyerSurvol()`, mais si un futur site d'appel de
+  `resoudreCibleGroupe` appelait `nettoyerFantomes()` sans aussi appeler `nettoyerSurvol()`, `.survol-precis`
+  pourrait rester affiché. `nettoyerFantomes()` appelle désormais aussi `nettoyerSurvol()` — les 2
+  n'existent de toute façon jamais l'un sans l'autre pendant un même geste.
+- `cablerPoigneeRedim` (redimensionnement par poignée) écrit l'aperçu DIRECTEMENT sur
+  `bulleDom.style.gridColumn` (pas un clone séparé, contrairement au déplacement de bulle entière) pendant
+  le glissement. Son `onUp()` avait 2 sorties anticipées (`enDefilement`, `!arme`) qui ne remettaient PAS
+  ce style à sa valeur d'origine avant de sortir — seul `onCancel()` le faisait. Une bulle RÉELLE pouvait
+  donc, dans ces 2 cas de figure, rester affichée à la taille de l'aperçu (rétrécie/étendue) sans qu'aucune
+  donnée n'ait réellement changé. Facteur commun extrait en `reappliquerFormeOrigine()`, appelé sur les 3
+  sorties anticipées de `onUp()` en plus de `onCancel()`.
+
+Si le bug visuel revient, une vidéo de l'écran au moment où ça se produit (avec le geste exact juste
+avant) aiderait à le localiser précisément — n'ayant pas réussi à le déclencher moi-même malgré plusieurs
+scénarios, la piste la plus probable qui reste est un problème de rendu/repaint du navigateur plutôt qu'un
+élément réellement laissé dans le DOM.
+
+Suite complète `test_*.js` verte (18 fichiers), `node --check` OK.
+
+## 44. Round du 08.09.2026 (suite, encore) — cause RÉELLE trouvée et corrigée pour le fantôme figé ; vérification approfondie du déplacement d'1 case
+
+Lionel a fourni 2 nouvelles preuves : une PHOTO de son écran physique montrant la bulle fantôme apparue
+*« sans que j'ai soulevé le doigt de la souris »* (donc pendant un geste encore actif, pas après le lâcher
+comme supposé au §43), puis une VIDÉO montrant qu'*« il est impossible de déplacer de 1 case une bulle qui
+fait 2 cases »*.
+
+### Cause réelle du fantôme figé, cette fois confirmée par une reproduction qui échoue puis réussit
+
+En relisant `synchroniser()` : après CHAQUE synchronisation réussie (donc après CHAQUE glissement/
+redimensionnement, pas seulement en cas d'erreur), le code fait `oublierCache()` puis
+`assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); ... })` — un rechargement
+complet de la fenêtre depuis Supabase, qui recrée TOUS les noeuds `.bulle` de la grille. Rien ne protégeait
+ce rechargement contre le fait qu'un DEUXIÈME geste de glissement (sur une autre bulle, ou la même) puisse
+être EN COURS au moment où il survient — tout à fait possible en conditions réelles : Lionel enchaîne les
+déplacements rapidement, et la synchronisation contre le vrai serveur Supabase prend forcément un peu de
+temps (contrairement aux mocks quasi instantanés du §43).
+
+Or la spec Pointer Events est stricte sur ce point : si l'élément qui détient la capture du pointeur
+(`setPointerCapture`, posée sur la bulle au tout début du geste) est retiré du DOM, le navigateur relâche
+CETTE capture silencieusement, sans déclencher `pointerup` ni `pointercancel`. Un rechargement qui recrée
+la bulle en cours de glissement (elle est bien retirée et remplacée par un nouveau noeud) abandonne donc le
+geste en plein vol : `onMove`/`onUp` ne sont plus jamais appelés sur ce geste, alors que le fantôme
+(`.fantome-glisse`, posé sous `document.body`, donc PAS détruit par le rechargement de la grille) reste
+figé à l'écran indéfiniment, avec `document.body` bloqué sur la classe `en-glissement` (qui coupe les
+clics sur toutes les autres bulles tant qu'elle est là) — exactement la scène capturée par la photo de
+Lionel.
+
+Reproduit avec `/tmp/test_repro_race_reload.js` (Playwright, mock "intelligent" exécutant la vraie
+`planPlage` avec une latence réseau réaliste ~200ms) : un premier glissement complet (A) est relâché, puis
+un second glissement (B) est démarré et laissé ACTIF (bouton toujours enfoncé) pendant que la
+synchronisation + le rechargement du geste A ont largement le temps de survenir. Avant correctif : le
+fantôme du geste B reste affiché même après son propre relâchement, et `en-glissement` reste bloqué sur
+`true` — confirmé en rejouant le test contre le code d'avant ce round. Après correctif : le fantôme suit
+le curseur normalement pendant toute la durée du geste B malgré le rechargement du geste A survenu entre
+temps, et tout redevient propre après son relâchement.
+
+**Correctif** : nouvelle fonction `differerSiEnGlissement(rechargerVue)` — si `document.body` porte encore
+la classe `en-glissement` (posée par tout geste de glissement/redimensionnement/sélection actif), le
+rechargement est repoussé de 120ms et réessayé, au lieu de reconstruire la grille sous les pieds d'un geste
+en cours. Appliquée aux 2 points de rechargement automatique de `synchroniser()` (succès et rattrapage
+après échec) — les seuls qui se déclenchent tout seuls, sans action explicite de l'utilisateur, et donc les
+seuls susceptibles de tomber pendant un geste que l'utilisateur vient de démarrer.
+
+### Déplacement d'1 case sur une note de "2 cases" : maths vérifiées correctes, cause probable = la même course
+
+Reconstruit très précisément la note vue dans la vidéo (LUN-après-midi + MAR-journée-entière, soit 3
+demi-slots — "1,5 jour") et rejoué le geste exact avec `/tmp/test_repro_1case_smart.js` (mock
+"intelligent", donc résultat serveur réellement persisté) :
+- clic sur le DERNIER demi-slot de la bulle (MAR-après-midi), glissé de tout juste 1 demi-slot ("1 case")
+  vers la droite → la note passe bien à MAR-journée-entière + MER-matin, exactement comme attendu, aperçu
+  ET donnée serveur finale identiques ;
+- clic au milieu de la bulle, glissé d'exactement 1 jour ("1 case" au sens d'une colonne du planning) vers
+  la droite → la note passe bien à MAR-après-midi + MER-journée-entière, là aussi exactement comme attendu.
+
+Dans les 2 cas, `bordsDeplacementNoteMultiJours`/`demiSlotsDepuisBornes`/l'ancrage du clic
+(`offsetHalvesClic`) calculent une position pile exacte — aucun saut anormal reproduit malgré une
+géométrie de clic et de glissement contrôlée au pixel près. La photo comme la vidéo de Lionel sont des
+prises de vue d'un écran physique (pas des captures d'écran) : la distorsion de perspective rend une
+lecture précise des positions de clic peu fiable (limite déjà notée au round précédent) — le décalage vu
+dans la vidéo (la note "test" atterrit à MER au lieu d'un léger décalage) est compatible avec un clic posé
+plus près du bord GAUCHE de la bulle que ce qu'il semblait sur la vidéo (ce qui, avec la même quantité de
+mouvement réel du curseur, produit exactement le grand saut observé — comportement voulu, pas un bug).
+
+Cela dit, la course décrite ci-dessus (rechargement en pleine course avec un geste actif) reste une
+explication au moins aussi probable si un déplacement précédent venait tout juste d'être synchronisé :
+avec `differerSiEnGlissement` en place, ce cas de figure est désormais couvert aussi. Si le comportement
+"saute trop loin" se reproduit malgré ce correctif, un enregistrement d'écran (pas une vidéo filmée de
+l'écran) permettrait de voir le point de clic exact et lèverait le doute.
+
+Suite complète `test_*.js` verte (18 fichiers), `node --check` OK.
+
+## 45. Round du 08.09.2026 (suite, encore) — vraie cause du "impossible de déplacer de 1 case" trouvée : les notes d'1 jour plein ne pouvaient bouger que par jour entier
+
+Après un enregistrement d'écran de Lionel qui ne montrait finalement pas le bug (elle manipulait "test 2",
+jamais touché de façon concluante), elle a fini par décrire le geste précisément, sans ambiguïté : *« je
+n'arrive pas a placé ma note sur lundi après-midi, elle se déplace de jour en jour et non de demi jour en
+demi jour, ce phénomène ne se produit que quand la bulle fait un jour complet »*, puis, après clarification
+: *« je veux qu'elle se déplace à lundi aprem et mardi matin. une bulle de 2 case doit garder sa grandeur
+mais doit pouvoir se déplacer de 1 case »*.
+
+### Cause
+
+Une note en JOURNÉE ENTIÈRE (1 jour, sans demi) occupe exactement 2 demi-slots — autant qu'une note "1
+jour et demi" à cheval sur 2 jours calendaires ("2 cases" dans les mots de Lionel). Mais seules les notes
+`duree > 1` passaient par le modèle demi-slot général (`bordsDeplacementNoteMultiJours`, §38) lors d'un
+déplacement en mode compact ; une note d'1 SEUL jour passait par `demiCiblePourDeplacementNote`, qui pour
+une journée entière reconduit TOUJOURS sa forme telle quelle (§42, protection contre le rétrécissement
+accidentel en demi-journée) — et ne peut donc choisir qu'un JOUR ENTIER cible, jamais une position à
+cheval sur 2 jours. Concrètement : glisser une telle note d'une petite distance (dans le même jour, pour
+viser sa propre après-midi) tombait systématiquement sur le test de no-op (`delta === 0` et même forme) et
+ne faisait RIEN — d'où « impossible de déplacer de 1 case » — et il fallait franchir la frontière d'un
+jour ENTIER pour obtenir le moindre effet, ce qui ne pouvait jamais donner "lundi aprem + mardi matin".
+
+Ce n'était PAS une régression du §42 (la protection contre le rétrécissement reste voulue et nécessaire),
+mais un angle mort : cette protection avait été construite en pensant "journée entière = un seul bloc
+indivisible par un déplacement", sans réaliser qu'une journée entière est mathématiquement identique (2
+demi-slots) à une note "1 jour et demi" à cheval sur 2 jours — cas que `bordsDeplacementNoteMultiJours`
+sait déjà translater en préservant sa longueur totale sans jamais la rétrécir.
+
+### Correctif
+
+En mode COMPACT, `bordsDeplacementNoteMultiJours` gouverne désormais le déplacement de TOUTE note (plus
+seulement `duree > 1`) — `offsetHalvesClic` est maintenant calculé pour toute note (pas seulement
+multi-jours), et `resoudreCibleGroupe`/`cibleNotePreciseCompacte` routent systématiquement vers ce modèle
+en mode compact. Résultat, sans rien changer de plus :
+- une note en journée entière posée pile sur une frontière de jour reste en journée entière (§42 toujours
+  respecté — c'est une conséquence naturelle des maths de `bornesDepuisDemiSlots`, pas un cas spécial) ;
+- posée à cheval sur 2 jours, elle devient "1 jour et demi" (2 demi-slots répartis sur 2 jours), sans
+  jamais rétrécir à une seule demi-journée — exactement "lundi aprem + mardi matin" comme demandé.
+
+Le mode CLASSIQUE (pas de géométrie demi-jour pixel-précise, cf. `colonneEtSpanDemi`) garde
+`demiCiblePourDeplacementNote` et son comportement par jour entier, strictement inchangé.
+
+3 nouvelles assertions dans `test_grille_compacte.js` (le scénario exact de Lionel + la non-régression du
+§42 + un cas avec un clic décalé sur le dernier demi-slot). Vérifié de bout en bout avec une reproduction
+Playwright (`/tmp/test_repro_lundi_aprem.js`, mock exécutant la vraie `planPlage`, données persistées) :
+confirmé cassé sur le code d'avant ce round (la note ne bougeait pas du tout pour ce geste), confirmé
+réparé après — la note "plein" (2026-09-07, journée entière) glissée d'1 demi-slot atterrit bien comme
+`{2026-09-07 aprem, 2026-09-08 matin}`.
+
+Suite complète `test_*.js` verte (18 fichiers, 72 assertions dans `test_grille_compacte.js`), `node
+--check` OK.
+
+## 46. Round du 08.09.2026 (suite) — parité de comportement jalons/tâches/absences ("cela fonctionne, applique cela aux jalons, tâches et absence")
+
+Après confirmation du correctif §45 ("cela fonctionne"), Lionel demande d'appliquer le même comportement
+aux jalons, tâches et absences — "toutes les bulles doivent avoir le même comportement".
+
+### 46.1 Analyse : le bug du §45 n'a pas d'équivalent DIRECT pour ces 3 types
+
+Avant de coder quoi que ce soit, vérification de si le même bug (une note en journée entière coincée sur
+une granularité jour entier) pouvait exister pour un jalon ou une tâche/absence — réponse : **non, par
+construction**, pour 2 raisons vérifiées dans le code (pas supposées) :
+
+- **Un jalon n'a jamais de demi-journée** (règle déjà validée par Lionel, cf. §10.3/BACKEND-CHANGELOG :
+  "un jalon marque toujours la journée entière"). Le moteur de synchronisation le confirme au niveau le
+  plus bas : `diffsJalons`/`synchroniser()` ne raisonnent jamais en "plage qui se déplace" comme les notes
+  (`origine`, `mode: ajout/remplacement`) — chaque jour est comparé indépendamment (état complet du jour,
+  toujours `mode: "remplacement"`, `origine: null`, cf. commentaire de tête de `synchroniser()`). Un
+  déplacement de jalon n'est donc jamais qu'une combinaison de jours "vidés" et de jours "remplis" —
+  structurellement incapable de rétrécir ou de scinder en demi-journée.
+- **Une tâche/absence a sa demi-journée FIXE pour toute sa durée** (`it.demi`, la ligne matin/aprem
+  qu'elle occupe tout du long) — elle ne "porte" pas 2 bords indépendants comme une note
+  (`demiDebut`/`demiFin`). Le passage de matin à après-midi se fait déjà en 1 geste, par la cellule sur
+  laquelle on lâche (`dataset.demi`), et `estBulleUnitaireDeplacable()` route TOUTE tâche/absence seule
+  (durée 1 ou multi-jours, jamais de branche séparée par durée comme l'ancien code des notes) par la même
+  fonction (`appliquerCibleUnitaire`), qui reconduit toujours `nDuree = it.duree` (jamais de rétrécissement
+  silencieux, sauf dépôt sur une case week-end isolée — comportement voulu et déjà documenté, §7.4).
+  Confirmé aussi côté écriture serveur : `enregistrerCellulePersonneServeur` écrit case par case
+  (personne, date, demi) avec l'état COMPLET de la case à chaque fois — jamais de notion de "plage qui se
+  déplace" là non plus.
+
+### 46.2 Mais un AUTRE bug bien réel a été trouvé en vérifiant empiriquement (Playwright)
+
+Plutôt que de s'arrêter à "pas de bug analogue", vérification par la pratique (glisser une tâche
+multi-jours et une absence multi-jours en mode compact) — a débusqué un bug distinct, jamais signalé par
+Lionel avec ces mots, mais bien réel et dans le même esprit ("une bulle ne devrait pas sauter plus loin
+que prévu").
+
+**Cause** : `offsetJoursClic` (l'ancre du clic dans la bulle, pour savoir quel jour de la plage a été
+cliqué) se calcule par fraction de pixel : `(clientX - rectClic.left) / (rectClic.width / duree)`. Ce
+calcul suppose que `rectClic` (le rectangle de l'élément DOM cliqué) s'étend sur TOUTE la largeur de la
+plage — vrai pour un jalon, une note, et une tâche/absence en mode CLASSIQUE (un seul élément DOM continu
+dans ces 3 cas). **Faux pour une tâche/absence de plusieurs jours en mode COMPACT** :
+`ligneGroupePersonnesCompact` ne dessine pas un seul rectangle continu comme les autres — chaque jour de
+la plage y est un SEGMENT DOM séparé (large d'une seule demi-colonne, cf. commentaire existant "elle est
+dessinée en SEGMENTS, un par demi-journée occupée"). `bulleDom` au clic n'est alors que CE SEUL segment
+(la largeur d'1 jour), pas la plage entière — diviser cette largeur par `duree` (ex. 2) donnait une ancre
+fausse dès qu'on cliquait au-delà du 1er quart de large du 1er segment.
+
+Repro isolée (`/tmp/test_repro_parite_jalon_tache.js`, Test B) : tâche "TacheTest" sur 2 jours (matin),
+clic au MILIEU du 1er segment, glissée vers la case après-midi du jour suivant. Avant correctif : l'ancre
+calculée valait 1 (au lieu de 0 attendu), donc la tâche ne se décalait PAS d'un jour comme visé — elle
+restait sur ses 2 jours d'origine (07-08), seule la demi-journée changeait. Confirmé cassé avant correctif
+via `git stash`, corrigé après.
+
+### 46.3 Correctif (`Index.html`)
+
+- **`ligneGroupePersonnesCompact`** : chaque segment reçoit désormais `seg.dataset.segJour = String(d)` —
+  son propre décalage en jours depuis `it.giDebut` (0 = 1er jour de la plage), posé au moment même de sa
+  construction, donc toujours exact.
+- **`onPointerDownGroupeSelection`** (calcul d'`offsetJoursClic`) : si l'élément cliqué porte
+  `data-seg-jour` (segment de tâche/absence en mode compact), l'ancre se lit directement dessus (exacte,
+  aucun calcul de fraction) ; sinon (jalon, note, tâche/absence en mode classique), l'ancien calcul par
+  fraction de pixel reste inchangé — toujours correct dans ces cas, l'élément cliqué y couvrant bien toute
+  la plage.
+
+Non touché : le rendu (aucun changement visuel), la logique de résolution de cible au lâcher
+(`appliquerCibleUnitaire`, `cellulesPlagePourSurvol`) — elles consomment déjà `offsetJoursClic`
+correctement, seul le calcul EN AMONT de cette valeur était faux dans ce cas précis.
+
+**Limite assumée, non liée à ce bug** : le fantôme (`.fantome-glisse`) affiché pendant le glissement d'une
+tâche/absence multi-jours en mode compact ne clone que le PREMIER segment rencontré par `querySelector`
+(large d'1 jour) — l'aperçu visuel du glissement ne représente donc qu'1 jour de large même pour une
+plage plus longue. Comportement déjà présent avant ce round, indépendant du bug corrigé ici (qui portait
+sur le calcul de la CIBLE finale, pas sur l'aperçu visuel) — à traiter séparément si Lionel le signale.
+
+### 46.4 Vérification effectuée
+
+Repro Playwright dédiée (`/tmp/test_repro_parite_jalon_tache.js`, 3 scénarios avec un mock Supabase
+"intelligent" exécutant la vraie `planPlage` pour les jalons et une écriture directe générique pour les
+tables `taches`/`assignations`, fidèle au comportement réel de `enregistrerCellulePersonneServeur`) :
+
+- **Test A (jalon 3 jours, glissé de 1 jour)** : déjà correct avant ce round (cf. §46.1) — confirmé par ce
+  test, aucune régression.
+- **Test B (tâche 2 jours matin, clic sur le 1er segment, glissée vers après-midi + 1 jour)** : cassé
+  avant correctif (confirmé via `git stash` — la tâche ne se décalait pas), correct après (2 jours pleins,
+  après-midi, décalée comme visé).
+- **Test C (absence 2 jours matin, clic sur le 2e segment — ancre offset=1 —, glissée 1 jour plus loin)** :
+  vérifie spécifiquement que `data-seg-jour` distingue bien QUEL segment a été cliqué, pas seulement que
+  la plage entière bouge — correct après correctif (absence toujours 2 jours pleins, décalée d'exactement
+  1 jour depuis le jour réellement cliqué).
+
+`node --check` sur le `<script>` extrait : OK. Suite complète `test_*.js` (18 fichiers) toujours verte —
+ce correctif ne touche que la mécanique DOM du glissement (pas de fonction pure extractible par
+`extraireFonction`, comme `offsetHalvesClic` au §45), donc vérifié uniquement par la reproduction
+Playwright ci-dessus plutôt que par de nouvelles assertions dans `test_grille_compacte.js`.
+
+Comme toujours, pas d'exécution dans un vrai navigateur/Supabase disponible ici au-delà de Playwright —
+Lionel doit confirmer en conditions réelles que glisser une tâche ou une absence de plusieurs jours en
+mode compact atterrit bien exactement là où elle vise, y compris quand le clic initial ne tombe pas sur
+le tout premier jour de la plage.
+
+## 47. Round du 08.09.2026 (suite, encore) — le JALON gagne la demi-journée : parité complète avec la note
+
+Lionel, après confirmation que le §46 fonctionne : *« Pour plus de clareté je veux que le jalons utilise
+aussi la demi journée, comme ca toutes les bulles se comportent de la même manière »*.
+
+Cette demande **annule explicitement** la règle décidée le 02.09.2026 (§10.3) : *« un jalon marque
+toujours la journée entière »*. Ce n'est pas un bug à corriger mais un changement de comportement demandé
+en connaissance de cause — un jalon peut désormais, comme une note, être posé sur une seule demi-journée
+(matin/après-midi) à chacun de ses 2 bords.
+
+### 47.1 Ce qui existait déjà et n'a pas eu besoin de changer
+
+Avant d'écrire la moindre ligne, vérification de l'étendue réelle du changement plutôt que de supposer
+qu'il fallait tout retoucher : la quasi-totalité de la couche de rendu et de géométrie des bulles est déjà
+**générique** — elle ne branche jamais sur `it.type`, seulement sur `giDebut`/`duree`/`demiDebut`/`demiFin`
+: la boucle de rendu jalons/notes (`[["jalon", JALONS, ...], ["note", NOTES, ...]].forEach(...)`),
+`colonneEtSpanDemi()`, `demiPourRedimNote()`, `demiCiblePourDeplacementNote()`,
+`bordsDeplacementNoteMultiJours()`, `demiSlotsDepuisBornes()`, `bornesDepuisDemiSlots()`. Ces fonctions
+n'ont **pas été touchées** : il suffisait de leur faire arriver de vraies valeurs `demiDebut`/`demiFin`
+pour un jalon au lieu de toujours `null`.
+
+Découverte notable : `diffsJalons()` (moteur de diff client) contenait déjà, intacte, la logique de
+décodage d'un format `"demi\u0000texte"` dans `jalonsMap`, avec un commentaire l'expliquant explicitement
+(*« La demi-journée fait partie de la VALEUR comparée (round du 02.09.2026) »*) — mais la construction de
+`jalonsMap` dans `calculerEtatLocal()` n'utilisait jamais ce format (elle stockait juste `j.texte` brut),
+avec un commentaire contradictoire (*« jalon : pas de demi-journée »*). Cette fonctionnalité avait donc
+déjà été conçue puis abandonnée avant le round du 02.09.2026 — ce round la restaure plutôt que de la
+construire depuis zéro.
+
+### 47.2 Ce qui a dû changer
+
+**Base de données** (`sql/0006_jalons_demi.sql`, appliquée directement via le connecteur MCP Supabase —
+même méthode que 0003/0005) :
+```sql
+alter table jalons add column if not exists demi text check (demi in ('matin', 'aprem'));
+```
+Aucun `GRANT` nécessaire (la table a déjà ses droits `authenticated` + sa policy RLS depuis 0002_rls.sql).
+
+**Fonction serveur** (`functions/enregistrer-plage/`, redéployée sur le projet Supabase — version 2,
+ACTIVE) :
+- `index.ts` : la lecture des lignes existantes inclut désormais la colonne `demi` pour un jalon (comme
+  c'était déjà le cas pour une note).
+- `logic.js` (`planPlage`) : `demiPropreDebut`/`demiPropreFin` se calculent désormais pour les 2 `kind`
+  (avant : seulement pour `note`). La branche jalon (qui garde son modèle "au plus une ligne par jour",
+  inchangé) calcule maintenant `demiIci` via `demiPourJourDePlage()` — la même fonction, la même règle des
+  2 bords que pour une note — et compare `ancienDemi === demiIci` en plus de `ancien === contenu` pour
+  décider s'il y a réellement quelque chose à écrire (y compris en mode "ajout" : un simple changement de
+  demi-journée sans nouvelle ligne de texte produit quand même une mise à jour).
+
+**Client** (`Index.html`) :
+- `itemPlage()` : le champ `demiDebut`/`demiFin` (déjà partagé par tous les types de bulle) reçoit
+  désormais de vraies valeurs pour un jalon.
+- `calculerEtatLocal()` : `jalonsMap` encode désormais `demi + "\u0000" + texte` par jour (au lieu du texte
+  brut), pour rejoindre le format déjà attendu par `diffsJalons()` — restaure la logique décrite au §47.1.
+- `synchroniser()` : le diff jalon transmet `demiDebut`/`demiFin` au serveur (au lieu de toujours `null`).
+- `construireDonneesSemaine()` : le jalon de chaque jour porte désormais un champ `demi` (comme une note).
+- `construireVueDepuisCache()` : la boucle de fusion des jalons en plages continues applique désormais la
+  même règle qu'une note — la fusion s'arrête dès qu'un jour du milieu porte une demi-journée non nulle
+  (impossible normalement, cf. `demiPourJourDePlage`, mais gardé par cohérence avec le code des notes).
+- `demiFixePourItem()` : commentaire mis à jour (aucun changement de code : cette fonction ne concernait
+  déjà que les tâches/absences, un jalon ayant désormais son propre `demiDebut`/`demiFin` comme une note).
+- 3 points de restriction "note uniquement" étendus à "note ou jalon" : le gate `offsetHalvesClic` dans
+  `onPointerDownGroupeSelection`, `cibleNotePreciseCompacte()`, `resoudreCibleGroupe()` — ce sont les
+  mécaniques de glissement précis par demi-slot en mode compact déjà mises au point pour les notes aux
+  §37/§38/§45.
+- `cablerPoigneeRedim()` : variable renommée `estNote` → `estNoteOuJalon`, ses 3 usages étendus en
+  conséquence — c'est ce qui permet à la poignée de redimensionnement d'un jalon de s'arrêter sur une
+  demi-journée au lieu de sauter jour par jour.
+- Dialogue "Ajout lointain" : `demiPossible` (masquait le choix de demi-journée pour un jalon) passe à
+  toujours `true`.
+- `ouvrirEditionPlage()` : `demiAutorisee` (réservait le bloc de choix de demi-journée aux notes) inclut
+  désormais aussi le jalon. Le reste de la fonction (`demiBlocHTML`, la sauvegarde, la création) était déjà
+  générique et n'a pas eu besoin de changer.
+- Nettoyage de tous les commentaires du fichier qui affirmaient encore "un jalon n'a jamais de
+  demi-journée" ou équivalent, pour que la documentation inline reste fidèle au comportement réel.
+
+### 47.3 Vérification effectuée
+
+**Suite `test_*.js`** (19 fichiers) : 2 fichiers avaient des assertions qui présumaient `demi` absent/non
+pertinent pour un jalon (`test_chargement.js`, `test_enregistrer_plage.js`) — mises à jour pour refléter le
+nouveau champ. `test_grille_compacte.js` : commentaire d'une assertion existante (`demiFixePourItem` sur un
+jalon) mis à jour pour la bonne raison (un jalon a maintenant son propre `demiDebut`/`demiFin`, comme une
+note — la fonction ne le concerne toujours pas, mais plus pour la raison "pas de demi-journée pour les
+jalons"). 4 nouvelles assertions ajoutées à `test_enregistrer_plage.js` couvrant `planPlage` avec
+`kind: 'jalon'` et une demi-journée sur les bords (insertion sur 3 jours avec bords en demi-journée ;
+même texte mais demi différente → mise à jour, pas un no-op ; même texte et même demi → aucune opération ;
+mode ajout sans nouvelle ligne mais demi changée → mise à jour quand même). Suite complète verte
+(19/19 fichiers, aucune régression).
+
+**Playwright** (`/tmp/test_jalon_demi_playwright.js`, mock "intelligent" exécutant la vraie `planPlage`) :
+reprise des 2 repros déjà utilisés pour valider les notes, mais sur un jalon —
+- Glissement par demi-slot (mirroir de `test_repro_lundi_aprem.js`) : jalon "plein" du lundi (journée
+  entière), clic sur le 1er demi-slot, glissé d'exactement 1 demi-slot vers la droite → atterrit sur
+  "lundi après-midi + mardi matin" (2 lignes, `demi` = `aprem` puis `matin`), jamais rétréci à une seule
+  demi-journée. **OK.**
+- Redimensionnement par la poignée (mirroir de `test_repro_resize_demi2.js`) : jalon "plein" (journée
+  entière), poignée droite tirée à 25 % de la largeur → réduit au matin seul (`demi: 'matin'`), exactement
+  comme une note. **OK.**
+- Création via le dialogue "Ajout lointain" avec une demi-journée choisie : script non concluant (les
+  sélecteurs génériques utilisés ne correspondaient pas exactement au DOM du dialogue) — non bloquant,
+  ce chemin est déjà couvert par les assertions pures de `test_enregistrer_plage.js` ci-dessus et par
+  `test_ajout_lointain.js`.
+
+`node --check` sur le `<script>` extrait : OK. Aucun octet NUL parasite dans `Index.html` (vérifié après
+un incident d'édition impliquant un `\u0000` littéral, cf. note technique interne — corrigé avant ce
+commit).
+
+**Déploiement** : migration SQL appliquée directement sur le projet Supabase (`jalons_demi`) ; fonction
+`enregistrer-plage` redéployée (version 2, ACTIVE) — les 2 étapes serveur sont donc déjà en production,
+aucune action requise de la part de Lionel sur ce point. Comme toujours, pas d'exécution dans un vrai
+navigateur connecté au vrai Supabase disponible ici au-delà de Playwright — Lionel doit confirmer en
+conditions réelles que créer, glisser et redimensionner un jalon en demi-journée fonctionne comme pour une
+note.
+
+## 48. Round du 08.09.2026 (suite, encore) — mode compact : les bulles tâche/absence se "découpent" au lieu de rester une seule barre continue
+
+Signalement de Lionel : en mode COMPACT, une tâche ou une absence qui dure plusieurs jours s'affiche
+« découpée » en segments avec des trous, alors qu'un jalon ou une note s'affiche toujours comme une seule
+bulle continue. Confirmé comme un vrai défaut (pas un choix de conception) — clarification demandée sur le
+comportement voulu quand la fusion en une seule barre chevaucherait, sur un "trou", un contenu sans rapport.
+
+Réponse de Lionel, tranchée : **« Barre continue toujours »**. Elle assume de gérer elle-même le cas rare
+d'un chevauchement, en copiant une bulle si nécessaire. Son exemple, donné pour fixer précisément le
+comportement attendu (avec un croquis à l'appui) : *« Le planning dans ce format la doit avoir ses bulles
+continue, c'est moi qui doit adapter en copiant une bulle si nécessaire. imaginons qu'une tâche dure
+1.5jour (mardi et mercredi matin), en format compact, la bulle doit faire 3 case de long et en format
+standard il doit y avoir une bulle de 2 case sur le matin (mardi et mercredi) et un bulle de 1 case sur
+l'après midi (mardi). »* — le mode standard/classique, déjà correct sur cet exemple, ne doit pas changer.
+
+### 48.1 Cause réelle
+
+Deux couches distinctes contribuaient au découpage, et une seule était déjà en place :
+
+- **Au chargement** (`construireVueDepuisCache`) : les jours CONSÉCUTIFS d'une MÊME demi-journée avec un
+  contenu identique (texte/important/statut/chantier) sont déjà fusionnés en un seul item `TACHES` à durée
+  multiple — ex. "mardi matin + mercredi matin" devient un seul item `duree: 2`. Cette partie du problème
+  était donc déjà résolue côté données ; ce qui manquait, c'est que le RENDU compact redécoupait quand même
+  cet item en autant de segments DOM qu'il y a de jours, parce qu'un item n'occupe qu'UNE SEULE des 2
+  colonnes demi-journée de chaque jour intermédiaire — laissant l'autre visuellement vide au lieu de
+  fusionner par-dessus.
+- **Entre deux demis différentes** (matin + après-midi, l'exemple de Lionel) : ce cas n'a jamais été fusionné
+  nulle part, ni au chargement (qui ne regroupe que par demi fixe) ni au rendu — chaque demi restait un item
+  séparé, donc 2 bulles distinctes même quand elles se touchent bord à bord.
+
+### 48.2 Implémentation
+
+- **`construireRunsCompacts(itemsLigne)`** (nouvelle fonction pure, portée globale de l'IIFE — extraite hors
+  de `construireGrille()` pour rester testable via `extraireFonction`, comme le reste de la suite de tests) :
+  regroupe les items d'une ligne, piste par piste (`_piste`, calculée par `assignerPistesCompact`), en
+  "runs" — une suite d'items consécutifs (bord à bord ou chevauchants) au contenu identique (type, texte,
+  important, statut, chantier), quelle que soit leur demi-journée. Les items du week-end restent rendus
+  séparément (jamais fusionnés). Réutilise telle quelle la géométrie déjà existante
+  (`demiSlotsDepuisBornes`) pour calculer le footprint en demi-slots de chaque item — aucune nouvelle
+  fonction de géométrie nécessaire.
+- **`ligneGroupePersonnesCompact`** : au lieu de poser un `<div class="bulle">` par item, pose un seul
+  élément par run, positionné avec `colonneEtSpanDemi(premierItem.giDebut, durée, premierItem.demi,
+  dernierItem.demi)` — la même fonction déjà utilisée pour les jalons/notes, qui comble déjà nativement les
+  trous internes d'une demi-journée à l'autre.
+- **`data-slots`** (posé sur TOUTE bulle tâche/absence en mode compact, y compris un run à un seul membre)
+  et **`data-membres`** (liste d'ids séparés par des virgules, posé seulement si le run a 2+ membres)
+  remplacent l'ancienne mécanique `data-seg-jour` / `.bulle-suite` / `.bulle-continue` (supprimée du CSS et
+  du JS) — c'est la nouvelle base du calcul de décalage au clic (`offsetJoursClic`, généralisé pour
+  fonctionner sur un nombre de demi-slots quelconque au lieu d'un nombre fixe de jours).
+- **Rupture de l'invariant « 1 bulle DOM = 1 item de données »** : une bulle fusionnée n'a qu'UN SEUL élément
+  DOM (le premier membre du run), mais représente 2+ items. Tous les points du code qui résolvaient un item à
+  partir du DOM (`document.querySelector('.bulle[data-id=...]')`) ratent donc silencieusement les membres
+  non représentés. Nouvelle fonction **`itemParId(id)`** (recherche pure dans JALONS/NOTES/TACHES, sans DOM)
+  substituée à ces résolutions partout où un membre non représentatif pouvait être concerné :
+  `appliquerDelta` (le point CRITIQUE — la mutation réelle du glissement de groupe), `supprimerGroupeConfirme`,
+  `supprimerSelection`, `copierSelection`, `couperSelection`, et le raccourci clavier Entrée (dont le test de
+  "une seule bulle sélectionnée" est passé de `Object.keys(bullesSelectionnees).length` à
+  `document.querySelectorAll(".bulle.selectionnee").length`, un run fusionné gonflant désormais
+  `bullesSelectionnees` à 2+ entrées pour une seule bulle visuelle).
+- **`groupeIds` au clic** : réutilise tel quel le mécanisme de glissement de groupe déjà existant et déjà
+  éprouvé (`appliquerDelta`) — `data-membres` alimente directement `groupeIds`, ce qui fait automatiquement
+  passer un run fusionné (`groupeIds.length > 1`) par le chemin de glissement de groupe plutôt que par le
+  chemin de dépose directe réservé aux items seuls (`estBulleUnitaireDeplacable`), sans toucher à cette
+  fonction de garde elle-même.
+- **`ancrageAffichage`** (nouveau 5e paramètre de `cablerPoigneeRedim`) : problème repéré et corrigé avant
+  tout test — brancher les 2 poignées de redimensionnement d'un run fusionné sur ses 2 membres extrêmes
+  (premier/dernier) sans autre changement aurait fait s'effondrer l'APERÇU EN DIRECT du glissement (pas le
+  résultat final, déjà correct) sur le seul footprint du membre en cours de redimensionnement. Corrigé en
+  séparant « l'item réellement modifié » de « le bord fixe opposé, pour l'affichage seulement » — un run
+  fusionné garde donc son bord opposé visuellement immobile pendant tout le geste, exactement comme pour un
+  item seul.
+
+### 48.3 Vérification effectuée
+
+**Tests unitaires** (`test_grille_compacte.js`) : 8 nouvelles assertions pour `construireRunsCompacts`
+couvrant l'exemple exact de Lionel (fusion 1.5 jour), la continuité d'un item seul, la non-fusion sur texte/
+chantier/piste différents ou sur des items non adjacents, une chaîne de 3 items, et l'exclusion du week-end.
+Suite complète : 86/86 assertions. Aucune régression sur les 19 fichiers `test_*.js` du projet.
+
+**Playwright** (`/tmp/verif_fusion_compacte.js`, mock "intelligent" — `functions.invoke`/`from().delete()`/
+`.insert()` persistent réellement dans `window.__TABLES__`, condition nécessaire pour vérifier l'aller-retour
+complet glissement → sauvegarde → rechargement déclenché par `synchroniser()`) : 19/19 vérifications,
+5 scénarios —
+- une tâche seule de 3 jours matin ne se redécoupe plus en segments (largeur continue, sans trou) ;
+- l'exemple EXACT de Lionel (mardi+mercredi matin, mardi après-midi) fusionne en 1 seule bulle de
+  3 demi-slots en mode compact ;
+- le même exemple reste 2 bulles séparées en mode classique, **inchangé** ;
+- un glissement de la bulle fusionnée déplace bien ses 2 items sous-jacents ensemble, du même delta, chacun
+  gardant sa propre demi-journée et sa durée — vérifié jusqu'à l'état final relu depuis le "serveur" après
+  rechargement, pas seulement l'état mémoire immédiat ;
+- un redimensionnement par la poignée droite n'allonge que le membre de droite (le bord gauche du rendu
+  reste visuellement fixe pendant le geste, comme conçu par `ancrageAffichage`), sans toucher au membre de
+  gauche.
+
+`node --check` sur le `<script>` extrait : OK.
+
+**Déploiement** : changement purement client (aucune migration SQL ni fonction serveur touchée) — rien à
+redéployer côté Supabase. Comme toujours, Lionel doit confirmer en conditions réelles, en particulier sur
+son exemple 1.5 jour et sur un cas de chevauchement qu'elle gère elle-même en copiant une bulle.
+
+## 49. Round du 08.09.2026 (suite, encore) — le §48 ne suffisait pas : tâches/absences reçoivent enfin le vrai modèle demiDebut/demiFin, et la vue standard/classique est supprimée
+
+Retour de Lionel sur le §48 (fusion visuelle des tâches/absences compactes en une seule bulle continue,
+livré juste avant) : **« Cela ne fonctionne pas comme je le souhaite. peut-être que c'est plus simple de
+laisser tomber la vue standard et de se concentrer sur la vue compact. oublie tout ce qu'on a vu sur la vue
+standard. on reste sur la seule vue compact qui devient la standard »**.
+
+Deux questions de clarification lui ont été posées, avec ses réponses exactes :
+
+- *Qu'est-ce qui ne va pas exactement avec le résultat actuel en mode compact ?* → **« 1 tâche ne peux pas
+  etre mise sur 2 case, elle s'étent de 1 jour (de 1 a 3 ,5 ou 7 case) »**.
+- *Pour la vue standard (classique) : je supprime complètement le bouton et tout le code qui lui est
+  propre, pour qu'il ne reste plus qu'UN SEUL affichage — celui qui était "compact" ?* → **« Oui, supprime
+  tout (Recommandé) »**.
+
+### 49.1 Cause réelle du §48
+
+Le §48 corrigeait le SYMPTÔME (le rendu redécoupait un item déjà correct en segments DOM) sans toucher à la
+CAUSE : une tâche/absence n'a **toujours eu qu'un seul champ `demi` fixe pour toute sa durée**, contrairement
+à un jalon/une note (`demiDebut`/`demiFin`, un par bord de la plage, avec la règle « tout jour strictement
+entre les 2 bords reste une journée entière »). Un champ unique ne peut décrire que des plages qui sautent
+par journée ENTIÈRE (2 demi-slots à la fois) — jamais « 1 jour et demi » comme UN SEUL item continu, exactement
+la description de Lionel : la longueur ne peut passer que par des nombres impairs de case (1, 3, 5, 7 — un
+saut de 2 cases à chaque fois), jamais par un nombre pair (2, 4, 6). Le §48 fusionnait bien 2 items voisins
+en apparence, mais chacun restait individuellement limité à cette même granularité grossière dès qu'on
+essayait de le redimensionner ou de le recréer.
+
+Le vrai correctif : donner aux tâches/absences **exactement le même modèle de données que les jalons/notes**
+(`demiDebut`/`demiFin`) plutôt que de continuer à ravauder le rendu par-dessus l'ancien modèle.
+
+### 49.2 Suppression de la vue standard/classique
+
+Conformément à « Oui, supprime tout » :
+
+- Le bouton bascule (case à cocher "Mode compact" dans Réglages) et son câblage JS sont supprimés.
+- `modeCompact` reste une variable nommée (plutôt que de traquer une par une ses ~15 références dans un
+  fichier de plusieurs centaines de milliers de caractères, un risque d'en oublier une jugé disproportionné
+  par rapport au gain) mais devient une **constante fixée à `true`**, documentée comme telle ; `colsParJour()`
+  se simplifie en un simple `return 2`.
+- `ligneGroupePersonnesClassique` (tout le rendu par ligne demi-journée séparée) est supprimée intégralement,
+  ainsi que les 2 règles CSS scoping `.grille:not(.grille-compacte)`.
+- Les ternaires mineurs encore lisibles qui distinguaient les 2 modes (`colonneGrille`, `colonneEtSpanDemi`,
+  etc.) sont laissés tels quels : leur branche "classique" devient un simple code mort inatteignable, sans
+  risque, plutôt que de multiplier les micro-modifications sur des fonctions par ailleurs correctes.
+
+### 49.3 Nouveau modèle de données : demiDebut/demiFin pour les tâches/absences
+
+- **`itemPlageTache(type, texte, personneId, giDebut, duree, opts)`** : signature changée, le paramètre
+  positionnel `demi` disparaît au profit de `opts.demiDebut`/`opts.demiFin` (exactement comme `itemPlage`
+  pour les jalons/notes). Toute la mécanique demi-slot déjà existante et déjà éprouvée pour les jalons/notes
+  (`demiSlotsDepuisBornes`, `bornesDepuisDemiSlots`, `bordsDeplacementNoteMultiJours`, `demiPourRedimNote`)
+  est réutilisée telle quelle, sans nouvelle fonction de géométrie.
+- **`construireVueDepuisCache`** : la boucle qui reconstruit les tâches/absences depuis les cellules du
+  cache serveur est réécrite pour parcourir les demi-slots consécutifs (matin/après-midi de chaque jour, un
+  entier par demi-slot comme pour les notes) et fusionner par CONTENU (texte/important/statut/chantier),
+  jamais par position fixe dans un tableau — le même algorithme, plus sûr, déjà utilisé pour les notes.
+  Résultat : un item chargé depuis le serveur est déjà nativement UN SEUL objet continu, plus besoin d'aucune
+  fusion après coup au rendu.
+- **`calculerEtatLocal`** : la projection inverse (items → cellules à sauvegarder) applique la même règle de
+  bord — 1er jour → `demiDebut`, dernier jour → `demiFin`, tout jour du milieu → journée entière — via une
+  nouvelle fonction partagée **`demisOccupeesTache(it, gi)`**, réutilisée aussi par `chantierExistantDansCase`
+  et `selectionnerDepuisCellules`.
+- La base de données et les fonctions serveur (`taches`, `assignations`, Edge Functions) restent
+  **inchangées** : une ligne par (personne, date, demi) côté serveur, exactement comme avant — seule la
+  reconstruction et la sauvegarde côté client changent.
+- Semaine/week-end : convention inchangée mais désormais explicite (`demiDebut: "matin", demiFin: "matin"`
+  forcés) — une case de week-end reste toujours une seule demi-journée interactive par personne (§2 du spec).
+
+### 49.4 Rendu et interactions : retour à la mécanique native des jalons/notes
+
+Puisqu'une tâche/absence est de nouveau un item unique et continu (comme un jalon/une note), tout
+l'échafaudage du §48 devient inutile et est retiré :
+
+- `construireRunsCompacts` (fusion visuelle post-hoc) et `demiFixePourItem` (repli demi pour l'ancien
+  modèle) sont supprimés intégralement.
+- `data-slots`/`data-membres` disparaissent ; `ligneGroupePersonnesCompact` pose de nouveau **une bulle par
+  item**, positionnée par `colonneEtSpanDemi(it.giDebut, it.duree, it.demiDebut, it.demiFin)` — exactement
+  la même fonction que pour un jalon/une note.
+- `bulleEl`/`cablerPoigneeRedim` reviennent à leur forme à un seul item (plus d'`ancrageAffichage`) : le
+  redimensionnement par poignée (`demiPourRedimNote`) et le déplacement en demi-journée
+  (`bordsDeplacementNoteMultiJours`) s'appliquent désormais **sans restriction de type** — une tâche/absence
+  se redimensionne et se déplace en demi-journée exactement comme un jalon ou une note, ce qui répond
+  directement à « toutes les bulles doivent avoir le même comportement » (déjà cité au §47) autant qu'à la
+  demande explicite de ce round.
+- **`onPointerDownGroupeSelection`** : `offsetJoursClic`/`offsetHalvesClic` redeviennent des calculs simples
+  à un seul item (plus de branche `data-slots`), et `offsetHalvesClic` n'est plus restreint aux notes/jalons.
+- **`resoudreCibleGroupe`** : le chemin dédié aux tâches seules (`estBulleUnitaireDeplacable`, qui gère en
+  plus le changement de personne — capacité que les jalons/notes n'ont jamais eue) devient demi-précis à la
+  souris hors week-end, via `bordsDeplacementNoteMultiJours` — même modèle que la surbrillance de survol
+  (`cibleNotePreciseCompacte`, désormais étendue aux tâches). Le repli tactile (granularité jour entier,
+  forme reconduite telle quelle) est conservé inchangé.
+- `basculerSelection`/`resoudreClicBulle` reviennent à leur forme à un seul id (plus de paramètre `membres`
+  — devenu sans objet, un item = de nouveau un seul élément DOM) ; `itemParId(id)`, plus sûr qu'un
+  `document.querySelector`, est conservé sur les sites déjà migrés au §48 même si sa justification d'origine
+  (membre non représentatif d'un run fusionné) a disparu.
+- **`creerGroupeTaches`** (formulaire d'ajout, sélection de cellules) : crée désormais **1 item par jour**
+  plutôt qu'1 seul item de plusieurs jours — une sélection "matin seul, 3 jours" doit laisser l'après-midi de
+  CHAQUE jour libre, ce que le modèle demiDebut/demiFin (bords uniquement, jour du milieu toujours entier) ne
+  peut plus représenter comme un seul item. Ces items se refusionneront de toute façon en une seule bulle
+  continue au prochain rechargement (§49.3) — granularité identique pour le cas courant (1 jour).
+- `appliquerDelta` (copie par glissement de groupe) et `collerPressePapier` (Ctrl+V) transmettent désormais
+  `demiDebut`/`demiFin` à la copie — un oubli déjà corrigé pour les jalons/notes (round du 03.09.2026) mais
+  jusqu'ici manquant côté tâches/absences (et, découvert au passage, également manquant pour le copier-coller
+  clavier des jalons/notes eux-mêmes : corrigé au même endroit).
+
+### 49.5 Vérification effectuée
+
+**Tests unitaires** (`test_grille_compacte.js`) : réécrit en profondeur — suppression des tests
+`construireRunsCompacts`/`demiFixePourItem` (fonctions disparues) et de toute la section "mode classique"
+(devenue sans objet, l'affichage n'existant plus) ; nouvelles assertions pour `demisOccupeesTache` (bord de
+début, bord de fin, jour du milieu, plage d'un seul jour) et `assignerPistesCompact` réexprimées avec
+`demiDebut`/`demiFin`. `test_chantier_defaut.js` mis à jour de même (`chantierExistantDansCase` dépend
+désormais de `demisOccupeesTache`). Suite complète : **19 fichiers, 100 % des assertions passées**, aucune
+régression sur le reste (séries, formulaires, fériés, décalage en masse, etc.).
+
+`node --check` sur le `<script>` extrait : OK.
+
+**Non fait ce round, à noter** : contrairement au §48, aucune vérification Playwright de bout en bout
+(glissement/redimensionnement réel dans un navigateur simulé) n'a été effectuée — la mécanique de glissement
+touchée ce round est profondément imbriquée dans de grandes fermetures DOM difficilement extractibles pour
+des tests purs, et construire un nouveau harnais Playwright + mock Supabase compatible aurait représenté un
+chantier disproportionné pour ce round. La couverture s'appuie donc sur les tests unitaires ci-dessus (qui
+couvrent toute la géométrie et la logique de données, le cœur du bug signalé) et une relecture manuelle
+complète de chaque site d'appel touché. **Cela rend la confirmation de Lionel en conditions réelles
+particulièrement importante ce round-ci** — en priorité sur son exemple exact ("1 tâche qui peut désormais
+s'étendre sur un nombre pair de cases, ex. 2 ou 4") et sur la disparition de la vue standard.
+
+**Déploiement** : changement purement client (aucune migration SQL ni fonction serveur touchée) — rien à
+redéployer côté Supabase.
+
+## 50. Round du 11.09.2026 — refonte du formulaire de saisie tâche : design validé, implémentation reportée
+
+Demande de Lionel : **« J'aimerai retravailler les formulaire de saisie de tâche/note/jalon »**. Ce qui le
+gêne, dans l'ordre de ses réponses : présentation visuelle, champs proposés, et nombre de clics/étapes — les
+3 à la fois. Il avait une idée précise à décrire plutôt qu'à se faire proposer des options à l'aveugle.
+
+### 50.1 Cahier des charges exact (verbatim)
+
+> « propose moi 5 choix de formulaire en image j'y ferai des ajustement. doit y figurer :
+> - chantier,
+> - descriptif,
+> - nom si section nom / intervenant si section intervenant,
+> - date cliquable pour la changer (même principe que les semaines) avec flèche à gauche et droite pour
+>   déplacer de 1 jour,
+> - 3 boutons annuler/supprimer/enregistrer en bas, cela peut être des icônes (pas d'émoji) »
+
+Deux capacités **nouvelles**, absentes du formulaire actuel (qui n'affiche ni date ni personne — elles sont
+implicites à la case cliquée) : un champ date cliquable modifiable dans le formulaire lui-même, et un champ
+Nom/Intervenant explicite. Ce n'est donc pas une simple passe esthétique.
+
+### 50.2 Méthode : 5 maquettes image, itérées à partir des retours
+
+Livrées comme demandé sous forme d'**images** (captures Playwright/Chromium d'une page HTML de maquettes,
+`SendUserFile`, pas de code touché dans `Index.html`), pas comme artefact interactif — cohérent avec sa
+demande littérale « en image » et son intention de les annoter lui-même.
+
+5 options initiales couvraient tout l'espace de conception (compact à chips colorés, deux-colonnes bureau,
+bandeau couleur chantier en en-tête, plein écran mobile, gros boutons tactiles). Lionel a ensuite convergé
+par rounds successifs de retouches vers une combinaison des options 3 (desktop/tablette) et 4 (mobile) :
+
+1. **Option 3** — d'abord ajustée pour reprendre le nom de chantier cliquable (menu déroulant caché) à la
+   place du texte « Tâche · Personnel », la date déplacée tout en haut, et le descriptif passé sur 2 lignes
+   cliquable ouvrant une fenêtre d'édition dédiée (2 boutons annuler/enregistrer).
+2. **Option 4** — chantier remonté au-dessus du nom, transformé en bouton cliquable unique plutôt qu'une
+   liste de chips qui débordait de l'écran ; ajout d'une **demi-fenêtre** (bottom sheet mobile) pour éditer
+   le descriptif, avec la même logique que la popup desktop.
+3. Popup/demi-fenêtre d'édition du descriptif : croix de fermeture seule (sans texte) en haut, bouton
+   Enregistrer seul en bas — repositionné à droite dans la version finale (cohérence avec la croix de
+   fermeture, cf. point 5) ; bug corrigé au passage (le bouton Enregistrer n'héritait d'aucun style bleu car
+   scopé par erreur à une classe CSS non appliquée à la popup).
+4. **Fusion des deux options** : l'option 3 a repris telle quelle la barre du haut et le pied de page de
+   l'option 4 (croix + date centrée en haut ; bouton Supprimer en icône + gros bouton Enregistrer accent en
+   bas, au lieu des 3 boutons carrés initiaux) ; l'option 4 a en retour repris le bandeau couleur
+   chantier/nom de l'option 3 (au lieu de son ancien bloc chantier + bloc nom séparés). Les deux formulaires
+   partagent maintenant exactement la même coquille (bandeau, barre du haut, pied de page), seule la mise en
+   page du corps (carte desktop vs plein écran mobile) diffère.
+5. Descriptif affiché en texte simple (sans encadré ni fond) dans les deux formulaires, plutôt qu'en boîte à
+   bordure pointillée.
+6. Champ de saisie de la demi-fenêtre mobile recadré (bordure visible) pour bien signaler qu'il s'agit d'une
+   zone de texte éditable, comme la popup desktop.
+7. **Croix de fermeture déplacée à droite** dans les 2 formulaires (elle était à gauche) : *« c'est plus
+   logique, car c'est là qu'ils se trouvent dans toutes les applications »*.
+
+Validation finale de Lionel : **« impeccable »**.
+
+### 50.3 Périmètre confirmé pour l'implémentation à venir
+
+Deux questions de clarification posées avant de coder, avec ses réponses exactes :
+
+- *On passe à l'implémentation dans `Index.html` maintenant ?* → **« Pas tout de suite »** — design gelé,
+  **aucun code applicatif touché ce round**, ce document sert de mémoire pour la reprise.
+- *Ce nouveau formulaire s'applique à quoi ?* → **« Tâches uniquement »**. À clarifier explicitement à la
+  reprise du chantier : est-ce que « tâches » exclut volontairement les **absences** (qui partagent
+  pourtant aujourd'hui le même formulaire `ouvrirEdition`/`champChantierHTML`/`champStatutHTML`), ou est-ce
+  un raccourci de langage pour « tâches/absences » par opposition à « jalons/notes » ? Les jalons/notes,
+  eux, sont explicitement **hors périmètre** de cette refonte (pas de champ chantier ni nom dans leur
+  formulaire actuel, `ouvrirEditionPlage`).
+
+### 50.4 Repère pour l'implémentation future
+
+Design final = option 3 (desktop/tablette, carte ~300px) pour l'écran large, option 4 (plein écran, avec
+demi-fenêtre pour le descriptif) pour le téléphone — cohérent avec le comportement responsive déjà en place
+depuis le round du 03.09.2026 (§31, plein écran mobile / demi-page tablette pour `.form-pop`). Éléments à
+reprendre dans le vrai formulaire (`ouvrirEdition`, `champChantierHTML`) :
+
+- Bandeau coloré (couleur du chantier sélectionné) affichant le nom du chantier (cliquable → sélecteur) et
+  le nom de la personne/intervenant en grand.
+- Barre du haut : croix Annuler à droite, date cliquable centrée avec flèches gauche/droite (± 1 jour,
+  même principe que `naviguerSemaine`/`.semaine-titre`).
+- Descriptif en texte simple, cliquable, ouvrant une popup (desktop) ou une demi-fenêtre glissée du bas
+  (mobile) avec un champ de saisie encadré et un seul bouton Enregistrer (bleu, en bas à droite) — pas de
+  bouton Annuler dans cette sous-popup, la croix en haut à droite suffit.
+- Pied de formulaire principal : bouton Supprimer en icône seule + gros bouton Enregistrer (icône + texte,
+  fond bleu accent), tous deux non-émoji (SVG trait).
+- Icônes SVG à réutiliser telles quelles (X, corbeille, check, chevrons) : voir `mockups.html` sauvegardé
+  dans le projet.
+
+Maquette source (`mockups.html`, HTML/CSS autonome ayant servi aux captures d'écran) sauvegardée dans le
+projet sous `claude/mockup-formulaire-tache.html` pour reprise ultérieure — évite de redemander à Lionel de
+revalider un design déjà approuvé.
+
+## 51. Round du 11.09.2026 — vérification avec de vraies données (§6bis) : 4 bugs trouvés et corrigés
+
+Lionel a commencé à saisir de vraies données dans l'appli migrée (étape 5 du §6bis, "vérification bout en
+bout"). Deux vagues de bugs remontées pendant cette phase, toutes corrigées et vérifiées via le harnais
+Playwright + mock Supabase déjà en place (`test_*.js`, extraction des vraies fonctions du fichier source).
+
+### 51.1 Note/tâche/jalon sur 1 seul jour : impossible de choisir Début=A + Fin=P indépendamment
+
+Signalement de Lionel : *« impossible de sélectionner A et P si la date de début correspond à la date de
+fin. on doit pouvoir faire A/P ou A/A ou PP, mais pas P/A »*.
+
+**Cause** : `cablerDatesPlage` forçait Fin à recopier Début (et vice-versa) dès que `giDebut === giFin`, sous
+l'ancienne hypothèse "1 seul jour ⇒ 1 seule valeur de demi-journée pour toute la carte" — devenue fausse
+depuis que Début/Fin portent chacun leur propre demi-journée (§49).
+
+**Correctif** : le clic sur un bouton A/P d'un bord ne touche plus que ce bord, avec un seul garde-fou ciblé
+(bloquer la combinaison invalide Début=aprem + Fin=matin sur un seul jour, qui inverserait le sens de la
+plage). L'enregistrement normalise ensuite Début=matin + Fin=aprem (équivalent à une journée entière) vers
+`null`/`null`, pour ne pas introduire une 2e représentation possible d'une même journée pleine et préserver
+l'invariant `demiDebut === demiFin` sur 1 seul jour dont dépend le reste du fichier (`demisOccupeesTache`,
+rendu des bulles, glissé/redimensionnement — cf. commentaires §49).
+
+Vérifié (`test_demi_unseuljour.js`) : A/P sélectionnables indépendamment, journée entière stockée/ré-ouverte
+sans distorsion, combinaison P/A bloquée.
+
+### 51.2 Vidéo de Lionel : tâches qui se scindent, "Vacances" en plusieurs bulles, sélection verte "bizarre"
+
+Trois symptômes remontés ensemble, avec vidéo à l'appui : *« en tirant test 2 il se scinde en plusieurs »*
+(redimensionner une tâche la fragmente), *« en créant vacances sur plusieurs case, il fait plusieurs bulles
+au lieu de 1 »*, et *« la sélection verte lors du glisser se comporte bizarrement »* (rectangle de sélection
+visuellement découpé case par case au lieu d'un seul bloc).
+
+#### 51.2.1 Tâches/absences multi-jours qui se scindent — cause racine commune aux 2 premiers symptômes
+
+Reproduit sans même passer par un redimensionnement : une tâche de plusieurs jours créée normalement (via
+`ouvrirEdition`, en cliquant une case du MATIN) revenait déjà scindée en 2 bulles après le premier
+aller-retour serveur (`enregistrerCellulePersonneServeur` → rechargement → `construireVueDepuisCache`).
+
+**Cause** : `calculerEtatLocal()` (le "photographe" qui décide ce qui part vers le serveur à chaque
+synchronisation) réimplémentait sa PROPRE version, incomplète, de la règle de bord demiDebut/demiFin, au
+lieu d'appeler `demisOccupeesTache(it, gi)` — la fonction PARTAGÉE qui, elle, applique correctement
+l'équivalence "matin au 1er jour d'une plage multi-jours = journée entière" / "aprem au dernier jour =
+journée entière" (cf. `colonneEtSpanDemi`, qui rend visuellement ces cas identiques à une journée pleine —
+`test_grille_compacte.js` documentait même déjà, à tort, que `calculerEtatLocal` passait par
+`demisOccupeesTache`). Résultat concret : sur le jour de bord d'une plage multi-jours, une seule des 2
+demi-journées serveur était écrite, l'autre restant vide — au rechargement suivant, cette moitié manquante
+cassait la continuité de la plage reconstruite (l'algorithme de fusion de `construireVueDepuisCache` exige
+un contenu identique sur CHAQUE demi-slot consécutif), la tâche revenant scindée en 2+ bulles. Comme
+l'ouverture d'une nouvelle tâche/absence hérite par défaut de la demi-journée de la case cliquée
+(`demiInit`, `ouvrirEdition`) et que cliquer une case MATIN est le geste le plus courant, ce bug touchait la
+quasi-totalité des tâches multi-jours créées normalement, pas seulement après un redimensionnement.
+
+**Correctif** : `calculerEtatLocal` appelle maintenant directement `demisOccupeesTache(t, gi)` au lieu de
+dupliquer sa logique — élimine le bug ET la possibilité qu'affichage et écriture serveur redivergent un jour.
+
+Vérifié (`diag_tache_split.js`, `repro_tache_split.js`) : une tâche 3 jours (bords matin/matin) et une tâche
+2 jours qui la chevauche partiellement restent chacune une seule bulle continue après création ET après
+redimensionnement — plus aucune ligne de données serveur manquante sur les jours de bord.
+
+#### 51.2.2 "Vacances"/"Congé" sur plusieurs cases : `creerGroupeTaches` ne fusionnait qu'une tâche assignée
+
+Le correctif ci-dessus ne suffisait pas pour "Vacances" sur une sélection multi-jours : `creerGroupeTaches`
+(le glisser-sélectionner rapide, boutons Congé/Vacances du menu `.menu-pop`) pose délibérément 1 item PAR
+JOUR ET par ligne de sélection (matin OU aprem) — nécessaire pour une TÂCHE ("matin seul, 3 jours" doit
+laisser l'après-midi libre chaque jour, cf. §49), mais qui rend structurellement impossible toute fusion au
+rechargement si le glissé reste sur une seule des 2 lignes demi d'une personne (cas très probable en
+pratique : un glissé à peu près horizontal reste sur la ligne où le geste a commencé) — un jour dont seule
+UNE des 2 demis est occupée casse la continuité exigée par l'algorithme de fusion, quelle que soit la
+correction du §51.2.1.
+
+**Correctif** : une absence (Congé/Vacances/formulaire rapide configuré en absence) posée sur PLUSIEURS
+jours n'a jamais de sens en demi-journée (personne ne prend "vacances le matin seulement, 3 jours") — pour
+`duree > 1`, `creerGroupeTaches` pose maintenant 1 SEUL item par personne concernée, journée complète du
+début à la fin de la sélection, sans dépendre de la ligne demi effectivement glissée (dédoublonné par
+personne si ses 2 lignes matin/aprem étaient toutes les deux sélectionnées). Le comportement d'une TÂCHE
+assignée (pas une absence) est inchangé.
+
+Vérifié (`repro_vacances.js`) : "Vacances" glissée sur la seule ligne matin, 3 jours (MAR-JEU) → écrit des
+journées complètes sur les 3 jours côté serveur et s'affiche en 1 SEULE bulle continue.
+
+#### 51.2.3 Sélection verte "bizarre" — quadrillage au lieu d'un rectangle continu
+
+**Cause** : `surlignerRectangle` posait un anneau `box-shadow: inset 0 0 0 2px` sur CHAQUE case du
+rectangle de sélection individuellement (classes `.selection-active`/`.selection-add`) — visible aussi sur
+les bords INTÉRIEURS partagés entre 2 cases voisines sélectionnées, en plus du filet de 1px du fond de
+`.grille` (technique `gap` + `background`) qui sépare déjà TOUTES les cases du tableau. Combinés, ces 2
+filets donnaient l'impression d'un quadrillage de cases séparées plutôt que d'un seul bloc.
+
+**Correctif** : ces classes ne posent plus qu'un fond teinté (qui se fond correctement d'une case à l'autre,
+la même couleur unie des 2 côtés du filet de `gap` ne créant aucune coupure visible) ; le contour est
+maintenant dessiné par une seule couche `#selection-overlay`, positionnée en `position: fixed` sur le
+rectangle englobant (`getBoundingClientRect()`) de toutes les cases sélectionnées, posée/mise à jour par
+`surlignerRectangle` et masquée par `effacerSurlignage`. `position: fixed` + coordonnées viewport évitent
+d'avoir à connaître un ancêtre positionné ou le décalage de scroll du `.scroller`.
+
+Vérifié (`repro_selection_overlay.js`) : un seul rectangle continu affiché pendant le glissé (dimensions =
+englobant des 3 cases sélectionnées), cases individuelles sans `box-shadow`, overlay masqué au relâchement.
+
+#### 51.2.4 (suite, même jour) "la sélection est bizarre, on dirait une case sur 2"
+
+Nouvelle vidéo de Lionel après livraison du §51.2 ci-dessus : cette fois le rectangle de sélection est bien
+UN SEUL bloc continu (§51.2.3 corrigé), mais son remplissage alterne colonne par colonne — une case teintée,
+la suivante pas, sur toute la largeur du geste. Clarification demandée et obtenue : *« le bleu est pour la
+sélection multiple »* (`demarrerSelectionRapide`, clic droit/appui long — sélectionner des bulles
+existantes pour les copier/couper/supprimer), *« vert pour insertion multiple »* (`cablerAjoutCellule`,
+glisser-déposer normal — le menu Ajouter/Congé/Vacances des §51.2.1-51.2.3).
+
+**Cause, commune aux 2 couleurs** : en mode compact, matin et après-midi d'un même jour sont 2 colonnes
+CÔTE À CÔTE dans la même ligne visuelle (pas 2 lignes empilées, cf. §48). Le calcul de la ligne survolée
+(`trouverIndexLigne`, dans `onMove` des 2 gestes) relisait `c2.dataset.demi` — la demi-journée de la case
+EXACTEMENT sous le curseur — à CHAQUE `pointermove`. Un geste à peu près horizontal traverse pourtant
+naturellement, à chaque jour franchi, la moitié matin PUIS la moitié aprem de ce jour-là (imprécision de
+tracé humaine normale, pas un geste "raté") : `indexCourant` retombait donc tantôt sur la ligne matin tantôt
+sur la ligne aprem selon la position exacte du curseur à l'instant de CHAQUE mouvement, sans qu'aucun choix
+délibéré n'ait été fait. Le rendu, fidèle à cet état, alternait alors "matin teinté / aprem pas teinté" sur
+toute la largeur du geste — jamais le bloc plein attendu.
+
+**Correctif** : la demi-journée ciblée est désormais figée sur celle de la case de DÉPART pendant tout le
+geste (`extraDebut.demi` au lieu de `c2.dataset.demi`), dans les 2 fonctions (`cablerAjoutCellule` et
+`demarrerSelectionRapide`). Seul un déplacement vers une AUTRE personne change encore de ligne — le
+découpage matin/aprem par ligne (`lignesSecteur`) n'est pas remis en cause, juste stabilisé pour ne plus
+dépendre du tracé exact du curseur. Le cas "tâche assignée en matin seul sur plusieurs jours" (le vrai
+besoin métier derrière ce découpage, cf. §49) reste entièrement possible : il suffit de commencer le geste
+sur une case matin et de ne jamais quitter la ligne de cette personne.
+
+Vérifié (`repro_case_sur_2.js`) : un glissé simulé qui traverse RÉELLEMENT matin ET aprem de chaque jour
+(reproduisant l'imprécision d'un vrai geste) reste maintenant sur une seule demi-journée du début à la fin,
+pour les 2 couleurs. Non-régression vérifiée sur un glissé "Tâche" classique (`repro_tache_matin_seul.js`)
+et sur toute la suite du §51.2 (`diag_tache_split.js`, `repro_vacances.js`, `repro_selection_overlay.js`).
+
+### 51.3 Vérification effectuée
+
+Syntaxe (`node --check` sur le script extrait) OK. Suite Playwright + mock Supabase existante rejouée sans
+régression (`test_demi_unseuljour.js`). Scripts de reproduction ciblés créés pour cette session (non ajoutés
+à la suite `test_*.js` versionnée — scripts de diagnostic ad hoc, gardés en dehors du dépôt).
+
+## 52. Round du 12.09.2026 — le §51.2.4 ("figer sur la demi de départ") est rejeté : refonte "case par case" de toute la sélection au glissé, + 6 retours plus courts
+
+Nouvelle vidéo de Lionel, plus une liste de 8 points envoyée dans la foulée. Premier mot de son message :
+*« Ce n'est pas le comportement attendu. »* — le correctif du §51.2.4 (figer la demi-journée ciblée sur
+celle de la case de DÉPART pendant tout le geste) supprimait bien l'alternance visuelle, mais au prix d'un
+comportement que Lionel n'a jamais demandé : impossible de faire commencer une sélection le matin et de la
+terminer l'après-midi (ou l'inverse) sur un geste continu.
+
+### 52.1 Nouveau modèle demandé (verbatim)
+
+> la sélection doit se faire case par case, on ne parle plus de demi journée. dans la vidéo je clique du
+> lundi matin au vendredi après midi. la surbrillance est seulement sur les matin mais la bulle vient
+> jusqu'à l'après-midi. si je lâche la souris sur vendredi matin, la bulle est créée jusqu'au vendredi
+> après-midi. Ce comportement doit être pareil pour tout type des bulles. on ne sélectionne pas que les
+> matin ou que les après midi. dans mon cas je n'ai qu'une ligne, mais si j'avais une 2ème ou plus personne
+> plus bas, il faudrait faire une bulle par ligne.
+> une case = une demi journée.
+
+Autrement dit : le glissé doit se comporter comme une sélection de cellules de tableur — un rectangle exact
+entre la case de départ et la case sous le curseur au relâchement, aucune case en trop, aucune case en
+moins — et ce rectangle doit produire EXACTEMENT une bulle par ligne (personne) traversée, avec les mêmes
+bords de demi-journée pour toutes.
+
+### 52.2 Refonte : demi-slot suivi au pixel près + ligne = personne (pas personne+demi)
+
+**Ancien modèle (§51.2.4, abandonné)** : la dimension horizontale ET verticale du glissé passaient par
+`lignesSecteur` (une "ligne" = un COUPLE personne+demi, 2 lignes par personne) ; `indexDebut`/`indexCourant`
+indexaient dans ce tableau, et la demi-journée de la ligne restait figée sur celle du point de départ pour
+tout le geste — structurellement incapable de représenter "commence matin, finit après-midi".
+
+**Nouveau modèle** : la dimension horizontale est un numéro de **demi-slot continu** (`jour*2 + 0/1`, déjà
+utilisé ailleurs dans le fichier par `demiSlotsDepuisBornes`/`bornesDepuisDemiSlots` pour le glissement d'une
+note existante) recalculé à CHAQUE `pointermove` depuis la case réellement sous le curseur (`demiSlotCellule`,
+nouvelle fonction) ; la dimension verticale, pour la grille personnel, est désormais la **PERSONNE SEULE**
+(`personnesSecteurListe`, nouvelle fonction) — la notion de "ligne = personne+demi" disparaît du glissé.
+Au relâchement, `bornesDepuisDemiSlots(halfMin, halfMax)` (déjà existante, jusqu'ici réservée au
+déplacement d'un item existant) convertit directement la plage de demi-slots en `{giDebut, duree,
+demiDebut, demiFin}` — les bords exacts, y compris asymétriques (ex. commence matin, finit après-midi,
+comme demandé). Une bulle est créée PAR PERSONNE traversée par le rectangle vertical, avec ces mêmes bords
+partagés (Lionel : *« il faudrait faire une bulle par ligne »*).
+
+`cablerAjoutCellule` (glissé vert, création) et `demarrerSelectionRapide` (glissé bleu, sélection de bulles
+existantes pour copier/couper/supprimer) sont réécrites sur ce même modèle ; la surbrillance en direct
+(`surlignerPlagePersonnes`) tinte l'union EXACTE des cases (personne × demi-slot) du rectangle — plus de
+case "en trop" d'un côté comme le §51.2.3/51.2.4 pouvait encore en laisser en bord de plage.
+
+**Jalon/note** n'ont qu'UNE cellule DOM par jour, jamais scindée matin/aprem (`creerCelluleFond`) —
+impossible d'y appliquer le même mécanisme de `classList` sur une sous-cellule. `demiSlotCellule` retombe
+ici sur `demiDepuisPointeur` (position du curseur dans la case pleine largeur, déjà utilisée pour le
+glissement d'une note existante) et une nouvelle fonction `surlignerPlageJalonNote` positionne un élément
+dédié (`.selection-precis`) en `grid-column`/`grid-row` via `colonneEtSpanDemi` — la MÊME fonction pure que
+le rendu final des bulles, garantissant que ce qui est surligné est exactement ce qui sera créé. Un simple
+clic (sans glissé) sur une case jalon/note est lui aussi désormais demi-précis (`ouvrirAjout` calcule la
+demi-journée depuis la position du clic dans la case, au lieu de toujours poser une journée entière).
+
+**`creerGroupeTaches`** (boutons rapides Congé/Vacances, formulaires Armature/Béton/Livraison
+armature/Entrée dynamique) fragmentait auparavant 1 item PAR JOUR avec une demi-journée FIXE par ligne de
+sélection (le cas "absence sur plusieurs jours" avait déjà été sorti de cette fragmentation au §51.2.2) —
+remplacé par le même modèle unifié : 1 SEUL item par personne, sur les bords exacts `demiDebut`/`demiFin`
+de la plage sélectionnée, quel que soit le type de bulle (Lionel : *« Ce comportement doit être pareil pour
+tout type des bulles »*). `ouvrirEdition`/`ouvrirEditionPlage` (fiche "Tâche"/"Absence"/jalon/note avec
+descriptif) créaient déjà 1 item fusionné par cible de cette façon et n'ont pas eu besoin d'être changées
+sur ce point — seule leur initialisation de `state.demiDebut`/`state.demiFin` a été corrigée pour reprendre
+les bords précis transmis depuis le glissé plutôt qu'une seule demi-journée reprise de la case cliquée
+(voir §52.4, Boutons A/P).
+
+Vérifié (`repro_case_par_case.js`) : glissé lundi matin → vendredi matin (ligne droite, traverse donc
+mécaniquement les colonnes aprem intermédiaires) — surbrillance finale sur vendredi = matin SEUL ; bulle
+"Tâche" créée = lundi à vendredi, vendredi en demi-journée matin seul (PAS après-midi comme avant ce
+round). Vérifié aussi (`repro_absence_case_par_case.js`) : le bouton rapide "Vacances" (qui passe par
+`creerGroupeTaches`, pas `ouvrirEdition`) applique le même modèle unifié. Non-régression : `repro_vacances.js`
+(désormais avec un résultat différent et VOULU — plus "journée entière forcée", bords précis comme partout
+ailleurs), `diag_tache_split.js`, `repro_tache_matin_seul.js`, `repro_selection_overlay.js`,
+`test_demi_unseuljour.js`.
+
+### 52.3 Libellés "Jalons"/"Notes" dans la colonne de gauche
+
+Retirés le 02.09.2026 (retour de Lionel à l'époque : "on peut réduire les hauteurs de ligne en enlevant...
+les titres notes et jalons, on a déjà une légende"), remis ce round (nouveau retour : *« ajouté les
+libellés jalon et note dans la colonne de gauche »*) — sans repère textuel la colonne de gauche ne dit plus
+quelle ligne est quoi une fois la légende hors du premier écran. Texte affiché en plus du `title` déjà
+présent (survol), même balisage `<b>` que les libellés personne (`lbl-speciale b`, déjà stylé). Vérifié
+(`repro_jalon_note_precis.js`) : `.lbl-speciale` contient bien "Jalons" et "Notes".
+
+### 52.4 Boutons A/P pas synchronisés avec la plage glissée
+
+Signalé séparément par Lionel mais résolu par la refonte du §52.2 : les boutons A/P de la fiche qui s'ouvre
+après un glissé initialisaient `state.demiDebut`/`state.demiFin` à `null`/`null` (journée entière) quelle
+que soit la plage réellement sélectionnée — `ouvrirAjoutPlage`/`ouvrirEditionPlage` ne transportaient que
+`giDebut`/`duree`, jamais de demi-journée. Ces 2 fonctions (et `ouvrirEdition`/`cablerBoutonsMenuAjout` en
+aval) transportent désormais aussi `demiDebut`/`demiFin` (les bords exacts issus de
+`bornesDepuisDemiSlots`), et l'initialisation de `state` les reprend directement au lieu de systématiquement
+`null`. Vérifié (`repro_case_par_case.js`) : après un glissé lundi matin → vendredi matin, la fiche s'ouvre
+avec Fin = "A" actif (pas de bouton actif sur Début, correct : matin en tout PREMIER jour d'une plage
+équivaut à journée entière, convention déjà en vigueur ailleurs dans le fichier).
+
+### 52.5 Sortir du mode sélection au clic à côté d'une bulle
+
+Un `pointerdown` sur une case (jamais sur une `.bulle`) pendant que des bulles étaient sélectionnées
+n'armait jusqu'ici qu'un panoramique tactile (`demarrerDefilementSimple`) : un simple clic/tap sans glissé
+n'y déclenchait rigoureusement rien. Nouvelle fonction `demarrerDefilementOuSortieSelection` : un vrai
+glissé reste un panoramique inchangé, mais un clic SANS mouvement réel (seuil 4px, comme le reste du
+fichier) appelle désormais `quitterModeSelection()` + `render(false)`. `quitterModeSelection()` retire aussi
+directement la classe `.selectionnee` de chaque bulle DOM concernée (les appelants historiques
+enchaînaient déjà avec un `render()` qui la faisait disparaître de fait ; le nouvel appelant du §52.6,
+ci-dessous, n'en déclenche pas toujours un). Vérifié (`repro_mode_selection.js`).
+
+### 52.6 Le mode sélection restait actif après enregistrer/annuler/supprimer un formulaire
+
+`fermerAuClicExterieur` fabrique la fonction `fermer()` COMMUNE à Enregistrer/Annuler/Supprimer (tous
+l'appellent, dans `ouvrirEdition`/`ouvrirEditionPlage` et les 4 formulaires historiques) et au clic
+extérieur — `quitterModeSelection()` y est appelée en un seul endroit dès que `bullesSelectionnees` n'est
+pas vide, couvrant les 3 actions demandées sans rien dupliquer par formulaire. Vérifié
+(`repro_mode_selection.js`) : sélectionner une bulle, ouvrir sa fiche, Annuler → barre d'action masquée.
+
+### 52.7 Entrée dans le descriptif fermait le formulaire entier sans enregistrer
+
+**Cause** : le raccourci clavier global (`document.addEventListener("keydown", ...)`) traite Entrée/Échap
+AVANT de vérifier si le focus est dans un champ de texte (nécessaire pour que Entrée valide un POPUP —
+`popValiderActuel` — même quand le focus est resté dans un champ de ce popup). Le petit éditeur de
+descriptif (`.desc-edit-box textarea`, une SURCOUCHE au-dessus du formulaire principal) n'avait lui-même
+aucune gestion de touche : Entrée y remontait donc jusqu'à ce raccourci global, qui validait/fermait le
+FORMULAIRE ENTIER (`popValiderActuel`, équivalent au bouton "Enregistrer" de la carte) sans jamais avoir
+appelé le `setTexte()` du petit éditeur — le texte tapé était donc perdu.
+
+**Correctif** : `cablerDescriptifEdit` écoute maintenant `keydown` sur son propre textarea — Entrée (sans
+Maj, pour laisser Maj+Entrée insérer un retour à la ligne normal) appelle `validerEdit()` (enregistre le
+texte ET ferme ce petit éditeur, laissant le formulaire principal ouvert) ; Échap appelle `fermerEdit()`
+(ferme sans enregistrer). Les 2 appellent `stopPropagation()` pour empêcher le raccourci global de les
+revoir. Vérifié (`repro_case_par_case.js`) : texte du descriptif présent après Entrée, formulaire principal
+toujours ouvert (fermé ensuite normalement via "Enregistrer").
+
+### 52.8 Vérification effectuée
+
+Syntaxe (`node --check` sur le script extrait) OK. Nouveaux scripts de reproduction pour cette session :
+`repro_case_par_case.js` (scénario vidéo exact de Lionel + boutons A/P + Entrée du descriptif),
+`repro_jalon_note_precis.js` (libellés colonne de gauche, clic/glissé demi-précis sur jalon/note),
+`repro_mode_selection.js` (sortie du mode sélection au clic à côté et après formulaire),
+`repro_absence_case_par_case.js` (bouton rapide "Vacances" sur le modèle unifié). Suite existante rejouée
+sans régression : `diag_tache_split.js`, `repro_tache_split.js`, `repro_vacances.js` (résultat modifié,
+volontairement — cf. §52.2), `repro_selection_overlay.js`, `repro_tache_matin_seul.js`,
+`test_demi_unseuljour.js`, `test_deplacement_note_demi.js`. `repro_case_sur_2.js` (§51.2.4) donne
+maintenant un résultat différent lui aussi, volontairement : le modèle "figer sur la demi de départ" qu'il
+vérifiait est celui que ce round remplace (§52.1) — un glissé qui se termine réellement sur une case
+après-midi doit désormais couvrir l'après-midi, ce n'est plus une régression.
