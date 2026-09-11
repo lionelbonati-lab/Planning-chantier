@@ -442,6 +442,18 @@
      posée en JS (survolerCible()), calquée sur la bulle réelle en cours de
      glissement — voir son commentaire. */
   .survol-precis { box-shadow: inset 0 0 0 2px var(--accent); background: var(--accent-soft); border-radius: 8px; z-index: 5; align-self: start; }
+  /* .selection-precis (round du 12.09.2026 — refonte "case par case" de la
+     sélection au glissé, demandée par Lionel) : jalon/note n'ont qu'UNE
+     cellule DOM par jour (cf. creerCelluleFond, jamais scindée matin/aprem),
+     donc impossible d'y teinter "juste une demi-case" via une classList sur
+     une sous-cellule comme pour la grille personnel — élément dédié
+     positionné en grid-column/grid-row par colonneEtSpanDemi(), même
+     technique que .survol-precis, mais SANS align-self/height fixés : ici on
+     veut au contraire qu'il remplace le fond teinté pleine hauteur d'une
+     vraie case (stretch = comportement par défaut de .grille, cf. son
+     display:grid sans align-items). */
+  .selection-precis { box-shadow: inset 0 0 0 2px var(--accent); background: var(--accent-soft); border-radius: 6px; z-index: 4; pointer-events: none; }
+  .selection-precis.precis-add { box-shadow: inset 0 0 0 2px var(--succes-ink); background: var(--succes-bg); }
   .cell.cell-ferie::before {
     content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
     border-radius: inherit; background: var(--ferie-tint);
@@ -5263,14 +5275,16 @@
       var kind = spec[0], liste = spec[1], label = spec[2];
       var visibles = liste.filter(function (it) { return giVisible(it.giDebut, n); });
       var nbPistes = Math.max(1, assignerPistes(visibles));
-      // Titre de ligne ("Jalons"/"Notes") retiré du 02.09.2026 (retour de
+      // Titre de ligne ("Jalons"/"Notes") : retiré le 02.09.2026 (retour de
       // Lionel : "on peut réduire les hauteurs de ligne en enlevant... les
-      // titres notes et jalons. on a déjà une légende") — la case reste
-      // (fond + comportement sticky inchangés), juste sans le texte qui
-      // forçait ces 2 lignes à être plus hautes que nécessaire ; gardé en
-      // `title` pour qu'un survol identifie quand même la ligne.
+      // titres notes et jalons. on a déjà une légende"), puis REMIS le
+      // 12.09.2026 (nouveau retour de Lionel : "ajouté les libellés jalon et
+      // note dans la colonne de gauche" — sans repère textuel la colonne de
+      // gauche ne dit plus quelle ligne est quoi une fois la légende hors du
+      // premier écran). `title` conservé en plus pour le survol.
       var lbl = document.createElement("div");
       lbl.className = "lbl lbl-speciale";
+      lbl.innerHTML = "<b>" + esc(label) + "</b>";
       lbl.title = label;
       poser(lbl, 1, row, null, nbPistes);
       for (var g = 0; g < n; g++) {
@@ -6277,10 +6291,12 @@
     overlay.style.height = (maxB - minH) + "px";
     overlay.style.display = "block";
   }
+  var elSelectionPrecise = null;
   function effacerSurlignage() {
     celluleSurlignees.forEach(function (c) { c.classList.remove("selection-active", "selection-add"); });
     celluleSurlignees = [];
     masquerSelectionOverlay();
+    if (elSelectionPrecise && elSelectionPrecise.parentElement) elSelectionPrecise.remove();
   }
   function surlignerRectangle(kind, lignes, iMin, iMax, giMin, giMax, classe) {
     effacerSurlignage();
@@ -6291,6 +6307,80 @@
   function trouverIndexLigne(lignes, extra) {
     for (var i = 0; i < lignes.length; i++) if (lignes[i].personne === extra.personne && lignes[i].demi === extra.demi) return i;
     return -1;
+  }
+  // ---- Sélection "case par case" (round du 12.09.2026 — refonte demandée
+  // par Lionel, vidéo à l'appui : « Ce n'est pas le comportement attendu. la
+  // sélection doit se faire case par case, on ne parle plus de demi
+  // journée [...] Ce comportement doit être pareil pour tout type des
+  // bulles [...] si j'avais une 2ème [...] personne plus bas, il faudrait
+  // faire une bulle par ligne »). Remplace le modèle "ligne figée sur la
+  // demi de départ" du round du 11.09.2026 (lignesSecteur/trouverIndexLigne
+  // ci-dessus, désormais réservés à l'ancien surlignerRectangle — laissé en
+  // place mais plus appelé par le glissé — cf. cablerAjoutCellule/
+  // demarrerSelectionRapide plus bas) par un modèle "tableur" : la
+  // dimension horizontale est un numéro de DEMI-SLOT continu (jour*2 +
+  // 0/1, cf. demiSlotsDepuisBornes) suivi au pixel/à la case près à chaque
+  // pointermove ; la dimension verticale, pour "personne", est désormais la
+  // PERSONNE SEULE (plus "2 lignes par personne") — une bulle est créée par
+  // personne touchée, jamais par demi-ligne.
+  function personnesSecteurListe(secteur) {
+    return PERSONNES.filter(function (p) { return (p.sousTraitant ? "sous-traitant" : "personnel") === secteur; }).map(function (p) { return p.id; });
+  }
+  // Numéro de demi-slot (jour*2 + 0/1) sous une cellule DOM donnée. En mode
+  // "personne" chaque cellule EST déjà une demi-journée précise (cf.
+  // creerCell, colonneDemi) : son propre data-demi suffit, pas besoin de la
+  // position du pointeur. Jalon/note n'ont qu'UNE cellule pleine largeur par
+  // jour (creerCelluleFond) : seule la position du pointeur dans cette
+  // cellule (demiDepuisPointeur, déjà utilisée pour le glissement d'une note
+  // existante) dit quelle moitié est visée.
+  function demiSlotCellule(kind, cell, clientX) {
+    var gi = +cell.dataset.jour;
+    var demi = kind === "personne" ? cell.dataset.demi : demiDepuisPointeur(cell, clientX);
+    return gi * 2 + (demi === "aprem" ? 1 : 0);
+  }
+  function cellulesPersonnePourDemis(personneId, halfMin, halfMax) {
+    var out = [];
+    for (var h = halfMin; h <= halfMax; h++) {
+      var gi = Math.floor(h / 2), demi = (h % 2 === 0) ? "matin" : "aprem";
+      var c = celluleAPosition("personne", { personne: personneId, demi: demi }, gi);
+      if (c) out.push(c);
+    }
+    return out;
+  }
+  // Surbrillance "personne" : union EXACTE des cases (personne × demi-slot)
+  // du rectangle [pMin..pMax] × [halfMin..halfMax] — chaque case existante
+  // (le week-end n'a qu'un seul demi-slot, cf. celluleAPosition) reçoit le
+  // même fond teinté qu'avant (.selection-active/.selection-add), le
+  // contour continu restant posé par #selection-overlay (majSelectionOverlay,
+  // inchangé).
+  function surlignerPlagePersonnes(personnesListe, pA, pB, halfA, halfB, classe) {
+    effacerSurlignage();
+    var pMin = Math.min(pA, pB), pMax = Math.max(pA, pB);
+    var halfMin = Math.min(halfA, halfB), halfMax = Math.max(halfA, halfB);
+    for (var pi = pMin; pi <= pMax; pi++) {
+      celluleSurlignees = celluleSurlignees.concat(cellulesPersonnePourDemis(personnesListe[pi], halfMin, halfMax));
+    }
+    celluleSurlignees.forEach(function (c) { c.classList.add(classe || "selection-active"); });
+    majSelectionOverlay(celluleSurlignees, classe);
+  }
+  // Surbrillance jalon/note : pas de sous-cellule DOM par demi (une seule
+  // .cell pleine largeur par jour) — élément dédié positionné en
+  // grid-column/grid-row par colonneEtSpanDemi(), MÊME fonction pure que le
+  // rendu statique des bulles et que le survol de dépôt précis
+  // (cibleNotePreciseCompacte) : garantit que ce qui est surligné ici est
+  // EXACTEMENT ce que produira ouvrirEditionPlage à la même plage.
+  function surlignerPlageJalonNote(kind, halfA, halfB, classe) {
+    effacerSurlignage();
+    var halfMin = Math.min(halfA, halfB), halfMax = Math.max(halfA, halfB);
+    var bornes = bornesDepuisDemiSlots(halfMin, halfMax);
+    var refCell = celluleAPosition(kind, null, bornes.giDebut);
+    if (!refCell) return;
+    if (!elSelectionPrecise) elSelectionPrecise = document.createElement("div");
+    elSelectionPrecise.className = "selection-precis" + (classe === "selection-add" ? " precis-add" : "");
+    var cs = colonneEtSpanDemi(bornes.giDebut, bornes.duree, bornes.demiDebut, bornes.demiFin);
+    elSelectionPrecise.style.gridColumn = cs[0] + " / span " + cs[1];
+    elSelectionPrecise.style.gridRow = refCell.style.gridRow;
+    refCell.parentElement.appendChild(elSelectionPrecise);
   }
 
   var dernierTapCellule = null, dernierTapTemps = 0;
@@ -6305,15 +6395,19 @@
         dernierTapCellule = cell; dernierTapTemps = maintenant;
         if (estDoubleTap) { dernierTapCellule = null; e.preventDefault(); demarrerSelectionRapide(e, cell); return; }
       } else if (e.button !== 0) return;
-      if (Object.keys(bullesSelectionnees).length > 0) { e.preventDefault(); demarrerDefilementSimple(e, cell); return; }
+      if (Object.keys(bullesSelectionnees).length > 0) { e.preventDefault(); demarrerDefilementOuSortieSelection(e, cell); return; }
       e.preventDefault();
       var sx = e.clientX, sy = e.clientY, dernierX = e.clientX, dernierY = e.clientY;
-      var giDebut = +cell.dataset.jour, giCourant = giDebut;
       var kind = cell.dataset.kind;
-      var extraDebut = { personne: cell.dataset.personne, demi: cell.dataset.demi };
-      var lignes = kind === "personne" ? lignesSecteur(secteurPersonne(extraDebut.personne)) : [{}];
-      var indexDebut = kind === "personne" ? trouverIndexLigne(lignes, extraDebut) : 0;
-      var indexCourant = indexDebut;
+      // Modèle "case par case" (round du 12.09.2026, cf. surlignerPlagePersonnes/
+      // surlignerPlageJalonNote plus haut) : la case de départ fixe un
+      // demi-slot (halfDebut) et, pour "personne", une PERSONNE de départ —
+      // plus de "ligne" (personne+demi) figée pour tout le geste.
+      var halfDebut = demiSlotCellule(kind, cell, e.clientX);
+      var halfCourant = halfDebut;
+      var personnesListe = kind === "personne" ? personnesSecteurListe(secteurPersonne(cell.dataset.personne)) : null;
+      var pIndexDebut = kind === "personne" ? personnesListe.indexOf(cell.dataset.personne) : 0;
+      var pIndexCourant = pIndexDebut;
       var etendu = false, arme = false, enDefilement = false;
       var pointerId = e.pointerId;
       var scroller = cell.closest(".scroller");
@@ -6343,27 +6437,16 @@
         var c2 = sous && sous.closest(".cell");
         if (c2 && c2.dataset.kind === kind) {
           var giCandidat = +c2.dataset.jour;
-          if (estGiWeekend(giDebut) || estGiWeekend(giCandidat)) return;
-          // demi: extraDebut.demi, PAS c2.dataset.demi (round du 11.09.2026 —
-          // bug signalé par Lionel, vidéo à l'appui : « la sélection est
-          // bizarre on dirait une case sur 2 ») : en mode compact, matin et
-          // aprem d'un même jour sont 2 colonnes CÔTE À CÔTE dans la même
-          // ligne visuelle (pas 2 lignes empilées) — un glissé à peu près
-          // horizontal traverse donc naturellement, à chaque jour franchi,
-          // la moitié matin PUIS la moitié aprem de ce jour, et redécouvrir
-          // la demi-journée depuis la case survolée à CHAQUE pointermove
-          // faisait retomber `indexCourant` tantôt sur la ligne matin tantôt
-          // sur la ligne aprem selon la position exacte du curseur — d'où
-          // l'alternance "matin teinté / aprem pas teinté" sur toute la
-          // largeur du geste, jamais un bloc plein. La demi-journée ciblée
-          // reste maintenant celle de la case de DÉPART pendant tout le
-          // geste ; seul un déplacement vers une AUTRE personne change de
-          // ligne (cf. lignesSecteur, qui garde matin/aprem comme 2 lignes
-          // indépendantes par personne).
-          var idx2 = kind === "personne" ? trouverIndexLigne(lignes, { personne: c2.dataset.personne, demi: extraDebut.demi }) : 0;
-          if (idx2 !== -1) {
-            indexCourant = idx2; giCourant = giCandidat;
-            surlignerRectangle(kind, lignes, Math.min(indexDebut, indexCourant), Math.max(indexDebut, indexCourant), Math.min(giDebut, giCourant), Math.max(giDebut, giCourant), "selection-add");
+          if (estGiWeekend(giCandidat)) return;
+          var halfCandidat = demiSlotCellule(kind, c2, e2.clientX);
+          if (kind === "personne") {
+            var pIdxCandidat = personnesListe.indexOf(c2.dataset.personne);
+            if (pIdxCandidat === -1) return;
+            pIndexCourant = pIdxCandidat; halfCourant = halfCandidat;
+            surlignerPlagePersonnes(personnesListe, pIndexDebut, pIndexCourant, halfDebut, halfCourant, "selection-add");
+          } else {
+            halfCourant = halfCandidat;
+            surlignerPlageJalonNote(kind, halfDebut, halfCourant, "selection-add");
           }
         }
       }
@@ -6372,15 +6455,17 @@
         effacerSurlignage();
         if (enDefilement) return;
         if (arme && etendu) {
-          var iMin = Math.min(indexDebut, indexCourant), iMax = Math.max(indexDebut, indexCourant);
-          var giMin = Math.min(giDebut, giCourant), giMax = Math.max(giDebut, giCourant);
-          var cibles = lignes.slice(iMin, iMax + 1);
+          var bornes = bornesDepuisDemiSlots(Math.min(halfDebut, halfCourant), Math.max(halfDebut, halfCourant));
           if (kind === "personne") {
-            if (cibles.length === 1 && giMin === giMax) { ouvrirAjout(cell, e2.clientX, e2.clientY); return; }
-            ouvrirAjoutPlage(kind, cibles, giMin, giMax - giMin + 1);
+            var pMin = Math.min(pIndexDebut, pIndexCourant), pMax = Math.max(pIndexDebut, pIndexCourant);
+            if (pMin === pMax && halfDebut === halfCourant) { ouvrirAjout(cell, e2.clientX, e2.clientY); return; }
+            var repDemi = bornes.demiDebut || bornes.demiFin || "matin";
+            var cibles = [];
+            for (var pi = pMin; pi <= pMax; pi++) cibles.push({ personne: personnesListe[pi], demi: repDemi });
+            ouvrirAjoutPlage(kind, cibles, bornes.giDebut, bornes.duree, bornes.demiDebut, bornes.demiFin);
           } else {
-            if (giMin === giMax) { ouvrirAjout(cell, e2.clientX, e2.clientY); return; }
-            ouvrirEditionPlage(kind, null, giMin, giMax - giMin + 1, e2.clientX, e2.clientY);
+            if (halfDebut === halfCourant) { ouvrirAjout(cell, e2.clientX, e2.clientY); return; }
+            ouvrirEditionPlage(kind, null, bornes.giDebut, bornes.duree, e2.clientX, e2.clientY, cell, bornes.demiDebut, bornes.demiFin);
           }
           return;
         }
@@ -6403,24 +6488,35 @@
     var pointerId = e.pointerId;
     var scroller = celluleDebut.closest(".scroller");
     var autoDefil = creerAutoDefilement(scroller);
-    var giDebut = +celluleDebut.dataset.jour, giCourant = giDebut;
     var kind = celluleDebut.dataset.kind;
-    var extraDebut = { personne: celluleDebut.dataset.personne, demi: celluleDebut.dataset.demi };
-    var lignes = kind === "personne" ? lignesSecteur(secteurPersonne(extraDebut.personne)) : [{}];
-    var indexDebut = kind === "personne" ? trouverIndexLigne(lignes, extraDebut) : 0;
-    var indexCourant = indexDebut;
+    // Même modèle "case par case" que cablerAjoutCellule (round du
+    // 12.09.2026) : demi-slot de départ + personne de départ (au lieu d'une
+    // "ligne" personne+demi figée).
+    var halfDebut = demiSlotCellule(kind, celluleDebut, e.clientX);
+    var halfCourant = halfDebut;
+    var personnesListe = kind === "personne" ? personnesSecteurListe(secteurPersonne(celluleDebut.dataset.personne)) : null;
+    var pIndexDebut = kind === "personne" ? personnesListe.indexOf(celluleDebut.dataset.personne) : 0;
+    var pIndexCourant = pIndexDebut;
     document.body.classList.add("en-glissement");
-    surlignerRectangle(kind, lignes, indexDebut, indexDebut, giDebut, giDebut);
+    if (kind === "personne") surlignerPlagePersonnes(personnesListe, pIndexDebut, pIndexDebut, halfDebut, halfDebut);
+    else surlignerPlageJalonNote(kind, halfDebut, halfDebut);
     function onMove(e2) {
       var sous = document.elementFromPoint(e2.clientX, e2.clientY);
       var c2 = sous && sous.closest(".cell");
       if (c2 && c2.dataset.kind === kind) {
         var giCandidat = +c2.dataset.jour;
-        if (!estGiWeekend(giDebut) && !estGiWeekend(giCandidat)) {
-          // demi: extraDebut.demi, pas c2.dataset.demi — même correctif que
-          // cablerAjoutCellule ci-dessus (round du 11.09.2026, "case sur 2").
-          var idx2 = kind === "personne" ? trouverIndexLigne(lignes, { personne: c2.dataset.personne, demi: extraDebut.demi }) : 0;
-          if (idx2 !== -1) { indexCourant = idx2; giCourant = giCandidat; surlignerRectangle(kind, lignes, Math.min(indexDebut, indexCourant), Math.max(indexDebut, indexCourant), Math.min(giDebut, giCourant), Math.max(giDebut, giCourant)); }
+        if (!estGiWeekend(giCandidat)) {
+          var halfCandidat = demiSlotCellule(kind, c2, e2.clientX);
+          if (kind === "personne") {
+            var pIdxCandidat = personnesListe.indexOf(c2.dataset.personne);
+            if (pIdxCandidat !== -1) {
+              pIndexCourant = pIdxCandidat; halfCourant = halfCandidat;
+              surlignerPlagePersonnes(personnesListe, pIndexDebut, pIndexCourant, halfDebut, halfCourant);
+            }
+          } else {
+            halfCourant = halfCandidat;
+            surlignerPlageJalonNote(kind, halfDebut, halfCourant);
+          }
         }
       }
       autoDefil.maj(e2.clientX);
@@ -6434,12 +6530,19 @@
       try { celluleDebut.releasePointerCapture(pointerId); } catch (ex) {}
     }
     function onUp() {
-      var iMin = Math.min(indexDebut, indexCourant), iMax = Math.max(indexDebut, indexCourant);
-      var giMin = Math.min(giDebut, giCourant), giMax = Math.max(giDebut, giCourant);
+      var bornes = bornesDepuisDemiSlots(Math.min(halfDebut, halfCourant), Math.max(halfDebut, halfCourant));
       detacher(); effacerSurlignage();
-      var cibles = kind === "personne" ? lignes.slice(iMin, iMax + 1) : [{}];
       var cells = [];
-      cibles.forEach(function (extra) { cells = cells.concat(trouverCellules(kind, extra, giMin, giMax)); });
+      if (kind === "personne") {
+        var pMin = Math.min(pIndexDebut, pIndexCourant), pMax = Math.max(pIndexDebut, pIndexCourant);
+        for (var pi = pMin; pi <= pMax; pi++) cells = cells.concat(cellulesPersonnePourDemis(personnesListe[pi], Math.min(halfDebut, halfCourant), Math.max(halfDebut, halfCourant)));
+      } else {
+        // Jalon/note : la sélection d'un item EXISTANT reste par JOUR (cf.
+        // selectionnerDepuisCellules/ramasser, qui ne distingue pas de demi
+        // pour ces 2 types) — seule la surbrillance pendant le geste est
+        // désormais demi-précise (surlignerPlageJalonNote ci-dessus).
+        cells = trouverCellules(kind, {}, bornes.giDebut, bornes.giDebut + bornes.duree - 1);
+      }
       selectionnerDepuisCellules(cells);
     }
     function onCancel() { detacher(); effacerSurlignage(); }
@@ -6487,6 +6590,35 @@
     toast(n ? ("Sélectionné (" + n + ").") : "Rien à sélectionner dans cette zone.");
   }
 
+  // Round du 12.09.2026 — Lionel : « En mode sélection, sortir du mode
+  // sélection si on clique à côté d'une bulle. » Un pointerdown sur une CASE
+  // (jamais sur une .bulle, cf. onPointerDownBulle qui intercepte celles-ci
+  // séparément) alors que des bulles sont sélectionnées ne servait jusqu'ici
+  // qu'à armer un panoramique tactile (demarrerDefilementSimple) — un simple
+  // clic/tap SANS glissé n'y déclenchait donc rigoureusement rien. Il quitte
+  // désormais le mode sélection ; un vrai glissé (panoramique) reste inchangé.
+  function demarrerDefilementOuSortieSelection(e, cell) {
+    var pointerId = e.pointerId;
+    var sx = e.clientX, sy = e.clientY, dernierX = sx, dernierY = sy;
+    var scroller = cell.closest(".scroller");
+    var bouge = false;
+    function onMove(e2) {
+      if (Math.abs(e2.clientX - sx) + Math.abs(e2.clientY - sy) > 4) bouge = true;
+      if (scroller) scroller.scrollLeft -= (e2.clientX - dernierX); window.scrollBy(0, -(e2.clientY - dernierY));
+      dernierX = e2.clientX; dernierY = e2.clientY;
+    }
+    function onUp() { detacher(); if (!bouge) { quitterModeSelection(); render(false); } }
+    function detacher() {
+      cell.removeEventListener("pointermove", onMove);
+      cell.removeEventListener("pointerup", onUp);
+      cell.removeEventListener("pointercancel", detacher);
+      try { cell.releasePointerCapture(pointerId); } catch (ex) {}
+    }
+    cell.setPointerCapture(pointerId);
+    cell.addEventListener("pointermove", onMove);
+    cell.addEventListener("pointerup", onUp);
+    cell.addEventListener("pointercancel", detacher);
+  }
   function demarrerDefilementSimple(e, cell) {
     var pointerId = e.pointerId;
     var dernierX = e.clientX, dernierY = e.clientY;
@@ -6605,7 +6737,24 @@
   // (suppression, déplacement ou copie du groupe) : il suffit ensuite de
   // recliquer une bulle (ou double-tap/clic droit) pour une nouvelle
   // sélection.
-  function quitterModeSelection() { bullesSelectionnees = {}; majBarreSelection(); }
+  // Nettoie aussi la classe .selectionnee posée sur chaque bulle DOM (round
+  // du 12.09.2026) : les appelants historiques (onAnnulerActuel, defaire/
+  // refaire) enchaînaient déjà avec un render() qui reconstruit toute la
+  // grille et fait donc disparaître ces classes de fait, mais le nouvel
+  // appelant (fermerAuClicExterieur, cf. plus bas — Lionel : « lors de
+  // l'enregistrement/annulation/suppression d'un formulaire le mode
+  // sélection reste actif, sortir du mode ») ne re-render pas toujours
+  // (Annuler seul, notamment) : sans ce nettoyage direct, la bulle resterait
+  // visuellement teintée "sélectionnée" bien que bullesSelectionnees soit
+  // déjà vide.
+  function quitterModeSelection() {
+    Object.keys(bullesSelectionnees).forEach(function (id) {
+      var dom = document.querySelector('.bulle[data-id="' + id + '"]');
+      if (dom) dom.classList.remove("selectionnee");
+    });
+    bullesSelectionnees = {};
+    majBarreSelection();
+  }
   // Suppression groupée depuis la sélection : toujours confirmée avant
   // d'agir. Les bulles "de série" sont supprimées côté serveur une à une
   // (apiSupprimerSerie, portée "unique") ; les autres sont retirées
@@ -6779,6 +6928,15 @@
       if (celluleSurbrillance) celluleSurbrillance.classList.remove("selection-add");
       if (popFermerActuel === fermer) popFermerActuel = null;
       if (valider && popValiderActuel === valider) popValiderActuel = null;
+      // Round du 12.09.2026 — Lionel : « lors de l'enregistrement/annulation/
+      // suppression d'un formulaire le mode sélection reste actif, sortir du
+      // mode. » fermer() est le point de sortie COMMUN à Enregistrer/
+      // Annuler/Supprimer (tous l'appellent, cf. leurs handlers f-ok/
+      // f-annuler/f-suppr dans ouvrirEdition/ouvrirEditionPlage et les
+      // formulaires historiques) et au clic extérieur — un seul endroit
+      // suffit donc à couvrir les 3 cas demandés, sans rien dupliquer par
+      // formulaire.
+      if (Object.keys(bullesSelectionnees).length) quitterModeSelection();
     }
     setTimeout(function () { document.addEventListener("pointerdown", surClic, true); }, 0);
     popFermerActuel = fermer;
@@ -6973,6 +7131,20 @@
       overlay.addEventListener("pointerdown", fermerEdit);
       box.querySelector(".popup-close").addEventListener("click", fermerEdit);
       box.querySelector(".popup-valider").addEventListener("click", validerEdit);
+      // Round du 12.09.2026 — Lionel : « appuis sur entré doit enregistrer le
+      // texte du descriptif, esc ferme sans enregistrer. actuellement
+      // appuyer sur entrer sort du formulaire sans enregistrer le texte du
+      // descriptif. » Sans ceci, Entrée/Échap tapés dans CE textarea
+      // remontaient jusqu'au raccourci clavier global (cf. plus haut,
+      // popValiderActuel/popFermerActuel), qui valide/ferme le FORMULAIRE
+      // ENTIER (la carte tâche/absence/note/jalon) sans jamais committer ce
+      // texte via setTexte() — d'où le texte perdu. stopPropagation()
+      // empêche ce document.addEventListener("keydown") de les revoir.
+      // Maj+Entrée reste un retour à la ligne normal dans le textarea.
+      ta.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); e.stopPropagation(); validerEdit(); return; }
+        if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); fermerEdit(); }
+      });
     });
     return afficher;
   }
@@ -7094,67 +7266,44 @@
   /* ============================================================
      FORMULAIRES AJOUT / ÉDITION — tâches, absences, jalons, notes.
      ============================================================ */
+  // creerGroupeTaches (round du 12.09.2026 — refonte "case par case" de la
+  // sélection, cf. cablerAjoutCellule/surlignerPlagePersonnes) : 1 SEUL item
+  // par personne concernée, sur exactement {giDebut,duree,demiDebut,demiFin}
+  // — les bords précis de la plage sélectionnée (bornesDepuisDemiSlots côté
+  // appelant), désormais partagés par TOUT type de bulle (tâche, absence,
+  // congé, vacances...), plus de traitement spécial pour les absences.
+  // Remplace 2 anciens comportements :
+  //  - le cas "absence, duree>1" (round du 11.09.2026, §51.2.2) posait déjà
+  //    1 item/personne en journée entière — devenu le cas général ici ;
+  //  - le cas "tâche" fragmentait 1 item PAR JOUR avec une demi-journée FIXE
+  //    par ligne de sélection (matin/aprem "figé" pour toute la durée, cf.
+  //    lignesSecteur) — Lionel a explicitement rejeté ce modèle : « Ce
+  //    comportement doit être pareil pour tout type des bulles. on ne
+  //    sélectionne pas que les matin ou que les après midi. » Le payload
+  //    porte donc maintenant demiDebut/demiFin (bords de plage), plus une
+  //    demi-journée par ligne — ouvrirEdition (formulaire "Tâche"/"Absence"
+  //    avec descriptif) créait déjà 1 item fusionné par cible de cette façon
+  //    (cf. son commentaire) ; ceci aligne les boutons rapides/formulaires
+  //    historiques (Armature/Béton/Livraison/Entrée dynamique/Absence
+  //    rapide) sur le même modèle.
   function creerGroupeTaches(cibles, giDebut, duree, payload) {
-    // Absence (Congé/Vacances/formulaire rapide configuré en absence) sur
-    // PLUSIEURS jours (round du 11.09.2026 — bug signalé par Lionel, vidéo à
-    // l'appui : « en créant vacances sur plusieurs case, il fait plusieurs
-    // bulles au lieu de 1 ») : contrairement à une tâche assignée, une
-    // absence pluri-jours n'a jamais de sens en demi-journée (on ne pose pas
-    // "vacances le matin seulement, 3 jours") — 1 SEUL item par personne
-    // concernée, journée complète du début à la fin de la sélection, plutôt
-    // que la fragmentation par ligne demi + par jour ci-dessous. Cette
-    // fragmentation reste nécessaire pour une TÂCHE (cf. commentaire plus
-    // bas, cas réel "matin seul, 3 jours") mais, appliquée à une absence,
-    // produit une plage qui ne peut structurellement JAMAIS se refusionner
-    // en 1 seule bulle au rechargement (demisOccupeesTache exige une
-    // journée complète sur tout jour STRICTEMENT entre les 2 bords — un
-    // jour qui n'a que sa demi-journée "ligne de sélection" occupée casse
-    // la continuité) : dédoublonnée ici par personne (une même personne peut
-    // apparaître sur 2 lignes, matin et aprem, si les 2 ont été
-    // sélectionnées) pour ne pas poser 2 fois la même absence.
-    if (payload.type === "absence" && duree > 1) {
-      var personnesVues = {};
-      cibles.forEach(function (c) {
-        if (personnesVues[c.personne]) return;
-        personnesVues[c.personne] = true;
-        var ta = itemPlageTache(payload.type, payload.texte, c.personne, giDebut, duree, {
-          chantier: payload.chantier, important: payload.important, statut: payload.statut,
-          demiDebut: null, demiFin: null
-        });
-        ta.dateDebutIso = isoDeGi(giDebut);
-        TACHES.push(ta);
-      });
-      return;
-    }
+    var demiDebut = payload.demiDebut !== undefined ? payload.demiDebut : null;
+    var demiFin = payload.demiFin !== undefined ? payload.demiFin : null;
+    var personnesVues = {};
     cibles.forEach(function (c) {
-      // 1 item PAR JOUR, pas 1 seul item de `duree` jours (§49) : `c.demi`
-      // ici est la demi-journée FIXE d'une "ligne" de sélection (cf.
-      // lignesSecteur — chaque (personne, demi) est sa propre ligne
-      // sélectionnable indépendamment), pas un bord de plage — une
-      // sélection "matin seul, 3 jours" doit laisser l'après-midi de
-      // CHAQUE jour libre. Avec le modèle demiDebut/demiFin (bords
-      // uniquement, cf. demisOccupeesTache), UN SEUL item de 3 jours avec
-      // demiDebut=demiFin="matin" occuperait à tort la journée COMPLÈTE du
-      // jour du milieu (règle "tout jour strictement entre les 2 bords est
-      // toujours entier"). Créer 1 item par jour (duree=1, où ce bord est
-      // à la fois demiDebut et demiFin) reste correct dans tous les cas —
-      // y compris le cas courant duree===1 — et le rendu depuis le cache
-      // serveur (construireVueDepuisCache) refusionnera de toute façon des
-      // jours consécutifs de même contenu en 1 seule bulle continue dès le
-      // prochain rechargement.
-      for (var d = 0; d < duree; d++) {
-        var t = itemPlageTache(payload.type, payload.texte, c.personne, giDebut + d, 1, {
-          chantier: payload.chantier, important: payload.important, statut: payload.statut,
-          demiDebut: c.demi, demiFin: c.demi
-        });
-        t.dateDebutIso = isoDeGi(giDebut + d);
-        TACHES.push(t);
-      }
+      if (personnesVues[c.personne]) return;
+      personnesVues[c.personne] = true;
+      var ta = itemPlageTache(payload.type, payload.texte, c.personne, giDebut, duree, {
+        chantier: payload.chantier, important: payload.important, statut: payload.statut,
+        demiDebut: demiDebut, demiFin: demiFin
+      });
+      ta.dateDebutIso = isoDeGi(giDebut);
+      TACHES.push(ta);
     });
   }
-  function ajoutRapide(cibles, giDebut, duree, texte, type) {
+  function ajoutRapide(cibles, giDebut, duree, texte, type, demiDebut, demiFin) {
     sauvegarderUndo();
-    creerGroupeTaches(cibles, giDebut, duree, { type: type, texte: texte, important: false, chantier: null, statut: null });
+    creerGroupeTaches(cibles, giDebut, duree, { type: type, texte: texte, important: false, chantier: null, statut: null, demiDebut: demiDebut, demiFin: demiFin });
     render();
     toast("Ajouté.");
   }
@@ -7225,30 +7374,40 @@
     });
     return html;
   }
-  function cablerBoutonsMenuAjout(pop, fermer, cell, x, y, cibles, giDebut, duree, plageInit) {
+  function cablerBoutonsMenuAjout(pop, fermer, cell, x, y, cibles, giDebut, duree, plageInit, demiDebut, demiFin) {
     pop.querySelectorAll("button[data-t]").forEach(function (btn) {
-      btn.addEventListener("click", function () { var type = btn.dataset.t; fermer(); ouvrirEdition(cell, null, type, x, y, plageInit); });
+      btn.addEventListener("click", function () { var type = btn.dataset.t; fermer(); ouvrirEdition(cell, null, type, x, y, plageInit, demiDebut, demiFin); });
     });
     pop.querySelectorAll("button[data-rapide]").forEach(function (btn) {
-      btn.addEventListener("click", function () { var texte = btn.dataset.rapide; fermer(); ajoutRapide(cibles, giDebut, duree, texte, "absence"); });
+      btn.addEventListener("click", function () { var texte = btn.dataset.rapide; fermer(); ajoutRapide(cibles, giDebut, duree, texte, "absence", demiDebut, demiFin); });
     });
     pop.querySelectorAll("button[data-form]").forEach(function (btn) {
       btn.addEventListener("click", function () {
         var f = FORMULAIRES_RAPIDES[+btn.dataset.form]; fermer();
         if (!f) return;
-        if (f.nom === "Armature") { ouvrirFormulaireArmature(cibles, giDebut, duree, x, y, plageInit); return; }
-        if (f.nom === "Béton") { ouvrirFormulaireBeton(cibles, giDebut, duree, x, y, plageInit); return; }
-        if (f.nom === "Livraison armature") { ouvrirFormulaireLivraisonArmature(cibles, giDebut, duree, x, y, plageInit); return; }
+        if (f.nom === "Armature") { ouvrirFormulaireArmature(cibles, giDebut, duree, x, y, plageInit, demiDebut, demiFin); return; }
+        if (f.nom === "Béton") { ouvrirFormulaireBeton(cibles, giDebut, duree, x, y, plageInit, demiDebut, demiFin); return; }
+        if (f.nom === "Livraison armature") { ouvrirFormulaireLivraisonArmature(cibles, giDebut, duree, x, y, plageInit, demiDebut, demiFin); return; }
         // Un formulaire sans champ s'ajoute en un clic, avec SON type :
         // "Congé" configuré en absence pose bien un congé, pas une tâche.
-        if (!f.champs || !f.champs.length) { ajoutRapide(cibles, giDebut, duree, f.nom, f.typeEntree === "absence" ? "absence" : "tache"); return; }
-        ouvrirFormulaireDynamique(f, cibles, giDebut, duree, x, y, plageInit);
+        if (!f.champs || !f.champs.length) { ajoutRapide(cibles, giDebut, duree, f.nom, f.typeEntree === "absence" ? "absence" : "tache", demiDebut, demiFin); return; }
+        ouvrirFormulaireDynamique(f, cibles, giDebut, duree, x, y, plageInit, demiDebut, demiFin);
       });
     });
   }
   function ouvrirAjout(cell, x, y) {
     var kind = cell.dataset.kind;
-    if (kind !== "personne") { ouvrirEditionPlage(kind, null, +cell.dataset.jour, 1, x, y, cell); return; }
+    // Clic simple (sans glissé) sur jalon/note (round du 12.09.2026 — Lionel :
+    // « je les veux case par case, une case = une demi journée ») : la
+    // demi-journée visée est désormais celle sous le POINTEUR (moitié
+    // gauche/droite de la case pleine largeur, cf. demiDepuisPointeur — déjà
+    // utilisée pour le glissement d'une note existante), pas systématiquement
+    // la journée entière comme avant ce round.
+    if (kind !== "personne") {
+      var demiClicPlein = demiDepuisPointeur(cell, x);
+      ouvrirEditionPlage(kind, null, +cell.dataset.jour, 1, x, y, cell, demiClicPlein, demiClicPlein);
+      return;
+    }
     // Filet de sécurité : le chargement d'arrière-plan démarré à l'ouverture
     // de l'appli (cf. demarrer()) a presque toujours fini depuis longtemps à
     // ce stade ; no-op si c'est déjà le cas (cf. chargerFormulairesRapides).
@@ -7260,22 +7419,27 @@
     var fermer = fermerAuClicExterieur(pop, cell);
     var cibleRapide = [{ personne: cell.dataset.personne, demi: cell.dataset.demi }];
     var giRapide = +cell.dataset.jour;
-    cablerBoutonsMenuAjout(pop, fermer, cell, x, y, cibleRapide, giRapide, 1, null);
+    cablerBoutonsMenuAjout(pop, fermer, cell, x, y, cibleRapide, giRapide, 1, null, cell.dataset.demi, cell.dataset.demi);
   }
-  function ouvrirAjoutPlage(kind, cibles, giDebut, duree) {
+  function ouvrirAjoutPlage(kind, cibles, giDebut, duree, demiDebut, demiFin) {
     var premiere = cibles[0];
     var cell = document.querySelector('.cell[data-kind="personne"][data-jour="' + giDebut + '"][data-personne="' + premiere.personne + '"][data-demi="' + premiere.demi + '"]');
     if (!cell) return;
     var grilleRect = cell.closest(".grille").getBoundingClientRect();
     var px = grilleRect.left + grilleRect.width / 2 - 110, py = grilleRect.bottom + 10;
-    var plageInit = { cibles: cibles, giDebut: giDebut, duree: duree, px: px, py: py };
+    // demiDebut/demiFin (round du 12.09.2026) : bords précis de la plage
+    // "case par case" issue du glissé (bornesDepuisDemiSlots côté appelant),
+    // désormais transportés jusqu'à ouvrirEdition (state.demiDebut/demiFin
+    // initial, cf. plus bas) pour que la fiche qui s'ouvre — et ses boutons
+    // A/P — reflète exactement ce qui vient d'être surligné.
+    var plageInit = { cibles: cibles, giDebut: giDebut, duree: duree, demiDebut: demiDebut || null, demiFin: demiFin || null, px: px, py: py };
     var pop = document.createElement("div");
     pop.className = "pop menu-pop";
-    var taille = duree + " jour" + (duree > 1 ? "s" : "") + (cibles.length > 1 ? (" · " + cibles.length + " lignes") : "");
+    var taille = duree + " jour" + (duree > 1 ? "s" : "") + (cibles.length > 1 ? (" · " + cibles.length + " personnes") : "");
     pop.innerHTML = '<div class="cp-titre">Ajouter (' + taille + ')</div>' + boutonsMenuAjout(premiere.personne);
     positionnerPop(pop, px, py);
     var fermer = fermerAuClicExterieur(pop);
-    cablerBoutonsMenuAjout(pop, fermer, cell, null, null, cibles, giDebut, duree, plageInit);
+    cablerBoutonsMenuAjout(pop, fermer, cell, null, null, cibles, giDebut, duree, plageInit, demiDebut, demiFin);
   }
 
   function positionFormulaire(x, y, plageInit) {
@@ -7309,7 +7473,7 @@
   // (toujours "Ajouter"). Le texte final part directement dans TACHES via
   // creerGroupeTaches ; c'est ensuite synchroniser() (appelé par render())
   // qui le pousse au serveur comme une tâche normale.
-  function ouvrirFormulaireArmature(cibles, giDebut, duree, x, y, plageInit) {
+  function ouvrirFormulaireArmature(cibles, giDebut, duree, x, y, plageInit, demiDebut, demiFin) {
     var pop = document.createElement("div");
     pop.className = "pop form-pop";
     var etat = { zone: "murs", precision: "" };
@@ -7382,11 +7546,11 @@
     pop.querySelector(".f-ok").addEventListener("click", function () {
       var texte = majApercu();
       sauvegarderUndo();
-      creerGroupeTaches(cibles, giDebut, duree, { type: "tache", texte: texte, important: false, chantier: champChantierSel.value, statut: statutActuel });
+      creerGroupeTaches(cibles, giDebut, duree, { type: "tache", texte: texte, important: false, chantier: champChantierSel.value, statut: statutActuel, demiDebut: demiDebut, demiFin: demiFin });
       fermer(); render(); toast("Ajouté.");
     });
   }
-  function ouvrirFormulaireBeton(cibles, giDebut, duree, x, y, plageInit) {
+  function ouvrirFormulaireBeton(cibles, giDebut, duree, x, y, plageInit, demiDebut, demiFin) {
     var pop = document.createElement("div");
     pop.className = "pop form-pop";
     var etat = { zone: "murs" };
@@ -7458,11 +7622,11 @@
     pop.querySelector(".f-ok").addEventListener("click", function () {
       var texte = majApercu();
       sauvegarderUndo();
-      creerGroupeTaches(cibles, giDebut, duree, { type: "tache", texte: texte, important: false, chantier: champChantierSel.value, statut: statutActuel });
+      creerGroupeTaches(cibles, giDebut, duree, { type: "tache", texte: texte, important: false, chantier: champChantierSel.value, statut: statutActuel, demiDebut: demiDebut, demiFin: demiFin });
       fermer(); render(); toast("Ajouté.");
     });
   }
-  function ouvrirFormulaireLivraisonArmature(cibles, giDebut, duree, x, y, plageInit) {
+  function ouvrirFormulaireLivraisonArmature(cibles, giDebut, duree, x, y, plageInit, demiDebut, demiFin) {
     var pop = document.createElement("div");
     pop.className = "pop form-pop";
     var etat = { zone: "murs" };
@@ -7500,7 +7664,7 @@
     pop.querySelector(".f-ok").addEventListener("click", function () {
       var texte = majApercu();
       sauvegarderUndo();
-      creerGroupeTaches(cibles, giDebut, duree, { type: "tache", texte: texte, important: false, chantier: champChantierSel.value, statut: statutActuel });
+      creerGroupeTaches(cibles, giDebut, duree, { type: "tache", texte: texte, important: false, chantier: champChantierSel.value, statut: statutActuel, demiDebut: demiDebut, demiFin: demiFin });
       fermer(); render(); toast("Ajouté.");
     });
   }
@@ -7520,7 +7684,7 @@
   // personnel), Chantier reste proposé dans tous les cas. Pas de champ
   // "unité" dédié (absent du contrat) : à inclure dans le libellé au besoin
   // (ex. "Quantité (m³)").
-  function ouvrirFormulaireDynamique(f, cibles, giDebut, duree, x, y, plageInit) {
+  function ouvrirFormulaireDynamique(f, cibles, giDebut, duree, x, y, plageInit, demiDebut, demiFin) {
     // Type d'entrée du formulaire (9e colonne côté feuille, round du
     // 02.09.2026) : une entrée rapide peut désormais produire une ABSENCE et
     // plus seulement une tâche — c'est ce qui rend Congé/Vacances
@@ -7600,7 +7764,7 @@
         });
       } else {
         sauvegarderUndo();
-        creerGroupeTaches(cibles, giDebut, duree, { type: typeEntreeDyn, texte: texte, important: false, chantier: chantier, statut: statutActuel });
+        creerGroupeTaches(cibles, giDebut, duree, { type: typeEntreeDyn, texte: texte, important: false, chantier: chantier, statut: statutActuel, demiDebut: demiDebut, demiFin: demiFin });
         fermer(); render(); toast("Ajouté.");
       }
     });
@@ -7618,7 +7782,7 @@
   // dans TACHES par optimisme (cf. FRONTEND-CHANGELOG.md). Un item SANS
   // serieId se comporte exactement comme dans le prototype : mutation locale
   // de TACHES + render() (qui synchronise ensuite via le moteur de diff).
-  function ouvrirEdition(cell, itemExisting, typeIfNew, x, y, plageInit) {
+  function ouvrirEdition(cell, itemExisting, typeIfNew, x, y, plageInit, demiDebutArg, demiFinArg) {
     var extraCell = cell ? { personne: cell.dataset.personne, demi: cell.dataset.demi } : null;
     var giDebut0 = plageInit ? plageInit.giDebut : (cell ? +cell.dataset.jour : (itemExisting ? itemExisting.giDebut : 0));
     var duree0 = plageInit ? plageInit.duree : (itemExisting ? (itemExisting.duree || 1) : 1);
@@ -7627,13 +7791,18 @@
 
     // état local de la carte (mutable, re-rendu par cablerDatesPlage/
     // rafraichirDates) : la demi-journée initiale d'une NOUVELLE tâche/
-    // absence reprend celle de la case cliquée s'il y en a une (comportement
-    // repris de l'ancien creerGroupeTaches, qui l'appliquait déjà par case).
+    // absence reprend désormais les bords PRÉCIS de la plage sélectionnée au
+    // glissé (demiDebutArg/demiFinArg, cf. bornesDepuisDemiSlots côté
+    // cablerAjoutCellule — round du 12.09.2026, corrige Lionel : « Les
+    // boutons A/P ne sont pas automatiquement en surbrillance suivant la
+    // bulle »), plutôt qu'une seule demi-journée reprise de la case cliquée
+    // (ancien demiInit, conservé comme repli pour un simple clic — cellule
+    // unique, sans plage précise transmise).
     var demiInit = (!itemExisting && extraCell && (extraCell.demi === "matin" || extraCell.demi === "aprem")) ? extraCell.demi : null;
     var state = {
       giDebut: giDebut0, giFin: giDebut0 + duree0 - 1,
-      demiDebut: itemExisting ? (itemExisting.demiDebut || null) : demiInit,
-      demiFin: itemExisting ? (itemExisting.demiFin || null) : demiInit,
+      demiDebut: itemExisting ? (itemExisting.demiDebut || null) : (demiDebutArg !== undefined ? demiDebutArg : demiInit),
+      demiFin: itemExisting ? (itemExisting.demiFin || null) : (demiFinArg !== undefined ? demiFinArg : demiInit),
       important: itemExisting ? itemExisting.important : false
     };
 
@@ -7835,14 +8004,20 @@
   // pour un jalon/note dans l'état actuel du schéma serveur ; elle est
   // conservée pour rester symétrique avec ouvrirEdition et pour ne rien
   // casser si le schéma gagne un jour un vrai suivi de série.
-  function ouvrirEditionPlage(kind, itemExisting, giDebut, duree, x, y, celluleSurbrillance) {
+  function ouvrirEditionPlage(kind, itemExisting, giDebut, duree, x, y, celluleSurbrillance, demiDebutArg, demiFinArg) {
     var liste = kind === "jalon" ? JALONS : NOTES;
     var giDebutReel = itemExisting ? itemExisting.giDebut : giDebut;
     var dureeInit = itemExisting ? itemExisting.duree : duree;
+    // demiDebutArg/demiFinArg (round du 12.09.2026) : bords précis de la
+    // plage "case par case" sélectionnée au glissé (ou du clic simple,
+    // désormais lui aussi demi-précis via demiDepuisPointeur — cf.
+    // ouvrirAjout), plutôt que systématiquement journée entière comme avant
+    // ce round (Lionel : « les surbrillance sont fausse aussi sur les notes
+    // et jalons, je les veux case par case »).
     var state = {
       giDebut: giDebutReel, giFin: giDebutReel + dureeInit - 1,
-      demiDebut: itemExisting ? (itemExisting.demiDebut || null) : null,
-      demiFin: itemExisting ? (itemExisting.demiFin || null) : null,
+      demiDebut: itemExisting ? (itemExisting.demiDebut || null) : (demiDebutArg !== undefined ? demiDebutArg : null),
+      demiFin: itemExisting ? (itemExisting.demiFin || null) : (demiFinArg !== undefined ? demiFinArg : null),
       important: itemExisting ? itemExisting.important : false
     };
 
