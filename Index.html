@@ -183,12 +183,12 @@
   h1 { font-size: 17px; font-weight: 800; letter-spacing: -0.01em; margin: 0; }
   .aide { color: var(--ink-muted); font-size: 12.5px; line-height: 1.55; margin: 3px 0 0; max-width: 60ch; }
 
-  .header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  /* Round D — .toggle-sem (paire "1 semaine"/"2 semaines") et le partage
-     .btn-imprimer/.btn-reset ont disparu avec eux : "2 semaines" est
-     maintenant un bouton unique dans .semaine-titre (cf. .btn-titre plus
-     bas), tout comme "Imprimer", déplacé au même endroit — .btn-reset reste
-     seul ici pour "Recharger", jamais déplacé (non demandé par Lionel). */
+  /* .header-actions a disparu avec son dernier occupant : "1/2 semaines" et
+     "Imprimer" avaient déjà rejoint .semaine-titre (Round D), et "Recharger"
+     (#btnReset) est supprimé à son tour (Lionel : « le bouton recharger doit
+     disparaitre »). .btn-reset reste défini ci-dessous : c'est aussi le
+     style générique des boutons "Annuler" d'autres panneaux (cc-annuler,
+     nf-annuler plus bas), donc on le garde. */
   .btn-reset {
     flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px;
     background: var(--surface-2); border: 1px solid var(--border); color: var(--ink);
@@ -1565,17 +1565,12 @@
       '<header>' +
         '<div class="titre"><div><h1>Planning à bulles</h1>' +
         '<p class="aide">Clique une case vide pour ajouter une bulle. Clique une bulle pour la sélectionner, double clic (ou entrée) pour l’ouvrir. Glisse une bulle pour la déplacer, tire ses bords pour l’étendre.</p></div></div>' +
-        '<div class="header-actions">' +
-          // Round D — "1/2 semaines" (case à cocher paire), "Ajout lointain"
-          // et "Imprimer" ne sont plus construits ici : le 1er devient le
-          // bouton unique .btn-deux-semaines et le 3e rejoint .btn-titre,
-          // tous 2 dans .semaine-titre à côté d'"Aujourd'hui" (cf.
-          // construireGrille) ; "Ajout lointain" disparaît complètement
-          // (Lionel : "on peut maintenant le faire via les nouveaux
-          // formulaires", cf. FRONTEND-CHANGELOG.md) — seul "Recharger"
-          // reste ici.
-          '<button class="btn-reset" id="btnReset" type="button" title="Recharger depuis le serveur (les modifications non synchronisées seraient perdues)">↺ Recharger</button>' +
-        '</div>' +
+        // Round D — "1/2 semaines", "Ajout lointain" et "Imprimer" avaient
+        // déjà quitté .header-actions pour rejoindre .semaine-titre (cf.
+        // construireGrille). Round suivant (11.09.2026) — Lionel : « le
+        // bouton recharger doit disparaitre. » "Recharger" (#btnReset), qui
+        // restait seul ici, est supprimé à son tour ; .header-actions n'a
+        // donc plus rien à contenir et disparaît avec lui.
       '</header>' +
       '<div class="legende" id="legende"></div>' +
       '<div class="zone-planning">' +
@@ -1738,15 +1733,12 @@
     // basculerDeuxSemaines juste plus bas, appelée depuis là-bas. "Ajout
     // lointain" a disparu (Lionel : "on peut maintenant le faire via les
     // nouveaux formulaires").
-    var btnReset = document.getElementById("btnReset");
-    if (btnReset) btnReset.addEventListener("click", function () {
-      // "Réinitialiser" (démo, prototype) n'a plus de sens une fois connecté
-      // à un vrai backend (cf. §8 du spec, v3-inventory.md l.416) — repris
-      // en "Recharger" : oublie le cache local et relit la fenêtre affichée
-      // depuis le serveur (utile si une autre session a modifié la feuille).
-      oublierCache();
-      assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); toast("Planning rechargé."); });
-    });
+    // Round suivant (11.09.2026) — Lionel : « le bouton recharger doit
+    // disparaitre. » Le bouton #btnReset et son câblage (oublierCache() +
+    // assurerFenetreChargee(...) pour relire la fenêtre depuis le serveur)
+    // sont supprimés ; oublierCache()/assurerFenetreChargee() restent
+    // utilisées ailleurs (cf. synchroniser()), seul ce point d'appel dédié
+    // au bouton disparaît.
     var chk = document.getElementById("chkWeekends");
     if (chk) {
       chk.checked = afficherWeekends;
