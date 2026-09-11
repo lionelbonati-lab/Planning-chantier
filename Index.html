@@ -1379,6 +1379,22 @@
     }
     return null;
   }
+  // Round du 12.09.2026 — Lionel : « je dois pouvoir voyager en dehors de la
+  // semaine affichée [avec les flèches des dates]. » Jour ouvré voisin
+  // (lun-ven, jamais samedi/dimanche) d'une date ISO, dans le sens `sens`
+  // (+1/-1) — utilisé par les flèches ‹ › des dates de formulaire pour
+  // avancer/reculer exactement comme le fait la grille (gi ne code que les
+  // jours ouvrés, cf. jourIdxDeGi), SANS être plafonné à la fenêtre de 5/10
+  // jours actuellement chargée : cf. cablerDatesPlage, qui délègue ensuite à
+  // appliquerDateChoisieFormulaire (déjà capable de naviguer vers une autre
+  // semaine si besoin, comme pour le calendrier).
+  function isoJourOuvreVoisin(iso, sens) {
+    var d = new Date(iso + "T00:00:00");
+    do {
+      d.setDate(d.getDate() + sens);
+    } while (d.getDay() === 0 || d.getDay() === 6);
+    return isoDeDate(d);
+  }
   function libelleJourGi(gi) {
     var lab = labGDeGi(gi), data = etat.cache[lab];
     if (!data) return { jour: "", mois: "" };
@@ -6919,38 +6935,28 @@
         var ligne = btn.closest(".date-ligne");
         var bord = ligne.dataset.bord;
         var sens = +btn.dataset.sens;
-        var nMax = nbJoursAffiches() - 1;
-        // Round D — Lionel : « quand la date de début est la même que la
-        // date de fin, augmenter la date de début augmente automatiquement
-        // la date de fin et inversement. » Sur 1 seul jour (giDebut ===
-        // giFin), les 2 bornes sont liées : N'IMPORTE QUELLE flèche (Début
-        // ou Fin, avant ou arrière) déplace les DEUX du même pas, pour que
-        // le jour unique avance/recule en bloc. Avant ce correctif, Début
-        // était plafonné à giFin et Fin plancher à giDebut (cf. les 2
-        // branches ci-dessous, inchangées pour le cas multi-jours) : sur 1
-        // seul jour, "Début suivant" ou "Fin précédent" recalculait donc
-        // TOUJOURS la même valeur que l'existant et ne faisait rien du
-        // tout — Début/Fin ne pouvaient jamais s'écarter l'une de l'autre
-        // via les flèches, contrairement à l'intention de Lionel ici.
-        if (state.giDebut === state.giFin) {
-          var nUnique = Math.max(0, Math.min(nMax, state.giDebut + sens));
-          if (nUnique === state.giDebut) return;
-          state.giDebut = nUnique;
-          state.giFin = nUnique;
-          rafraichir();
-          return;
-        }
-        if (bord === "debut") {
-          var nd = Math.max(0, Math.min(state.giFin, state.giDebut + sens));
-          if (nd === state.giDebut) return;
-          state.giDebut = nd;
-        } else {
-          var nf = Math.max(state.giDebut, Math.min(nMax, state.giFin + sens));
-          if (nf === state.giFin) return;
-          state.giFin = nf;
-        }
-        if (state.giDebut === state.giFin) state.demiFin = state.demiDebut;
-        rafraichir();
+        // Round du 12.09.2026 — retour de Lionel sur le round précédent :
+        // « les curseurs sont liés mais pas correctement [...] augmenter la
+        // date de fin ne doit pas augmenter la date de début [...] diminuer
+        // la date de début ne doit pas diminuer la date de fin » — et « je
+        // dois pouvoir voyager en dehors de la semaine affichée ». L'ancien
+        // code (a) liait les 2 bornes dans TOUS les sens dès qu'elles
+        // étaient égales (donc aussi "Fin suivant"/"Début précédent", à
+        // tort) et (b) plafonnait au gi de la fenêtre chargée (nMax) sans
+        // jamais changer de semaine. Les 2 bugs viennent du même endroit :
+        // cette branche recalculait le gi À LA MAIN au lieu de réutiliser
+        // appliquerDateChoisieFormulaire, qui gère déjà correctement les 2
+        // — son calcul giAutre >= /<= giChoisi ne recolle l'AUTRE borne que
+        // quand la garder créerait un intervalle invalide (Début > Fin),
+        // donc uniquement "Début suivant"/"Fin précédent" quand elles sont
+        // égales, jamais "Fin suivant"/"Début précédent" — et elle sait
+        // déjà naviguer vers une autre semaine si la date visée en sort
+        // (cf. son propre commentaire plus bas). Reste ici uniquement le
+        // calcul du jour ouvré voisin (isoJourOuvreVoisin) : les flèches
+        // avancent/reculent d'un jour ouvré, jamais sur un week-end.
+        var isoActuel = isoDeGi(bord === "debut" ? state.giDebut : state.giFin);
+        if (!isoActuel) return;
+        appliquerDateChoisieFormulaire(state, bord, isoJourOuvreVoisin(isoActuel, sens), rafraichir);
       });
     });
     conteneur.querySelectorAll(".f-demi-btn").forEach(function (btn) {
@@ -6997,10 +7003,10 @@
   // sans support -> repli sur .focus() (l'utilisateur ouvre alors le
   // calendrier lui-même via le petit icône natif du champ, toujours visible
   // puisque l'input, bien qu'habillé pour être discret, n'est jamais
-  // display:none). Contrairement aux flèches ‹ › (bornées à la fenêtre de
-  // 5/10 jours actuellement affichée, cf. nMax dans le bloc juste au-dessus),
-  // choisir une date au calendrier peut viser N'IMPORTE QUELLE date du
-  // planning (~5 ans devant/derrière, cf. genererSemaines) : navigue
+  // display:none). Comme les flèches ‹ › (cf. le bloc juste au-dessus, qui
+  // délègue lui aussi à appliquerDateChoisieFormulaire depuis le round du
+  // 12.09.2026), choisir une date au calendrier peut viser N'IMPORTE QUELLE
+  // date du planning (~5 ans devant/derrière, cf. genererSemaines) : navigue
   // d'abord jusqu'à la semaine qui la contient si besoin (appliquerDateChoisieFormulaire
   // ci-dessous) — c'est précisément ce qui rend "Ajout lointain" redondant
   // (Lionel : "ajout lointain disparaît car on peut maintenant le faire via
