@@ -3,6 +3,20 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
+<!-- Round du 12.09.2026 — Lionel, capture d'écran à l'appui : « le format
+     mobile ne fonctionne pas [...] le formulaire s'ouvre ainsi » (une petite
+     carte flottante mal placée au lieu du plein écran attendu). Cause
+     racine : il manquait purement et simplement cette balise viewport.
+     SANS elle, un navigateur mobile rend la page dans une largeur virtuelle
+     d'environ 980px (comportement historique "pages pensées pour desktop"),
+     PUIS zoome toute la page pour la faire tenir à l'écran — la grille
+     paraît alors miniaturisée et, surtout, aucune règle @media (max-width:
+     600px) (ex. .form-pop plein écran téléphone, cf. plus bas) ne peut
+     jamais s'appliquer puisque 980px > 600px : le CSS "voit" un écran large,
+     jamais un téléphone. Cette balise force au contraire le navigateur à
+     utiliser la largeur RÉELLE de l'écran comme référence CSS (donc <600px
+     sur un téléphone), ce qui active enfin ces règles. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   /* ============================================================
@@ -1379,15 +1393,16 @@
     }
     return null;
   }
-  // Round du 12.09.2026 — Lionel : « je dois pouvoir voyager en dehors de la
-  // semaine affichée [avec les flèches des dates]. » Jour ouvré voisin
-  // (lun-ven, jamais samedi/dimanche) d'une date ISO, dans le sens `sens`
-  // (+1/-1) — utilisé par les flèches ‹ › des dates de formulaire pour
-  // avancer/reculer exactement comme le fait la grille (gi ne code que les
-  // jours ouvrés, cf. jourIdxDeGi), SANS être plafonné à la fenêtre de 5/10
-  // jours actuellement chargée : cf. cablerDatesPlage, qui délègue ensuite à
-  // appliquerDateChoisieFormulaire (déjà capable de naviguer vers une autre
-  // semaine si besoin, comme pour le calendrier).
+  // Jour ouvré voisin (lun-ven, jamais samedi/dimanche) d'une date ISO, dans
+  // le sens `sens` (+1/-1) — utilisé par les flèches ‹ › des dates de
+  // formulaire (cablerDatesPlage) pour avancer/reculer exactement comme le
+  // fait la grille (gi ne code que les jours ouvrés, cf. jourIdxDeGi).
+  // Round du 12.09.2026 : la version précédente de ce commentaire disait
+  // cette fonction "sans être plafonnée à la fenêtre chargée" — inexact,
+  // corrigé après le retour de Lionel : cf. le commentaire de
+  // appliquerDateChoisieFormulaire (appelée juste après par
+  // cablerDatesPlage), qui explique pourquoi la fenêtre chargée reste bien
+  // une limite réelle (pas seulement d'affichage).
   function isoJourOuvreVoisin(iso, sens) {
     var d = new Date(iso + "T00:00:00");
     do {
@@ -4894,18 +4909,11 @@
     for (var i2 = 0; i2 < etat.semaines.length; i2++) if (etat.semaines[i2].debut >= iso) return i2;
     return etat.semaines.length - 1;
   }
-  // Round D — généralisation d'indexSemaineAujourdhui_ à une date ISO
-  // arbitraire (cf. cablerCalendrierDate) : quelle semaine de etat.semaines
-  // (~5 ans devant/derrière, genererSemaines) contient `iso`, ou null si
-  // hors de cette fenêtre (garde défensive, ne devrait jamais arriver en
-  // pratique vu l'étendue de genererSemaines).
-  function indexSemaineDeIso_(iso) {
-    for (var i = 0; i < etat.semaines.length; i++) {
-      var s = etat.semaines[i];
-      if (iso >= s.debut && iso <= s.fin) return i;
-    }
-    return null;
-  }
+  // indexSemaineDeIso_ (généralisation d'indexSemaineAujourdhui_ à une date
+  // ISO arbitraire, introduite pour cablerCalendrierDate) a disparu round du
+  // 12.09.2026 : appliquerDateChoisieFormulaire ne navigue plus jamais vers
+  // une autre semaine (cf. son commentaire — Lionel, « le planning ne doit
+  // pas suivre en arrière-plan »), donc plus personne ne l'appelle.
   function allerAujourdhui() {
     var idx = indexSemaineAujourdhui_();
     if (idx < 0) return;
@@ -6938,22 +6946,28 @@
         // Round du 12.09.2026 — retour de Lionel sur le round précédent :
         // « les curseurs sont liés mais pas correctement [...] augmenter la
         // date de fin ne doit pas augmenter la date de début [...] diminuer
-        // la date de début ne doit pas diminuer la date de fin » — et « je
-        // dois pouvoir voyager en dehors de la semaine affichée ». L'ancien
-        // code (a) liait les 2 bornes dans TOUS les sens dès qu'elles
-        // étaient égales (donc aussi "Fin suivant"/"Début précédent", à
-        // tort) et (b) plafonnait au gi de la fenêtre chargée (nMax) sans
-        // jamais changer de semaine. Les 2 bugs viennent du même endroit :
-        // cette branche recalculait le gi À LA MAIN au lieu de réutiliser
-        // appliquerDateChoisieFormulaire, qui gère déjà correctement les 2
-        // — son calcul giAutre >= /<= giChoisi ne recolle l'AUTRE borne que
-        // quand la garder créerait un intervalle invalide (Début > Fin),
-        // donc uniquement "Début suivant"/"Fin précédent" quand elles sont
-        // égales, jamais "Fin suivant"/"Début précédent" — et elle sait
-        // déjà naviguer vers une autre semaine si la date visée en sort
-        // (cf. son propre commentaire plus bas). Reste ici uniquement le
-        // calcul du jour ouvré voisin (isoJourOuvreVoisin) : les flèches
-        // avancent/reculent d'un jour ouvré, jamais sur un week-end.
+        // la date de début ne doit pas diminuer la date de fin ». L'ancien
+        // code liait les 2 bornes dans TOUS les sens dès qu'elles étaient
+        // égales (donc aussi "Fin suivant"/"Début précédent", à tort) parce
+        // qu'il recalculait le gi À LA MAIN au lieu de réutiliser
+        // appliquerDateChoisieFormulaire, dont le calcul giAutre >= /<=
+        // giChoisi ne recolle l'AUTRE borne que quand la garder créerait un
+        // intervalle invalide (Début > Fin) — donc uniquement "Début
+        // suivant"/"Fin précédent" quand elles sont égales, jamais "Fin
+        // suivant"/"Début précédent". Reste ici uniquement le calcul du jour
+        // ouvré voisin (isoJourOuvreVoisin) : les flèches avancent/reculent
+        // d'un jour ouvré, jamais sur un week-end.
+        //
+        // Un 1er essai de ce correctif laissait aussi les flèches naviguer
+        // vers une autre semaine quand le jour visé en sortait — retiré tout
+        // de suite après (même round) sur 2 retours de Lionel : « le
+        // planning ne doit pas suivre en arrière-plan » et « cette manière
+        // limite une tâche à 1 semaine [en pratique : recollait
+        // silencieusement l'autre borne dès qu'elle ne rentrait plus dans la
+        // nouvelle fenêtre], il ne doit pas y avoir de limite ». cf. le
+        // commentaire de appliquerDateChoisieFormulaire pour l'explication
+        // complète (la fenêtre chargée n'est pas qu'une limite d'affichage :
+        // c'est aussi la limite réelle du moteur de synchronisation).
         var isoActuel = isoDeGi(bord === "debut" ? state.giDebut : state.giFin);
         if (!isoActuel) return;
         appliquerDateChoisieFormulaire(state, bord, isoJourOuvreVoisin(isoActuel, sens), rafraichir);
@@ -7003,14 +7017,27 @@
   // sans support -> repli sur .focus() (l'utilisateur ouvre alors le
   // calendrier lui-même via le petit icône natif du champ, toujours visible
   // puisque l'input, bien qu'habillé pour être discret, n'est jamais
-  // display:none). Comme les flèches ‹ › (cf. le bloc juste au-dessus, qui
-  // délègue lui aussi à appliquerDateChoisieFormulaire depuis le round du
-  // 12.09.2026), choisir une date au calendrier peut viser N'IMPORTE QUELLE
-  // date du planning (~5 ans devant/derrière, cf. genererSemaines) : navigue
-  // d'abord jusqu'à la semaine qui la contient si besoin (appliquerDateChoisieFormulaire
-  // ci-dessous) — c'est précisément ce qui rend "Ajout lointain" redondant
-  // (Lionel : "ajout lointain disparaît car on peut maintenant le faire via
-  // les nouveaux formulaires", cf. FRONTEND-CHANGELOG.md).
+  // display:none).
+  //
+  // Round du 12.09.2026 — CORRECTIF IMPORTANT par rapport au paragraphe
+  // ci-dessus (Round D) : choisir une date ici ne navigue PLUS vers une
+  // autre semaine (cf. appliquerDateChoisieFormulaire, appelée juste en
+  // dessous) — une date hors de la fenêtre actuellement affichée est
+  // refusée (toast), suite au retour de Lionel « le planning ne doit pas
+  // suivre en arrière-plan ». Un input[type=date] natif ne permet de toute
+  // façon pas de brider son calendrier à seulement quelques jours valides
+  // (on pourrait poser min/max, mais l'utilisateur verrait alors les autres
+  // dates grisées SANS explication) — la validation se fait donc après coup,
+  // dans appliquerDateChoisieFormulaire. CONSÉQUENCE À GARDER EN TÊTE : le
+  // calendrier ne peut donc plus viser une date lointaine (~5 ans
+  // devant/derrière) comme le pouvait "Ajout lointain" (supprimé plus haut
+  // dans ce même round D en le disant redondant avec CE calendrier) — cette
+  // affirmation ne tient donc plus depuis ce correctif. "Ajout lointain"
+  // n'a pas été réintroduit ici (pas demandé), mais si Lionel a besoin
+  // d'assigner une tâche à une date lointaine SANS d'abord y naviguer à la
+  // main, il faudra soit ramener une variante d'"Ajout lointain", soit
+  // construire le vrai enregistrement en plage évoqué dans le commentaire de
+  // appliquerDateChoisieFormulaire.
   function cablerCalendrierDate(conteneur, state, rafraichir) {
     conteneur.querySelectorAll(".date-val").forEach(function (span) {
       span.classList.add("date-val-cliquable");
@@ -7042,43 +7069,69 @@
       });
     });
   }
-  // Applique la date choisie au calendrier (bord: "debut"|"fin") : navigue
-  // d'abord vers la semaine qui la contient si elle est hors de la fenêtre
-  // actuellement affichée, puis recalcule les 2 bornes en gi une fois cette
-  // fenêtre chargée. L'AUTRE borne (non éditée) est préservée par sa date
-  // ABSOLUE tant qu'elle rentre encore dans la nouvelle fenêtre affichée (1
-  // ou 2 semaines, jamais changé ici) ET qu'elle reste du bon côté de la
-  // date choisie (une plage reste toujours Début <= Fin) ; sinon elle est
-  // ramenée sur la date choisie (la plage redevient 1 seul jour — dépôt "à
-  // cet endroit précis" plutôt qu'une plage invalide ou un mode 2-semaines
-  // forcé en silence). Attention : la borne éditée (`bord`) garde TOUJOURS
-  // exactement la date choisie — un simple tri min/max des 2 bornes ferait
-  // parfois atterrir la date choisie sur la MAUVAISE ligne (ex. cliquer
-  // "Début" et choisir une date après l'ancienne Fin doit avancer Début
-  // jusque-là — pas repousser Fin en gardant l'ancienne Fin comme nouveau
-  // Début).
+  // Applique la date choisie (calendrier OU flèches, cf. cablerDatesPlage) au
+  // bord `bord` ("debut"|"fin") d'une plage tâche/absence/jalon/note.
+  //
+  // Round du 12.09.2026 — 2 retours de Lionel sur la version précédente de
+  // cette fonction (qui naviguait vers la semaine cible quand la date sortait
+  // de la fenêtre affichée) :
+  // 1. « le planning ne doit pas suivre en arrière-plan » : changer la date
+  //    dans une fiche ne doit JAMAIS faire bouger la grille affichée
+  //    derrière — même quand la fiche reste ouverte pendant la navigation,
+  //    voir la grille "sauter" de semaine en arrière-plan est déroutant.
+  // 2. « cette manière limite une tâche à 1 semaine, il ne doit pas y avoir
+  //    de limite » : naviguer vers la semaine de la borne éditée ne réglait
+  //    d'ailleurs qu'à moitié le problème — dès que l'AUTRE borne (non
+  //    éditée) ne rentrait plus dans cette nouvelle fenêtre, elle était
+  //    ramenée de force sur la date choisie (repli de la ligne juste
+  //    au-dessus), ce qui recollait silencieusement la plage à 1 seul jour
+  //    au lieu de vraiment l'étendre.
+  // Cause racine commune aux 2 : `giDebut`/`giFin` sont des coordonnées
+  // relatives à la fenêtre CHARGÉE (cf. §1 du spec) — pour qu'une plage soit
+  // représentable en gi, ses 2 bornes doivent être visibles EN MÊME TEMPS
+  // dans cette fenêtre (max 2 semaines). Ce n'est pas qu'une limite
+  // d'affichage : le moteur de synchronisation (calculerEtatLocal, cellules
+  // "personne" ET jalons) ne diffuse QUE les jours de la fenêtre
+  // actuellement chargée (giVisibleFenetre) — un jour au-delà serait de
+  // toute façon silencieusement ignoré à l'enregistrement, PAS écrit sur le
+  // serveur. Faire "voyager" la fenêtre en arrière-plan pour contourner ça
+  // n'aurait fait que déplacer le problème (et perdre le fil visuel de
+  // Lionel avec la grille, cf. retour 1) sans jamais lever la vraie limite.
+  //
+  // Cette fonction ne touche donc plus jamais à etat.indexSemaine : une date
+  // choisie hors de la fenêtre actuellement affichée est refusée (toast
+  // explicatif) plutôt que de déclencher une navigation qui de toute façon ne
+  // pourrait pas être enregistrée correctement. Lever la limite pour de bon
+  // demanderait un vrai enregistrement en plage côté serveur pour les
+  // tâches/absences/jalons (comme enregistrer-plage le fait déjà pour les
+  // notes, cf. diffsNotes) — un chantier séparé, pas fait ici (même logique
+  // que la limite documentée sur la modification d'une série, cf. §53.3 du
+  // FRONTEND-CHANGELOG). En attendant, un élément qui doit vraiment durer
+  // sans limite (une longue absence/vacances) reste réalisable dès
+  // aujourd'hui via la case "Série (se répète)" à la création : chaque
+  // occurrence est créée directement par le serveur à sa date, sans jamais
+  // dépendre de ce qui est chargé côté client.
+  //
+  // La borne éditée (`bord`) garde TOUJOURS exactement la date choisie —
+  // l'AUTRE borne n'est recollée dessus que si la garder créerait un
+  // intervalle invalide (Début > Fin) ; sinon elle reste inchangée (cf.
+  // cablerDatesPlage pour le détail de cette asymétrie).
   function appliquerDateChoisieFormulaire(state, bord, isoChoisi, rafraichir) {
-    var isoAutreAvant = isoDeGi(bord === "debut" ? state.giFin : state.giDebut);
-    function terminer() {
-      var giChoisi = giDepuisIso(isoChoisi);
-      if (giChoisi == null) { toast("Cette date est hors du planning."); return; }
-      var giAutre = isoAutreAvant ? giDepuisIso(isoAutreAvant) : null;
-      if (giAutre == null) giAutre = giChoisi;
-      if (bord === "debut") {
-        state.giDebut = giChoisi;
-        state.giFin = (giAutre >= giChoisi) ? giAutre : giChoisi;
-      } else {
-        state.giFin = giChoisi;
-        state.giDebut = (giAutre <= giChoisi) ? giAutre : giChoisi;
-      }
-      if (state.giDebut === state.giFin) state.demiFin = state.demiDebut;
-      rafraichir();
+    var giChoisi = giDepuisIso(isoChoisi);
+    if (giChoisi == null) {
+      toast("Cette date sort de la semaine affichée : la durée d’un élément ne peut pas dépasser la fenêtre actuellement chargée.");
+      return;
     }
-    var idxCible = indexSemaineDeIso_(isoChoisi);
-    if (idxCible == null) { toast("Cette date est hors du planning."); return; }
-    if (idxCible === etat.indexSemaine || (deuxSemaines && idxCible === etat.indexSemaine + 1)) { terminer(); return; }
-    etat.indexSemaine = idxCible;
-    assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); terminer(); });
+    var giAutre = bord === "debut" ? state.giFin : state.giDebut;
+    if (bord === "debut") {
+      state.giDebut = giChoisi;
+      state.giFin = (giAutre >= giChoisi) ? giAutre : giChoisi;
+    } else {
+      state.giFin = giChoisi;
+      state.giDebut = (giAutre <= giChoisi) ? giAutre : giChoisi;
+    }
+    if (state.giDebut === state.giFin) state.demiFin = state.demiDebut;
+    rafraichir();
   }
   // Descriptif affiché en texte simple, cliquable pour ouvrir un petit
   // éditeur (popup centré desktop/tablette, demi-fenêtre bas d'écran
