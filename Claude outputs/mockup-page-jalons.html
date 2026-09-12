@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Mockup — page Jalons</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap">
+<style>
+  /* Variables et composants copiés tel quel d'Index.html (round du
+     12.09.2026) pour que ce visuel rende exactement comme dans la vraie
+     appli une fois codé — rien n'est réinventé ici. */
+  :root {
+    --bg: #eef0ec; --surface: #fbfaf7; --surface-2: #ffffff;
+    --ink: #1a2129; --ink-muted: #57616b; --ink-faint: #8b93a0;
+    --border: #d7dad2; --border-strong: #1a2129;
+    --accent: #1f4d8f; --accent-ink: #ffffff; --accent-soft: #e3ecf7;
+    --important-ink: #93362b;
+    --shadow: rgba(24, 33, 41, 0.16); --shadow-lg: rgba(15, 21, 27, 0.32);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #d8dcd3; font-family: 'Archivo', 'Helvetica Neue', Arial, sans-serif; color: var(--ink); }
+  body { padding: 36px 24px 60px; }
+  .intro { max-width: 900px; margin: 0 auto 32px; }
+  .intro h1 { font-size: 20px; margin: 0 0 8px; }
+  .intro p { font-size: 13.5px; line-height: 1.6; color: var(--ink-muted); margin: 0 0 6px; }
+  .grille-mockups { display: grid; grid-template-columns: repeat(2, 1fr); gap: 32px; max-width: 1180px; margin: 0 auto; }
+  .slot { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .slot.large { grid-column: 1 / -1; }
+  .slot .num {
+    font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; font-weight: 700; letter-spacing: .06em;
+    text-transform: uppercase; color: #5a6459; background: #c7ccc0; padding: 5px 14px; border-radius: 999px; text-align: center;
+  }
+  .stage {
+    background: var(--bg); border-radius: 18px; padding: 30px; width: 100%;
+    display: flex; align-items: flex-start; justify-content: center; min-height: 200px;
+  }
+
+  .icon { width: 18px; height: 18px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; display: block; }
+
+  /* ---------- réplique de l'app-shell (sidebar + page) ---------- */
+  .app-shell-demo { display: flex; align-items: flex-start; gap: 0; width: 100%; max-width: 900px; }
+  .sidebar-demo {
+    width: 190px; flex-shrink: 0; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; display: flex; flex-direction: column; padding: 16px 0; gap: 1px; margin-right: 20px;
+  }
+  .sidebar-demo .marque { display: flex; align-items: center; gap: 10px; padding: 4px 16px 18px; }
+  .sidebar-demo .mark-mono {
+    width: 26px; height: 26px; border-radius: 7px; background: var(--accent); color: var(--accent-ink);
+    display: grid; place-items: center; font-size: 12px; font-weight: 800; flex-shrink: 0;
+  }
+  .sidebar-demo .marque b { font-size: 13.5px; font-weight: 800; }
+  .side-item-demo {
+    display: flex; align-items: center; padding: 10px 16px 10px 18px; border-left: 3px solid transparent;
+    font-size: 13px; font-weight: 600; color: var(--ink-muted);
+  }
+  .side-item-demo.actif { background: var(--accent-soft); color: var(--accent); border-left-color: var(--accent); font-weight: 700; }
+  .side-item-demo.nouveau { position: relative; }
+  .side-item-demo.nouveau::after {
+    content: "nouveau"; margin-left: auto; font-size: 8.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--accent); background: var(--accent-soft); padding: 2px 6px; border-radius: 999px;
+  }
+  .side-groupe-demo { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-faint); padding: 16px 18px 6px; }
+  .page-demo { flex: 1; min-width: 0; background: var(--surface); border-radius: 14px; padding: 20px 22px; }
+  .page-titre-demo { font-size: 17px; font-weight: 800; letter-spacing: -0.01em; margin: 0 0 4px; }
+  .page-sous-demo { color: var(--ink-muted); font-size: 12.5px; line-height: 1.55; margin: 0 0 16px; max-width: 56ch; }
+
+  /* ---------- liste (identique en structure à Personnel/Chantiers) ---------- */
+  .liste-jalons { display: flex; flex-direction: column; gap: 8px; }
+  .ligne-jalon { display: flex; align-items: center; padding: 11px 14px; border: 1px solid var(--border); border-radius: 10px; font-size: 13px; background: var(--surface-2); }
+  .ligne-jalon .gauche-jalon { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .ligne-jalon .swatch { width: 18px; height: 18px; border-radius: 6px; flex-shrink: 0; border: 1px solid var(--border); }
+  .ligne-jalon b { font-weight: 700; }
+  .ligne-jalon .plage { color: var(--ink-faint); font-size: 11px; margin-left: 10px; font-family: 'IBM Plex Mono', monospace; white-space: nowrap; }
+  .ligne-jalon .drapeau-important { color: var(--important-ink); flex-shrink: 0; margin-left: 8px; }
+  .ligne-jalon .drapeau-important svg { width: 13px; height: 13px; }
+  .ligne-actions-demo { display: flex; align-items: center; gap: 14px; margin-left: auto; padding-left: 14px; flex-shrink: 0; }
+  .lien-modifier-demo, .lien-supprimer-demo { font-size: 12px; font-weight: 600; color: var(--ink-muted); white-space: nowrap; }
+  .lien-supprimer-demo { color: var(--ink-faint); }
+  .ligne-ajouter-demo {
+    display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%;
+    padding: 11px 14px; border: 1.5px dashed var(--accent); border-radius: 10px;
+    font-size: 13px; font-weight: 700; color: var(--accent); margin-top: 2px;
+  }
+
+  /* ---------- carte formulaire jalon (bandeau + dates + nom) ---------- */
+  .carte-item { background: var(--surface-2); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 14px 30px var(--shadow-lg); width: 300px; overflow: hidden; }
+  .bandeau { position: relative; padding: 13px 44px 13px 16px; color: #fff; border-radius: 14px 14px 0 0; }
+  .bandeau .fermer, .bandeau .important-toggle {
+    position: absolute; top: 10px; width: 30px; height: 30px; border-radius: 50%; padding: 0;
+    display: grid; place-items: center; background: rgba(255, 255, 255, .2); color: #fff; border: none;
+  }
+  .bandeau .fermer svg, .bandeau .important-toggle svg { width: 14px; height: 14px; }
+  .bandeau .fermer { right: 10px; }
+  .bandeau .important-toggle { right: 52px; }
+  .bandeau .chantier-tag {
+    display: inline-block; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em;
+    opacity: .9; cursor: pointer; text-decoration: underline; text-decoration-color: currentColor; text-underline-offset: 3px;
+  }
+  .bandeau .nom-grand { font-size: 17px; font-weight: 800; margin-top: 4px; }
+
+  .dates-plage { display: flex; flex-direction: column; gap: 7px; padding: 13px 16px 3px; }
+  .date-ligne { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .label-date { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-faint); width: 32px; flex-shrink: 0; }
+  .date-nav {
+    display: inline-flex; align-items: center; gap: 8px; font-family: 'IBM Plex Mono', monospace; font-weight: 700;
+    font-size: 12.5px; letter-spacing: .03em; color: var(--ink-muted); text-transform: uppercase;
+  }
+  .date-nav .fleche {
+    width: 24px; height: 24px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface); padding: 0;
+    color: var(--ink-muted); display: grid; place-items: center; flex-shrink: 0;
+  }
+  .date-nav .fleche svg { width: 13px; height: 13px; }
+  .date-nav .date-val { color: var(--ink); padding: 3px 6px; border-radius: 6px; }
+  .date-nav .date-val:hover { background: var(--accent-soft); color: var(--accent); cursor: pointer; }
+
+  .corps-jalon { padding: 14px 16px 4px; }
+  .label-champ { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-faint); margin: 0 0 6px; }
+  .input-nom-jalon { font: inherit; font-size: 13.5px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); width: 100%; }
+
+  .pied-principal { display: flex; gap: 10px; padding: 14px 16px; margin-top: 10px; border-top: 1px solid var(--border); }
+  .pied-principal .btn-icon { flex: none; width: 48px; height: 48px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); padding: 0; color: var(--ink-muted); display: grid; place-items: center; }
+  .pied-principal .btn-icon.supprimer { color: var(--important-ink); border-color: #e3c3bd; }
+  .pied-principal .btn-icon svg { width: 18px; height: 18px; }
+  .pied-principal .f-ok {
+    flex: 1; height: 48px; border-radius: 12px; background: var(--accent); border: none; color: var(--accent-ink); display: flex;
+    align-items: center; justify-content: center; gap: 8px; font-weight: 700; font-size: 13.5px; padding: 0;
+  }
+  .pied-principal .f-ok svg { width: 16px; height: 16px; stroke: #fff; }
+
+  /* ---------- cadre téléphone ---------- */
+  .phone { width: 300px; height: 580px; background: #111; border-radius: 34px; padding: 10px; box-shadow: 0 20px 40px rgba(0,0,0,.35); }
+  .phone-screen { width: 100%; height: 100%; border-radius: 26px; overflow: hidden; background: var(--surface); display: flex; flex-direction: column; }
+  .phone-topbar { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 8px; flex-shrink: 0; }
+  .phone-topbar .menu-burger {
+    width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2);
+    display: grid; place-items: center; font-size: 13px;
+  }
+  .phone-content { flex: 1; overflow-y: auto; padding: 4px 16px 16px; }
+  .phone-content .page-titre-demo { font-size: 15.5px; }
+  .phone-content .page-sous-demo { font-size: 11.5px; }
+  .phone-content .ligne-jalon { flex-wrap: wrap; row-gap: 6px; }
+  .phone-content .plage { margin-left: 0; width: 100%; padding-left: 28px; }
+  .phone-content .ligne-actions-demo { margin-left: auto; padding-left: 0; }
+
+  .phone-form-screen { width: 100%; height: 100%; display: flex; flex-direction: column; background: var(--surface-2); }
+  .phone-form-screen .carte-item { width: 100%; height: 100%; border-radius: 0; box-shadow: none; display: flex; flex-direction: column; }
+  .phone-form-screen .bandeau { border-radius: 0; }
+  .phone-form-screen .corps-jalon { flex: 1; }
+  .phone-form-screen .pied-principal { margin-top: auto; }
+
+  .legende { max-width: 1180px; margin: 40px auto 0; font-size: 12.5px; line-height: 1.7; color: var(--ink-muted); }
+  .legende b { color: var(--ink); }
+</style>
+</head>
+<body>
+
+<div class="intro">
+  <h1>Mockup — page « Jalons »</h1>
+  <p>Visuel avant codage, comme demandé. Reprend telle quelle la mise en page de la page Personnel (liste + bouton « + Ajouter ») et les composants déjà existants dans l'appli (bandeau coloré par chantier, flèches de dates) — rien n'est stylé « à part ».</p>
+  <p>Les dates d'exemple ci-dessous montrent volontairement un jalon sur plusieurs mois (« Fin gros œuvre », 21 sept. → 20 nov.) : c'est exactement le cas que la grille actuelle ne permet pas et que cette page débloque.</p>
+</div>
+
+<div class="grille-mockups">
+
+  <!-- ============ Page complète, liste (desktop) ============ -->
+  <div class="slot large">
+    <span class="num">1 — Page « Jalons », liste (desktop) — menu identique à Personnel, nouvel item ajouté</span>
+    <div class="stage">
+      <div class="app-shell-demo">
+        <div class="sidebar-demo">
+          <div class="marque"><div class="mark-mono">P</div><b>Planning</b></div>
+          <div class="side-item-demo">Planning</div>
+          <div class="side-item-demo actif nouveau">Jalons</div>
+          <div class="side-groupe-demo">Équipes</div>
+          <div class="side-item-demo">Personnel</div>
+          <div class="side-item-demo">Intervenants</div>
+          <div class="side-groupe-demo">Configuration</div>
+          <div class="side-item-demo">Général</div>
+          <div class="side-item-demo">Chantiers</div>
+          <div class="side-item-demo">Statuts</div>
+          <div class="side-item-demo">Fériés</div>
+          <div class="side-item-demo">Entrée rapide</div>
+        </div>
+        <div class="page-demo">
+          <div class="page-titre-demo">Jalons</div>
+          <div class="page-sous-demo">Étapes clés d'un chantier (livraison, coulage, réception…), sur une durée aussi longue que nécessaire — indépendant des semaines affichées dans le planning.</div>
+          <div class="liste-jalons">
+            <div class="ligne-jalon">
+              <span class="gauche-jalon"><span class="swatch" style="background:#1f4d8f"></span><b>Livraison agglos</b></span>
+              <span class="plage">07 sept. 2026</span>
+              <span class="ligne-actions-demo"><span class="lien-modifier-demo">Modifier</span><span class="lien-supprimer-demo">Supprimer</span></span>
+            </div>
+            <div class="ligne-jalon">
+              <span class="gauche-jalon"><span class="swatch" style="background:#c9a8e6"></span><b>Coulage dalle RDC</b></span>
+              <span class="plage">14 sept. → 16 sept. 2026</span>
+              <span class="ligne-actions-demo"><span class="lien-modifier-demo">Modifier</span><span class="lien-supprimer-demo">Supprimer</span></span>
+            </div>
+            <div class="ligne-jalon">
+              <span class="gauche-jalon"><span class="swatch" style="background:#3aba8c"></span><b>Fin gros œuvre</b></span>
+              <span class="plage">21 sept. → 20 nov. 2026</span>
+              <span class="ligne-actions-demo"><span class="lien-modifier-demo">Modifier</span><span class="lien-supprimer-demo">Supprimer</span></span>
+            </div>
+            <div class="ligne-jalon">
+              <span class="gauche-jalon"><span class="swatch" style="background:#1f4d8f"></span><b>Réception chantier</b></span>
+              <span class="drapeau-important" title="Important"><svg class="icon" viewBox="0 0 24 24"><path d="M6 3v18M6 4h12l-3 4 3 4H6"/></svg></span>
+              <span class="plage">15 déc. 2026</span>
+              <span class="ligne-actions-demo"><span class="lien-modifier-demo">Modifier</span><span class="lien-supprimer-demo">Supprimer</span></span>
+            </div>
+            <div class="ligne-ajouter-demo">+ Ajouter</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ Formulaire Ajouter/Modifier (desktop) ============ -->
+  <div class="slot">
+    <span class="num">2 — Modifier un jalon (desktop)</span>
+    <div class="stage">
+      <div class="carte-item">
+        <div class="bandeau" style="background:#3aba8c">
+          <button type="button" class="fermer" title="Fermer"><svg class="icon" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+          <button type="button" class="important-toggle" title="Important"><svg class="icon" viewBox="0 0 24 24"><path d="M6 3v18M6 4h12l-3 4 3 4H6"/></svg></button>
+          <span class="chantier-tag">Extension Meier</span>
+          <div class="nom-grand">Jalon</div>
+        </div>
+        <div class="dates-plage">
+          <div class="date-ligne">
+            <span class="label-date">Début</span>
+            <div class="date-nav">
+              <button type="button" class="fleche"><svg class="icon" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+              <span class="date-val">Lun. 21 sept.</span>
+              <button type="button" class="fleche"><svg class="icon" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+            </div>
+          </div>
+          <div class="date-ligne">
+            <span class="label-date">Fin</span>
+            <div class="date-nav">
+              <button type="button" class="fleche"><svg class="icon" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+              <span class="date-val">Ven. 20 nov.</span>
+              <button type="button" class="fleche"><svg class="icon" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+            </div>
+          </div>
+        </div>
+        <div class="corps-jalon">
+          <div class="label-champ">Nom</div>
+          <input class="input-nom-jalon" type="text" value="Fin gros œuvre">
+        </div>
+        <div class="pied-principal">
+          <button type="button" class="btn-icon supprimer" title="Supprimer"><svg class="icon" viewBox="0 0 24 24"><path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m2 0l-1 13a2 2 0 01-2 2H9a2 2 0 01-2-2L6 7"/></svg></button>
+          <button type="button" class="f-ok"><svg class="icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>Enregistrer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ Liste (mobile) ============ -->
+  <div class="slot">
+    <span class="num">3 — Page « Jalons », liste (mobile)</span>
+    <div class="stage">
+      <div class="phone">
+        <div class="phone-screen">
+          <div class="phone-topbar"><span class="menu-burger">☰</span></div>
+          <div class="phone-content">
+            <div class="page-titre-demo">Jalons</div>
+            <div class="page-sous-demo">Étapes clés d'un chantier, sur une durée aussi longue que nécessaire.</div>
+            <div class="liste-jalons">
+              <div class="ligne-jalon">
+                <span class="gauche-jalon"><span class="swatch" style="background:#1f4d8f"></span><b>Livraison agglos</b></span>
+                <span class="ligne-actions-demo"><span class="lien-modifier-demo">Modifier</span></span>
+                <span class="plage">07 sept. 2026</span>
+              </div>
+              <div class="ligne-jalon">
+                <span class="gauche-jalon"><span class="swatch" style="background:#c9a8e6"></span><b>Coulage dalle RDC</b></span>
+                <span class="ligne-actions-demo"><span class="lien-modifier-demo">Modifier</span></span>
+                <span class="plage">14 sept. → 16 sept. 2026</span>
+              </div>
+              <div class="ligne-jalon">
+                <span class="gauche-jalon"><span class="swatch" style="background:#3aba8c"></span><b>Fin gros œuvre</b></span>
+                <span class="ligne-actions-demo"><span class="lien-modifier-demo">Modifier</span></span>
+                <span class="plage">21 sept. → 20 nov. 2026</span>
+              </div>
+              <div class="ligne-ajouter-demo">+ Ajouter</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ Formulaire (mobile plein écran) ============ -->
+  <div class="slot">
+    <span class="num">4 — Modifier un jalon (mobile plein écran)</span>
+    <div class="stage">
+      <div class="phone">
+        <div class="phone-screen">
+          <div class="phone-form-screen">
+            <div class="carte-item">
+              <div class="bandeau" style="background:#3aba8c">
+                <button type="button" class="fermer" title="Fermer"><svg class="icon" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+                <button type="button" class="important-toggle" title="Important"><svg class="icon" viewBox="0 0 24 24"><path d="M6 3v18M6 4h12l-3 4 3 4H6"/></svg></button>
+                <span class="chantier-tag">Extension Meier</span>
+                <div class="nom-grand">Jalon</div>
+              </div>
+              <div class="dates-plage">
+                <div class="date-ligne">
+                  <span class="label-date">Début</span>
+                  <div class="date-nav">
+                    <button type="button" class="fleche"><svg class="icon" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+                    <span class="date-val">Lun. 21 sept.</span>
+                    <button type="button" class="fleche"><svg class="icon" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+                  </div>
+                </div>
+                <div class="date-ligne">
+                  <span class="label-date">Fin</span>
+                  <div class="date-nav">
+                    <button type="button" class="fleche"><svg class="icon" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+                    <span class="date-val">Ven. 20 nov.</span>
+                    <button type="button" class="fleche"><svg class="icon" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+                  </div>
+                </div>
+              </div>
+              <div class="corps-jalon">
+                <div class="label-champ">Nom</div>
+                <input class="input-nom-jalon" type="text" value="Fin gros œuvre">
+              </div>
+              <div class="pied-principal">
+                <button type="button" class="btn-icon supprimer" title="Supprimer"><svg class="icon" viewBox="0 0 24 24"><path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m2 0l-1 13a2 2 0 01-2 2H9a2 2 0 01-2-2L6 7"/></svg></button>
+                <button type="button" class="f-ok"><svg class="icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>Enregistrer</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="legende">
+  <b>Détails d'implémentation prévus (pas encore codés) :</b><br>
+  — Chantier cliquable dans le bandeau ouvre la même petite liste de chantiers que dans une fiche tâche (même correctif de taille que celui livré aujourd'hui).<br>
+  — Flèches Début/Fin : jour ouvré précédent/suivant, sans les boutons A/P (jours entiers uniquement).<br>
+  — Cliquer sur une date ouvre aussi le calendrier natif, comme dans les autres formulaires.<br>
+  — Case « important » conservée dans le bandeau (drapeau) : le champ existe déjà côté serveur pour les jalons, gardée par cohérence — à retirer si tu n'en as pas l'usage ici.<br>
+  — Enregistrement : même endpoint serveur que les jalons de la grille (aucun changement backend), donc un jalon créé ici apparaît aussi dans « Planning à bulles » dès que tu navigues sur les semaines concernées.
+</div>
+
+</body>
+</html>
