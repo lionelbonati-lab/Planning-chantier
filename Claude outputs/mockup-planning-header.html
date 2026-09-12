@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — en-tête Planning</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  /* Tokens repris tels quels d'Index.html (:root) pour un rendu fidèle. */
+  :root {
+    --bg: #eef0ec; --surface: #fbfaf7; --surface-2: #ffffff;
+    --ink: #1a2129; --ink-muted: #57616b; --ink-faint: #8b93a0;
+    --border: #d7dad2;
+    --accent: #1f4d8f; --accent-ink: #ffffff; --accent-soft: #e3ecf7;
+    --absence-bg: #f6c893; --jalon-bg: #d7cdf0; --note-bg: #f7e6ab;
+    --shadow: rgba(24, 33, 41, 0.16); --shadow-lg: rgba(15, 21, 27, 0.32);
+    --filisetti: #b9a6e8; --villa-rossi: #1e3a6e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: 'Archivo', 'Helvetica Neue', Arial, sans-serif;
+    padding: 28px 20px 60px;
+  }
+  .page-titre {
+    max-width: 1300px; margin: 0 auto 28px;
+  }
+  .page-titre h1 { font-size: 19px; font-weight: 800; margin: 0 0 6px; }
+  .page-titre p { font-size: 13px; color: var(--ink-muted); line-height: 1.6; margin: 0; max-width: 68ch; }
+  .page-titre .rappel { font-size: 12px; color: var(--ink-faint); margin-top: 10px; font-style: italic; }
+
+  .bloc { max-width: 1300px; margin: 0 auto 40px; }
+  .bloc-label {
+    display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px;
+  }
+  .bloc-label .num {
+    width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: var(--accent-ink);
+    display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800;
+    font-family: 'IBM Plex Mono', monospace; flex-shrink: 0;
+  }
+  .bloc-label h2 { font-size: 15px; font-weight: 800; margin: 0; }
+  .bloc-label .tag {
+    font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+    padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--ink-muted); border: 1px solid var(--border);
+  }
+  .bloc-note { font-size: 12.5px; color: var(--ink-muted); line-height: 1.6; margin: 6px 0 14px; max-width: 78ch; }
+
+  .cadre {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 16px 20px 0; overflow: hidden; box-shadow: 0 2px 10px var(--shadow);
+  }
+  .etat-actuel .cadre { opacity: .82; }
+
+  /* --- éléments réels de l'app, copiés tels quels --- */
+  .btn-menu-toggle {
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+    width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--surface-2); color: var(--ink); font-size: 16px; cursor: pointer; font-family: inherit;
+    box-shadow: 0 4px 10px var(--shadow);
+  }
+  .legende { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .legende .item { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink-muted); font-family: 'IBM Plex Mono', monospace; white-space: nowrap; }
+  .legende .swatch { width: 11px; height: 11px; border-radius: 3px; flex-shrink: 0; }
+  .legende .item.chantier.actif { color: var(--ink); font-weight: 700; }
+
+  .semaine-titre {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    font-family: 'IBM Plex Mono', monospace; font-weight: 700; font-size: 12px;
+    letter-spacing: .04em; text-transform: uppercase; color: var(--ink-muted);
+  }
+  .semaine-titre .fleche-semaine {
+    width: 22px; height: 22px; border-radius: 7px; border: 1px solid var(--border);
+    background: var(--surface-2); color: var(--ink-muted); display: grid; place-items: center;
+    font-size: 13px; line-height: 1; flex-shrink: 0;
+  }
+  .semaine-titre .semaine-dates { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--ink-faint); }
+  .semaine-titre .lien-aller { background: none; border: none; color: inherit; font: inherit; text-transform: inherit; letter-spacing: inherit; padding: 2px 4px; }
+  .semaine-titre .btn-titre {
+    padding: 4px 10px; border-radius: 7px; border: 1px solid var(--border);
+    background: var(--surface-2); color: var(--ink-muted); font: inherit;
+    text-transform: inherit; letter-spacing: inherit; display: inline-flex; align-items: center; gap: 5px;
+  }
+  .semaine-titre .btn-titre.actif { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 700; }
+  .barre-undo { display: flex; gap: 6px; flex-shrink: 0; }
+  .barre-undo button {
+    width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 15px; line-height: 1; font-weight: 700;
+    border: 1.5px solid var(--border); background: var(--surface); color: var(--ink);
+    box-shadow: 0 4px 10px var(--shadow);
+  }
+  .grille-entete {
+    display: grid; grid-template-columns: 116px repeat(5, 1fr); border-top: 1px solid var(--border);
+    margin: 14px 0 0;
+  }
+  .grille-entete > div {
+    padding: 8px 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em;
+    color: var(--ink-muted); text-align: center; border-right: 1px solid var(--border);
+  }
+  .grille-entete > div:first-child { text-align: left; }
+  .grille-entete > div .j { display: block; font-size: 13px; color: var(--ink); margin-top: 2px; }
+
+  /* --- Option 1 : ligne fusionnée --- */
+  .ligne-fusionnee {
+    display: flex; align-items: center; gap: 18px; padding-bottom: 14px; flex-wrap: wrap;
+  }
+  .ligne-fusionnee .legende { margin-left: 2px; }
+
+  .ligne-toolbar {
+    display: flex; align-items: center; justify-content: space-between; gap: 14px;
+    padding: 0 0 12px; flex-wrap: wrap;
+  }
+  .ligne-toolbar .gauche { display: flex; align-items: center; gap: 8px; }
+  .ligne-toolbar .droite { display: flex; align-items: center; gap: 6px; }
+
+  /* --- Option 2 : onglets --- */
+  .onglets {
+    display: flex; gap: 2px; padding-bottom: 0; overflow-x: auto; margin: 0 -20px; padding-left: 20px; padding-right: 20px;
+  }
+  .onglet {
+    padding: 10px 16px; font-size: 12.5px; font-weight: 700; color: var(--ink-muted);
+    border-bottom: 2.5px solid transparent; cursor: pointer; white-space: nowrap; font-family: inherit;
+  }
+  .onglet.actif { color: var(--accent); border-bottom-color: var(--accent); }
+  .onglet.secondaire { color: var(--ink-faint); font-weight: 600; }
+  .onglets-legende-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 0; flex-wrap: wrap; }
+
+  .annot {
+    font-size: 11.5px; color: var(--accent); font-family: 'IBM Plex Mono', monospace; margin-top: 10px;
+    background: var(--accent-soft); border-radius: 8px; padding: 8px 12px; display: inline-block;
+  }
+
+  /* --- version mobile (~375px, largeur iPhone SE/mini courante) ---
+     Mêmes classes/composants que ci-dessus, juste contraints dans un cadre
+     de 375px : le reflow (flex-wrap) qu'on voit ici est le VRAI comportement
+     CSS à cette largeur, pas une image statique. */
+  .frames-mobile { display: flex; flex-wrap: wrap; gap: 22px; align-items: flex-start; }
+  .frame-phone {
+    width: 375px; flex-shrink: 0; border: 1px solid var(--border); border-radius: 20px;
+    background: var(--surface); padding: 14px 12px 12px; box-shadow: 0 2px 10px var(--shadow);
+  }
+  .frame-phone .frame-label {
+    font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em;
+    color: var(--ink-faint); margin-bottom: 12px;
+  }
+  .frame-phone .legende .item { font-size: 11px; }
+  .frame-phone .onglets { margin: 0 -12px; padding-left: 12px; padding-right: 12px; }
+  .grille-entete-scroll { overflow-x: auto; margin: 14px -12px 0; padding-bottom: 2px; }
+  .grille-entete-scroll .grille-entete { min-width: 560px; padding: 0 12px; }
+</style>
+</head>
+<body>
+
+  <div class="page-titre">
+    <h1>Mockup — réorganisation de l'en-tête Planning</h1>
+    <p>Deux pistes pour ton retour « descendre le bouton menu d'un étage, décaler chantier + boutons à droite »
+    et l'idée d'onglets en haut à la place du menu. Rien n'est codé — c'est pour choisir la direction avant
+    d'y toucher.</p>
+    <p class="rappel">Grille et cases simplifiées (juste l'en-tête des colonnes) pour se concentrer sur la zone concernée.</p>
+  </div>
+
+  <div class="bloc etat-actuel">
+    <div class="bloc-label"><span class="tag">Rappel</span><h2>État actuel</h2></div>
+    <div class="bloc-note">Le bouton seul sur sa propre ligne, la légende chantier en dessous, puis la barre semaine/boutons.</div>
+    <div class="cadre">
+      <div style="padding-bottom:14px;"><button class="btn-menu-toggle">☰</button></div>
+      <div class="legende" style="padding-bottom:14px;">
+        <span class="item chantier actif"><span class="swatch" style="background:var(--filisetti)"></span>Filisetti</span>
+        <span class="item chantier"><span class="swatch" style="background:var(--villa-rossi)"></span>Villa Rossi</span>
+        <span class="item"><span class="swatch" style="background:var(--absence-bg)"></span>Absence</span>
+        <span class="item"><span class="swatch" style="background:var(--jalon-bg)"></span>Jalon</span>
+        <span class="item"><span class="swatch" style="background:var(--note-bg)"></span>Note</span>
+      </div>
+      <div class="ligne-toolbar" style="justify-content:flex-start;">
+        <div class="barre-undo"><button>↶</button><button>↷</button></div>
+        <div class="semaine-titre">
+          <button class="fleche-semaine">‹</button>
+          <button class="lien-aller">Semaine 37<span class="semaine-dates"> · 07 sept – 11 sept</span></button>
+          <button class="fleche-semaine">›</button>
+          <button class="btn-titre">Aujourd’hui</button>
+          <button class="btn-titre">2 semaines</button>
+          <button class="btn-titre">🖶 Imprimer</button>
+        </div>
+      </div>
+      <div class="grille-entete">
+        <div></div>
+        <div>LUN<span class="j">07</span></div>
+        <div>MAR<span class="j">08</span></div>
+        <div>MER<span class="j">09</span></div>
+        <div>JEU<span class="j">10</span></div>
+        <div>VEN<span class="j">11</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bloc">
+    <div class="bloc-label"><span class="num">1</span><h2>Option 1 — bouton descendu d'un étage, chantier + boutons décalés à droite</h2></div>
+    <div class="bloc-note">Le bouton rejoint la ligne de la légende (à sa gauche, elle se décale donc à droite).
+    Sur la ligne du dessous, la navigation semaine reste à gauche et les 3 boutons d'action (Aujourd'hui /
+    2 semaines / Imprimer) partent à droite — au lieu d'être collés à la date. Gain en prime : une ligne de
+    hauteur en moins avant la grille.</div>
+    <div class="cadre">
+      <div class="ligne-fusionnee">
+        <button class="btn-menu-toggle">☰</button>
+        <div class="legende">
+          <span class="item chantier actif"><span class="swatch" style="background:var(--filisetti)"></span>Filisetti</span>
+          <span class="item chantier"><span class="swatch" style="background:var(--villa-rossi)"></span>Villa Rossi</span>
+          <span class="item"><span class="swatch" style="background:var(--absence-bg)"></span>Absence</span>
+          <span class="item"><span class="swatch" style="background:var(--jalon-bg)"></span>Jalon</span>
+          <span class="item"><span class="swatch" style="background:var(--note-bg)"></span>Note</span>
+        </div>
+      </div>
+      <div class="ligne-toolbar">
+        <div class="gauche">
+          <div class="barre-undo"><button>↶</button><button>↷</button></div>
+          <div class="semaine-titre">
+            <button class="fleche-semaine">‹</button>
+            <button class="lien-aller">Semaine 37<span class="semaine-dates"> · 07 sept – 11 sept</span></button>
+            <button class="fleche-semaine">›</button>
+          </div>
+        </div>
+        <div class="droite semaine-titre">
+          <button class="btn-titre">Aujourd’hui</button>
+          <button class="btn-titre">2 semaines</button>
+          <button class="btn-titre">🖶 Imprimer</button>
+        </div>
+      </div>
+      <div class="grille-entete">
+        <div></div>
+        <div>LUN<span class="j">07</span></div>
+        <div>MAR<span class="j">08</span></div>
+        <div>MER<span class="j">09</span></div>
+        <div>JEU<span class="j">10</span></div>
+        <div>VEN<span class="j">11</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bloc">
+    <div class="bloc-label"><span class="num">2</span><h2>Option 2 — des onglets en haut, à la place du bouton menu</h2></div>
+    <div class="bloc-note">Plus de bouton ☰ ni de menu qui s'ouvre par-dessus : les 9 pages deviennent des
+    onglets toujours visibles en haut, sur toutes les pages (pas seulement Planning). C'est un changement
+    plus structurel que l'option 1 — à valider si tu préfères que la navigation soit toujours visible plutôt
+    que masquée derrière un clic. Les pages de réglages (grisées) pourraient aussi être regroupées sous un
+    seul onglet « Réglages » si la ligne devient trop chargée — à voir selon ton retour.</div>
+    <div class="cadre" style="padding-left:0; padding-right:0;">
+      <div class="onglets">
+        <div class="onglet actif">Planning</div>
+        <div class="onglet">Jalons</div>
+        <div class="onglet">Personnel</div>
+        <div class="onglet">Intervenants</div>
+        <div class="onglet secondaire">Général</div>
+        <div class="onglet secondaire">Chantiers</div>
+        <div class="onglet secondaire">Statuts</div>
+        <div class="onglet secondaire">Fériés</div>
+        <div class="onglet secondaire">Entrée rapide</div>
+      </div>
+      <div style="padding:0 20px;">
+        <div class="onglets-legende-row">
+          <div class="legende">
+            <span class="item chantier actif"><span class="swatch" style="background:var(--filisetti)"></span>Filisetti</span>
+            <span class="item chantier"><span class="swatch" style="background:var(--villa-rossi)"></span>Villa Rossi</span>
+            <span class="item"><span class="swatch" style="background:var(--absence-bg)"></span>Absence</span>
+            <span class="item"><span class="swatch" style="background:var(--jalon-bg)"></span>Jalon</span>
+            <span class="item"><span class="swatch" style="background:var(--note-bg)"></span>Note</span>
+          </div>
+        </div>
+        <div class="ligne-toolbar">
+          <div class="gauche">
+            <div class="barre-undo"><button>↶</button><button>↷</button></div>
+            <div class="semaine-titre">
+              <button class="fleche-semaine">‹</button>
+              <button class="lien-aller">Semaine 37<span class="semaine-dates"> · 07 sept – 11 sept</span></button>
+              <button class="fleche-semaine">›</button>
+            </div>
+          </div>
+          <div class="droite semaine-titre">
+            <button class="btn-titre">Aujourd’hui</button>
+            <button class="btn-titre">2 semaines</button>
+            <button class="btn-titre">🖶 Imprimer</button>
+          </div>
+        </div>
+        <div class="grille-entete">
+          <div></div>
+          <div>LUN<span class="j">07</span></div>
+          <div>MAR<span class="j">08</span></div>
+          <div>MER<span class="j">09</span></div>
+          <div>JEU<span class="j">10</span></div>
+          <div>VEN<span class="j">11</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="annot">↳ avantage par rapport à l'option 1 : la navigation reste utilisable sans clic supplémentaire, sur toutes les pages, pas seulement Planning.</div>
+  </div>
+
+  <div class="bloc">
+    <div class="bloc-label"><span class="tag">Suite à ta question</span><h2>Version mobile (~375px de large)</h2></div>
+    <div class="bloc-note">Les 3 cadres ci-dessous font exactement 375px (largeur d'un téléphone courant, type
+    iPhone SE/mini) — c'est le vrai reflow CSS à cette largeur, pas un dessin. La grille défile
+    horizontalement au lieu de tasser les colonnes (comme dans l'app réelle en dessous d'une certaine
+    largeur) : essaie de la faire glisser dans le cadre.</div>
+    <div class="frames-mobile">
+
+      <div class="frame-phone">
+        <div class="frame-label">Rappel — état actuel</div>
+        <button class="btn-menu-toggle">☰</button>
+        <div class="legende" style="margin-top:12px;">
+          <span class="item chantier actif"><span class="swatch" style="background:var(--filisetti)"></span>Filisetti</span>
+          <span class="item chantier"><span class="swatch" style="background:var(--villa-rossi)"></span>Villa Rossi</span>
+          <span class="item"><span class="swatch" style="background:var(--absence-bg)"></span>Absence</span>
+          <span class="item"><span class="swatch" style="background:var(--jalon-bg)"></span>Jalon</span>
+          <span class="item"><span class="swatch" style="background:var(--note-bg)"></span>Note</span>
+        </div>
+        <div class="ligne-toolbar" style="justify-content:flex-start; margin-top:12px;">
+          <div class="barre-undo"><button>↶</button><button>↷</button></div>
+          <div class="semaine-titre">
+            <button class="fleche-semaine">‹</button>
+            <button class="lien-aller">Sem. 37<span class="semaine-dates"> · 07–11 sept</span></button>
+            <button class="fleche-semaine">›</button>
+          </div>
+        </div>
+        <div class="ligne-toolbar" style="justify-content:flex-start; margin-top:6px;">
+          <button class="btn-titre">Aujourd’hui</button>
+          <button class="btn-titre">2 sem.</button>
+          <button class="btn-titre">🖶</button>
+        </div>
+        <div class="grille-entete-scroll">
+          <div class="grille-entete">
+            <div></div>
+            <div>LUN<span class="j">07</span></div>
+            <div>MAR<span class="j">08</span></div>
+            <div>MER<span class="j">09</span></div>
+            <div>JEU<span class="j">10</span></div>
+            <div>VEN<span class="j">11</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="frame-phone">
+        <div class="frame-label">Option 1 — bouton + légende fusionnés</div>
+        <div class="ligne-fusionnee" style="padding-bottom:0;">
+          <button class="btn-menu-toggle">☰</button>
+          <div class="legende">
+            <span class="item chantier actif"><span class="swatch" style="background:var(--filisetti)"></span>Filisetti</span>
+            <span class="item chantier"><span class="swatch" style="background:var(--villa-rossi)"></span>Villa Rossi</span>
+            <span class="item"><span class="swatch" style="background:var(--absence-bg)"></span>Absence</span>
+            <span class="item"><span class="swatch" style="background:var(--jalon-bg)"></span>Jalon</span>
+            <span class="item"><span class="swatch" style="background:var(--note-bg)"></span>Note</span>
+          </div>
+        </div>
+        <div class="ligne-toolbar" style="justify-content:flex-start; margin-top:12px;">
+          <div class="barre-undo"><button>↶</button><button>↷</button></div>
+          <div class="semaine-titre">
+            <button class="fleche-semaine">‹</button>
+            <button class="lien-aller">Sem. 37<span class="semaine-dates"> · 07–11 sept</span></button>
+            <button class="fleche-semaine">›</button>
+          </div>
+        </div>
+        <div class="ligne-toolbar" style="justify-content:flex-start; margin-top:6px;">
+          <button class="btn-titre">Aujourd’hui</button>
+          <button class="btn-titre">2 sem.</button>
+          <button class="btn-titre">🖶</button>
+        </div>
+        <div class="grille-entete-scroll">
+          <div class="grille-entete">
+            <div></div>
+            <div>LUN<span class="j">07</span></div>
+            <div>MAR<span class="j">08</span></div>
+            <div>MER<span class="j">09</span></div>
+            <div>JEU<span class="j">10</span></div>
+            <div>VEN<span class="j">11</span></div>
+          </div>
+        </div>
+        <div class="annot" style="margin-top:12px; font-size:10.5px;">⚠ bouton + légende tiennent sur la même ligne uniquement si peu de chantiers ; sinon la légende repasse sous le bouton (flex-wrap).</div>
+      </div>
+
+      <div class="frame-phone">
+        <div class="frame-label">Option 2 — onglets (défilement latéral)</div>
+        <div class="onglets">
+          <div class="onglet actif">Planning</div>
+          <div class="onglet">Jalons</div>
+          <div class="onglet">Personnel</div>
+          <div class="onglet">Intervenants</div>
+          <div class="onglet secondaire">Général</div>
+          <div class="onglet secondaire">Chantiers</div>
+          <div class="onglet secondaire">Statuts</div>
+          <div class="onglet secondaire">Fériés</div>
+          <div class="onglet secondaire">Entrée rapide</div>
+        </div>
+        <div class="legende" style="margin-top:12px;">
+          <span class="item chantier actif"><span class="swatch" style="background:var(--filisetti)"></span>Filisetti</span>
+          <span class="item chantier"><span class="swatch" style="background:var(--villa-rossi)"></span>Villa Rossi</span>
+          <span class="item"><span class="swatch" style="background:var(--absence-bg)"></span>Absence</span>
+          <span class="item"><span class="swatch" style="background:var(--jalon-bg)"></span>Jalon</span>
+          <span class="item"><span class="swatch" style="background:var(--note-bg)"></span>Note</span>
+        </div>
+        <div class="ligne-toolbar" style="justify-content:flex-start; margin-top:12px;">
+          <div class="barre-undo"><button>↶</button><button>↷</button></div>
+          <div class="semaine-titre">
+            <button class="fleche-semaine">‹</button>
+            <button class="lien-aller">Sem. 37<span class="semaine-dates"> · 07–11 sept</span></button>
+            <button class="fleche-semaine">›</button>
+          </div>
+        </div>
+        <div class="ligne-toolbar" style="justify-content:flex-start; margin-top:6px;">
+          <button class="btn-titre">Aujourd’hui</button>
+          <button class="btn-titre">2 sem.</button>
+          <button class="btn-titre">🖶</button>
+        </div>
+        <div class="grille-entete-scroll">
+          <div class="grille-entete">
+            <div></div>
+            <div>LUN<span class="j">07</span></div>
+            <div>MAR<span class="j">08</span></div>
+            <div>MER<span class="j">09</span></div>
+            <div>JEU<span class="j">10</span></div>
+            <div>VEN<span class="j">11</span></div>
+          </div>
+        </div>
+        <div class="annot" style="margin-top:12px; font-size:10.5px;">↳ les onglets défilent au doigt (comme les tuiles d'app) au lieu de se tasser — les 5 grisés restent à 1 swipe.</div>
+      </div>
+
+    </div>
+  </div>
+
+</body>
+</html>

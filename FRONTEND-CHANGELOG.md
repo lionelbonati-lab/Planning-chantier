@@ -3488,3 +3488,234 @@ revérifié dans un vrai navigateur mobile ici), et que la coloration par chanti
 s'affichent bien comme attendu sur ses propres jalons existants (`chantier_id`/`important` valent tous deux
 `null`/`false` pour les jalons déjà en base au moment de la migration — ils s'afficheront dans leur teinte
 pastel habituelle jusqu'à ce qu'un chantier leur soit explicitement attribué depuis la nouvelle page).
+
+## 55. Round du 12.09.2026 — Planning : supprime l'espace vide inutile sur grand écran desktop
+
+Lionel : « on pourrait retravailler la page principale planning, il y a bcp de place vide autour de
+l'écran sur desktop. »
+
+### 55.1. Cause
+
+Deux plafonds CSS imbriqués bornaient la largeur utile de la page Planning bien en-deçà de la largeur
+d'un écran desktop courant :
+
+- `.wrap` (englobe l'en-tête, la légende et la grille — utilisé UNIQUEMENT par la page Planning) :
+  `max-width: 1180px`.
+- `.app-shell` (englobe la barre latérale + la zone de contenu, sur toutes les pages) :
+  `max-width: 1380px`.
+
+Comme la barre latérale est repliée par défaut sur la page Planning (`display:none`, cf. round
+précédent sur la coquille), c'est en pratique le plafond de `.wrap` à 1180px qui limitait le plus
+souvent la largeur réellement utilisée, quelle que soit la largeur de l'écran de Lionel.
+
+Ces deux plafonds n'ont jamais été nécessaires à la grille elle-même : ses colonnes sont déjà posées
+en `minmax(largeurMin px, 1fr)` (cf. `construireGrille`), donc elles s'étirent proportionnellement dès
+qu'on leur laisse de la place, sans jamais descendre sous leur largeur minimale (58px en mode compact,
+108px sinon). Le bug était donc purement dans les conteneurs englobants, pas dans la grille.
+
+### 55.2. Fix
+
+```css
+/* .wrap : plus de plafond propre à la page Planning — seule .aide (le texte d'aide, 60ch)
+   garde sa propre limite de lisibilité, indépendante de .wrap. */
+.wrap { max-width: none; }
+
+/* .app-shell : remonté de 1380px à 2200px — assez large pour qu'un écran courant (jusqu'à
+   un 1920x1080 ou un 1440p) utilise vraiment toute sa largeur, tout en gardant un garde-fou
+   raisonnable sur un très grand écran (4K, ultra-wide) pour ne pas étirer les colonnes de la
+   grille à l'infini. */
+.app-shell { max-width: 2200px; }
+```
+
+Les autres pages (Personnel, Chantiers, Statuts, etc.) ne sont pas affectées dans leur lisibilité :
+chacune garde sa propre limite de largeur dédiée sur sa liste/son formulaire
+(`.liste-intervenants`, `.reglage-ligne`, `.liste-formulaires`, `.panneau-nouveau-form`, `.aide`),
+indépendante de `.wrap`/`.app-shell`.
+
+Le choix de 2200px pour `.app-shell` est une estimation raisonnable plutôt qu'un chiffre demandé par
+Lionel — à ajuster si ça ne convient pas sur son écran réel.
+
+### 55.3. Vérifications
+
+Captures Playwright avant/après (viewport 1920x1080, sidebar repliée par défaut comme Lionel la voit
+réellement) : largeur de `.grille` passée de 1178px à 1824px — la grille remplit désormais la quasi
+totalité de la fenêtre au lieu de flotter dans une bande étroite avec un grand vide à droite.
+
+Pas de régression constatée sur :
+- Ultra-wide 2560x1080 : la grille s'élargit encore, sans casse visuelle.
+- Page Personnel à 1920x1080 (sidebar visible, non repliée par défaut sur cette page) : sa propre
+  liste garde sa largeur dédiée (~520px), le vide à sa droite est normal et attendu, pas un régression.
+- Mobile 375x700 : comportement responsive intact.
+
+`node test_enregistrer_plage.js` (41/41), `node test_grille_compacte.js` (64/64), `node
+test_chantier_defaut.js` (16/16) et `node test_chargement.js` (35/35) toujours au vert — changement
+CSS pur, aucune logique JS touchée par ce round.
+
+## 56. Round du 12.09.2026 — Planning : enlève le bandeau d'aide, agrandit encore la grille à gauche
+
+Lionel envoie une capture d'écran annotée à la main (croquis) avec 3 retours :
+
+1. Enlever l'encadré rouge (le titre « Planning à bulles » + son paragraphe d'aide).
+2. Agrandir le planning sur la gauche.
+3. Décaler légèrement le bouton menu, qui sort un peu de l'écran.
+
+### 56.1. Cause
+
+Le titre et le paragraphe d'aide (`<div class="titre">`, `.aide`) occupaient tout le haut de la page
+sans utilité au quotidien une fois l'outil pris en main — Lionel les avait entourés en rouge sur son
+croquis pour les désigner.
+
+Le retour 2 (agrandir à gauche) et le retour 3 (bouton qui déborde) avaient la même racine : le bouton
+☰ (`#btnMenuToggle`) vivait comme item flex de `.app-shell`, sibling direct de `.sidebar` (cf.
+`construireCoquille`). Même sidebar repliée (`display:none`, le cas par défaut sur la page Planning),
+ce bouton restait un item flex à part entière — `width:38px` + `margin-right:20px` — donc réservait
+~58px de large sur toute la hauteur de la page, juste pour un bouton qui n'a besoin que de son propre
+coin. Positionné en `position:sticky` au ras du bord gauche de `.app-shell`, il pouvait aussi déborder
+visuellement selon la largeur d'écran (retour 3).
+
+### 56.2. Fix
+
+Le titre/aide disparaît entièrement de `htmlPagePlanning()`. Le bouton ☰ est déplacé du niveau
+`.app-shell` vers le `<header>` de la page Planning elle-même :
+
+```js
+// avant : bouton déclaré comme sibling de .sidebar dans construireCoquille()
+'</nav>' +
+'<button type="button" class="btn-menu-toggle" id="btnMenuToggle" ...>☰</button>' +
+'<div class="app-main">' + ...
+
+// après : bouton déplacé dans le header de htmlPagePlanning()
+'<header>' +
+  '<button type="button" class="btn-menu-toggle" id="btnMenuToggle" ...>☰</button>' +
+'</header>' +
+```
+
+C'est possible sans rien casser car la sidebar ne se replie QUE sur la page Planning (cf.
+`cablerNavigation` : `sidebarEl.classList.toggle("repliee", btn.dataset.page === "planning")`) — le
+bouton n'est donc de toute façon utile que là. En CSS, `display:flex` n'est plus conditionné au
+sélecteur `.sidebar.repliee ~ .btn-menu-toggle` (devenu inutile, supprimé) : le bouton est visible par
+défaut, puisqu'il n'existe désormais que dans le HTML de cette page. `margin-right:20px` est retiré
+(plus nécessaire hors du flex de `.app-shell`). `position:sticky; top:18px` est conservé à l'identique
+— toujours relatif à `#app` (seul conteneur qui défile, cf. commentaire existant), donc le bouton reste
+bien accroché en haut pendant le défilement de la grille, exactement comme avant.
+
+Résultat : `.app-main` n'a plus rien à côté de lui dans `.app-shell` quand la sidebar est repliée — il
+utilise toute la largeur disponible. Le bouton reste dans le padding de `.page-scroll` (18px), jamais
+au ras du bord réel de la fenêtre.
+
+### 56.3. Vérifications
+
+Captures Playwright à 1920x1080 et 1366x768 : grille passée de 1824px (round précédent, §55) à 1882px
+à 1920px de large ; titre/aide confirmés absents du DOM (`document.querySelector('.titre')` /
+`.aide` → `null`) ; bouton confirmé entièrement dans le viewport à toutes les largeurs testées.
+
+Scénario d'interaction complet rejoué : clic sur le bouton → sidebar s'ouvre bien (`classList.contains
+("ouverte")`) ; navigation vers Personnel → sidebar redevient visible et non repliée (comportement
+inchangé pour les autres pages) ; retour sur Planning → bouton toujours présent, grille toujours à sa
+largeur élargie. Rendu mobile (375x700) revérifié, inchangé et correct.
+
+`node test_enregistrer_plage.js` (41/41), `node test_grille_compacte.js` (64/64), `node
+test_chantier_defaut.js` (16/16) et `node test_chargement.js` (35/35) toujours au vert — changement
+CSS/markup pur, aucune logique métier touchée par ce round.
+
+## 57. Round du 12.09.2026 — légende Planning : retire Jalon/Absence/Note, redondants
+
+Lionel : « on peut supprimer les légendes jalons, absence et note car redondant. »
+
+`construireLegende()` n'ajoute plus les 3 pastilles fixes Absence/Jalon/Note à la fin de la légende —
+seuls les chantiers restent (les seuls éléments réellement interactifs de cette légende : cliquer un
+chantier le choisit comme valeur par défaut des formulaires, cf. round du 03.09.2026). Absence/Jalon/
+Note étaient de simples rappels de couleur sans aucune interaction, déjà lisibles directement depuis la
+grille (lignes JALONS/NOTES dédiées, cases Absence dans la colonne de la personne concernée) — Lionel
+les a jugés redondants une fois l'outil pris en main.
+
+Vérifié : `document.querySelectorAll('.legende .item')` ne renvoie plus que les chantiers ("Filisetti",
+"Villa Rossi" sur les données de test). 140/140 assertions des suites de tests existantes toujours au
+vert (changement purement JS/DOM, aucune logique de calcul touchée).
+
+## 58. Round du 12.09.2026 — navigation : remplace la sidebar par des onglets en haut (mockup Option 2)
+
+Suite du round §56 (croquis sur l'en-tête Planning), Lionel avait aussi proposé une 2e idée : « créer des
+onglets dans le haut à la place du menu. » Un mockup dédié (`mockup-planning-header.html`, non livré dans
+l'app — juste un visuel de comparaison) a présenté 2 options côte à côte, y compris leur rendu mobile
+(~375px, vrai reflow CSS). Réponse de Lionel après review : « OK pour l'implémentation du dernier
+mockup » → confirmé par question de clarification : Option 2 (onglets).
+
+### 58.1. Avant / après
+
+Avant : sidebar de 200px (marque + 9 `.side-item`, groupés "Équipes"/"Configuration"), visible sur 8
+pages sur 9, mais masquée par défaut sur la page Planning (`class="repliee"`) derrière un bouton ☰ qui
+l'ouvrait en panneau flottant (`position:fixed`) par-dessus le contenu.
+
+Après : une seule barre d'onglets horizontale (`.onglets-nav` + `.onglet`), IDENTIQUE et toujours
+visible sur les 9 pages — plus de bouton ☰, plus de panneau qui s'ouvre par-dessus, plus de largeur
+réservée en permanence sur les pages autres que Planning (le vrai gain, au-delà de Planning : la
+sidebar de 200px disparaît par exemple aussi sur Personnel/Chantiers/Statuts, qui en profitent tout
+autant même si leur propre liste ne s'élargit pas — cf. capture Personnel). Les 5 pages de réglages
+(Général/Chantiers/Statuts/Fériés/Entrée rapide) restent de simples onglets, en retrait visuel
+(`.secondaire`, teinte plus pâle) plutôt que regroupées sous un sous-menu — tel que validé sur le
+mockup ; à revoir seulement si la ligne s'avère trop chargée à l'usage.
+
+### 58.2. Implémentation
+
+`construireCoquille()` : le `<nav class="sidebar repliee" id="sidebar">` (marque + `.side-item` +
+`.side-groupe`) devient `<nav class="onglets-nav" id="ongletsNav">` + 9 `<button class="onglet"
+data-page="...">`, les 5 secondaires portant en plus `class="onglet secondaire"`.
+
+`cablerNavigation()` très simplifiée — plus besoin de gérer un état ouvert/fermé du panneau ni un
+listener `pointerdown` pour le refermer au clic extérieur (le panneau flottant n'existe plus, la barre
+est statique) :
+
+```js
+function cablerNavigation() {
+  var ongletsBtns = document.querySelectorAll(".onglet");
+  var RENDU_PAR_PAGE = { /* inchangé */ };
+  ongletsBtns.forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      ongletsBtns.forEach(function (b) { b.classList.toggle("actif", b === btn); });
+      document.querySelectorAll(".page").forEach(function (p) { p.classList.remove("actif"); });
+      var page = document.getElementById("page-" + btn.dataset.page);
+      if (page) page.classList.add("actif");
+      var fn = RENDU_PAR_PAGE[btn.dataset.page];
+      if (fn) fn();
+    });
+  });
+}
+```
+
+`htmlPagePlanning()` : le `<header>` (qui, depuis le round §56, ne contenait plus que le bouton ☰)
+disparaît entièrement — `.legende` devient le tout premier élément de `.wrap`.
+
+CSS : `.app-shell` passe de `flex` en ligne (sidebar + contenu côte à côte) à `flex-direction: column`
+(onglets au-dessus, contenu en dessous, toujours dans le même cadre `max-width:2200px` posé au round
+§55). Tout le CSS de l'ancienne sidebar est supprimé (`.sidebar`, `.sidebar .marque`, `.side-item`,
+`.side-item.actif`, `.side-groupe`, `.sidebar.repliee`, `.sidebar.repliee.ouverte`, `.btn-menu-toggle`)
+plutôt que laissé mort dans le fichier. `.onglets-nav` a `overflow-x:auto` pour défiler au doigt sur un
+écran étroit plutôt que de tasser les 9 onglets (comportement déjà validé sur le mockup mobile).
+
+### 58.3. Bug trouvé et corrigé pendant ce round
+
+`#lienDeconnexion` ("Se déconnecter", cf. `.lien-deconnexion`) est en `position:fixed; top:10px;
+right:12px`, indépendant de tout ce qui se trouve en dessous. Avant ce round, rien ne s'en approchait
+sur un écran étroit (l'ancienne sidebar était à gauche ; le bouton ☰, quand il vivait dans le `<header>`
+de Planning au round §56, était lui aussi à gauche) — mais la nouvelle barre d'onglets étant pleine
+largeur, elle serait passée PILE sous ce bouton fixe sur un téléphone, quel que soit l'onglet qui s'y
+trouve selon le défilement horizontal (repéré en testant à 390px : "Intervenants" se retrouvait à moitié
+caché derrière "Se déconnecter"). Corrigé en amont de la livraison plutôt que découvert après coup par
+Lionel : `.app-shell` gagne un `padding-top: 44px` qui réserve la bande où vit ce bouton, sur tous les
+écrans — la barre d'onglets démarre maintenant toujours en dessous, quelle que soit la largeur.
+
+### 58.4. Vérifications
+
+Scénario Playwright complet : clic sur chacun des 9 onglets → page correspondante affichée
+(`.page.actif`), onglet cliqué marqué `.actif`, fonction de rendu associée bien appelée ; retour sur
+Planning → grille toujours à sa largeur élargie (1882px, round §56). Aucun chevauchement onglets/bouton
+déconnexion détecté par un test géométrique (intersection des `getBoundingClientRect()`) à 390px
+(téléphone), 768px (tablette) et 1920px (desktop). Onglet secondaire actif (testé sur "Chantiers")
+bien coloré en accent (`rgb(31, 77, 143)`, `--accent`) et pas resté grisé — la règle CSS dédiée
+`.onglet.secondaire.actif` l'emporte comme prévu sur `.onglet.secondaire` seul. Captures visuelles sur
+Planning et Personnel (desktop) et Planning (mobile 390px) — pas de régression visuelle repérée.
+
+`node test_enregistrer_plage.js` (41/41), `node test_grille_compacte.js` (64/64), `node
+test_chantier_defaut.js` (16/16) et `node test_chargement.js` (35/35) toujours au vert — changement de
+navigation pur (CSS + routage), aucune des fonctions testées n'y touche.
