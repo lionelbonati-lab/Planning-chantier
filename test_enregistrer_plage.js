@@ -102,16 +102,16 @@ assertEqual(sandbox.normaliserPlage('2026-09-07', '', null, null),
   const r = sandbox.planPlage(base, []);
   assertEqual(r.poses, 2, 'jalon remplacement sur 2 jours vides -> 2 jours posés');
   assertEqual(r.ops, [
-    { type: 'insert', table: 'jalons', date: '2026-09-07', texte: 'Séance chantier', demi: null },
-    { type: 'insert', table: 'jalons', date: '2026-09-08', texte: 'Séance chantier', demi: null },
-  ], 'jalon remplacement sur 2 jours vides -> 2 insertions, aucune mise à jour ni suppression');
+    { type: 'insert', table: 'jalons', date: '2026-09-07', texte: 'Séance chantier', demi: null, important: false, chantier_id: null },
+    { type: 'insert', table: 'jalons', date: '2026-09-08', texte: 'Séance chantier', demi: null, important: false, chantier_id: null },
+  ], 'jalon remplacement sur 2 jours vides -> 2 insertions, aucune mise à jour ni suppression (important/chantier_id ni fournis -> false/null par défaut)');
   assertEqual(r.remplaces, 0, 'rien n\'existait avant -> 0 remplacement compté');
 })();
 
 (function () {
   const existantes = [{ id: 1, date: '2026-09-07', texte: 'Ancien texte' }];
   const r = sandbox.planPlage({ kind: 'jalon', dateDebut: '2026-09-07', dateFin: '2026-09-07', texte: 'Nouveau texte', mode: 'remplacement' }, existantes);
-  assertEqual(r.ops, [{ type: 'update', table: 'jalons', id: 1, texte: 'Nouveau texte', demi: null }],
+  assertEqual(r.ops, [{ type: 'update', table: 'jalons', id: 1, texte: 'Nouveau texte', demi: null, important: false, chantier_id: null }],
     'jalon remplacement sur une case déjà occupée -> mise à jour de la ligne existante, pas une nouvelle insertion');
   assertEqual(r.remplaces, 1, 'un texte en remplace un autre -> comptabilisé comme un remplacement');
 })();
@@ -157,7 +157,7 @@ assertThrows(function () {
 (function () {
   const existantes = [{ id: 1, date: '2026-09-07', texte: 'Ligne existante' }];
   const r = sandbox.planPlage({ kind: 'jalon', dateDebut: '2026-09-07', dateFin: '2026-09-07', texte: 'Nouvelle ligne', mode: 'ajout' }, existantes);
-  assertEqual(r.ops, [{ type: 'update', table: 'jalons', id: 1, texte: 'Ligne existante\nNouvelle ligne', demi: null }],
+  assertEqual(r.ops, [{ type: 'update', table: 'jalons', id: 1, texte: 'Ligne existante\nNouvelle ligne', demi: null, important: false, chantier_id: null }],
     'mode ajout sur une case déjà remplie -> la ligne s\'ajoute en dessous, rien n\'est écrasé');
 })();
 
@@ -190,9 +190,9 @@ assertThrows(function () {
     mode: 'remplacement', demiDebut: 'matin', demiFin: 'aprem',
   }, []);
   assertEqual(r.ops, [
-    { type: 'insert', table: 'jalons', date: '2026-09-07', texte: 'Coulage dalle', demi: 'matin' },
-    { type: 'insert', table: 'jalons', date: '2026-09-08', texte: 'Coulage dalle', demi: null },
-    { type: 'insert', table: 'jalons', date: '2026-09-09', texte: 'Coulage dalle', demi: 'aprem' },
+    { type: 'insert', table: 'jalons', date: '2026-09-07', texte: 'Coulage dalle', demi: 'matin', important: false, chantier_id: null },
+    { type: 'insert', table: 'jalons', date: '2026-09-08', texte: 'Coulage dalle', demi: null, important: false, chantier_id: null },
+    { type: 'insert', table: 'jalons', date: '2026-09-09', texte: 'Coulage dalle', demi: 'aprem', important: false, chantier_id: null },
   ], 'jalon sur 3 jours avec demi de bord (matin le 1er jour, aprem le dernier, journée entière au milieu)');
 })();
 
@@ -205,7 +205,7 @@ assertThrows(function () {
     kind: 'jalon', dateDebut: '2026-09-07', dateFin: '2026-09-07', texte: 'Réunion chantier',
     mode: 'remplacement', demiDebut: 'matin', demiFin: 'matin',
   }, existantes);
-  assertEqual(r.ops, [{ type: 'update', table: 'jalons', id: 30, texte: 'Réunion chantier', demi: 'matin' }],
+  assertEqual(r.ops, [{ type: 'update', table: 'jalons', id: 30, texte: 'Réunion chantier', demi: 'matin', important: false, chantier_id: null }],
     'jalon : même texte mais demi-journée différente -> mise à jour (pas un no-op), la ligne reste unique');
 })();
 
@@ -228,8 +228,92 @@ assertThrows(function () {
     kind: 'jalon', dateDebut: '2026-09-07', dateFin: '2026-09-07', texte: 'Livraison béton',
     mode: 'ajout', demiDebut: 'matin', demiFin: 'matin',
   }, existantes);
-  assertEqual(r.ops, [{ type: 'update', table: 'jalons', id: 32, texte: 'Livraison béton', demi: 'matin' }],
+  assertEqual(r.ops, [{ type: 'update', table: 'jalons', id: 32, texte: 'Livraison béton', demi: 'matin', important: false, chantier_id: null }],
     'jalon, mode ajout : aucune ligne nouvelle mais demi changée -> mise à jour quand même');
+})();
+
+// =======================================================================
+// 4ter) planPlage — chantier_id/important d'un jalon (round du 12.09.2026,
+//    page « Jalons », sql/0007_jalons_chantier.sql). Règle : absent des
+//    paramètres -> ce qui est déjà en base est reconduit tel quel (c'est ce
+//    que fait la grille, qui ne connaît ni l'un ni l'autre) ; présent
+//    (toujours envoyé par la nouvelle page Jalons) -> appliqué, y compris
+//    `chantierId: null` pour retirer explicitement un chantier déjà posé.
+// =======================================================================
+(function () {
+  const r = sandbox.planPlage({
+    kind: 'jalon', dateDebut: '2026-09-07', dateFin: '2026-09-07', texte: 'Fin gros œuvre',
+    mode: 'remplacement', important: true, chantierId: 4,
+  }, []);
+  assertEqual(r.ops, [{ type: 'insert', table: 'jalons', date: '2026-09-07', texte: 'Fin gros œuvre', demi: null, important: true, chantier_id: 4 }],
+    'nouveau jalon avec chantier + important fournis (page Jalons) -> les 2 sont écrits sur l\'insertion');
+})();
+
+(function () {
+  // Simule un appel de la GRILLE (synchroniser()) : ni chantierId ni
+  // important dans les paramètres, alors qu'un chantier et un "important"
+  // sont déjà posés en base (via la page Jalons) -> reconduits tels quels,
+  // jamais effacés par une simple modif de texte faite depuis la grille.
+  const existantes = [{ id: 40, date: '2026-09-07', texte: 'Ancien texte', demi: null, important: true, chantier_id: 4 }];
+  const r = sandbox.planPlage({ kind: 'jalon', dateDebut: '2026-09-07', dateFin: '2026-09-07', texte: 'Nouveau texte', mode: 'remplacement' }, existantes);
+  assertEqual(r.ops, [{ type: 'update', table: 'jalons', id: 40, texte: 'Nouveau texte', demi: null, important: true, chantier_id: 4 }],
+    'appel sans chantierId/important (grille) sur une ligne qui en avait déjà -> reconduits tels quels, pas écrasés à false/null');
+})();
+
+(function () {
+  // Chantier explicitement retiré (chantierId: null fourni, pas absent) ->
+  // distinct de "champ absent" ci-dessus : la valeur demandée s'applique.
+  const existantes = [{ id: 41, date: '2026-09-07', texte: 'Livraison agglos', demi: null, important: false, chantier_id: 4 }];
+  const r = sandbox.planPlage({
+    kind: 'jalon', dateDebut: '2026-09-07', dateFin: '2026-09-07', texte: 'Livraison agglos',
+    mode: 'remplacement', important: false, chantierId: null,
+  }, existantes);
+  assertEqual(r.ops, [{ type: 'update', table: 'jalons', id: 41, texte: 'Livraison agglos', demi: null, important: false, chantier_id: null }],
+    'chantierId: null fourni explicitement (retrait volontaire) -> bien appliqué, ce n\'est pas un no-op');
+})();
+
+(function () {
+  // Même texte, même demi, mais chantier changé : ce n'est PAS un no-op.
+  const existantes = [{ id: 42, date: '2026-09-07', texte: 'Coulage dalle', demi: null, important: false, chantier_id: 4 }];
+  const r = sandbox.planPlage({
+    kind: 'jalon', dateDebut: '2026-09-07', dateFin: '2026-09-07', texte: 'Coulage dalle',
+    mode: 'remplacement', important: false, chantierId: 7,
+  }, existantes);
+  assertEqual(r.ops, [{ type: 'update', table: 'jalons', id: 42, texte: 'Coulage dalle', demi: null, important: false, chantier_id: 7 }],
+    'texte et demi identiques mais chantier différent -> mise à jour (pas un no-op)');
+})();
+
+(function () {
+  // Texte, demi, important ET chantier tous identiques -> vraiment rien à faire.
+  const existantes = [{ id: 43, date: '2026-09-07', texte: 'Coulage dalle', demi: null, important: true, chantier_id: 7 }];
+  const r = sandbox.planPlage({
+    kind: 'jalon', dateDebut: '2026-09-07', dateFin: '2026-09-07', texte: 'Coulage dalle',
+    mode: 'remplacement', important: true, chantierId: 7,
+  }, existantes);
+  assertEqual(r.ops, [], 'jalon reposé à l\'identique (texte + important + chantier) -> aucune opération');
+})();
+
+(function () {
+  // Jalon raccourci (page Jalons, "Fin" ramenée plus tôt) : le jour sorti de
+  // la plage n'est libéré que si texte/demi/important/chantier n'ont pas
+  // changé depuis l'ouverture de la fiche (même garde que pour les notes).
+  const memeChantier = [{ id: 50, date: '2026-09-09', texte: 'Fin gros œuvre', demi: null, important: false, chantier_id: 4 }];
+  const r1 = sandbox.planPlage({
+    kind: 'jalon', dateDebut: '2026-09-07', dateFin: '2026-09-07', texte: 'Fin gros œuvre',
+    mode: 'remplacement', important: false, chantierId: 4,
+    origine: { dateDebut: '2026-09-07', dateFin: '2026-09-09', texte: 'Fin gros œuvre', important: false, chantierId: 4 },
+  }, memeChantier);
+  assertEqual(r1.ops.some(o => o.type === 'delete' && o.id === 50), true,
+    'jalon raccourci, chantier inchangé depuis -> le jour sorti de la plage est libéré');
+
+  const chantierChangeDepuis = [{ id: 51, date: '2026-09-09', texte: 'Fin gros œuvre', demi: null, important: false, chantier_id: 9 }];
+  const r2 = sandbox.planPlage({
+    kind: 'jalon', dateDebut: '2026-09-07', dateFin: '2026-09-07', texte: 'Fin gros œuvre',
+    mode: 'remplacement', important: false, chantierId: 4,
+    origine: { dateDebut: '2026-09-07', dateFin: '2026-09-09', texte: 'Fin gros œuvre', important: false, chantierId: 4 },
+  }, chantierChangeDepuis);
+  assertEqual(r2.ops.some(o => o.id === 51), false,
+    'même raccourci, mais le chantier du jour sorti a été changé depuis (ailleurs) -> jamais touché');
 })();
 
 // =======================================================================

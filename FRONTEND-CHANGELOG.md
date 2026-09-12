@@ -3333,3 +3333,158 @@ Suite existante rejouée sans régression : `repro_case_par_case.js`, `repro_jal
 `repro_vacances.js`, `test_demi_unseuljour.js`, `test_deplacement_note_demi.js`. `repro_jalon.js`/
 `repro_task2.js`/`repro_task2_before.js` restent des scripts obsolètes d'avant la refonte du descriptif
 (round du 11-12.09.2026, sélecteur `.f-texte` disparu) — sans rapport avec ce round, non corrigés ici.
+
+
+## 54. Round du 12.09.2026 — nouvelle page « Jalons » (mockup validé) + chantier sélecteur réduit à la taille du texte
+
+Demande de Lionel, en 2 parties dans le même message :
+
+> « Mon idée des jalons est ainsi: un page dans le menu, même mise en page et bouton que le personnel. sous
+> modifier on peut saisir le nom, attribuer un chantier (pour la couleur du jalon), date de début et date
+> de fin (même principe que les formulaire, avec clic et flèches, mais sans A/P). Penser à la version
+> mobile. travail sur un visuel avant de coder.
+>
+> Une modification sur tous les formulaire, le chantier est cliquable pour le changer, mais la case est
+> trop grande, réduit la à la taille du texte. La flèche type menu déroulant me dérange, supprime la.
+> Souligne discrètement le nom du chantier type lien hypertexte à cliquer. »
+
+### 54.1. Sélecteur de chantier (`.chantier-tag`) réduit à la taille du texte
+
+Corrigé en premier, avant le travail sur la maquette — c'est un correctif isolé, sans dépendance avec la
+page Jalons. `.chantier-tag` est un `<select>` natif stylé pour ressembler à du texte cliquable dans un
+bandeau coloré (ex. le nom du chantier dans l'en-tête d'une fiche tâche) : la case occupait toute la
+largeur du bandeau au lieu de s'ajuster à son texte.
+
+**Cause** : `display:block` (au lieu de `inline-block`) + une règle générique `.form-pop select { width:
+100%; ... }` qui continuait à s'appliquer malgré une règle plus spécifique `.carte-item .bandeau
+.chantier-tag`, celle-ci ne redéclarant jamais `width` — la cascade CSS s'applique propriété par propriété,
+pas règle par règle : une règle plus spécifique qui ne fixe pas une propriété donnée laisse une règle moins
+spécifique la fixer quand même. Ajouté aussi : un chevron de menu déroulant en `background-image` (retiré,
+« la flèche me dérange »), pas de soulignement (ajouté, « type lien hypertexte »).
+
+**Correctif** : `display:inline-block; width:auto`, suppression complète du chevron (règle de base ET son
+override `.bandeau.clair .chantier-tag`), `padding-right:16px` → `padding:0`, ajout de `text-decoration:
+underline; text-decoration-color:currentColor; text-underline-offset:3px`. Vérifié par Playwright : largeur
+mesurée passée de 262px (bug, ≈ pleine largeur du bandeau) à 54px (juste le texte), puis 72px après ajout
+d'un 2e chantier au jeu de test (comportement natif attendu — un `<select>` se dimensionne sur son OPTION
+la plus large, pas seulement le texte sélectionné).
+
+### 54.2. Maquette visuelle (avant tout code) — `mockup-page-jalons.html`
+
+Conformément à « travail sur un visuel avant de coder » : maquette HTML statique (CSS/composants copiés
+d'`Index.html` pour la fidélité visuelle) montrant 4 états — liste desktop (avec l'entrée « Jalons » dans
+le menu latéral), formulaire « Modifier » desktop, liste mobile, formulaire plein écran mobile — avec des
+exemples de jalons délibérément étalés sur plusieurs mois (« Fin gros œuvre », 21 sept. → 20 nov.) pour
+illustrer le point central de la demande : une durée non limitée par la fenêtre de semaines affichée dans
+le planning. Envoyée à Lionel avec 2 questions de calibrage (garder le bouton « Important » ? garder le
+chantier cliquable dans le bandeau, comme sur les autres fiches ?). Réponse : **« c'est ok pour moi »** —
+maquette approuvée telle quelle, les 2 options implicitement conservées.
+
+### 54.3. Pourquoi une page dédiée, indépendante des semaines affichées
+
+Toute la mécanique existante du planning (`gi`, `giDepuisIso`, `isoDeGi`) est **bornée à la fenêtre de
+semaines actuellement chargée** — un jalon posé depuis la grille ne peut donc jamais dépasser cette
+fenêtre. La nouvelle page Jalons contourne entièrement ce système : elle travaille uniquement en dates ISO
+brutes (`state.debutIso`/`state.finIso`), sans jamais passer par `gi`, ce qui permet une durée réellement
+illimitée. Elle réutilise `enregistrer-plage`/`planPlage` (déjà capable d'écrire une plage arbitraire sans
+limite de taille, déjà exploité pour les notes) — aucune nouvelle fonction serveur n'a été nécessaire pour
+la plomberie de plage elle-même.
+
+Un jalon reste, comme avant, **UNE LIGNE PAR JOUR OUVRÉ** en base (`jalons(id, date, texte, important,
+chantier_id, demi)`) — un « jalon multi-jours » est une fusion PUREMENT CLIENT de jours contigus au même
+contenu (`fusionnerJalonsTous`, même principe que la fusion déjà faite par la grille elle-même,
+`construireVueDepuisCache`/`jalonAuGi`).
+
+### 54.4. Ce qu'il a fallu ajouter côté données pour honorer la maquette
+
+Deux champs de la maquette n'avaient jamais été fonctionnels pour un jalon avant ce round :
+
+- **Chantier (couleur du jalon)** — `jalons` n'avait AUCUNE colonne chantier (contrairement à
+  taches/assignations) : un jalon posé depuis la grille a toujours sa teinte pastel fixe (`--jalon-bg`),
+  jamais la couleur d'un chantier. Migration `sql/0007_jalons_chantier.sql` (`chantier_id bigint
+  references chantiers(id)`, nullable), appliquée directement sur le projet Supabase via le connecteur MCP
+  (même méthode que 0003/0005/0006) — table vide au moment de la migration, aucune donnée à transformer.
+  **Un jalon posé depuis la grille garde sa teinte pastel habituelle** (`chantier_id` reste `null`) : la
+  coloration par chantier est une fonctionnalité de la page Jalons uniquement, pas étendue à la grille.
+- **« Important »** — le bouton existait déjà dans le bandeau du formulaire de jalon (repris de la
+  maquette), mais `synchroniser()` envoyait `important: false` codé en dur pour tout jalon synchronisé
+  depuis la grille, et `planPlage` (branche jalon) n'écrivait jamais ce champ. Le drapeau était donc
+  décoratif. Corrigé — cf. BACKEND-CHANGELOG.md pour le détail du correctif serveur.
+
+**Protection contre une régression silencieuse** : la grille continue de resynchroniser le TEXTE d'un
+jalon à chaque frappe (`synchroniser()`), sans jamais connaître son chantier ni son statut « important ».
+Écrire ces 2 champs sur CHAQUE synchronisation (même sans valeur à envoyer) aurait effacé silencieusement
+un chantier/important posé depuis la nouvelle page, à la prochaine correction de texte faite depuis la
+grille. Le hardcodage `important: false` de `synchroniser()` a donc été retiré (la clé est maintenant
+omise plutôt que forcée à `false`) et le serveur applique la règle « champ absent = préserver la valeur
+existante, champ présent (y compris `null`) = appliquer » — cf. BACKEND-CHANGELOG.md pour le détail
+complet et les tests dédiés à cette non-régression.
+
+### 54.5. Implémentation (`Index.html`)
+
+- **Menu** : entrée « Jalons » ajoutée dans la sidebar, juste après « Planning ».
+- **`htmlPageJalons()`** : coquille de page identique au modèle Personnel (`.page-titre`, `.page-sous`
+  explicatif, `.liste-intervenants#listeJalons`), câblée dans `RENDU_PAR_PAGE` (`renderJalons`).
+- **`JALONS_TOUS`** (cache mémoire, `null` = pas encore chargé) + `chargerJalonsTousServeur()`
+  (`select id,date,texte,important,chantier_id,demi from jalons order by date`) +
+  **`fusionnerJalonsTous(lignes)`** : fusionne les jours contigus (même texte, même important, même
+  chantier_id, jours ouvrés consécutifs via `isoJourOuvreVoisin`) en items `{idDebut, idFin, dateDebut,
+  dateFin, texte, important, chantierId}` — l'algorithme de fusion CLIENT, symétrique à celui déjà utilisé
+  par la grille, mais sur des dates ISO plutôt que des `gi`.
+- **`ligneFicheJalon(j)`** : pastille de la couleur du chantier (ou la teinte pastel par défaut si aucun
+  chantier), nom en gras, icône drapeau si important, plage de dates (fonctions `libelleDateIso`/
+  `libelleDateIsoCourte`/`libellePlageJalon` — année affichée seulement si elle diffère de l'année en
+  cours ou entre début et fin), boutons Modifier/Supprimer.
+- **`ouvrirFormulaireJalon(itemExisting)`** : même bandeau/pied de formulaire que les autres fiches
+  (`bandeauHTML`/`piedPrincipalHTML`, réutilisés tels quels), champ chantier via `champChantierJalonHTML`
+  (un `<select class="chantier-tag">`, exactement le composant corrigé au §54.1), plage de dates via
+  `datesPlageJalonHTML`/`cablerDatesJalon` — même principe clic+flèches que les autres formulaires
+  (réutilise `isoJourOuvreVoisin` pour les flèches, un `<input type="date">` natif pour le clic sur la
+  date), **sans** le bloc A/P (« sans A/P » de la demande — les jalons n'ont jamais eu de demi-journée
+  depuis le retrait explicite du round du 02.09.2026, non remis en cause ici), champ Nom en texte simple.
+  `appliquerDateChoisieJalon` reprend le principe déjà en place ailleurs dans le fichier (bord édité =
+  valeur exacte choisie ; l'AUTRE bord ne se déplace que si le garder rendrait Début>Fin), porté en version
+  ISO pure (pas de fenêtre `gi` à respecter, contrairement aux formulaires de la grille).
+- **Suppression** (`supprimerJalonServeur`) : `enregistrer-plage` en mode `remplacement` avec `texte: ""`
+  sur la plage complète — vide chaque jour de la plage, sans notion de portée de série (les jalons de cette
+  page n'ont jamais de `serieId`).
+- **2 bugs trouvés et corrigés par les tests E2E avant livraison** (cf. §54.6) :
+  1. Une nouvelle fiche par défaut sur « aujourd'hui » (`isoDeDate(new Date())`) sans jamais vérifier que
+     ce jour est ouvré — ouvrir « + Ajouter » un samedi ou un dimanche proposait donc une date de départ
+     tombant un week-end. Nouvelle fonction **`premierJourOuvreDepuis(iso)`** (à côté de
+     `isoJourOuvreVoisin`) : avance au premier jour ouvré suivant si `iso` tombe un samedi/dimanche, sinon
+     le renvoie tel quel — utilisée pour la date par défaut d'une nouvelle fiche.
+  2. `ligneFicheJalon` utilisait la classe CSS `.compte` à la fois pour l'icône « important » et pour le
+     texte de la plage de dates — ambiguïté de sélecteur (`querySelector('.compte')` retombe toujours sur
+     le premier des deux). La plage de dates reçoit sa propre classe, **`.plage-jalon`** (même rendu visuel
+     que `.compte` — couleur atténuée, petite taille — simple séparation de nommage).
+
+### 54.6. Vérifications effectuées
+
+Nouveau harnais de test Playwright + mock Supabase (`repro_page_jalons.js`, dans le scratchpad de session —
+pas encore une convention de fichier commitée dans ce dépôt, comme les autres repros `.js` cités dans les
+rounds précédents) couvrant le flux complet : navigation depuis le menu (après avoir dû corriger le test
+lui-même — la sidebar démarre repliée sur la page Planning par défaut, `#btnMenuToggle` à cliquer d'abord),
+ajout d'un jalon de plusieurs MOIS (07.09 → 20.11, bien au-delà de toute fenêtre de semaines) avec chantier
++ important (vérifié directement dans l'état serveur simulé : 50 lignes, toutes `chantier_id`/`important`
+corrects), modification (changement de chantier + réduction de la plage — vérifié que les jours sortis de
+la plage sont bien nettoyés côté serveur, 35 lignes restantes, toutes migrées vers le nouveau chantier), et
+suppression (0 ligne restante, liste vide). `node test_enregistrer_plage.js` : 41/41. Suite complète de
+regression (`repro_suppr_bouton_recharger.js`, `repro_fleches_dates_asymetrique.js`,
+`repro_planning_ne_suit_pas.js`, `repro_tache_2_semaines.js`, `repro_chantier_tag.js`, et l'ensemble des 30
+scripts `repro_*.js` présents dans le scratchpad de session) rejouée après ce round — aucune régression
+imputable à ce changement (quelques scripts anciens échouent pour des raisons manifestement sans rapport,
+vérifié en confrontant chaque échec au diff réel de ce round : sélecteurs `.f-texte`/`oublierCache`
+toujours présents dans `Index.html`, donc pas un renommage de ce round, et 2 scripts référencent carrément
+un fichier `Index_before.html` qui n'existe plus — reliquat d'un ancien round de comparaison avant/après,
+sans rapport avec les jalons).
+
+Pas de vérification en conditions Supabase réelles au-delà de la migration elle-même (appliquée et
+vérifiée en lisant `information_schema.columns` après coup) — comme pour tout le reste de la migration
+Supabase (limite réseau de cet environnement, déjà notée aux rounds précédents). **À confirmer par Lionel** :
+le rendu mobile de la nouvelle page (la maquette l'a montré, l'implémentation réelle reprend les mêmes
+classes CSS responsive déjà en place pour tous les `.form-pop` depuis le round du 03.09.2026 §31, mais pas
+revérifié dans un vrai navigateur mobile ici), et que la coloration par chantier + le drapeau important
+s'affichent bien comme attendu sur ses propres jalons existants (`chantier_id`/`important` valent tous deux
+`null`/`false` pour les jalons déjà en base au moment de la migration — ils s'afficheront dans leur teinte
+pastel habituelle jusqu'à ce qu'un chantier leur soit explicitement attribué depuis la nouvelle page).

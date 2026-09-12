@@ -106,12 +106,30 @@ function planPlage(params, existantes) {
   var ajout = params.mode === "ajout";
   if (ajout && texteTrim === "") throw new Error("Écris un texte.");
 
+  // chantier_id/important d'un JALON (round du 12.09.2026 — page « Jalons »,
+  // sql/0007_jalons_chantier.sql) : contrairement à une note, où l'appelant
+  // (le formulaire de la fiche) envoie TOUJOURS une vraie valeur pour
+  // `important`, le moteur de synchro de la grille (synchroniser(), cf.
+  // Index.html) diffuse un jalon CASE PAR CASE sans jamais connaître ni son
+  // chantier ni (avant ce round) une vraie valeur d'`important` — il
+  // n'envoie donc PAS ces 2 champs du tout. D'où la règle : absent des
+  // paramètres => on garde tel quel ce qui existait déjà sur la ligne
+  // (jamais écrasé silencieusement par la grille) ; présent (la nouvelle
+  // page Jalons envoie toujours les 2) => on applique la valeur demandée,
+  // identique sur tous les jours de la plage. hasOwnProperty (pas juste
+  // "!= null") car `chantierId: null` doit pouvoir signifier "retirer le
+  // chantier", une valeur volontaire à distinguer de "champ absent".
+  var jalonImportantFourni = !estNote && Object.prototype.hasOwnProperty.call(params, "important");
+  var jalonChantierIdFourni = !estNote && Object.prototype.hasOwnProperty.call(params, "chantierId");
+  var jalonChantierIdVoulu = jalonChantierIdFourni ? (params.chantierId || null) : null;
+
   var origine = params.origine || null;
   var oNorm = origine ? normaliserPlage(origine.dateDebut, origine.dateFin, origine.demiDebut, origine.demiFin) : null;
   var o1 = oNorm ? oNorm.d1 : null;
   var o2 = oNorm ? oNorm.d2 : null;
   var oTexteBrut = origine ? String(origine.texte == null ? "" : origine.texte).trim() : "";
   var oImportant = origine ? !!origine.important : false;
+  var oChantierId = origine && origine.chantierId != null ? origine.chantierId : null;
 
   var joursNouveaux = joursOuvresDeLaPlage(d1, d2);
   if (joursNouveaux.length === 0) throw new Error("Aucun jour ouvré de cette plage n'existe dans le planning.");
@@ -186,10 +204,17 @@ function planPlage(params, existantes) {
       var existante = lignesExistantesDuJour(iso)[0] || null;
       var ancien = existante ? String(existante.texte || "") : "";
       var ancienDemi = existante ? (existante.demi || null) : null;
+      // chantier_id/important : valeur demandée si fournie par l'appelant,
+      // sinon celle déjà en base est reconduite telle quelle (cf. commentaire
+      // de tête de fonction) — jamais effacée par un appel qui n'en parle pas.
+      var ancienImportant = existante ? !!existante.important : false;
+      var ancienChantierId = existante ? (existante.chantier_id || null) : null;
+      var importantIci = jalonImportantFourni ? important : ancienImportant;
+      var chantierIdIci = jalonChantierIdFourni ? jalonChantierIdVoulu : ancienChantierId;
 
       if (ajout) {
         if (ancien === "") {
-          ops.push({ type: "insert", table: "jalons", date: iso, texte: contenu, demi: demiIci });
+          ops.push({ type: "insert", table: "jalons", date: iso, texte: contenu, demi: demiIci, important: importantIci, chantier_id: chantierIdIci });
           ajoutes++;
           return;
         }
@@ -198,38 +223,39 @@ function planPlage(params, existantes) {
         // La demi-journée de la ligne suit la valeur demandée par CET appel
         // (mode "ajout" n'a jamais eu de notion de fusion entre 2
         // demi-journées différentes sur une même ligne de texte concaténée) :
-        // si le texte ne change pas ET que la demi-journée non plus, rien à
-        // écrire.
-        if (aAjouter.length === 0 && demiIci === ancienDemi) return;
+        // si le texte ne change pas ET que la demi-journée/important/chantier
+        // non plus, rien à écrire.
+        if (aAjouter.length === 0 && demiIci === ancienDemi && importantIci === ancienImportant && chantierIdIci === ancienChantierId) return;
         var texteMaj = aAjouter.length > 0 ? (ancien + "\n" + aAjouter.join("\n")) : ancien;
-        ops.push({ type: "update", table: "jalons", id: existante.id, texte: texteMaj, demi: demiIci });
+        ops.push({ type: "update", table: "jalons", id: existante.id, texte: texteMaj, demi: demiIci, important: importantIci, chantier_id: chantierIdIci });
         ajoutes++;
         return;
       }
 
       // Remplacement.
-      if (ancien === contenu && ancienDemi === demiIci) return;
+      if (ancien === contenu && ancienDemi === demiIci && importantIci === ancienImportant && chantierIdIci === ancienChantierId) return;
       if (contenu === "") {
         if (existante) { ops.push({ type: "delete", table: "jalons", id: existante.id }); liberes++; }
         return;
       }
       if (ancien !== "") remplaces++;
-      if (existante) ops.push({ type: "update", table: "jalons", id: existante.id, texte: contenu, demi: demiIci });
-      else ops.push({ type: "insert", table: "jalons", date: iso, texte: contenu, demi: demiIci });
+      if (existante) ops.push({ type: "update", table: "jalons", id: existante.id, texte: contenu, demi: demiIci, important: importantIci, chantier_id: chantierIdIci });
+      else ops.push({ type: "insert", table: "jalons", date: iso, texte: contenu, demi: demiIci, important: importantIci, chantier_id: chantierIdIci });
     });
 
     // Jour sorti de la plage (présent dans l'origine, plus dans la
-    // nouvelle) : on ne retire que si le texte ET la demi-journée n'ont pas
-    // changé entre-temps (même garde étendue que les notes, cf. branche
-    // estNote ci-dessus) — exactement la garde de l'ancien code, complétée
-    // pour ne pas retirer une ligne qui a en fait déjà été réécrite avec une
-    // autre demi-journée depuis.
+    // nouvelle) : on ne retire que si texte, demi-journée, important ET
+    // chantier n'ont pas changé entre-temps (même garde étendue que les
+    // notes, cf. branche estNote ci-dessus) — exactement la garde de
+    // l'ancien code, complétée pour ne pas retirer une ligne qui a en fait
+    // déjà été réécrite avec une autre demi-journée/chantier depuis.
     if (o1 && oTexteBrut !== "") {
       joursOuvresDeLaPlage(o1, o2).forEach(function (iso) {
         if (iso >= d1 && iso <= d2) return; // encore dans la nouvelle plage
         var demiOrigineIci = demiPourJourDePlage(iso, o1, o2, oNorm.demi1, oNorm.demi2);
         var existante = lignesExistantesDuJour(iso)[0] || null;
-        if (existante && String(existante.texte || "") === oTexteBrut && (existante.demi || null) === (demiOrigineIci || null)) {
+        if (existante && String(existante.texte || "") === oTexteBrut && (existante.demi || null) === (demiOrigineIci || null) &&
+            !!existante.important === oImportant && (existante.chantier_id || null) === oChantierId) {
           ops.push({ type: "delete", table: "jalons", id: existante.id });
           liberes++;
         }

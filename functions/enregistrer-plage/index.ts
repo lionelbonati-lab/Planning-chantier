@@ -72,7 +72,13 @@ Deno.serve(async (req: Request) => {
     // jalon porte désormais lui aussi sa propre demi-journée par bord,
     // exactement comme une note — planPlage() en a besoin pour décider si
     // une ligne existante correspond déjà à ce qui est demandé.
-    const colonnes = params.kind === "jalon" ? "id, date, texte, demi" : "id, date, texte, important, demi";
+    // "important, chantier_id" (round du 12.09.2026 — page « Jalons »,
+    // sql/0007_jalons_chantier.sql) : planPlage() doit connaître la valeur
+    // déjà en base pour décider s'il faut la reconduire telle quelle (appel
+    // de la grille, qui n'envoie ni l'un ni l'autre) ou la remplacer (appel
+    // de la nouvelle page Jalons, qui envoie toujours les deux) — cf. le
+    // commentaire de tête de planPlage dans logic.js.
+    const colonnes = params.kind === "jalon" ? "id, date, texte, demi, important, chantier_id" : "id, date, texte, important, demi";
 
     const { data: existantes, error: erreurLecture } = await supabase
       .from(table)

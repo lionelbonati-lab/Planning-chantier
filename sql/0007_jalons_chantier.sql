@@ -1,0 +1,24 @@
+-- ============================================================
+-- Planning Chantiers — ajoute le chantier sur un jalon
+-- Migration 0007 — 12.09.2026
+--
+-- Lionel, page « Jalons » (menu dédié, mockup validé sur
+-- mockup-page-jalons.html) : « attribuer un chantier (pour la couleur du
+-- jalon) ». La table jalons n'avait jusqu'ici AUCUNE colonne chantier —
+-- contrairement à taches/assignations, un jalon posé depuis la grille
+-- prenait toujours la même teinte pastel fixe (--jalon-bg), jamais la
+-- couleur d'un chantier. nullable : un jalon posé depuis la grille (qui ne
+-- propose pas ce champ) ou déjà existant en base garde chantier_id = null,
+-- et s'affiche alors dans sa teinte pastel habituelle, inchangée.
+--
+-- Appliquée directement sur le projet Supabase via le connecteur MCP au
+-- moment où la demande a été traitée (même méthode que 0003/0005/0006) —
+-- ce fichier documente juste ce qui a déjà été fait, pas besoin de le
+-- recoller dans l'éditeur SQL. Aucun GRANT supplémentaire nécessaire (la
+-- table jalons a déjà ses droits authenticated + sa policy RLS
+-- "connecte_tout" depuis 0002_rls.sql, un nouveau champ sur une table déjà
+-- autorisée n'en a pas besoin). Table vide au moment de cette migration
+-- (0 ligne) : aucune donnée à migrer.
+-- ============================================================
+
+alter table jalons add column if not exists chantier_id bigint references chantiers(id);

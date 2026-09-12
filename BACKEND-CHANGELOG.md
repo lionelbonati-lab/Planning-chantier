@@ -1578,3 +1578,89 @@ plutôt que 2 bords — pas fait ici, aucun usage réel ne le demande.
   `test_formulaires_assignation.js` 13/13 · `test_fuseau_feries.js` 13/13 · `test_fusion_feries.js` 10/10 ·
   `test_markers.js`.
 - `node --check` : OK. `VERSION_WEBAPP` = `2026-09-03-r25-demi-debut-fin`.
+
+
+## 26. Round du 12.09.2026 — jalons : chantier (couleur) + drapeau « important » enfin fonctionnel
+
+Cf. FRONTEND-CHANGELOG.md §54 pour la demande complète (nouvelle page « Jalons », maquette validée). Cette
+section couvre uniquement le volet base de données / `enregistrer-plage` nécessaire pour que cette page
+puisse réellement enregistrer un chantier et un statut « important » sur un jalon.
+
+### 26.1. Migration 0007 — `jalons.chantier_id`
+
+`sql/0007_jalons_chantier.sql` :
+
+```sql
+alter table jalons add column if not exists chantier_id bigint references chantiers(id);
+```
+
+Appliquée directement sur le projet Supabase (`mvqvznohgtpulpgalvxl`) via le connecteur MCP — même méthode
+que 0003/0005/0006. Table `jalons` vide au moment de la migration (confirmé par une requête `list_tables`
+avant d'appliquer) : aucune donnée existante à migrer, colonne nullable pour que tout jalon posé depuis la
+grille (qui ne connaît pas ce champ) ou déjà existant continue de fonctionner sans y toucher. Aucun `GRANT`
+supplémentaire nécessaire — `jalons` a déjà ses droits `authenticated` + sa policy RLS `connecte_tout`
+depuis `0002_rls.sql`, un nouveau champ sur une table déjà autorisée n'en a pas besoin. Vérifié après coup
+par une requête sur `information_schema.columns` : `chantier_id bigint`, nullable, bien présente.
+
+### 26.2. `enregistrer-plage`/`planPlage` : `chantier_id` et `important` réellement écrits pour un jalon
+
+Avant ce round, la branche jalon de `planPlage` (`functions/enregistrer-plage/logic.js`) n'écrivait ni
+`important` ni `chantier_id` sur aucune opération d'insertion/mise à jour — le bouton « Important » du
+formulaire de jalon (déjà présent dans le bandeau réutilisé d'autres formulaires) était donc purement
+décoratif pour un jalon, et il n'existait de toute façon aucun champ chantier avant la migration 0007.
+
+**Le piège à éviter** : la grille elle-même resynchronise le TEXTE d'un jalon à chaque frappe
+(`synchroniser()`, côté client) sans jamais connaître son chantier ni son statut important — avant ce
+round, elle envoyait même `important: false` codé en dur sur chaque appel. Si `planPlage` s'était mis à
+toujours écrire `chantier_id`/`important` sur CHAQUE opération jalon (comme le fait déjà `important` pour
+une note, cf. round du 02.09.2026), une simple correction de texte faite depuis la grille aurait
+silencieusement EFFACÉ un chantier ou un « important » posé depuis la nouvelle page Jalons — une
+régression aussi discrète que gênante, découverte en amont plutôt qu'en la testant après coup.
+
+**Le principe retenu** : « champ absent du payload = préserver la valeur déjà en base ; champ présent
+(y compris explicitement `null`) = l'appliquer. » Distinction faite via `Object.prototype.hasOwnProperty`,
+pas via une simple vérité JS (`params.important === undefined` aurait mal distingué un `false` explicite
+d'une absence) :
+
+```js
+var jalonImportantFourni = !estNote && Object.prototype.hasOwnProperty.call(params, "important");
+var jalonChantierIdFourni = !estNote && Object.prototype.hasOwnProperty.call(params, "chantierId");
+var jalonChantierIdVoulu = jalonChantierIdFourni ? (params.chantierId || null) : null;
+```
+
+Dans la boucle par jour, pour un jalon : `importantIci`/`chantierIdIci` valent la valeur fournie si le
+payload la porte, sinon la valeur déjà existante sur ce jour (`ancienImportant`/`ancienChantierId`) — un
+appel de la grille (qui n'envoie ni l'une ni l'autre clé) reconduit donc tel quel ce qu'une fiche Jalons a
+pu poser auparavant. Les opérations d'insertion/mise à jour incluent désormais ces 2 champs dans tous les
+cas (mode `ajout` et `remplacement`) ; les vérifications de no-op (« rien à faire, la ligne est déjà
+identique ») et le garde-fou de nettoyage en sortie de plage (« un jour sorti de la plage n'est supprimé
+QUE s'il n'a pas changé depuis ») ont été étendus pour comparer aussi ces 2 champs, en plus du texte —
+sinon, réduire une plage de jalon aurait pu supprimer un jour dont le chantier avait entre-temps été changé
+ailleurs, ou au contraire échouer à nettoyer un jour réellement inchangé.
+
+`functions/enregistrer-plage/index.ts` : la sélection des lignes `jalons` existantes inclut désormais
+`important, chantier_id` (déjà le cas pour les notes) — sans quoi la fonction n'aurait jamais pu comparer
+« ancien » et « voulu » sur ces 2 champs.
+
+Côté client, `synchroniser()` n'envoie plus `important: false` codé en dur pour un jalon — la clé est
+simplement omise, ce qui déclenche la préservation ci-dessus plutôt qu'un écrasement.
+
+### 26.3. Vérifications
+
+`node test_enregistrer_plage.js` : 41/41 assertions — 7 assertions existantes mises à jour pour inclure
+`important: false, chantier_id: null` sur chaque opération jalon (comparaison stricte par
+`JSON.stringify`), et 6 nouveaux cas dédiés au principe de préservation : insertion avec chantier +
+important fournis (écrits tels quels) ; appel « façon grille » sans ces 2 clés sur une ligne qui en portait
+déjà — reconduits tels quels, jamais écrasés à `false`/`null` ; `chantierId: null` fourni EXPLICITEMENT
+(retrait volontaire) — bien appliqué, pas traité comme une absence ; changement de chantier seul (texte et
+demi identiques) — détecté comme une vraie mise à jour, pas un no-op ; jalon reposé strictement à
+l'identique (texte + important + chantier) — bien un no-op ; et le garde-fou de nettoyage en sortie de
+plage, dans ses 2 variantes (chantier inchangé depuis → le jour sorti de la plage est libéré ; chantier
+changé depuis, ailleurs → jamais touché).
+
+Testé de bout en bout via Playwright + un mock Supabase exécutant une réimplémentation fidèle de
+`planPlage` (cf. FRONTEND-CHANGELOG.md §54.6 pour le détail du scénario E2E) — ajout d'un jalon de
+plusieurs mois avec chantier + important, modification (changement de chantier + réduction de plage, avec
+vérification que les jours sortis sont bien nettoyés), suppression. Pas de vérification contre le vrai
+projet Supabase au-delà de l'application de la migration elle-même (limite réseau de cet environnement,
+déjà notée pour tout le reste de la migration Supabase) — à confirmer par Lionel en conditions réelles.
