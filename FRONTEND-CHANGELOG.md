@@ -3823,3 +3823,108 @@ en désactivant temporairement le `ResizeObserver` : le popup dépasse alors de 
 (« Aller à… », pas de croissance) toujours fonctionnel. `node test_grille_compacte.js` (64/64), `node
 test_chantier_defaut.js` (16/16), `node test_chargement.js` (35/35) et `node test_enregistrer_plage.js`
 (41/41) toujours au vert.
+
+## 61. Round du 14.09.2026 — trier et (dés)activer Personnel/Intervenants/Chantiers, avec vraie suppression
+
+Lionel : « j'aimerais pouvoir trier et désactiver mes entrées dans les listes personnel, chantier,
+intervenant. » Mockup dédié (`mockup-listes-tri-desactivation.html`, round précédent) approuvé en 3
+temps : « bouton activer ok, ça me plaît [...] ok pour les flèches de tri », puis « possibilité de
+supprimer des éléments car certains chantier ou ouvriers peuvent ne plus revenir » (garder une VRAIE
+suppression, en plus de désactiver — repéré dans le mockup comme un point d'attention spécifique à
+Chantiers, étendu ici aux 2 groupes), puis « bouton supprimer avec icône rouge suffit » (pas de 2e
+niveau d'UI au-delà de la confirmation déjà existante).
+
+### 61.1. Base — `sql/0008_chantiers_actif_ordre.sql`
+
+`chantiers` n'avait ni `actif` ni `ordre` (contrairement à `personnes`, qui les a depuis le tout premier
+schéma, `sql/0001`) : migration ajoutant les 2 mêmes colonnes, mêmes types/défauts (`actif boolean not
+null default true`, `ordre integer not null default 0`), avec backfill `ordre = id` sur les 3 chantiers
+déjà en base. Appliquée directement sur le projet Supabase via le connecteur MCP (même méthode que
+0003/0005/0006/0007). Aucun GRANT/RLS supplémentaire (policy `connecte_tout` déjà en place table par
+table).
+
+### 61.2. Personnel/Intervenants — actif existait déjà, ajoute tri + vraie suppression
+
+`actif`/`ordre` existaient déjà sur `personnes`, mais restaient à sens unique et invisibles une fois
+utilisés : « Supprimer » appelait déjà `desactiverPersonneServeur` en coulisses (jamais un vrai DELETE),
+mais rien ne permettait de revoir une personne désactivée ni de la réactiver, et `ordre` ne servait à
+rien côté UI (aucun bouton de tri). Les 2 pages (même composant, `ligneFichePersonne`) ont maintenant :
+
+- **↑/↓** par ligne active, repris à l'identique de `.cf-actions` (page Entrée rapide, déjà utilisé pour
+  réordonner les champs d'un formulaire) — 2 `update` serveur qui échangent les `ordre` voisins
+  (`echangerOrdrePersonnes`), puis rafraîchissement complet.
+- **Interrupteur « Actif »**, repris à l'identique de celui d'« Afficher les week-ends » — remplace le
+  lien « Supprimer » sur une ligne active. Le décocher ouvre la même confirmation qu'avant (« Désactiver
+  « X » qui a N tâches en cours ? »), puis appelle `basculerActifPersonneServeur(id, false)` (renommage de
+  `desactiverPersonneServeur`, maintenant réversible dans les 2 sens).
+- **Section « Désactivés (N) »**, repliée par défaut, sous les actifs : chaque ligne y montre
+  « Réactiver » (`basculerActifPersonneServeur(id, true)`) et, nouveau, un bouton rouge « Supprimer »
+  (icône poubelle, `ICONS.trash`) — une VRAIE suppression (`supprimerPersonnePermanenceServeur`, un
+  simple `delete` sur `personnes`), jamais proposée que depuis cette section (il faut d'abord désactiver).
+  Confirmation dédiée mentionnant explicitement l'irréversibilité : la table `personnes` a 3 clés
+  étrangères en `on delete cascade` (`taches`, `assignations`, `series` — vérifié directement sur le
+  schéma Supabase avant d'écrire cette fonction), donc supprimer une personne efface aussi tout son
+  historique, passé compris — exactement ce que Lionel demande pour « des ouvriers qui ne reviennent
+  plus », mais un aller simple qu'il fallait signaler clairement.
+
+Page de gestion : nouvelle fonction `listerPersonnesGestionServeur()` (liste COMPLÈTE, actifs + désactivés,
+triée par `ordre`) — bien distincte de `etat.personnesActives`/`PERSONNES`, qui reste filtrée aux actifs
+et continue d'alimenter la grille comme avant (une personne désactivée disparaît toujours de la grille,
+historique compris — comportement préexistant, inchangé par ce round).
+
+### 61.3. Chantiers — actif/ordre n'existaient pas du tout, ajout complet + vraie suppression déjà existante
+
+Contrairement à Personnel, Chantiers n'avait aucune notion de « désactivé » : « Supprimer » y était déjà,
+de longue date, un vrai DELETE (`retirerChantierServeur`) qui vide aussi toutes les cases utilisant ce
+chantier, passées comprises. Avec `actif`/`ordre` ajoutés (§61.1), le même schéma que Personnel
+s'applique : ↑/↓ (`echangerOrdreChantiers`), interrupteur « Actif » (`basculerActifChantierServeur`, un
+simple update — ne touche à AUCUNE case, contrairement à une suppression), section « Désactivés » avec
+Réactiver + Supprimer (icône rouge). Le lien « Supprimer » d'origine sur une ligne active a disparu ; sa
+fonction serveur (`retirerChantierServeur`) est réutilisée telle quelle, simplement déplacée : elle n'est
+plus proposée que depuis la section « Désactivés ».
+
+Différence assumée avec Personnel, propre à ce que chaque table représente : un chantier désactivé reste
+résolvable pour tout ce qui existe déjà. `etat.chantiers` (et la map `CHANTIERS` qui en dérive) reste
+donc la liste COMPLÈTE (actifs + désactivés) — jamais filtrée à la source, contrairement à
+`etat.personnesActives` — pour qu'une case déjà posée sur un chantier depuis désactivé continue
+d'afficher son nom et sa couleur normalement (« reste visible sur les semaines déjà remplies »,
+exactement ce que demandait le mockup). Le filtre « actifs seulement » se fait donc au cas par cas, côté
+appelant, partout où un chantier DÉSACTIVÉ ne doit plus être proposé pour du NOUVEAU : légende cliquable
+(`construireLegende`), select « Chantier » des formulaires Entrée rapide (`champChantierHTML`) et — un
+3e site distinct, repéré seulement en testant en conditions réelles — le select inline du formulaire de
+tâche standard de la grille (`ouvrirEdition`, jusqu'ici construit à part sans passer par
+`champChantierHTML`). Dans les 3 cas, le chantier déjà en place sur l'item édité (ou déjà présent sur une
+autre tâche de la case ciblée) reste proposé/sélectionné même désactivé — jamais de disparition
+silencieuse d'un choix déjà fait. `retirerChantierServeur` détache aussi désormais `jalons.chantier_id`/
+`series.chantier_id` (mis à `null`, jamais supprimés) avant de retirer la ligne `chantiers` : ces 2
+colonnes (apparues avec `sql/0007`, après l'écriture d'origine de cette fonction) sont en `on delete no
+action` côté base — un chantier encore référencé par un jalon aurait fait échouer le DELETE avec une
+violation de contrainte, jamais couvert jusqu'ici.
+
+### 61.4. Détail d'implémentation — le `<label>` de l'interrupteur
+
+`.interrupteur-piste` couvre tout `.interrupteur` en `position: absolute` : le `<input>` lui-même n'est
+donc jamais atteignable au clic direct, seul le label-forwarding natif du navigateur rend l'interrupteur
+cliquable (déjà le cas pour « Afficher les week-ends », dont le `<label class="reglage-ligne">` englobe
+tout). Le mockup approuvé enveloppait `.champ-actif` dans un `<span>` — repéré en écrivant le test
+Playwright (le clic sur le checkbox ne passait jamais) : sans `<label>`, l'interrupteur aurait été inerte
+au clic pour de vrais utilisateurs aussi, pas seulement pour le test. Corrigé en `<label
+class="champ-actif">` dans les 2 templates de ligne.
+
+### 61.5. Vérifications
+
+2 scénarios Playwright dédiés (au-delà de la suite existante, toujours au vert : `test_grille_compacte.js`
+64/64, `test_chantier_defaut.js` 16/16, `test_chargement.js` 35/35, `test_enregistrer_plage.js` 41/41,
+`test_config_simple.js` 15/15, et le reste de la suite — seul `test_edge_functions.js` échoue, en pointant
+une fonction `joursOuvresDepuis` introuvable, un échec préexistant confirmé sur le commit précédent,
+antérieur à ce round et sans rapport avec lui).
+
+Premier scénario (Personnel) : ajout d'une 2e personne, tri ↑ (vérifie l'échange réel des `ordre` en
+base, pas seulement à l'écran), désactivation avec confirmation (la personne quitte le groupe actif,
+rejoint « Désactivés », compteur « (1) » correct, section repliée par défaut), réactivation, puis
+désactivation + suppression définitive (confirmation mentionnant l'irréversibilité, ligne effacée de la
+table `personnes`). Deuxième scénario (Chantiers) : tri ↓, désactivation avec confirmation, vérifie que
+le chantier désactivé (a) disparaît du select « Chantier » d'un NOUVEAU formulaire de tâche de la grille,
+(b) disparaît de la légende cliquable, (c) reste néanmoins en base (`actif:false`, jamais supprimé par une
+simple désactivation) et (d) qu'une tâche déjà posée dessus AVANT la désactivation continue de s'afficher
+normalement dans la grille, avec sa couleur — exactement le point d'attention soulevé dans le mockup.

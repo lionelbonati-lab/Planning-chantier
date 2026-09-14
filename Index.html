@@ -942,6 +942,59 @@
   }
   .ligne-ajouter:hover { background: var(--accent-soft); }
 
+  /* Tri (↑/↓) + Actif/désactivés — round du 14.09.2026, Lionel : « j'aimerais
+     pouvoir trier et désactiver mes entrées dans les listes personnel,
+     chantier, intervenant. » Puis, sur mockup-listes-tri-desactivation.html
+     validé : « bouton activer ok, ca me plait [...] ok pour les flèches de
+     tri » + « possibilité de supprimer des éléments car certains chantier
+     ou ouvriers peuvent ne plus revenir » (garder aussi une VRAIE
+     suppression, en plus de désactiver) puis « bouton supprimer avec icone
+     rouge suffit » (pas besoin d'une UI de confirmation plus élaborée que
+     l'existante, demanderConfirmation() suffit).
+     .cf-actions ↑/↓ repris à l'identique de .ligne-champ-form .cf-actions
+     (page Entrée rapide) — nouvelle règle plutôt que d'élargir le sélecteur
+     existant, qui ne visait QUE .ligne-champ-form (portée locale à ce
+     panneau, sans lien avec .ligne-intervenant). */
+  .ligne-intervenant .cf-actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; margin-right: 2px; }
+  .ligne-intervenant .cf-actions button {
+    background: none; border: none; color: var(--ink-faint); cursor: pointer;
+    font-size: 12px; padding: 2px 5px; font-family: inherit; border-radius: 5px;
+  }
+  .ligne-intervenant .cf-actions button:hover:not(:disabled) { color: var(--accent); background: var(--bg); }
+  .ligne-intervenant .cf-actions button:disabled { opacity: .3; cursor: default; }
+  /* Interrupteur "Actif" par ligne : même patron que .interrupteur ci-dessus
+     (déjà utilisé pour "Afficher les week-ends"), même classes — un seul
+     jeu de règles pour les 2 usages, taille déjà adaptée à une ligne de
+     liste (40x24). */
+  .champ-actif {
+    display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--ink-faint);
+    font-family: 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: .03em;
+  }
+  .ligne-desactivee { opacity: .62; }
+  .ligne-desactivee b { font-weight: 700; text-decoration: line-through; text-decoration-color: var(--ink-faint); }
+  .lien-reactiver { font-size: 12px; font-weight: 700; color: var(--accent); cursor: pointer; background: none; border: none; font-family: inherit; padding: 0; }
+  .lien-reactiver:hover { text-decoration: underline; }
+  /* Suppression définitive (irréversible, cascade sur l'historique côté
+     personnes — cf. supprimerPersonnePermanenceServeur) : uniquement
+     proposée sur une ligne déjà désactivée, jamais sur une ligne active
+     (il faut d'abord désactiver). Icône rouge + libellé, pas de 2e niveau
+     d'UI — Lionel : « bouton supprimer avec icone rouge suffit ». */
+  .lien-supprimer-def {
+    display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600;
+    color: var(--important-ink); cursor: pointer; background: none; border: none; font-family: inherit; padding: 0;
+  }
+  .lien-supprimer-def:hover { text-decoration: underline; }
+  .lien-supprimer-def svg { flex-shrink: 0; }
+  .repli-desactives {
+    display: flex; align-items: center; gap: 6px; margin-top: 10px; padding: 8px 4px; max-width: 520px;
+    font-size: 11.5px; font-weight: 700; color: var(--ink-faint); cursor: pointer; background: none; border: none;
+    font-family: 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: .04em;
+  }
+  .repli-desactives:hover { color: var(--ink-muted); }
+  .repli-desactives .chevron { display: inline-block; transition: transform .15s; }
+  .repli-desactives.ouvert .chevron { transform: rotate(90deg); }
+  .groupe-desactives { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; max-width: 520px; }
+
   .liste-formulaires { display: flex; flex-direction: column; gap: 8px; max-width: 640px; }
   .carte-form { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); gap: 10px; flex-wrap: wrap; }
   .carte-form .gauche { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
@@ -1217,7 +1270,11 @@
     print: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M5 8V3h10v5M5 15h10v3H5v-3zM3 8h14a1 1 0 0 1 1 1v5h-3M3 8a1 1 0 0 0-1 1v5h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     // Assignation groupée + décalage en masse (réintégration V2, cf.
     // FRONTEND-CHANGELOG.md) : icône "personnes" pour le bouton Assigner.
-    people: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><circle cx="7" cy="6.2" r="2.6" stroke="currentColor" stroke-width="1.5"/><path d="M2.3 16c0-2.8 2.1-4.7 4.7-4.7s4.7 1.9 4.7 4.7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="14.6" cy="6.7" r="2.1" stroke="currentColor" stroke-width="1.4"/><path d="M12.7 11.7c2-.5 3.9.5 5 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>'
+    people: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><circle cx="7" cy="6.2" r="2.6" stroke="currentColor" stroke-width="1.5"/><path d="M2.3 16c0-2.8 2.1-4.7 4.7-4.7s4.7 1.9 4.7 4.7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="14.6" cy="6.7" r="2.1" stroke="currentColor" stroke-width="1.4"/><path d="M12.7 11.7c2-.5 3.9.5 5 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+    // Suppression définitive (round du 14.09.2026, listes Personnel/
+    // Intervenants/Chantiers — cf. .lien-supprimer-def) : icône poubelle,
+    // Lionel : « bouton supprimer avec icone rouge suffit ».
+    trash: '<svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M2.5 4h11M6 4V2.6c0-.4.3-.7.7-.7h2.6c.4 0 .7.3.7.7V4M6.5 7.2v4.6M9.5 7.2v4.6M3.5 4l.6 8.2c0 .7.6 1.3 1.3 1.3h5.2c.7 0 1.3-.6 1.3-1.3L12.5 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>'
   };
 
   var app = document.getElementById("app");
@@ -1557,7 +1614,25 @@
   // (CHANTIERS est reconstruit à chaque rechargement) : on ne renvoie le nom
   // mémorisé que s'il correspond encore à un chantier réel, jamais une
   // valeur périmée qui ferait planter un select ou pointer sur du vide.
-  function chantierParDefautValide() { return (chantierParDefaut && CHANTIERS[chantierParDefaut]) ? chantierParDefaut : null; }
+  // Round du 14.09.2026 : CHANTIERS reste construit depuis la liste COMPLÈTE
+  // (actifs + désactivés, cf. construireVueDepuisCache) pour que les cases
+  // déjà posées d'un chantier désactivé continuent à s'afficher normalement
+  // — mais un chantier désactivé ne doit plus rester "chantier par défaut"
+  // des formulaires (il a de toute façon disparu de la légende cliquable,
+  // cf. construireLegende) : .actif est donc vérifié ici en plus de la
+  // simple présence dans la map.
+  function chantierParDefautValide() { return (chantierParDefaut && CHANTIERS[chantierParDefaut] && CHANTIERS[chantierParDefaut].actif !== false) ? chantierParDefaut : null; }
+  // Repli final des formulaires Armature/Béton/Livraison armature (round du
+  // 14.09.2026) quand ni la case ciblée ni la légende n'ont de chantier à
+  // proposer : Object.keys(CHANTIERS)[0] (l'ancien repli) pouvait tomber sur
+  // un chantier DÉSACTIVÉ (1er de la map par ordre d'insertion, pas
+  // forcément actif) — ce petit helper prend le 1er chantier ACTIF à la
+  // place, jamais un désactivé comme pré-choix d'une NOUVELLE tâche.
+  function premierChantierActif_() {
+    var noms = Object.keys(CHANTIERS);
+    for (var i = 0; i < noms.length; i++) if (CHANTIERS[noms[i]].actif !== false) return noms[i];
+    return noms[0];
+  }
   // Chantier déjà présent dans la case ciblée (round du 03.09.2026, signalé
   // par Lionel : "lorsque je pose une tache sur une demi journée, l'autre
   // tâche prend le chantier de la nouvelle créée. il doit etre possible de
@@ -1715,7 +1790,7 @@
   function htmlPageChantiers() {
     return '<div class="page" id="page-chantiers"><div class="page-scroll">' +
       '<div class="page-titre"><h1>Chantiers</h1></div>' +
-      '<p class="page-sous">Couleur utilisée dans la grille et les formulaires. Renommer met à jour toutes les cases déjà remplies du planning (y compris les semaines passées) ; supprimer vide les cases de la semaine affichée et des suivantes (jamais les semaines passées).</p>' +
+      '<p class="page-sous">Couleur utilisée dans la grille et les formulaires. Renommer met à jour toutes les cases déjà remplies du planning (y compris les semaines passées). Désactiver retire le chantier des listes pour une nouvelle tâche, sans toucher aux cases déjà posées (historique intact) ; le supprimer pour de bon (dans « Désactivés ») vide en plus toutes ces cases, y compris passées — irréversible.</p>' +
       '<div class="liste-intervenants" id="listeChantiers"></div>' +
       '</div></div>';
   }
@@ -1847,18 +1922,21 @@
   /* ============================================================
      PAGES "PERSONNEL" / "INTERVENANTS" — CRUD (§6 du spec). Phase 4/étape 3
      (§6bis) : ajouterPersonneServeur/renommerPersonneServeur/
-     desactiverPersonneServeur (section "CONFIG SIMPLE" plus bas) remplacent
-     apiAjouterPersonne/apiRenommerPersonne/apiSupprimerPersonne. Le concept
-     de "portée" (cette semaine seulement / et les suivantes) DISPARAÎT ici :
-     c'était un contournement du classeur (une personne = 4 lignes PARTAGÉES
-     par toutes les semaines, "renommer à partir de telle semaine" =
-     réécrire seulement les colonnes de cette semaine et des suivantes).
-     Une personne est maintenant une seule vraie ligne `personnes`, valable
-     pour toutes les semaines à la fois — renommer/désactiver s'applique
-     donc TOUJOURS partout, passé compris, sans qu'aucun prompt de portée
-     n'ait plus de sens à proposer (demanderPortee2 retiré). Supprimer reste
-     un simple "vider", comme avant : désactiver (actif=false) plutôt qu'un
-     vrai DELETE, cf. desactiverPersonneServeur.
+     basculerActifPersonneServeur (section "CONFIG SIMPLE" plus bas)
+     remplacent apiAjouterPersonne/apiRenommerPersonne/apiSupprimerPersonne.
+     Le concept de "portée" (cette semaine seulement / et les suivantes)
+     DISPARAÎT ici : c'était un contournement du classeur (une personne = 4
+     lignes PARTAGÉES par toutes les semaines, "renommer à partir de telle
+     semaine" = réécrire seulement les colonnes de cette semaine et des
+     suivantes). Une personne est maintenant une seule vraie ligne
+     `personnes`, valable pour toutes les semaines à la fois —
+     renommer/désactiver s'applique donc TOUJOURS partout, passé compris,
+     sans qu'aucun prompt de portée n'ait plus de sens à proposer
+     (demanderPortee2 retiré). Désactiver reste un simple "vider" côté
+     planning, comme avant (actif=false, pas un DELETE, cf.
+     basculerActifPersonneServeur) — round du 14.09.2026 : une vraie
+     suppression (irréversible, cascade sur l'historique) existe désormais
+     EN PLUS, mais séparément, cf. supprimerPersonnePermanenceServeur.
      ============================================================ */
   function rafraichirApresPersonnel() {
     // Un ajout/renommage/désactivation touche potentiellement toutes les
@@ -1883,13 +1961,43 @@
     if (n == null) return "";
     return n === 0 ? "Aucune tâche en cours" : (n === 1 ? "1 tâche en cours" : n + " tâches en cours");
   }
-  function ligneFichePersonne(p) {
+  // opts.premier/opts.dernier : bornes du groupe ACTIF affiché (désactive
+  // ↑ en tête, ↓ en fin — même logique que .cf-monter/.cf-descendre
+  // d'Entrée rapide). Absents (undefined) pour une ligne désactivée, qui
+  // n'a pas de flèches — cf. commentaire de tête plus haut (round du
+  // 14.09.2026).
+  function ligneFichePersonne(p, opts) {
+    opts = opts || {};
     var n = TACHES_PAR_PERSONNE ? TACHES_PAR_PERSONNE[p.id] : null;
-    return '<div class="ligne-intervenant" data-id="' + esc2(p.id) + '"><b>' + esc(p.nom) + '</b>' +
+    if (!p.actif) {
+      return '<div class="ligne-intervenant ligne-desactivee" data-id="' + esc2(p.id) + '"><b>' + esc(p.nom) + '</b>' +
+        '<span class="compte"></span>' +
+        '<span class="ligne-actions">' +
+        '<button type="button" class="lien-reactiver">Réactiver</button>' +
+        '<button type="button" class="lien-supprimer-def" title="Supprimer définitivement">' + ICONS.trash + ' Supprimer</button>' +
+        '</span></div>';
+    }
+    return '<div class="ligne-intervenant" data-id="' + esc2(p.id) + '">' +
+      '<span class="cf-actions">' +
+      '<button type="button" class="cf-monter" title="Monter"' + (opts.premier ? " disabled" : "") + '>↑</button>' +
+      '<button type="button" class="cf-descendre" title="Descendre"' + (opts.dernier ? " disabled" : "") + '>↓</button>' +
+      '</span>' +
+      '<b>' + esc(p.nom) + '</b>' +
       '<span class="compte">' + esc(texteCompteurTaches(n == null ? null : n)) + '</span>' +
       '<span class="ligne-actions">' +
+      // <label>, pas <span> : le piste couvre TOUT le .interrupteur en
+      // position absolute (cf. .interrupteur-piste), le checkbox lui-même
+      // n'est donc jamais atteignable au clic direct — seul le
+      // label-forwarding natif du navigateur le rend cliquable, exactement
+      // comme .reglage-ligne (chkWeekends, htmlPageGeneral) qui est déjà un
+      // <label> pour la même raison. Repéré en écrivant
+      // verif_tri_desactiver.js (round du 14.09.2026, Playwright ne
+      // parvenait pas à cliquer le checkbox) : sans <label>, l'interrupteur
+      // aurait été inerte au clic pour de vrais utilisateurs aussi, pas
+      // seulement pour le test.
+      '<label class="champ-actif"><span class="interrupteur"><input type="checkbox" checked><span class="interrupteur-piste"></span></span>Actif</label>' +
       '<button type="button" class="lien-modifier">Modifier</button>' +
-      '<button type="button" class="lien-supprimer">Supprimer</button></span></div>';
+      '</span></div>';
   }
   // Charge compterTachesPersonnesServeur() une seule fois (mémorisée dans
   // promesseTachesParPersonne, cf. section "CONFIG SIMPLE" plus bas), puis
@@ -1914,32 +2022,123 @@
       el.textContent = texteCompteurTaches(TACHES_PAR_PERSONNE[id]);
     });
   }
-  function cablerListePersonnes(zone, apresChangement) {
+  // ↑/↓ : échange l'ordre entre 2 lignes ACTIVES voisines (jamais les
+  // désactivées, qui n'ont pas de flèches) — 2 updates serveur puis
+  // rafraîchissement complet, même schéma que pour les chantiers plus bas
+  // (echangerOrdreChantiers). `actifs` = tableau déjà trié par ordre,
+  // capturé en fermeture au moment du rendu (cf. renderListePersonnes).
+  function echangerOrdrePersonnes(id, direction, actifs) {
+    var idx = -1;
+    for (var i = 0; i < actifs.length; i++) if (actifs[i].id === String(id)) { idx = i; break; }
+    var j = idx + direction;
+    if (idx < 0 || j < 0 || j >= actifs.length) return;
+    var a = actifs[idx], b = actifs[j];
+    Promise.all([
+      sbClient.from("personnes").update({ ordre: b.ordre }).eq("id", ancreDe(a.id)),
+      sbClient.from("personnes").update({ ordre: a.ordre }).eq("id", ancreDe(b.id))
+    ]).then(function (r) {
+      r.forEach(function (res) { if (res.error) throw res.error; });
+      rafraichirApresPersonnel();
+    }).catch(function (err) { toast("Échec du tri : " + (err && err.message ? err.message : err)); });
+  }
+  function cablerListePersonnes(zone, apresChangement, actifs) {
+    function idDe(el) { return el.closest("[data-id]").dataset.id; }
+    function nomDe(el) { return el.closest("[data-id]").querySelector("b").textContent; }
     zone.querySelectorAll(".lien-modifier").forEach(function (btn) {
-      btn.addEventListener("click", function () { ouvrirModifierPersonne(btn.closest("[data-id]").dataset.id, apresChangement); });
+      btn.addEventListener("click", function () { ouvrirModifierPersonne(idDe(btn), apresChangement); });
     });
-    zone.querySelectorAll(".lien-supprimer").forEach(function (btn) {
-      btn.addEventListener("click", function () { supprimerPersonneServeur(btn.closest("[data-id]").dataset.id, apresChangement); });
+    zone.querySelectorAll(".lien-reactiver").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        basculerActifPersonneServeur(ancreDe(idDe(btn)), true).then(function () {
+          rafraichirApresPersonnel();
+          toast("Réactivé.");
+        }).catch(function (err) { toast("Échec : " + (err && err.message ? err.message : err)); });
+      });
+    });
+    // Suppression définitive — cf. supprimerPersonnePermanenceServeur : un
+    // vrai DELETE, jamais proposé ici que sur une ligne déjà désactivée
+    // (.lien-supprimer-def n'existe que sur ces lignes-là, cf.
+    // ligneFichePersonne). Cascade en base sur taches/assignations/series
+    // (sql/0001 : "on delete cascade") — irréversible, d'où la
+    // confirmation explicite malgré la demande de Lionel de garder le
+    // bouton lui-même simple ("icône rouge suffit").
+    zone.querySelectorAll(".lien-supprimer-def").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var id = idDe(btn), nom = nomDe(btn);
+        demanderConfirmation("Supprimer définitivement « " + nom + " » ? Cette action est irréversible et efface aussi tout son historique (tâches, assignations).", function () {
+          supprimerPersonnePermanenceServeur(ancreDe(id)).then(function () {
+            rafraichirApresPersonnel();
+            toast("Supprimé définitivement.");
+          }).catch(function (err) { toast("Échec de la suppression : " + (err && err.message ? err.message : err)); });
+        });
+      });
+    });
+    // Interrupteur "Actif" — seulement présent sur les lignes actives
+    // (jamais sur .ligne-desactivee, qui n'a que Réactiver/Supprimer) :
+    // décocher = désactiver. Revert visuel immédiat (checkbox remise à
+    // checked) que la confirmation aboutisse ou non — c'est le
+    // rafraîchissement qui suit une désactivation confirmée qui fait
+    // réellement disparaître la ligne du groupe actif (elle réapparaît
+    // dans "Désactivés"), jamais un simple état visuel local du switch.
+    zone.querySelectorAll(".ligne-intervenant:not(.ligne-desactivee) .interrupteur input").forEach(function (chk) {
+      chk.addEventListener("change", function () {
+        var id = idDe(chk), nom = nomDe(chk);
+        chk.checked = true;
+        var n = TACHES_PAR_PERSONNE ? TACHES_PAR_PERSONNE[id] : null;
+        var titre = "Désactiver « " + nom + " »" + (n ? " qui a " + (n === 1 ? "1 tâche en cours" : n + " tâches en cours") : "") + " ?";
+        demanderConfirmation(titre, function () {
+          basculerActifPersonneServeur(ancreDe(id), false).then(function () {
+            rafraichirApresPersonnel();
+            toast("Désactivé.");
+          }).catch(function (err) { toast("Échec : " + (err && err.message ? err.message : err)); });
+        });
+      });
+    });
+    zone.querySelectorAll(".cf-monter").forEach(function (btn) {
+      btn.addEventListener("click", function () { echangerOrdrePersonnes(idDe(btn), -1, actifs); });
+    });
+    zone.querySelectorAll(".cf-descendre").forEach(function (btn) {
+      btn.addEventListener("click", function () { echangerOrdrePersonnes(idDe(btn), 1, actifs); });
     });
     var btnAdd = zone.querySelector(".ligne-ajouter");
     if (btnAdd) btnAdd.addEventListener("click", function () { ouvrirAjoutPersonne(btnAdd.dataset.sousTraitant === "1"); });
+    var btnRepli = zone.querySelector(".repli-desactives");
+    if (btnRepli) btnRepli.addEventListener("click", function () {
+      btnRepli.classList.toggle("ouvert");
+      var groupe = zone.querySelector(".groupe-desactives");
+      if (groupe) groupe.hidden = !btnRepli.classList.contains("ouvert");
+    });
   }
-  function renderPersonnel() {
-    var zone = document.getElementById("listePersonnel");
+  // Page de gestion (Personnel/Intervenants) : liste COMPLÈTE (actifs +
+  // désactivés), contrairement à PERSONNES/etat.personnesActives qui reste
+  // actifs seulement (la grille n'affiche jamais une personne désactivée,
+  // historique compris — comportement PRÉEXISTANT, inchangé ici, cf.
+  // desactiverPersonneServeur d'origine devenu basculerActifPersonneServeur
+  // plus bas). Jamais mise en cache : ces 2 pages sont peu visitées, un
+  // aller-retour de plus à chaque activation d'onglet est négligeable
+  // (même choix que renderStatuts/renderFormulaires, qui ne cachent pas
+  // non plus).
+  function renderListePersonnes(sousTraitant) {
+    var zone = document.getElementById(sousTraitant ? "listeIntervenants" : "listePersonnel");
     if (!zone) return;
-    zone.innerHTML = PERSONNES.filter(function (p) { return !p.sousTraitant; }).map(ligneFichePersonne).join("") +
-      '<button type="button" class="ligne-ajouter" data-sous-traitant="0">+ Ajouter</button>';
-    cablerListePersonnes(zone, renderPersonnel);
-    chargerCompteursTaches();
+    listerPersonnesGestionServeur().then(function (toutes) {
+      var liste = toutes.filter(function (p) { return !!p.sousTraitant === !!sousTraitant; });
+      var actifs = liste.filter(function (p) { return p.actif; });
+      var inactifs = liste.filter(function (p) { return !p.actif; });
+      var html = actifs.map(function (p, i) {
+        return ligneFichePersonne(p, { premier: i === 0, dernier: i === actifs.length - 1 });
+      }).join("") + '<button type="button" class="ligne-ajouter" data-sous-traitant="' + (sousTraitant ? 1 : 0) + '">+ Ajouter</button>';
+      if (inactifs.length) {
+        html += '<button type="button" class="repli-desactives"><span class="chevron">›</span> Désactivés (' + inactifs.length + ')</button>' +
+          '<div class="groupe-desactives" hidden>' + inactifs.map(function (p) { return ligneFichePersonne(p); }).join("") + '</div>';
+      }
+      zone.innerHTML = html;
+      cablerListePersonnes(zone, function () { renderListePersonnes(sousTraitant); }, actifs);
+      chargerCompteursTaches();
+    }).catch(erreurFatale);
   }
-  function renderIntervenants() {
-    var zone = document.getElementById("listeIntervenants");
-    if (!zone) return;
-    zone.innerHTML = PERSONNES.filter(function (p) { return p.sousTraitant; }).map(ligneFichePersonne).join("") +
-      '<button type="button" class="ligne-ajouter" data-sous-traitant="1">+ Ajouter</button>';
-    cablerListePersonnes(zone, renderIntervenants);
-    chargerCompteursTaches();
-  }
+  function renderPersonnel() { renderListePersonnes(false); }
+  function renderIntervenants() { renderListePersonnes(true); }
   function ouvrirAjoutPersonne(sousTraitant) {
     var pop = document.createElement("div");
     pop.className = "pop form-pop";
@@ -1989,27 +2188,14 @@
     });
     inputNom.focus();
   }
-  function supprimerPersonneServeur(id, apresChangement) {
-    var p = personneParAncre(id);
-    // cf. V3-spec-suite.md point 101 : "Supprimer « Armature / Béton » et ses
-    // 3 tâches ?" — la confirmation prévient explicitement si la personne a
-    // des tâches en cours. Plus de portée à choisir (cf. commentaire de tête
-    // de section) : une simple confirmation suffit, comme pour un chantier
-    // ou un statut. n peut être null (compteurs pas encore chargés, ex.
-    // clic très rapide à l'ouverture de la page) : dans ce cas on retombe
-    // sur le titre neutre plutôt que d'attendre ou d'afficher un chiffre
-    // inventé.
-    var n = TACHES_PAR_PERSONNE ? TACHES_PAR_PERSONNE[id] : null;
-    var titre = "Supprimer « " + (p ? p.nom : "") + " »" +
-      (n ? " et " + (n === 1 ? "sa tâche" : "ses " + n + " tâches") : "") + " ?";
-    demanderConfirmation(titre, function () {
-      desactiverPersonneServeur(ancreDe(id)).then(function () {
-        rafraichirApresPersonnel();
-        apresChangement();
-        toast("Supprimé.");
-      }).catch(function (err) { toast("Échec de la suppression : " + (err && err.message ? err.message : err)); });
-    });
-  }
+  // supprimerPersonneServeur (le lien "Supprimer" d'origine, qui appelait
+  // déjà desactiverPersonneServeur en coulisses — jamais un vrai DELETE) a
+  // disparu au round du 14.09.2026 : son rôle est repris directement par
+  // l'interrupteur "Actif" (cf. cablerListePersonnes ci-dessus, même
+  // confirmation "Désactiver « X » qui a N tâches en cours ?"), et une vraie
+  // suppression existe désormais séparément (supprimerPersonnePermanenceServeur,
+  // section CONFIG SIMPLE plus bas) — proposée seulement sur une ligne déjà
+  // désactivée.
 
   /* ============================================================
      PAGE "CHANTIERS" — CRUD complet (§7 du spec). Phase 4/étape 3 (§6bis) :
@@ -2027,19 +2213,78 @@
      seulement" — la contrainte de clé étrangère l'exige de toute façon, cf.
      compterUtilisationsChantierServeur).
      ============================================================ */
-  function ligneFicheChantier(c) {
+  // opts.premier/opts.dernier : cf. commentaire équivalent sur
+  // ligneFichePersonne — même logique de bornes, même absence de flèches
+  // sur une ligne désactivée.
+  function ligneFicheChantier(c, opts) {
+    opts = opts || {};
+    if (!c.actif) {
+      return '<div class="ligne-intervenant ligne-desactivee" data-ligne="' + c.ligne + '">' +
+        '<span class="gauche-chantier"><span class="swatch-chantier" style="background:' + esc2(c.couleur) + '"></span><b>' + esc(c.nom) + '</b></span>' +
+        '<span class="ligne-actions">' +
+        '<button type="button" class="lien-reactiver">Réactiver</button>' +
+        '<button type="button" class="lien-supprimer-def" title="Supprimer définitivement">' + ICONS.trash + ' Supprimer</button>' +
+        '</span></div>';
+    }
     return '<div class="ligne-intervenant" data-ligne="' + c.ligne + '">' +
+      '<span class="cf-actions">' +
+      '<button type="button" class="cf-monter" title="Monter"' + (opts.premier ? " disabled" : "") + '>↑</button>' +
+      '<button type="button" class="cf-descendre" title="Descendre"' + (opts.dernier ? " disabled" : "") + '>↓</button>' +
+      '</span>' +
       '<span class="gauche-chantier"><span class="swatch-chantier" style="background:' + esc2(c.couleur) + '"></span><b>' + esc(c.nom) + '</b></span>' +
       '<span class="ligne-actions">' +
+      // <label>, pas <span> : le piste couvre TOUT le .interrupteur en
+      // position absolute (cf. .interrupteur-piste), le checkbox lui-même
+      // n'est donc jamais atteignable au clic direct — seul le
+      // label-forwarding natif du navigateur le rend cliquable, exactement
+      // comme .reglage-ligne (chkWeekends, htmlPageGeneral) qui est déjà un
+      // <label> pour la même raison. Repéré en écrivant
+      // verif_tri_desactiver.js (round du 14.09.2026, Playwright ne
+      // parvenait pas à cliquer le checkbox) : sans <label>, l'interrupteur
+      // aurait été inerte au clic pour de vrais utilisateurs aussi, pas
+      // seulement pour le test.
+      '<label class="champ-actif"><span class="interrupteur"><input type="checkbox" checked><span class="interrupteur-piste"></span></span>Actif</label>' +
       '<button type="button" class="lien-modifier">Couleur</button>' +
       '<button type="button" class="lien-renommer">Renommer</button>' +
-      '<button type="button" class="lien-supprimer">Supprimer</button>' +
       '</span></div>';
   }
+  // ↑/↓ chantiers — même schéma qu'echangerOrdrePersonnes (2 updates
+  // serveur sur les `ordre` voisins, puis rafraîchissement complet).
+  function echangerOrdreChantiers(c, direction, actifs) {
+    var idx = -1;
+    for (var i = 0; i < actifs.length; i++) if (actifs[i].ligne === c.ligne) { idx = i; break; }
+    var j = idx + direction;
+    if (idx < 0 || j < 0 || j >= actifs.length) return;
+    var a = actifs[idx], b = actifs[j];
+    Promise.all([
+      sbClient.from("chantiers").update({ ordre: b.ordre }).eq("id", a.ligne),
+      sbClient.from("chantiers").update({ ordre: a.ordre }).eq("id", b.ligne)
+    ]).then(function (r) {
+      r.forEach(function (res) { if (res.error) throw res.error; });
+      return resultatChantiers_();
+    }).then(function (r) { rafraichirApresChantiers(r); })
+      .catch(function (err) { toast("Échec du tri : " + (err && err.message ? err.message : err)); });
+  }
+  // etat.chantiers est la liste COMPLÈTE (actifs + désactivés, cf.
+  // listerChantiersDepuisServeur plus bas) — contrairement à
+  // etat.personnesActives, jamais filtrée côté "source de vérité" : un
+  // chantier désactivé doit rester résolvable pour les cases déjà posées
+  // (CHANTIERS/etat.chantiersParId en ont besoin, cf. construireVueDepuisCache/
+  // demarrer). Cette page-ci fait donc elle-même le tri actifs/désactivés,
+  // plutôt que de dépendre d'un filtre serveur.
   function renderChantiers() {
     var zone = document.getElementById("listeChantiers");
     if (!zone) return;
-    zone.innerHTML = etat.chantiers.map(ligneFicheChantier).join("") + '<button type="button" class="ligne-ajouter">+ Ajouter</button>';
+    var actifs = etat.chantiers.filter(function (c) { return c.actif !== false; });
+    var inactifs = etat.chantiers.filter(function (c) { return c.actif === false; });
+    var html = actifs.map(function (c, i) {
+      return ligneFicheChantier(c, { premier: i === 0, dernier: i === actifs.length - 1 });
+    }).join("") + '<button type="button" class="ligne-ajouter">+ Ajouter</button>';
+    if (inactifs.length) {
+      html += '<button type="button" class="repli-desactives"><span class="chevron">›</span> Désactivés (' + inactifs.length + ')</button>' +
+        '<div class="groupe-desactives" hidden>' + inactifs.map(function (c) { return ligneFicheChantier(c); }).join("") + '</div>';
+    }
+    zone.innerHTML = html;
     function chantierDeLigne(btn) {
       var ligne = +btn.closest("[data-ligne]").dataset.ligne;
       return etat.chantiers.filter(function (x) { return x.ligne === ligne; })[0];
@@ -2056,14 +2301,70 @@
         if (c) ouvrirRenommerChantier(c);
       });
     });
-    zone.querySelectorAll(".lien-supprimer").forEach(function (btn) {
+    zone.querySelectorAll(".lien-reactiver").forEach(function (btn) {
       btn.addEventListener("click", function () {
         var c = chantierDeLigne(btn);
-        if (c) supprimerChantierServeur(c);
+        if (!c) return;
+        basculerActifChantierServeur(c.ligne, true).then(function () { return resultatChantiers_(); }).then(function (r) {
+          rafraichirApresChantiers(r);
+          toast("Chantier réactivé.");
+        }).catch(function (err) { toast("Échec : " + (err && err.message ? err.message : err)); });
       });
+    });
+    // Suppression définitive — cf. retirerChantierServeur (déjà un vrai
+    // DELETE de longue date, simplement déplacé ici depuis la ligne active
+    // d'origine) : uniquement proposée sur un chantier déjà désactivé.
+    zone.querySelectorAll(".lien-supprimer-def").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var c = chantierDeLigne(btn);
+        if (!c) return;
+        compterUtilisationsChantierServeur(c.ligne).then(function (n) {
+          var titre = "Supprimer définitivement « " + c.nom + " »" +
+            (n ? " et vider " + (n === 1 ? "la case qui l’utilise" : "les " + n + " cases qui l’utilisent") : "") +
+            " ? Cette action est irréversible.";
+          demanderConfirmation(titre, function () {
+            retirerChantierServeur(c.ligne).then(function (r) {
+              rafraichirApresChantiers(r, true); // true = invalide le cache (chantier retiré des cases qui l'utilisaient)
+              toast("Chantier supprimé définitivement.");
+            }).catch(function (err) { toast("Échec de la suppression : " + (err && err.message ? err.message : err)); });
+          });
+        }).catch(function (err) { toast("Échec : " + (err && err.message ? err.message : err)); });
+      });
+    });
+    // Interrupteur "Actif" — cf. commentaire équivalent sur
+    // cablerListePersonnes : décocher = désactiver, revert visuel immédiat,
+    // le rafraîchissement après confirmation fait le reste.
+    zone.querySelectorAll(".ligne-intervenant:not(.ligne-desactivee) .interrupteur input").forEach(function (chk) {
+      chk.addEventListener("change", function () {
+        var c = chantierDeLigne(chk);
+        chk.checked = true;
+        if (!c) return;
+        compterUtilisationsChantierServeur(c.ligne).then(function (n) {
+          var titre = "Désactiver « " + c.nom + " »" +
+            (n ? " (encore utilisé par " + (n === 1 ? "1 case" : n + " cases") + ", qui restent affichées telles quelles)" : "") + " ?";
+          demanderConfirmation(titre, function () {
+            basculerActifChantierServeur(c.ligne, false).then(function () { return resultatChantiers_(); }).then(function (r) {
+              rafraichirApresChantiers(r);
+              toast("Chantier désactivé.");
+            }).catch(function (err) { toast("Échec : " + (err && err.message ? err.message : err)); });
+          });
+        }).catch(function (err) { toast("Échec : " + (err && err.message ? err.message : err)); });
+      });
+    });
+    zone.querySelectorAll(".cf-monter").forEach(function (btn) {
+      btn.addEventListener("click", function () { var c = chantierDeLigne(btn); if (c) echangerOrdreChantiers(c, -1, actifs); });
+    });
+    zone.querySelectorAll(".cf-descendre").forEach(function (btn) {
+      btn.addEventListener("click", function () { var c = chantierDeLigne(btn); if (c) echangerOrdreChantiers(c, 1, actifs); });
     });
     var btnAdd = zone.querySelector(".ligne-ajouter");
     if (btnAdd) btnAdd.addEventListener("click", ouvrirAjoutChantier);
+    var btnRepli = zone.querySelector(".repli-desactives");
+    if (btnRepli) btnRepli.addEventListener("click", function () {
+      btnRepli.classList.toggle("ouvert");
+      var groupe = zone.querySelector(".groupe-desactives");
+      if (groupe) groupe.hidden = !btnRepli.classList.contains("ouvert");
+    });
   }
   function couleurProposeeChantier() {
     var utilisees = {};
@@ -2168,18 +2469,12 @@
     inputNom.focus();
     inputNom.select();
   }
-  function supprimerChantierServeur(c) {
-    compterUtilisationsChantierServeur(c.ligne).then(function (n) {
-      var titre = "Supprimer « " + c.nom + " »" +
-        (n ? " et vider " + (n === 1 ? "la case qui l’utilise" : "les " + n + " cases qui l’utilisent") : "") + " ?";
-      demanderConfirmation(titre, function () {
-        retirerChantierServeur(c.ligne).then(function (r) {
-          rafraichirApresChantiers(r, true); // true = invalide le cache (chantier retiré des cases qui l'utilisaient)
-          toast("Chantier supprimé.");
-        }).catch(function (err) { toast("Échec de la suppression : " + (err && err.message ? err.message : err)); });
-      });
-    }).catch(function (err) { toast("Échec : " + (err && err.message ? err.message : err)); });
-  }
+  // supprimerChantierServeur (le lien "Supprimer" d'origine sur une ligne
+  // active, qui appelait déjà retirerChantierServeur — un vrai DELETE) a
+  // disparu au round du 14.09.2026 : désactiver (interrupteur "Actif") est
+  // maintenant l'action proposée sur une ligne active, la vraie suppression
+  // (même retirerChantierServeur, inchangée) n'est plus proposée que depuis
+  // "Désactivés" — cf. renderChantiers ci-dessus.
 
   /* ============================================================
      PAGE "JALONS" — round du 12.09.2026. Lionel (après avoir confirmé que
@@ -2415,8 +2710,16 @@
       });
     });
   }
+  // Round du 14.09.2026 : n'offre plus un chantier désactivé au choix pour
+  // un NOUVEAU jalon — sauf s'il s'agit justement du chantier déjà choisi
+  // sur ce jalon (édition d'un jalon existant qui pointait vers un chantier
+  // depuis désactivé) : reste alors proposé/sélectionné, pour ne jamais
+  // faire disparaître silencieusement le lien à l'enregistrement.
   function champChantierJalonHTML(chantierIdInit) {
-    var options = etat.chantiers.map(function (c) {
+    var liste = etat.chantiers.filter(function (c) {
+      return c.actif !== false || (chantierIdInit != null && String(chantierIdInit) === String(c.ligne));
+    });
+    var options = liste.map(function (c) {
       var sel = chantierIdInit != null && String(chantierIdInit) === String(c.ligne);
       return '<option value="' + esc2(c.ligne) + '"' + (sel ? " selected" : "") + '>' + esc(c.nom) + '</option>';
     }).join("");
@@ -2428,7 +2731,13 @@
       debutIso: itemExisting ? itemExisting.dateDebut : aujourdhuiIso,
       finIso: itemExisting ? itemExisting.dateFin : aujourdhuiIso,
       important: itemExisting ? itemExisting.important : false,
-      chantierId: itemExisting ? itemExisting.chantierId : (etat.chantiers.length ? etat.chantiers[0].ligne : null)
+      // Round du 14.09.2026 : le 1er chantier ACTIF (etat.chantiers peut
+      // désormais contenir des désactivés, triés par ordre sans distinction) —
+      // jamais un chantier désactivé comme choix par défaut d'un nouveau jalon.
+      chantierId: itemExisting ? itemExisting.chantierId : (function () {
+        var actifs = etat.chantiers.filter(function (c) { return c.actif !== false; });
+        return actifs.length ? actifs[0].ligne : null;
+      })()
     };
     function couleurBandeau() {
       var c = chantierParId(state.chantierId);
@@ -3569,7 +3878,11 @@
 
     Promise.all([
       sbClient.from("personnes").select("id, nom, sous_traitant, ordre").eq("actif", true).order("ordre", { ascending: true }),
-      sbClient.from("chantiers").select("id, nom, couleur"),
+      // actif/ordre (sql/0008) : la requête reste volontairement SANS
+      // .eq("actif", true) — contrairement à celle des personnes juste
+      // au-dessus — pour que chantiersParId (juste en dessous) reste
+      // complet, cf. commentaire de listerChantiersDepuisServeur plus bas.
+      sbClient.from("chantiers").select("id, nom, couleur, actif, ordre").order("ordre", { ascending: true }),
       sbClient.from("statuts").select("id, cle, nom, couleur, ordre"),
       sbClient.from("feries").select("date, libelle, categorie"),
       // À part des 4 précédentes (cf. juste en dessous) : la table
@@ -3598,7 +3911,7 @@
       // .ligne = chantiers.id (Supabase) — identité utilisée par la page de
       // config "Chantiers" (CRUD direct, cf. section "CONFIG SIMPLE" plus
       // bas, étape 3 du §6bis).
-      etat.chantiers = chantiersBruts.map(function (c) { return { nom: c.nom, couleur: c.couleur, ligne: c.id }; });
+      etat.chantiers = chantiersBruts.map(function (c) { return { nom: c.nom, couleur: c.couleur, ligne: c.id, actif: c.actif !== false, ordre: c.ordre || 0 }; });
       etat.chantierParNom = {};
       etat.chantiers.forEach(function (c) { etat.chantierParNom[c.nom] = c; });
       etat.palette = CHANTIER_PALETTE.slice();
@@ -3741,18 +4054,52 @@
     return sbClient.from("personnes").update({ nom: nom, sous_traitant: !!sousTraitant }).eq("id", id)
       .then(function (res) { if (res.error) throw res.error; });
   }
-  // Suppression = désactivation (actif=false), jamais un vrai DELETE : même
-  // principe que l'ancien classeur ("la feuille ne supprime jamais une
-  // ligne, seulement son contenu", cf. WebApp.gs) transposé à une vraie
-  // table — la personne et son historique (taches/assignations déjà
-  // écrites, passées comme futures) restent en base, seulement invisibles
-  // désormais (etat.personnesActives ne la contient plus, donc plus aucune
-  // requête de semaine ne la ramène). Un vrai DELETE aurait au contraire
-  // cascadé (on delete cascade sur taches/assignations, cf. sql/0001) et
-  // détruit l'historique — jamais voulu ici.
-  function desactiverPersonneServeur(id) {
-    return sbClient.from("personnes").update({ actif: false }).eq("id", id)
+  // Désactiver/réactiver (round du 14.09.2026 — auparavant, seule la
+  // désactivation existait, sous le nom desactiverPersonneServeur, jamais
+  // togglable en sens inverse) : simple update actif, jamais un DELETE — la
+  // personne et son historique (taches/assignations déjà écrites, passées
+  // comme futures) restent en base, seulement invisibles ailleurs tant
+  // qu'elle est désactivée (etat.personnesActives ne la contient plus, donc
+  // plus aucune requête de semaine ne la ramène — même principe que l'ancien
+  // classeur, "la feuille ne supprime jamais une ligne, seulement son
+  // contenu", cf. WebApp.gs). Pour un vrai DELETE (irréversible, cascade sur
+  // taches/assignations/series, cf. sql/0001 "on delete cascade"), voir
+  // supprimerPersonnePermanenceServeur ci-dessous — jamais confondu avec
+  // celle-ci.
+  function basculerActifPersonneServeur(id, actif) {
+    return sbClient.from("personnes").update({ actif: !!actif }).eq("id", id)
       .then(function (res) { if (res.error) throw res.error; });
+  }
+  // Vraie suppression (round du 14.09.2026, Lionel : « possibilité de
+  // supprimer des éléments car certains chantier ou ouvriers peuvent ne plus
+  // revenir ») — CASCADE en base sur taches/assignations/series (sql/0001 :
+  // "on delete cascade" sur les 3 FK vers personnes) : contrairement à
+  // basculerActifPersonneServeur, ceci efface bel et bien tout l'historique
+  // de la personne, sans retour possible. Jamais proposée que sur une ligne
+  // déjà désactivée (cf. cablerListePersonnes, ".lien-supprimer-def"),
+  // toujours après confirmation explicite côté UI.
+  function supprimerPersonnePermanenceServeur(id) {
+    return sbClient.from("personnes").delete().eq("id", id)
+      .then(function (res) { if (res.error) throw res.error; });
+  }
+  // Page de gestion (Personnel/Intervenants, cf. renderListePersonnes) :
+  // liste COMPLÈTE (actifs + désactivés), triée par ordre — contrairement à
+  // rechargerPersonnesActives_ ci-dessus, qui reste actifs seulement (la
+  // grille elle-même ne doit jamais montrer une personne désactivée,
+  // historique compris — comportement préexistant, inchangé).
+  function listerPersonnesGestionServeur() {
+    return sbClient.from("personnes").select("id, nom, sous_traitant, actif, ordre").order("ordre", { ascending: true })
+      .then(function (res) {
+        if (res.error) throw res.error;
+        var liste = (res.data || []).map(function (p) {
+          return { id: String(p.id), nom: p.nom, sousTraitant: !!p.sous_traitant, actif: p.actif !== false, ordre: p.ordre || 0 };
+        });
+        // Re-tri explicite côté client, en plus du .order() ci-dessus (qui
+        // suffit déjà avec un vrai Supabase) : ceinture et bretelles, sans
+        // coût réel sur une liste aussi courte.
+        liste.sort(function (a, b) { return a.ordre - b.ordre; });
+        return liste;
+      });
   }
 
   // "Tâches en cours" par personne (cf. WebApp.gs, compterTachesParPersonne_
@@ -3826,10 +4173,25 @@
   // id) : contrairement à l'ancien classeur (cf. WebApp.gs,
   // apiRenommerChantier), renommer un chantier ne touche plus aucune case —
   // c'est un simple update de la ligne `chantiers`, rien à migrer.
+  // Round du 14.09.2026 (sql/0008_chantiers_actif_ordre.sql) : liste
+  // COMPLÈTE (actifs + désactivés), triée par ordre — contrairement à
+  // rechargerPersonnesActives_ (personnes), volontairement PAS filtrée sur
+  // actif=true ici. Une personne désactivée disparaît de partout, historique
+  // compris (comportement préexistant, cf. basculerActifPersonneServeur plus
+  // bas) — un chantier désactivé, lui, doit rester résolvable pour les cases
+  // déjà posées qui le référencent (CHANTIERS/etat.chantiersParId en ont
+  // besoin, cf. construireVueDepuisCache/demarrer). Le filtrage "actifs
+  // seulement" se fait donc au cas par cas, côté appelant, là où c'est
+  // pertinent (légende, select "Chantier" des formulaires, page de gestion) —
+  // jamais ici.
   function listerChantiersDepuisServeur() {
-    return sbClient.from("chantiers").select("id, nom, couleur").then(function (res) {
+    return sbClient.from("chantiers").select("id, nom, couleur, actif, ordre").order("ordre", { ascending: true }).then(function (res) {
       if (res.error) throw res.error;
-      return (res.data || []).map(function (c) { return { nom: c.nom, couleur: c.couleur, ligne: c.id }; });
+      var liste = (res.data || []).map(function (c) { return { nom: c.nom, couleur: c.couleur, ligne: c.id, actif: c.actif !== false, ordre: c.ordre || 0 }; });
+      // Re-tri explicite côté client — cf. commentaire identique sur
+      // listerPersonnesGestionServeur.
+      liste.sort(function (a, b) { return a.ordre - b.ordre; });
+      return liste;
     });
   }
   function resultatChantiers_() {
@@ -3840,8 +4202,17 @@
   function erreurNomChantierDuplique_(err, nom) {
     return (err && err.code === "23505") ? new Error("« " + nom + " » existe déjà.") : err;
   }
+  // Même principe que prochainOrdrePersonne_ (section CONFIG SIMPLE plus
+  // bas), mais calculé sur la liste COMPLÈTE (etat.chantiers n'est plus
+  // filtrée aux actifs, cf. commentaire ci-dessus) : un nouveau chantier doit
+  // s'ajouter après TOUS les chantiers déjà en base, désactivés compris.
+  function prochainOrdreChantier_() {
+    var max = 0;
+    (etat.chantiers || []).forEach(function (c) { if ((c.ordre || 0) > max) max = c.ordre; });
+    return max + 1;
+  }
   function ajouterChantierServeur(nom, couleur) {
-    return sbClient.from("chantiers").insert({ nom: nom, couleur: couleur }).then(function (res) {
+    return sbClient.from("chantiers").insert({ nom: nom, couleur: couleur, ordre: prochainOrdreChantier_() }).then(function (res) {
       if (res.error) throw erreurNomChantierDuplique_(res.error, nom);
       return resultatChantiers_();
     });
@@ -3856,6 +4227,19 @@
     return sbClient.from("chantiers").update({ nom: nouveauNom }).eq("id", id).then(function (res) {
       if (res.error) throw erreurNomChantierDuplique_(res.error, nouveauNom);
       return resultatChantiers_();
+    });
+  }
+  // Désactiver/réactiver (round du 14.09.2026) : un simple update actif,
+  // JAMAIS un DELETE — cf. retirerChantierServeur plus bas pour la vraie
+  // suppression (définitive, séparée). Contrairement à
+  // basculerActifPersonneServeur, ne touche à rien d'autre : les cases déjà
+  // posées sur ce chantier ne sont ni vidées ni modifiées, seule sa
+  // disponibilité pour de NOUVELLES tâches/jalons change (cf. filtres
+  // .actif côté appelants : champChantierHTML, champChantierJalonHTML,
+  // construireLegende).
+  function basculerActifChantierServeur(id, actif) {
+    return sbClient.from("chantiers").update({ actif: !!actif }).eq("id", id).then(function (res) {
+      if (res.error) throw res.error;
     });
   }
   // Compte TOUTES les assignations qui utilisent ce chantier, passées
@@ -3874,12 +4258,25 @@
   }
   // Vide d'abord les cases qui l'utilisent (delete assignations — jamais les
   // tâches "détail" associées : le texte déjà tapé reste, comme avant, sans
-  // chantier), puis retire la ligne chantiers. Toujours appelé après
-  // confirmation explicite côté UI (cf. supprimerChantierServeur plus bas),
-  // donc pas de paramètre "forcer" à porter ici (contrairement à
-  // apiSupprimerChantier).
+  // chantier), puis DÉTACHE les jalons/séries qui le référencent (round du
+  // 14.09.2026 : jalons.chantier_id/series.chantier_id sont apparus après
+  // cette fonction — sql/0007 — en ON DELETE NO ACTION côté base, jamais mis
+  // à jour ici jusqu'ici ; un chantier encore référencé par un jalon aurait
+  // fait échouer le DELETE final avec une violation de contrainte. Mis à
+  // null, jamais supprimés : un jalon garde son texte, simplement sans
+  // couleur de chantier, comme un jalon qui n'en a jamais eu — cf. sql/0007),
+  // puis retire la ligne chantiers. Toujours appelé après confirmation
+  // explicite côté UI (cf. renderChantiers, ".lien-supprimer-def" —
+  // uniquement proposé sur un chantier déjà désactivé), donc pas de
+  // paramètre "forcer" à porter ici (contrairement à apiSupprimerChantier).
   function retirerChantierServeur(id) {
     return sbClient.from("assignations").delete().eq("chantier_id", id).then(function (res) {
+      if (res.error) throw res.error;
+      return sbClient.from("jalons").update({ chantier_id: null }).eq("chantier_id", id);
+    }).then(function (res) {
+      if (res.error) throw res.error;
+      return sbClient.from("series").update({ chantier_id: null }).eq("chantier_id", id);
+    }).then(function (res) {
       if (res.error) throw res.error;
       return sbClient.from("chantiers").delete().eq("id", id);
     }).then(function (res) {
@@ -4134,8 +4531,16 @@
 
     // CHANTIERS : clé = NOM (c'est la clé de reconnaissance réelle côté
     // feuille — cf. §6/§7 du spec, apiListerChantiers n'a pas d'id).
+    // Round du 14.09.2026 : reconstruite depuis etat.chantiers, qui est
+    // désormais la liste COMPLÈTE (actifs + désactivés, cf. commentaire de
+    // listerChantiersDepuisServeur plus bas) — jamais filtrée ici : une
+    // case déjà posée sur un chantier depuis désactivé doit continuer à
+    // afficher son nom/sa couleur normalement. .actif porté sur chaque
+    // entrée pour les quelques sites qui doivent au contraire exclure les
+    // désactivés (légende, select "Chantier" des formulaires — cf.
+    // construireLegende/champChantierHTML/champChantierJalonHTML).
     CHANTIERS = {};
-    etat.chantiers.forEach(function (c) { CHANTIERS[c.nom] = { nom: c.nom, couleur: c.couleur, ligne: c.ligne }; });
+    etat.chantiers.forEach(function (c) { CHANTIERS[c.nom] = { nom: c.nom, couleur: c.couleur, ligne: c.ligne, actif: c.actif !== false }; });
 
     TACHES = []; JALONS = []; NOTES = [];
     var nJoursFenetre = donnees.length * 5;
@@ -4823,7 +5228,11 @@
     if (!legendeEl) return;
     legendeEl.innerHTML = "";
     var defautActuel = chantierParDefautValide();
-    Object.keys(CHANTIERS).forEach(function (k) {
+    // Round du 14.09.2026 : un chantier désactivé ne s'affiche plus dans la
+    // légende (elle ne sert qu'à choisir le chantier par défaut des
+    // formulaires, cf. commentaire juste en dessous) — CHANTIERS reste lui
+    // la map COMPLÈTE (cf. construireVueDepuisCache), filtrée seulement ici.
+    Object.keys(CHANTIERS).filter(function (k) { return CHANTIERS[k].actif !== false; }).forEach(function (k) {
       var c = CHANTIERS[k];
       var it = document.createElement("div");
       // Cliquable (round du 03.09.2026, demande de Lionel) : choisit ce
@@ -7938,8 +8347,14 @@
     });
   }
   function suffixeEtape(valeurEtape) { var n = (valeurEtape || "").trim(); return n ? " E" + n : ""; }
+  // Round du 14.09.2026 : idem champChantierJalonHTML — un chantier
+  // désactivé n'est plus proposé pour une NOUVELLE tâche, sauf s'il s'agit
+  // du chantier déjà en place sur la tâche en cours d'édition.
   function champChantierHTML(chantierInit) {
-    var noms = Object.keys(CHANTIERS);
+    var noms = Object.keys(CHANTIERS).filter(function (nom) {
+      var c = CHANTIERS[nom];
+      return (c && c.actif !== false) || nom === chantierInit;
+    });
     var options = noms.map(function (nom) { return '<option value="' + esc(nom) + '"' + (chantierInit === nom ? " selected" : "") + '>' + esc(nom) + '</option>'; }).join("");
     return '<select class="f-chantier">' + options + '</select>';
   }
@@ -7961,7 +8376,7 @@
     var etat = { zone: "murs", precision: "" };
     pop.innerHTML =
       '<div class="cp-titre">Ajouter — Armature</div>' +
-      champChantierHTML(chantierExistantDansCase(cibles, giDebut, duree) || chantierParDefautValide() || Object.keys(CHANTIERS)[0]) +
+      champChantierHTML(chantierExistantDansCase(cibles, giDebut, duree) || chantierParDefautValide() || premierChantierActif_()) +
       '<div class="label-champ">Zone</div>' +
       '<div class="chip-row zone-row">' +
       '<button type="button" class="chip actif" data-zone="murs">Murs</button>' +
@@ -8038,7 +8453,7 @@
     var etat = { zone: "murs" };
     pop.innerHTML =
       '<div class="cp-titre">Ajouter — Béton</div>' +
-      champChantierHTML(chantierExistantDansCase(cibles, giDebut, duree) || chantierParDefautValide() || Object.keys(CHANTIERS)[0]) +
+      champChantierHTML(chantierExistantDansCase(cibles, giDebut, duree) || chantierParDefautValide() || premierChantierActif_()) +
       '<div class="label-champ">Zone</div>' +
       '<div class="chip-row zone-row">' +
       '<button type="button" class="chip actif" data-zone="murs">Murs</button>' +
@@ -8114,7 +8529,7 @@
     var etat = { zone: "murs" };
     pop.innerHTML =
       '<div class="cp-titre">Ajouter — Livraison armature</div>' +
-      champChantierHTML(chantierExistantDansCase(cibles, giDebut, duree) || chantierParDefautValide() || Object.keys(CHANTIERS)[0]) +
+      champChantierHTML(chantierExistantDansCase(cibles, giDebut, duree) || chantierParDefautValide() || premierChantierActif_()) +
       '<div class="label-champ">Zone</div>' +
       '<div class="chip-row zone-row">' +
       '<button type="button" class="chip actif" data-zone="murs">Murs</button>' +
@@ -8191,7 +8606,7 @@
     }).join("");
     pop.innerHTML =
       '<div class="cp-titre">Ajouter — ' + esc(f.nom) + '</div>' +
-      champChantierHTML(chantierExistantDansCase(cibles, giDebut, duree) || chantierParDefautValide() || Object.keys(CHANTIERS)[0]) +
+      champChantierHTML(chantierExistantDansCase(cibles, giDebut, duree) || chantierParDefautValide() || premierChantierActif_()) +
       champsHTML +
       (estSousTraitantDyn ? champStatutHTML(null) : "") +
       '<div class="apercu"><span class="apercu-label">Aperçu du texte</span><span class="apercu-texte"></span></div>' +
@@ -8302,7 +8717,18 @@
       // prend le 1er de la liste). Modification d'une tâche existante :
       // inchangé, son propre chantier.
       defautNouveau = chantierExistantDansCase(cibles, state.giDebut, state.giFin - state.giDebut + 1) || chantierParDefautValide();
-      var options = Object.keys(CHANTIERS).map(function (k) {
+      // Round du 14.09.2026 : même filtre qu'champChantierHTML (un chantier
+      // désactivé n'est plus proposé pour du NOUVEAU) — MAIS repéré comme un
+      // site à part lors des tests (verif_chantier_desactive_grille.js) :
+      // cette construction inline, pas champChantierHTML, sert le vrai
+      // formulaire "Tâche" de la grille. Reste proposé/sélectionné si c'est
+      // le chantier déjà en place sur l'item existant modifié, OU celui déjà
+      // présent sur une autre tâche de la même case ciblée (defautNouveau,
+      // cf. chantierExistantDansCase) — jamais fait disparaître un chantier
+      // déjà utilisé juste sous les yeux de Lionel.
+      var options = Object.keys(CHANTIERS).filter(function (k) {
+        return CHANTIERS[k].actif !== false || k === defautNouveau || (itemExisting && itemExisting.chantier === k);
+      }).map(function (k) {
         var sel = itemExisting ? (itemExisting.chantier === k) : (defautNouveau === k);
         return '<option value="' + esc(k) + '"' + (sel ? " selected" : "") + '>' + esc(k) + '</option>';
       }).join("");
