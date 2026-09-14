@@ -7217,6 +7217,41 @@
     var pr = pop.getBoundingClientRect();
     pop.style.left = Math.max(6, Math.min(x, window.innerWidth - pr.width - 10)) + "px";
     pop.style.top = Math.max(6, Math.min(y, window.innerHeight - pr.height - 10)) + "px";
+    // Round du 14.09.2026 — Lionel : « les popup sont trop en bas et si je
+    // sélectionne les séries, je ne vois pas les séries qui sont hors
+    // écran. » Le clamp ci-dessus n'a lieu qu'UNE FOIS, à l'ouverture — mais
+    // plusieurs popups grandissent ENSUITE selon ce qu'on y coche (ex.
+    // « Série (se répète) » révèle .serie-options, cf. cablerSerieChamps ;
+    // « options avancées » révèle son bloc, cf. optionsAvanceesHTML) sans
+    // jamais rappeler positionnerPop(). Un popup ouvert près du bas de
+    // l'écran (fréquent : on clique une case du planning, pas forcément
+    // tout en haut de la fenêtre) grandit alors PAR LE BAS, hors écran —
+    // `max-height`/`overflow-y:auto` (cf. règle .pop) plafonnent la hauteur
+    // de la boîte mais pas SA POSITION : une boîte trop basse peut dépasser
+    // l'écran même hauteur plafonnée, sans aucun moyen de faire défiler la
+    // PAGE jusqu'à elle (position:fixed). Un ResizeObserver reclampe donc le
+    // popup (même formule que ci-dessus, mais sur sa position ACTUELLE
+    // plutôt que x/y d'origine) à chaque changement réel de sa taille —
+    // couvre tous les cas présents ET futurs, sans avoir à penser à
+    // rappeler un reclamp depuis chaque bascule .hidden au cas par cas
+    // (c'est justement l'oubli d'un de ces cas qui a produit ce bug).
+    // Ignoré sur mobile/tablette (.form-pop y est repositionné en CSS avec
+    // !important — cf. les 2 @media plus haut — donc ces style.top/left
+    // posés en JS y sont déjà sans effet visuel, inoffensif).
+    // Auto-nettoyage paresseux plutôt qu'un disconnect() explicite à la
+    // fermeture (trop de chemins de fermeture différents dans ce fichier
+    // pour être sûr de tous les retrouver sans en oublier un — même défaut
+    // que le bug corrigé ici) : l'observer se déconnecte de lui-même au 1er
+    // redimensionnement constaté après la disparition du popup du DOM.
+    if (window.ResizeObserver) {
+      var ro = new ResizeObserver(function () {
+        if (!pop.isConnected) { ro.disconnect(); return; }
+        var r = pop.getBoundingClientRect();
+        pop.style.top = Math.max(6, Math.min(r.top, window.innerHeight - r.height - 10)) + "px";
+        pop.style.left = Math.max(6, Math.min(r.left, window.innerWidth - r.width - 10)) + "px";
+      });
+      ro.observe(pop);
+    }
   }
   function fermerAuClicExterieur(pop, celluleSurbrillance, valider) {
     if (celluleSurbrillance) celluleSurbrillance.classList.add("selection-add");

@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — trier et désactiver les listes</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  /* Tokens repris tels quels d'Index.html (:root) pour un rendu fidèle. */
+  :root {
+    --bg: #eef0ec; --surface: #fbfaf7; --surface-2: #ffffff;
+    --ink: #1a2129; --ink-muted: #57616b; --ink-faint: #8b93a0;
+    --border: #d7dad2; --border-strong: #1a2129;
+    --accent: #1f4d8f; --accent-ink: #ffffff; --accent-soft: #e3ecf7;
+    --important-ink: #93362b;
+    --shadow: rgba(24, 33, 41, 0.16); --shadow-lg: rgba(15, 21, 27, 0.32);
+    --rouge: #c0392b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: 'Archivo', 'Helvetica Neue', Arial, sans-serif;
+    padding: 28px 20px 60px;
+  }
+  .page-titre { max-width: 1180px; margin: 0 auto 28px; }
+  .page-titre h1 { font-size: 19px; font-weight: 800; margin: 0 0 6px; }
+  .page-titre p { font-size: 13px; color: var(--ink-muted); line-height: 1.6; margin: 0 0 8px; max-width: 78ch; }
+  .page-titre .rappel { font-size: 12px; color: var(--ink-faint); margin-top: 10px; font-style: italic; }
+
+  .bloc { max-width: 1180px; margin: 0 auto 40px; }
+  .bloc-label { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+  .bloc-label .num {
+    width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: var(--accent-ink);
+    display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800;
+    font-family: 'IBM Plex Mono', monospace; flex-shrink: 0;
+  }
+  .bloc-label h2 { font-size: 15px; font-weight: 800; margin: 0; }
+  .bloc-label .tag {
+    font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+    padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--ink-muted); border: 1px solid var(--border);
+  }
+  .bloc-label .tag.attention { background: #f9e4c8; border-color: #d99a3a; color: #7a4a06; }
+  .bloc-note { font-size: 12.5px; color: var(--ink-muted); line-height: 1.6; margin: 6px 0 14px; max-width: 84ch; }
+  .bloc-note b { color: var(--ink); }
+
+  .cote-a-cote { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start; }
+  @media (max-width: 860px) { .cote-a-cote { grid-template-columns: 1fr; } }
+  .cadre {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 14px 18px 18px; box-shadow: 0 2px 10px var(--shadow);
+  }
+  .cadre.etat-actuel { opacity: .82; }
+  .sous-titre-mini {
+    font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .05em; color: var(--ink-faint); margin: 0 0 10px;
+  }
+
+  /* --- éléments réels de l'app, copiés tels quels --- */
+  .liste-intervenants { display: flex; flex-direction: column; gap: 8px; }
+  .ligne-intervenant { display: flex; align-items: center; padding: 11px 14px; border: 1px solid var(--border); border-radius: 10px; font-size: 13px; background: var(--surface-2); gap: 10px; }
+  .ligne-intervenant b { font-weight: 700; }
+  .ligne-intervenant .compte { color: var(--ink-faint); font-size: 11px; margin-left: 10px; }
+  .ligne-actions { display: flex; align-items: center; gap: 14px; margin-left: auto; padding-left: 14px; }
+  .gauche-chantier { display: flex; align-items: center; gap: 10px; }
+  .swatch-chantier { width: 18px; height: 18px; border-radius: 6px; flex-shrink: 0; border: 1px solid var(--border); }
+  .lien-modifier, .lien-renommer { font-size: 12px; font-weight: 600; color: var(--ink-muted); cursor: pointer; background: none; border: none; font-family: inherit; padding: 0; }
+  .lien-supprimer { font-size: 12px; font-weight: 600; color: var(--ink-faint); cursor: pointer; background: none; border: none; font-family: inherit; padding: 0; }
+  .ligne-ajouter {
+    display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%;
+    padding: 11px 14px; border: 1.5px dashed var(--accent); border-radius: 10px;
+    font-size: 13px; font-weight: 700; color: var(--accent); background: none; cursor: pointer; font-family: inherit;
+  }
+
+  /* ↑/↓ — repris à l'identique de .ligne-champ-form .cf-actions (page Entrée
+     rapide, déjà utilisé pour réordonner les champs d'un formulaire) : même
+     interaction, pas un nouveau patron d'interface à apprendre. */
+  .cf-actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+  .cf-actions button {
+    background: none; border: none; color: var(--ink-faint); cursor: pointer;
+    font-size: 12px; padding: 2px 5px; font-family: inherit; border-radius: 5px;
+  }
+  .cf-actions button:hover:not(:disabled) { color: var(--accent); background: var(--surface); }
+  .cf-actions button:disabled { opacity: .3; cursor: default; }
+
+  /* Interrupteur Actif/Inactif — repris à l'identique de .interrupteur
+     (déjà utilisé pour "Afficher les week-ends"). */
+  .interrupteur { position: relative; display: inline-flex; align-items: center; width: 34px; height: 20px; flex-shrink: 0; }
+  .interrupteur input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+  .interrupteur-piste { position: absolute; inset: 0; border-radius: 999px; background: var(--border); transition: background .15s; }
+  .interrupteur-piste::before {
+    content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
+    border-radius: 50%; background: var(--surface-2); box-shadow: 0 1px 3px var(--shadow); transition: transform .15s;
+  }
+  .interrupteur input:checked ~ .interrupteur-piste { background: var(--accent); }
+  .interrupteur input:checked ~ .interrupteur-piste::before { transform: translateX(14px); }
+  .champ-actif { display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--ink-faint); font-family: 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: .03em; }
+
+  .ligne-desactivee { opacity: .62; }
+  .ligne-desactivee b { font-weight: 700; text-decoration: line-through; text-decoration-color: var(--ink-faint); }
+  .lien-reactiver { font-size: 12px; font-weight: 700; color: var(--accent); cursor: pointer; background: none; border: none; font-family: inherit; padding: 0; }
+
+  .repli-desactives {
+    display: flex; align-items: center; gap: 6px; margin-top: 10px; padding: 8px 4px;
+    font-size: 11.5px; font-weight: 700; color: var(--ink-faint); cursor: pointer; background: none; border: none;
+    font-family: 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: .04em;
+  }
+  .repli-desactives .chevron { transition: transform .15s; }
+  .repli-desactives.ouvert .chevron { transform: rotate(90deg); }
+  .groupe-desactives { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+
+  /* --- annotation façon croquis --- */
+  .annot-cadre { outline: 2px dashed var(--rouge); outline-offset: 3px; border-radius: 10px; }
+  .annot-legende {
+    display: flex; align-items: center; gap: 6px; margin: 0 0 10px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .04em; color: var(--rouge);
+  }
+  .annot-legende .trait { width: 16px; height: 0; border-top: 2px dashed var(--rouge); flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<div class="page-titre">
+  <h1>Mockup — trier et désactiver Personnel / Intervenants / Chantiers</h1>
+  <p>
+    Ta demande : « j'aimerais pouvoir trier et désactiver mes entrées dans les listes personnel,
+    chantier, intervenant. » Ce que j'ai trouvé en regardant le code actuel : pour Personnel et
+    Intervenants, « Supprimer » fait déjà exactement ça en coulisses (la personne n'est jamais
+    vraiment effacée, juste rendue invisible) — mais il n'existe aucun moyen de la revoir ni de la
+    réactiver ensuite, et rien ne permet de changer l'ordre d'affichage. Pour Chantiers, « Supprimer »
+    est en revanche une VRAIE suppression aujourd'hui (cf. point d'attention, bloc 3).
+  </p>
+  <p>
+    Proposition : un bouton ↑/↓ par ligne pour trier (repris tel quel du même bouton déjà utilisé
+    dans Entrée rapide pour réordonner les champs d'un formulaire), et un interrupteur « Actif »
+    par ligne (repris tel quel de celui déjà utilisé pour « Afficher les week-ends ») à la place du
+    lien « Supprimer ». Une entrée désactivée descend dans une section repliée en bas de la liste,
+    avec un bouton « Réactiver ».
+  </p>
+  <p class="rappel">Travail sur image — aucun code n'a encore été modifié dans Index.html.</p>
+</div>
+
+<div class="bloc">
+  <div class="bloc-label">
+    <span class="num">1</span>
+    <h2>Personnel</h2>
+  </div>
+  <div class="cote-a-cote">
+    <div>
+      <p class="sous-titre-mini">État actuel</p>
+      <div class="cadre etat-actuel">
+        <div class="liste-intervenants">
+          <div class="ligne-intervenant"><b>Lionel</b><span class="compte">2 tâches en cours</span>
+            <span class="ligne-actions"><button class="lien-modifier">Modifier</button><button class="lien-supprimer">Supprimer</button></span></div>
+          <div class="ligne-intervenant"><b>Manu</b><span class="compte">Aucune tâche en cours</span>
+            <span class="ligne-actions"><button class="lien-modifier">Modifier</button><button class="lien-supprimer">Supprimer</button></span></div>
+        </div>
+        <div class="ligne-ajouter" style="margin-top:8px;">+ Ajouter</div>
+      </div>
+    </div>
+    <div>
+      <p class="sous-titre-mini">Proposition</p>
+      <div class="cadre">
+        <p class="annot-legende"><span class="trait"></span> ↑↓ pour trier · interrupteur pour (dés)activer</p>
+        <div class="liste-intervenants">
+          <div class="ligne-intervenant annot-cadre">
+            <span class="cf-actions"><button disabled title="Monter">↑</button><button title="Descendre">↓</button></span>
+            <b>Lionel</b><span class="compte">2 tâches en cours</span>
+            <span class="ligne-actions">
+              <span class="champ-actif"><span class="interrupteur"><input type="checkbox" checked><span class="interrupteur-piste"></span></span>Actif</span>
+              <button class="lien-modifier">Modifier</button>
+            </span>
+          </div>
+          <div class="ligne-intervenant annot-cadre">
+            <span class="cf-actions"><button title="Monter">↑</button><button disabled title="Descendre">↓</button></span>
+            <b>Manu</b><span class="compte">Aucune tâche en cours</span>
+            <span class="ligne-actions">
+              <span class="champ-actif"><span class="interrupteur"><input type="checkbox" checked><span class="interrupteur-piste"></span></span>Actif</span>
+              <button class="lien-modifier">Modifier</button>
+            </span>
+          </div>
+        </div>
+        <div class="ligne-ajouter" style="margin-top:8px;">+ Ajouter</div>
+        <button type="button" class="repli-desactives ouvert"><span class="chevron">›</span> Désactivés (1)</button>
+        <div class="groupe-desactives">
+          <div class="ligne-intervenant ligne-desactivee"><b>Ancien Coéquipier</b><span class="compte">Aucune tâche en cours</span>
+            <span class="ligne-actions"><button class="lien-reactiver">Réactiver</button></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="bloc">
+  <div class="bloc-label">
+    <span class="num">2</span>
+    <h2>Intervenants</h2>
+    <span class="tag">même traitement que Personnel</span>
+  </div>
+  <p class="bloc-note">
+    Exactement le même principe (même liste, même composant — <code>ligneFichePersonne</code> dans le
+    code sert déjà aux deux). Pas reproposé en double ci-dessous pour ne pas répéter le même visuel.
+  </p>
+</div>
+
+<div class="bloc">
+  <div class="bloc-label">
+    <span class="num">3</span>
+    <h2>Chantiers</h2>
+    <span class="tag attention">point d'attention</span>
+  </div>
+  <p class="bloc-note">
+    Ici, « Supprimer » est aujourd'hui une VRAIE suppression : le chantier disparaît de la base, et
+    toutes les cases qui l'utilisaient (même des semaines passées) sont vidées de leur couleur/lien —
+    le texte déjà tapé reste, mais plus rattaché à aucun chantier. Pour pouvoir « désactiver » un
+    chantier comme pour le personnel (réversible, historique préservé), il faut lui ajouter la même
+    capacité — ce que Personnel a déjà en base mais pas encore Chantiers. Deux choses à valider avec
+    toi avant de coder :
+  </p>
+  <p class="bloc-note">
+    — <b>Nouvelle colonne en base</b> (une petite migration SQL, comme celles déjà faites pour Jalons
+    récemment) pour que Chantiers ait, comme Personnel, un « actif » et un ordre de tri.<br>
+    — <b>« Supprimer » remplacé par « Désactiver »</b> pour les chantiers aussi, cohérent avec
+    Personnel/Intervenants : plus de VRAIE suppression depuis cette page (donc plus jamais de perte de
+    couleur/lien sur l'historique en désactivant) — dis-moi si tu tiens au contraire à garder une vraie
+    suppression disponible quelque part pour un chantier créé par erreur, par exemple.
+  </p>
+  <div class="cote-a-code cote-a-cote">
+    <div>
+      <p class="sous-titre-mini">État actuel</p>
+      <div class="cadre etat-actuel">
+        <div class="liste-intervenants">
+          <div class="ligne-intervenant">
+            <span class="gauche-chantier"><span class="swatch-chantier" style="background:#b9a6e8"></span><b>Filisetti</b></span>
+            <span class="ligne-actions"><button class="lien-modifier">Couleur</button><button class="lien-renommer">Renommer</button><button class="lien-supprimer">Supprimer</button></span>
+          </div>
+          <div class="ligne-intervenant">
+            <span class="gauche-chantier"><span class="swatch-chantier" style="background:#1e3a6e"></span><b>Villa Rossi</b></span>
+            <span class="ligne-actions"><button class="lien-modifier">Couleur</button><button class="lien-renommer">Renommer</button><button class="lien-supprimer">Supprimer</button></span>
+          </div>
+        </div>
+        <div class="ligne-ajouter" style="margin-top:8px;">+ Ajouter</div>
+      </div>
+    </div>
+    <div>
+      <p class="sous-titre-mini">Proposition</p>
+      <div class="cadre">
+        <div class="liste-intervenants">
+          <div class="ligne-intervenant annot-cadre">
+            <span class="cf-actions"><button disabled title="Monter">↑</button><button title="Descendre">↓</button></span>
+            <span class="gauche-chantier"><span class="swatch-chantier" style="background:#b9a6e8"></span><b>Filisetti</b></span>
+            <span class="ligne-actions">
+              <span class="champ-actif"><span class="interrupteur"><input type="checkbox" checked><span class="interrupteur-piste"></span></span>Actif</span>
+              <button class="lien-modifier">Couleur</button><button class="lien-renommer">Renommer</button>
+            </span>
+          </div>
+          <div class="ligne-intervenant annot-cadre">
+            <span class="cf-actions"><button title="Monter">↑</button><button disabled title="Descendre">↓</button></span>
+            <span class="gauche-chantier"><span class="swatch-chantier" style="background:#1e3a6e"></span><b>Villa Rossi</b></span>
+            <span class="ligne-actions">
+              <span class="champ-actif"><span class="interrupteur"><input type="checkbox" checked><span class="interrupteur-piste"></span></span>Actif</span>
+              <button class="lien-modifier">Couleur</button><button class="lien-renommer">Renommer</button>
+            </span>
+          </div>
+        </div>
+        <div class="ligne-ajouter" style="margin-top:8px;">+ Ajouter</div>
+        <button type="button" class="repli-desactives ouvert"><span class="chevron">›</span> Désactivés (1)</button>
+        <div class="groupe-desactives">
+          <div class="ligne-intervenant ligne-desactivee">
+            <span class="gauche-chantier"><span class="swatch-chantier" style="background:#c9a8a0"></span><b>Ancien Chantier</b></span>
+            <span class="ligne-actions"><button class="lien-reactiver">Réactiver</button></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="bloc">
+  <div class="bloc-label">
+    <span class="num">?</span>
+    <h2>Points à valider avant de coder</h2>
+  </div>
+  <p class="bloc-note">
+    — Une fois désactivée, une personne/un chantier n'apparaît plus dans les listes déroulantes des
+    formulaires du planning (comme c'est déjà le cas aujourd'hui pour une personne « supprimée ») —
+    mais reste visible sur les semaines déjà remplies (historique intact). Ça correspond à ce que tu
+    veux ?<br>
+    — Tri : ↑/↓ ligne par ligne (comme les champs de formulaire), plutôt qu'un glisser-déposer — plus
+    simple à utiliser au doigt sur tablette, et déjà le patron que tu connais dans l'appli. Dis-moi si
+    tu préfères un vrai glisser-déposer malgré tout.<br>
+    — Pour Chantiers spécifiquement (bloc 3) : je veux ton feu vert sur les 2 points d'attention
+    (nouvelle colonne en base, et remplacement de la vraie suppression) avant de commencer le code.
+  </p>
+</div>
+
+</body>
+</html>

@@ -3788,3 +3788,38 @@ défile horizontalement, comme les colonnes de jours).
 `node test_grille_compacte.js` (64/64), `node test_chantier_defaut.js` (16/16), `node
 test_chargement.js` (35/35) et `node test_enregistrer_plage.js` (41/41) toujours au vert — aucune des
 fonctions pures testées n'est touchée par ce changement, purement DOM/CSS dans `construireGrille()`.
+
+## 60. Round du 14.09.2026 — corrige les popups qui débordent en bas de l'écran une fois agrandis
+
+Lionel : « j'ai un problème avec les popup sur le planning, ils sont trop en bas et si je sélectionne
+les séries, je ne vois pas les séries qui sont hors écran. »
+
+**Cause.** `positionnerPop()` clampe la position d'un popup dans l'écran (`Math.max`/`Math.min` sur
+`window.innerWidth`/`innerHeight`) — mais seulement UNE FOIS, à l'ouverture. Plusieurs popups grandissent
+ENSUITE selon ce qu'on y coche : « Plus d'options » révèle un bloc (Statut/Série, cf.
+`optionsAvanceesHTML`), et cocher « Série (se répète) » révèle à son tour `.serie-options` (fréquence,
+nombre de répétitions ou date de fin, cf. `cablerSerieChamps`) — sans que rien ne recalcule la position
+déjà posée. Un popup ouvert près du bas de l'écran (fréquent : clic sur une case du planning, pas
+forcément tout en haut de la fenêtre) grandissait alors PAR LE BAS, hors écran. `max-height` +
+`overflow-y: auto` (règle `.pop`) plafonnent la hauteur de la boîte mais pas SA POSITION : une boîte trop
+basse peut déborder de l'écran même hauteur plafonnée — et comme le popup est en `position: fixed`, faire
+défiler la PAGE ne le ramène pas à l'écran.
+
+**Fix.** `positionnerPop()` pose désormais un `ResizeObserver` sur le popup qui reclampe sa position
+(même formule, mais sur sa position ACTUELLE plutôt que le x/y d'origine) à chaque changement réel de sa
+taille — couvre tous les cas présents ET futurs, plutôt que de rappeler un reclamp au cas par cas depuis
+chaque bascule `.hidden` (c'est justement l'oubli d'un de ces cas qui a produit ce bug). Auto-nettoyage
+paresseux (l'observer se déconnecte de lui-même au 1er redimensionnement constaté après la disparition du
+popup du DOM) plutôt qu'un `disconnect()` explicite à la fermeture — trop de chemins de fermeture
+différents dans ce fichier pour être sûr de tous les retrouver sans en oublier un, même défaut que le bug
+corrigé ici. Sans effet sur mobile/tablette : `.form-pop` y est déjà repositionné en CSS avec
+`!important` (plein écran / centré), ces `style.top`/`left` posés en JS y sont donc déjà inoffensifs.
+
+**Vérifications.** Scénario Playwright dédié : popup Tâche ouvert près du bas d'une fenêtre réduite
+(1280×520), clic sur « Plus d'options » puis coche « Série (se répète) » — le popup reste entièrement
+dans l'écran à chaque étape (`bottom <= innerHeight`), le champ « Répétitions » reste visible. Contre-essai
+en désactivant temporairement le `ResizeObserver` : le popup dépasse alors de 166px et le champ
+« Répétitions » sort de l'écran — confirme que le test couvre bien la régression signalée. Popup normal
+(« Aller à… », pas de croissance) toujours fonctionnel. `node test_grille_compacte.js` (64/64), `node
+test_chantier_defaut.js` (16/16), `node test_chargement.js` (35/35) et `node test_enregistrer_plage.js`
+(41/41) toujours au vert.
