@@ -5510,7 +5510,34 @@
   // exactement l'inverse de cette règle. Une seule fonction, utilisée par le
   // redimensionnement (cablerPoigneeRedim) ET le déplacement d'une note
   // (onPointerDownGroupeSelection) ci-dessous.
+  //
+  // cel.dataset.demi (round du 14.09.2026 — Lionel, vidéo à l'appui :
+  // "lors de l'étirement, la bulle est aimantée de manière bizarre", puis
+  // "idem lors du déplacement, la bulle fait des « gauche-droite »") :
+  // cette règle "milieu de la cellule" ne vaut QUE pour une cellule
+  // fond-commun pleine largeur (creerCelluleFond, jalon/note — cf. ci-dessus).
+  // Une cellule "personne" (creerCell) est déjà scindée matin/aprem en mode
+  // compact (2 <div class="cell"> distinctes côte à côte, chacune large
+  // d'UNE SEULE demi-journée, cf. colonneDemi) : lui appliquer quand même la
+  // règle du milieu revient à re-découper une demi-journée déjà entière en 2
+  // quarts, et la moitié gauche du quart droit tombe alors à nouveau côté
+  // "matin" — dès que le pointeur franchit la frontière entre les 2 cellules
+  // demi-journée, le résultat retombe donc brièvement en arrière avant de
+  // rattraper le sens du glissement (aperçu qui semble "aimanté", tâche qui
+  // "fait des gauche-droite" pendant le glissement). demiSlotCellule()
+  // plus bas avait déjà cette distinction pour un tout autre appelant
+  // (glissé de sélection rapide) ; elle est maintenant dans la fonction
+  // partagée, pour que les 6 appels côté redimensionnement/déplacement d'une
+  // bulle personne en bénéficient aussi. Une cellule "personne" a TOUJOURS
+  // un data-demi valide (posé par creerCell) : le prendre directement, sans
+  // aucun calcul sur clientX, élimine le découpage en quart superflu — c'est
+  // aussi exactement ce que demande l'intuition de Lionel (survoler la
+  // moitié matin d'un jour doit toujours viser "matin", jamais dépendre de
+  // quel quart de cette moitié). Un fond jalon/note (creerCelluleFond) ne
+  // pose jamais ce data-attribut : il retombe donc, inchangé, sur le calcul
+  // par position du pointeur.
   function demiDepuisPointeur(cel, clientX) {
+    if (cel.dataset && (cel.dataset.demi === "matin" || cel.dataset.demi === "aprem")) return cel.dataset.demi;
     var r = cel.getBoundingClientRect();
     if (!r.width) return "matin";
     return (clientX - r.left) < r.width / 2 ? "matin" : "aprem";

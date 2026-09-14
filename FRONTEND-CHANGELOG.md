@@ -4001,3 +4001,57 @@ resynchronisation reste de classe `bulle-absence` (jamais `bulle-tache`) et ne p
 une fiche de tâche avec un chantier par défaut déjà posé. Confirmé cassant sur le code d'avant ce round
 (`git stash` temporaire pendant l'écriture du test : échoue précisément sur l'assertion `est_absence`,
 comme attendu) puis vert une fois le correctif restauré.
+
+## 63. Round du 14.09.2026 (suite) — l'étirement et le déplacement d'une bulle tâche/absence étaient "aimantés"
+
+Lionel, vidéo à l'appui : « Lors de l'étirement, la bulle est aimantée de manière bizarre. » — puis,
+message de suite : « idem lors du déplacement, la bulle fait des "gauche-droite". »
+
+### 63.1. Cause — `demiDepuisPointeur` recoupait une demi-journée déjà entière
+
+`demiDepuisPointeur(cel, clientX)` (introduite round du 03.09.2026, §23/§25) répond « matin » ou
+« aprem » selon que `clientX` tombe dans la moitié gauche ou droite de `cel`. Sa règle ("moitié gauche =
+matin, moitié droite = aprem") n'est juste QUE pour une cellule FOND pleine largeur (`creerCelluleFond`,
+lignes Jalons/Notes — un seul `<div class="cell">` par jour, sans `demi` propre). Une cellule PERSONNE
+(`creerCell`, lignes des ouvriers) est au contraire déjà scindée en 2 `<div>` distinctes (matin/aprem,
+`colonneDemi`) depuis le passage au mode compact seul (§49) — chacune ne large QUE d'une demi-journée.
+
+Les 6 appels de `demiDepuisPointeur` côté redimensionnement (`cablerPoigneeRedim`, poignée gauche ET
+droite) et déplacement (`onPointerDownGroupeSelection` : surlignage de dépôt précis pendant le glissement,
+et positionnement final à la dépose) reçoivent tous, pour une tâche/absence, une cellule PERSONNE — donc
+déjà une demi-journée entière — sans jamais faire cette distinction. Lui appliquer quand même la règle
+« moitié gauche/droite » revient à re-découper cette demi-journée déjà entière en 2 QUARTS de journée :
+dès que le pointeur franchit la frontière entre la cellule matin et la cellule aprem d'un même jour, le
+calcul retombe sur son propre milieu à lui (celui de la NOUVELLE cellule survolée), qui n'a rien à voir
+avec le sens du glissement — d'où l'aperçu qui semble reculer un instant avant de rattraper le mouvement
+("aimantation" à l'étirement, "gauche-droite" au déplacement). `demiSlotCellule` (round du 11.09.2026,
+glissé de sélection rapide) avait déjà cette distinction — `kind === "personne" ? cell.dataset.demi :
+demiDepuisPointeur(...)` — mais seulement pour son propre appelant, pas dans la fonction partagée.
+
+Diagnostic confirmé par un script Playwright instrumenté (glissement pas à pas de 15px sur la vraie page,
+log de la position de la souris vs la géométrie réelle de la bulle à chaque pas) : décrochages de sens
+systématiques à CHAQUE frontière matin/aprem franchie, aussi bien en étirement qu'en déplacement (5
+décrochages détectés sur un glissement de bout en bout de la grille, 0 après correctif).
+
+### 63.2. Correctif
+
+`demiDepuisPointeur` fait maintenant confiance au `data-demi` de la cellule quand celle-ci en porte un
+(cellule personne — posé nativement par `creerCell`, jamais besoin de calcul sur `clientX`) ; elle ne
+retombe sur le calcul par position du pointeur que pour une cellule fond sans `data-demi` (jalon/note,
+comportement inchangé pour elles). Une seule fonction corrigée, un seul endroit modifié, les 6 appelants
+(redimensionnement gauche/droite, surlignage de dépôt, positionnement à la dépose) en bénéficient tous
+sans changement de leur propre code.
+
+### 63.3. Vérifications
+
+`node test_grille_compacte.js` (68/68 — 64 existantes + 4 nouvelles assertions dédiées, cellule personne
+"matin"/"aprem" avec un pointeur volontairement placé tout près du bord OPPOSÉ de sa propre demi-cellule,
+exactement le cas qui faisait basculer le résultat avant ce round) au vert, ainsi que le reste de la
+suite inchangée (`test_edge_functions.js` mis à part — échec préexistant déjà documenté, sans rapport).
+
+2 scripts Playwright de diagnostic (non commités, scratchpad de session) : l'un rejoue un étirement pas à
+pas de la poignée droite d'une tâche d'1 jour jusqu'au bord de la grille et retour, l'autre un simple
+glissement (corps de la bulle, pas la poignée) de la même tâche sur toute la largeur de la grille, en
+loggant à chaque pas la géométrie réelle affichée. Les deux confirmés cassants sur le code d'avant ce
+round (`git stash` temporaire) — respectivement plusieurs décrochages de sens à chaque frontière
+matin/aprem en étirement, et 5 en déplacement — puis 0 décrochage une fois le correctif restauré.

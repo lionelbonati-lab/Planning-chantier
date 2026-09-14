@@ -187,16 +187,41 @@ assertEqual(sandbox.colonneEtSpanDemi(0, 2, null, 'aprem'), sandbox.colonneEtSpa
 //    qu'on étend sur plusieurs jours ; il restait impossible de FAIRE
 //    APPARAÎTRE une demi-journée par glissement (résize ou déplacement).
 // =======================================================================
-function faireCell(left, width) {
-  return { getBoundingClientRect: function () { return { left: left, width: width }; } };
+function faireCell(left, width, demi) {
+  // dataset toujours présent (comme sur un vrai élément DOM) — vide par
+  // défaut, ce qui représente une cellule FOND jalon/note (creerCelluleFond,
+  // jamais de data-demi) ; passer 'matin'/'aprem' simule au contraire une
+  // cellule PERSONNE déjà scindée (creerCell), qui porte toujours la sienne.
+  return { dataset: demi ? { demi: demi } : {}, getBoundingClientRect: function () { return { left: left, width: width }; } };
 }
 // -- demiDepuisPointeur : moitié gauche = matin, moitié droite = aprem --
+// (cellule FOND jalon/note, sans data-demi propre -> calcul par position du
+// pointeur, comme avant ce round)
 assertEqual(sandbox.demiDepuisPointeur(faireCell(100, 40), 110), 'matin', 'pointeur près du bord gauche -> matin');
 assertEqual(sandbox.demiDepuisPointeur(faireCell(100, 40), 138), 'aprem', 'pointeur près du bord droit -> aprem');
 assertEqual(sandbox.demiDepuisPointeur(faireCell(100, 40), 119), 'matin', 'juste avant le milieu -> matin');
 assertEqual(sandbox.demiDepuisPointeur(faireCell(100, 40), 120), 'aprem', 'juste après le milieu -> aprem (la coupure est stricte)');
 assertEqual(sandbox.demiDepuisPointeur(faireCell(0, 0), 500), 'matin',
   'cellule de largeur 0 (rect pas encore mesurable) -> repli sur matin, jamais une exception');
+
+// round du 14.09.2026 — Lionel, vidéo à l'appui : "lors de l'étirement, la
+// bulle est aimantée de manière bizarre", puis "idem lors du déplacement, la
+// bulle fait des « gauche-droite »". Cause : une cellule PERSONNE (tâche/
+// absence) est déjà scindée matin/aprem en mode compact (creerCell, 2
+// cellules DOM distinctes) — lui appliquer quand même la règle "milieu de la
+// cellule" revient à re-découper une demi-journée déjà entière en 2 quarts,
+// et ce recoupage change de réponse selon la position EXACTE du pointeur
+// DANS cette demi-journée, provoquant l'aller-retour observé pendant le
+// glissement. Une cellule personne porte TOUJOURS un data-demi valide (posé
+// par creerCell) : il doit primer, sans aucun calcul sur clientX.
+assertEqual(sandbox.demiDepuisPointeur(faireCell(100, 40, 'matin'), 100), 'matin',
+  'cellule personne déjà "matin" -> "matin", quelle que soit la position du pointeur (bord gauche)');
+assertEqual(sandbox.demiDepuisPointeur(faireCell(100, 40, 'matin'), 139), 'matin',
+  'cellule personne déjà "matin" -> "matin" même tout près du bord DROIT de cette cellule (c’était le bug : retombait sur "aprem" ici, provoquant le "gauche-droite")');
+assertEqual(sandbox.demiDepuisPointeur(faireCell(100, 40, 'aprem'), 101), 'aprem',
+  'cellule personne déjà "aprem" -> "aprem" même tout près du bord GAUCHE de cette cellule (même bug, symétrique)');
+assertEqual(sandbox.demiDepuisPointeur(faireCell(100, 40, 'aprem'), 139), 'aprem',
+  'cellule personne déjà "aprem" -> "aprem", quelle que soit la position du pointeur (bord droit)');
 
 // -- demiPourRedimNote : chaque poignée gouverne SON PROPRE bord (round du
 //    03.09.2026, "je peux reduire de 1 jour à 1 demi jour, mais je ne peux
