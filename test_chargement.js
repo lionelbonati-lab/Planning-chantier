@@ -170,8 +170,8 @@ assertEqual(sandbox.lundiDeSemaineUTC('2026-09-13'), '2026-09-07', 'dimanche 13.
   const caseAliceLundiMatin = d.personnes[0].matin[0];
   assertEqual(caseAliceLundiMatin.chantier, 'Chantier Rue du Lac', 'chantier = nom traduit depuis chantier_id, 1ère assignation par id');
   assertEqual(caseAliceLundiMatin.taches, [
-    { texte: 'Coffrage', statut: 'confirme', important: true, serieId: 7 },
-    { texte: 'Nettoyage', statut: null, important: false, serieId: null }
+    { texte: 'Coffrage', statut: 'confirme', important: true, serieId: 7, absence: false },
+    { texte: 'Nettoyage', statut: null, important: false, serieId: null, absence: false }
   ], 'tâches triées par `ordre` croissant, statut_id -> cle, statut absent -> null');
 
   // Case vide (Mardi matin d'Alice, aucune donnée) : bien formée, jamais undefined.
@@ -195,9 +195,38 @@ assertEqual(sandbox.lundiDeSemaineUTC('2026-09-13'), '2026-09-07', 'dimanche 13.
   // Bob (sous-traitant) : case week-end Samedi (weekend[0]) peuplée, avec
   // statut traduit ; Dimanche (weekend[1]) vide mais bien formée.
   assertEqual(d.personnes[1].sousTraitant, true, 'sousTraitant reporté depuis sous_traitant');
-  assertEqual(d.personnes[1].weekend[0], { chantier: null, taches: [{ texte: 'Astreinte', statut: 'a_reserver', important: false, serieId: null }] },
+  assertEqual(d.personnes[1].weekend[0], { chantier: null, taches: [{ texte: 'Astreinte', statut: 'a_reserver', important: false, serieId: null, absence: false }] },
     'case week-end Samedi peuplée depuis une tâche demi="matin" sur weekendDates[0]');
   assertEqual(d.personnes[1].weekend[1], { chantier: null, taches: [] }, 'case week-end Dimanche vide mais bien formée');
+})();
+
+// =======================================================================
+// 5) tacheVue_ (fonction locale de construireDonneesSemaine) — colonne
+//    taches.est_absence (sql/0009_taches_est_absence.sql, round du
+//    14.09.2026 — bug Lionel : une absence au descriptif libre repassait
+//    "tâche" dès la reconstruction suivante, faute de colonne dédiée).
+// =======================================================================
+(function () {
+  const labG = 20260907;
+  const lookups = { chantiersParId: {}, statutsParId: {} };
+  const brut = {
+    personnes: [{ id: 100, nom: 'Alice', sous_traitant: false, ordre: 0 }],
+    assignations: [],
+    // Mercredi (index 2) matin : une tâche normale et une absence au
+    // descriptif libre ("RDV perso", ne matche aucun mot-clé d'estAbsence)
+    // sur la même case, pour vérifier que seule celle marquée en base
+    // ressort avec absence:true.
+    taches: [
+      { id: 60, personne_id: 100, date: '2026-09-09', demi: 'matin', ordre: 0, texte: 'Coffrage', statut_id: null, important: false, serie_id: null, est_absence: false },
+      { id: 61, personne_id: 100, date: '2026-09-09', demi: 'matin', ordre: 1, texte: 'RDV perso', statut_id: null, important: false, serie_id: null, est_absence: true }
+    ],
+    jalons: [], notes: []
+  };
+  const d = sandbox.construireDonneesSemaine(labG, brut, lookups);
+  assertEqual(d.personnes[0].matin[2].taches, [
+    { texte: 'Coffrage', statut: null, important: false, serieId: null, absence: false },
+    { texte: 'RDV perso', statut: null, important: false, serieId: null, absence: true }
+  ], 'taches.est_absence -> absence:true/false reporté fidèlement par tacheVue_, indépendamment du texte');
 })();
 
 console.log('\n' + (total - echecs) + '/' + total + ' assertions réussies.');

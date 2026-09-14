@@ -208,6 +208,36 @@ assertEqual(
   assertEqual(plan.ops[0].ordre, 2, 'deux tâches déjà présentes ce jour -> la nouvelle prend ordre 2 (ajoutée en fin de liste)');
 })();
 
+// --- absence en série (round du 14.09.2026, sql/0009_taches_est_absence.sql) ---
+// Bug Lionel : une absence en série retombait "tâche" au premier
+// rechargement, faute de colonne dédiée. estAbsence (6e paramètre) doit
+// poser est_absence:true sur chaque ligne `taches` insérée, sans toucher aux
+// lignes `assignations` (une absence n'a jamais de chantier).
+(function () {
+  const champs = sandbox.champsSerie({
+    type: 'tache', texte: 'Congés été', personneId: 12, demi: 'matin',
+    dateDebutIso: '2026-09-07', frequence: 'jour', finType: 'occurrences', finValeur: 2,
+  });
+  const dates = ['2026-09-07', '2026-09-08'];
+  const plan = sandbox.construireOccurrencesSerie(champs, dates, 501, [], [], true);
+  assertEqual(plan.ops, [
+    { type: 'insert', table: 'taches', personne_id: 12, date: '2026-09-07', demi: 'matin', ordre: 0, texte: 'Congés été', statut_id: null, important: false, serie_id: 501, est_absence: true },
+    { type: 'insert', table: 'taches', personne_id: 12, date: '2026-09-08', demi: 'matin', ordre: 0, texte: 'Congés été', statut_id: null, important: false, serie_id: 501, est_absence: true },
+  ], 'estAbsence=true -> est_absence:true sur chaque ligne taches, aucune assignation (pas de chantierId fourni)');
+})();
+
+// --- estAbsence omis/false : forme des ops STRICTEMENT inchangée (pas de
+// clé est_absence ajoutée) — non-régression explicite pour toute série de
+// tâche normale déjà couverte par les tests ci-dessus.
+(function () {
+  const champs = sandbox.champsSerie({
+    type: 'tache', texte: 'Coffrage', personneId: 12, demi: 'matin', chantierId: 7,
+    dateDebutIso: '2026-09-07', frequence: 'jour', finType: 'occurrences', finValeur: 1,
+  });
+  const plan = sandbox.construireOccurrencesSerie(champs, ['2026-09-07'], 501, [], []);
+  assertEqual('est_absence' in plan.ops[0], false, 'estAbsence non fourni -> pas de clé est_absence dans l\'op (le défaut colonne false suffit)');
+})();
+
 // --- jalon ---
 (function () {
   const champs = sandbox.champsSerie({ type: 'jalon', texte: 'Visite architecte', dateDebutIso: '2026-09-07', frequence: 'semaine', finType: 'occurrences', finValeur: 2 });

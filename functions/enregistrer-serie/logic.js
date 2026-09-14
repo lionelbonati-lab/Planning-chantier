@@ -126,7 +126,7 @@ function champsSerie(payload) {
 //                       même fenêtre de dates (tache uniquement — [] sinon).
 //   [{ date, personne_id, demi }]
 // ============================================================
-function construireOccurrencesSerie(champs, dates, serieId, existantes, existantesAssignations) {
+function construireOccurrencesSerie(champs, dates, serieId, existantes, existantesAssignations, estAbsence) {
   var ops = [];
   var posees = 0, ignorees = 0;
 
@@ -141,12 +141,20 @@ function construireOccurrencesSerie(champs, dates, serieId, existantes, existant
       var dejaLa = existantes.filter(function (t) {
         return t.date === iso && t.personne_id === personneId && t.demi === demi;
       });
-      ops.push({
+      var ligneTache = {
         type: "insert", table: "taches",
         personne_id: personneId, date: iso, demi: demi, ordre: dejaLa.length,
         texte: champs.texte, statut_id: champs.statut_id, important: champs.important,
         serie_id: serieId,
-      });
+      };
+      // est_absence (sql/0009_taches_est_absence.sql, round du 14.09.2026) :
+      // paramètre séparé plutôt qu'un champ de `champs` — `champs` sert
+      // aussi tel quel à l'insertion dans `series` (cf. index.ts), qui n'a
+      // pas cette colonne. Omis quand faux : le défaut colonne (false)
+      // suffit, et ça garde inchangée la forme des ops pour toute série de
+      // tâche normale (cf. test_enregistrer_serie.js).
+      if (estAbsence) ligneTache.est_absence = true;
+      ops.push(ligneTache);
       posees++;
 
       // Chantier : posé une fois, JAMAIS écrasé (même règle que l'ancien

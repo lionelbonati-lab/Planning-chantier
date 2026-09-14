@@ -1664,3 +1664,80 @@ plusieurs mois avec chantier + important, modification (changement de chantier +
 vérification que les jours sortis sont bien nettoyés), suppression. Pas de vérification contre le vrai
 projet Supabase au-delà de l'application de la migration elle-même (limite réseau de cet environnement,
 déjà notée pour tout le reste de la migration Supabase) — à confirmer par Lionel en conditions réelles.
+
+## 27. Round du 14.09.2026 — `taches.est_absence` : une absence redevenait une tâche grise
+
+Cf. FRONTEND-CHANGELOG.md §62 pour la demande complète (Lionel, vidéo à l'appui : une absence au
+descriptif libre, posée sur plusieurs jours, se retrouvait attribuée à un chantier avec la couleur
+grise). Cette section couvre le volet base de données / edge function `enregistrer-serie`.
+
+### 27.1. Migration 0009 — `taches.est_absence`
+
+`sql/0009_taches_est_absence.sql` :
+
+```sql
+alter table taches add column if not exists est_absence boolean not null default false;
+
+update taches set est_absence = true
+where est_absence = false
+  and (
+    lower(texte) like '%absent%'
+    or lower(texte) like '%cong%'
+    or lower(texte) like '%vacance%'
+  );
+```
+
+Appliquée directement sur le projet Supabase (`mvqvznohgtpulpgalvxl`) via le connecteur MCP — même
+méthode que 0003/0005/0006/0007/0008. La table `taches` n'a jamais eu de colonne distinguant une
+absence d'une tâche normale : c'était jusqu'ici le TEXTE, réinterprété à chaque reconstruction
+côté client (`estAbsence()`), qui décidait — cf. FRONTEND-CHANGELOG.md §62.1 pour le mécanisme exact du
+bug que ça provoquait. Le backfill applique la même règle que l'ancienne détection cliente
+(`estAbsence()` d'Index.html / `Planning_Format.gs`), donc ne change le classement d'AUCUNE absence déjà
+correctement reconnue jusqu'ici — vérifié après coup par une requête directe (`execute_sql`) : 4 lignes
+sur 89 déjà en base concernées par le backfill. Aucun `GRANT` supplémentaire nécessaire (`taches` a déjà
+ses droits `authenticated` + policy RLS `connecte_tout` depuis `0002_rls.sql`, un nouveau champ sur une
+table déjà autorisée n'en a pas besoin).
+
+Ne répare pas rétroactivement une absence au texte libre déjà tombée « grise » avant ce round (aucun
+moyen de la distinguer avec certitude d'une vraie tâche a posteriori, une fois `chantier: null` déjà en
+place et le texte ne portant lui-même aucun indice) — à rouvrir et réenregistrer comme absence une fois
+ce correctif en place, si Lionel en a laissé.
+
+### 27.2. `enregistrer-serie`/`construireOccurrencesSerie` : `est_absence` sur les occurrences de tâche
+
+`champsSerie()` continue de forcer `type: "tache"` pour toute série (les colonnes `series.type`/
+`taches` d'origine n'ont toujours que 3 valeurs possibles) : inchangé, décision déjà actée avant ce
+round, cf. commentaire d'en-tête. Le manque n'était pas là mais en aval — les occurrences `taches` que
+`construireOccurrencesSerie()` insère pour une série de tâche ne portaient elle non plus aucune trace
+qu'il s'agissait, côté client, d'une ABSENCE en série (case « Série (se répète) » cochée sur le
+formulaire « Absence ») : même défaut que le chemin non-série, chemin de code distinct, donc à corriger
+séparément.
+
+`construireOccurrencesSerie(champs, dates, serieId, existantes, existantesAssignations, estAbsence)`
+gagne un 6e paramètre, volontairement à PART de `champs` — `champs` sert aussi tel quel à l'insertion
+dans `series` (`index.ts`, `supabase.from("series").insert(champs)`), qui n'a pas de colonne
+`est_absence` : l'y ajouter aurait fait échouer CETTE insertion avec une colonne inconnue. Sur chaque
+op d'insertion `taches`, la clé `est_absence` n'est posée QUE si `estAbsence` est vrai (`if (estAbsence)
+ligneTache.est_absence = true`) — omise sinon, le défaut de colonne (`false`) suffit, ce qui laisse la
+forme des ops STRICTEMENT inchangée pour toute série de tâche normale (aucune fixture existante de
+`test_enregistrer_serie.js` à toucher pour ce cas). `index.ts` passe `!!(payload as Record<string,
+unknown>).estAbsence` à l'appel — `payload` est le corps JSON reçu tel quel, `estAbsence` un champ
+nouveau posé côté client (`creerSerieServeur`, cf. FRONTEND-CHANGELOG.md §62.2), jamais lu par
+`champsSerie()`.
+
+### 27.3. Vérifications
+
+`node test_enregistrer_serie.js` : 28/28 assertions — 26 existantes inchangées (aucune fixture à mettre
+à jour, cf. §27.2) et 2 nouvelles : `estAbsence: true` → chaque op `taches` insérée porte bien
+`est_absence: true`, aucune assignation posée (une absence n'a pas de chantier) ; `estAbsence` omis →
+forme des ops identique à avant ce round, non-régression explicite.
+
+Migration vérifiée directement contre le vrai projet Supabase (`execute_sql`, pas seulement
+`apply_migration`) : colonne présente, backfill appliqué (4/89). `enregistrer-serie` redéployée
+directement sur le projet Supabase via le connecteur MCP (`deploy_edge_function`, même méthode que pour
+les migrations) — passée de la version 1 à la version 2, statut `ACTIVE` confirmé après coup
+(`list_edge_functions`). Contrairement au fichier `Index.html` (livré par commit local +
+`device_commit_files`, poussé par Lionel lui-même depuis GitHub Desktop, puis reconstruit côté Netlify),
+une edge function Supabase n'est pas redéployée par ce `git push` — sans ce déploiement direct, le volet
+« absence en série » du correctif serait resté du code mort en attendant que Lionel pense à la
+redéployer manuellement.

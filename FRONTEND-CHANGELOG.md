@@ -3928,3 +3928,76 @@ le chantier désactivé (a) disparaît du select « Chantier » d'un NOUVEAU for
 (b) disparaît de la légende cliquable, (c) reste néanmoins en base (`actif:false`, jamais supprimé par une
 simple désactivation) et (d) qu'une tâche déjà posée dessus AVANT la désactivation continue de s'afficher
 normalement dans la grille, avec sa couleur — exactement le point d'attention soulevé dans le mockup.
+
+## 62. Round du 14.09.2026 — corrige une absence au descriptif libre qui redevenait une tâche grise
+
+Lionel, vidéo à l'appui : « J'ai une erreur en mettant une absence sur plusieurs jours, elle est
+attribuée à un chantier et prend la couleur grise. » Reproduit à l'identique en rejouant sa vidéo
+image par image : glissé de 2 jours pleins sur la ligne d'un ouvrier, bouton « Absence », descriptif
+LIBRE (« test » dans la vidéo — ni « Congé » ni « Vacances »), Enregistrer. La bulle apparaît d'abord
+avec la couleur d'absence attendue, puis vire au gris quelques centaines de ms plus tard ; en la
+rouvrant, la fiche affichée n'est plus « Absence » (bandeau orange, sans chantier) mais celle d'une
+tâche normale, avec un chantier par défaut déjà proposé/sélectionné — un simple Enregistrer le lui
+attribue pour de bon.
+
+### 62.1. Cause — `taches` n'a jamais eu de colonne pour distinguer une absence d'une tâche
+
+Avant ce round, RIEN en base ne portait cette information : la table `taches` (`sql/0001_schema.sql`)
+n'a pas de colonne `type`, et le client décidait seul, à CHAQUE reconstruction depuis le cache serveur
+(`construireVueDepuisCache`), en appliquant `estAbsence(texte)` — une simple recherche de sous-chaîne
+(« absent »/« cong »/« vacance ») portée depuis `Planning_Format.gs` (V2). Un souci : `synchroniser()`
+recharge SYSTÉMATIQUEMENT depuis le serveur juste après chaque écriture (`oublierCache` +
+`construireVueDepuisCache`, cf. round « aller-retour de plus par synchronisation, mais un seul chemin
+de code »). Une absence au texte libre qui ne matche aucun des 3 mots-clés perdait donc son statut
+d'absence dès CE rechargement — pas à la prochaine visite, littéralement l'instant suivant
+l'enregistrement — et se retrouvait reclassée « tâche » sans chantier (`chantier: null`, une absence
+n'en a jamais), d'où le repli gris `#e5e5e5` (`bulleEl`). En rouvrant la fiche, `ouvrirEdition` la
+traitait alors en tâche normale (bandeau avec un chantier par défaut proposé), et un simple clic sur
+Enregistrer l'attribuait pour de bon — exactement la séquence décrite par Lionel.
+
+### 62.2. Correctif — une vraie colonne `taches.est_absence`
+
+`sql/0009_taches_est_absence.sql` : `alter table taches add column if not exists est_absence boolean
+not null default false`, avec un backfill best-effort sur les lignes déjà en base (même règle
+qu'`estAbsence()`, donc neutre sur tout ce qui était déjà correctement reconnu). Appliquée directement
+sur le projet Supabase via le connecteur MCP (même méthode que 0003/0005/0006/0007/0008) — 4 lignes sur
+89 concernées par le backfill au moment de l'application.
+
+Côté client, cette colonne devient la source de vérité, `estAbsence(texte)` ne reste qu'un FILET DE
+SÉCURITÉ (OR) pour ne jamais reclasser en tâche une ligne écrite avant ce round :
+
+- `tacheVue_` (fonction locale de `construireDonneesSemaine`) reporte désormais `absence: !!t.est_absence`
+  sur chaque tâche vue.
+- `construireVueDepuisCache` : `var typT = (entreeT.absence || estAbsence(entreeT.texte)) ? "absence" :
+  "tache"` (personnel ET week-end — 2 sites, même correctif).
+- `calculerEtatLocal` porte `absence: t.type === "absence"` jusque dans le payload de diff envoyé à
+  `enregistrerCellulePersonneServeur`, qui écrit `est_absence: !!t.absence` sur chaque ligne `taches`
+  insérée — c'est le chemin emprunté par une absence simple ou en plage (le cas de la vidéo de Lionel),
+  posée directement depuis la grille (pas de case « Série (se répète) » cochée).
+- Une absence créée EN SÉRIE (case « Série (se répète) », proposée aussi bien pour une absence que pour
+  une tâche) passe par l'edge function `enregistrer-serie`, qui a toujours forcé `type: "tache"` côté
+  serveur (`series`/`taches.type` n'ont que 3 valeurs possibles, « absence » n'en a jamais fait partie) —
+  même défaut, chemin distinct, donc corrigé séparément : `creerSerieServeur` envoie maintenant
+  `estAbsence: type === "absence"` dans le payload, sans toucher à `type` (qui reste « tache », colonne
+  `series` inchangée). Détail edge function : cf. BACKEND-CHANGELOG.md §27.
+
+### 62.3. Vérifications
+
+`node test_chargement.js` (36/36 — 35 existantes + 1 nouvelle dédiée à `tacheVue_`/`est_absence`, 2
+fixtures existantes mises à jour pour inclure la clé `absence` désormais toujours présente) et
+`node test_enregistrer_serie.js` (28/28 — 26 existantes + 2 nouvelles, cf. BACKEND-CHANGELOG.md §27) au
+vert, ainsi que le reste de la suite (`test_grille_compacte.js` 64/64, `test_chantier_defaut.js` 16/16,
+`test_enregistrer_plage.js` 41/41, `test_config_simple.js` 15/15, `test_gerer_serie.js` 12/12… — seul
+`test_edge_functions.js` échoue, échec préexistant déjà documenté au round précédent, sans rapport avec
+celui-ci).
+
+Nouveau scénario Playwright dédié (`verif_absence_plage_libre.js`), rejouant le scénario exact de la
+vidéo de Lionel avec le mock Supabase (glissé de 2 jours pleins, bouton Absence, descriptif libre
+« test », Enregistrer, ATTENTE d'un aller-retour serveur complet comme `synchroniser()` en déclenche un
+après chaque écriture) : la ligne `taches` créée porte bien `est_absence:true` ; la bulle affichée après
+resynchronisation reste de classe `bulle-absence` (jamais `bulle-tache`) et ne prend jamais le repli gris
+`#e5e5e5` ; en rouvrant la fiche (double-clic — un simple clic ne fait que sélectionner la bulle, cf.
+`resoudreClicBulle`), le formulaire reste bien « Absence » (bandeau orange, sans select Chantier), jamais
+une fiche de tâche avec un chantier par défaut déjà posé. Confirmé cassant sur le code d'avant ce round
+(`git stash` temporaire pendant l'écriture du test : échoue précisément sur l'assertion `est_absence`,
+comme attendu) puis vert une fois le correctif restauré.

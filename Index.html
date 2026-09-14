@@ -3785,7 +3785,26 @@
         texte: t.texte,
         statut: t.statut_id != null ? (statutsParId[t.statut_id] || null) : null,
         important: !!t.important,
-        serieId: t.serie_id || null
+        serieId: t.serie_id || null,
+        // Round du 14.09.2026 (bug signalé par Lionel, vidéo à l'appui : « une
+        // absence sur plusieurs jours est attribuée à un chantier et prend la
+        // couleur grise ») : `taches` gagne une vraie colonne est_absence
+        // (sql/0009_taches_est_absence.sql) — avant ce round, RIEN ne
+        // distinguait une absence d'une tâche côté serveur (aucune colonne
+        // `type`, cf. commentaire de creerSerieServeur plus bas) : le client
+        // décidait seul, à CHAQUE reconstruction depuis le cache
+        // (construireVueDepuisCache), en appliquant estAbsence() au texte —
+        // "Congé"/"Vacances"/tout texte contenant "absent" passait, mais une
+        // absence au descriptif libre ("test", un motif personnalisé...)
+        // repassait "tâche" dès la synchronisation suivante (synchroniser()
+        // recharge systématiquement depuis le serveur après écriture, cf.
+        // plus bas) — d'où le passage au gris (repli "chantier introuvable",
+        // bulleEl) puis, en rouvrant la fiche, un chantier par défaut
+        // proposé/enregistré comme pour une vraie tâche. absence ci-dessous
+        // est désormais la source de vérité ; estAbsence(texte) ne reste
+        // qu'un FILET DE SÉCURITÉ (OR, cf. construireVueDepuisCache) pour les
+        // lignes écrites avant ce round et non couvertes par le backfill SQL.
+        absence: !!t.est_absence
       };
     }
     // Une case = un chantier (via assignations) + une liste de tâches (via
@@ -4732,7 +4751,12 @@
             marquerConsommeT_(finHi, idxSuivT);
           }
           var bornesT = bornesDepuisDemiSlots(hiStart, finHi);
-          var typT = estAbsence(entreeT.texte) ? "absence" : "tache";
+          // Round du 14.09.2026 : entreeT.absence (colonne réelle
+          // taches.est_absence, cf. tacheVue_) prime désormais sur
+          // estAbsence(texte) — gardée en OR seulement comme filet de
+          // sécurité pour les lignes antérieures à ce round, cf. commentaire
+          // détaillé sur tacheVue_ plus haut.
+          var typT = (entreeT.absence || estAbsence(entreeT.texte)) ? "absence" : "tache";
           var ittT = itemPlageTache(typT, entreeT.texte, p.id, bornesT.giDebut, bornesT.duree, {
             chantier: typT === "absence" ? null : chantierT, important: entreeT.important, statut: entreeT.statut || null,
             demiDebut: bornesT.demiDebut, demiFin: bornesT.demiFin
@@ -4762,7 +4786,7 @@
           if (!vueJour) return;
           var giWE = giWeekend(s, j);
           (vueJour.taches || []).forEach(function (t) {
-            var typ = estAbsence(t.texte) ? "absence" : "tache";
+            var typ = (t.absence || estAbsence(t.texte)) ? "absence" : "tache"; // round du 14.09.2026, cf. commentaire de tacheVue_
             var itwe = itemPlageTache(typ, t.texte, p.id, giWE, 1, {
               chantier: typ === "absence" ? null : (vueJour.chantier || null), important: t.important, statut: t.statut || null,
               demiDebut: "matin", demiFin: "matin"
@@ -4875,7 +4899,12 @@
           demisAAppliquer.forEach(function (demi) {
             var cle = p.id + "|" + demi + "|" + lab + "|" + ji;
             if (!cellules[cle]) cellules[cle] = { chantier: null, taches: [] };
-            cellules[cle].taches.push({ texte: t.texte, statut: t.statut || null, important: !!t.important, serieId: t.serieId || null });
+            // absence (round du 14.09.2026, cf. tacheVue_) : portée jusqu'au
+            // payload serveur (enregistrerCellulePersonneServeur) pour écrire
+            // la vraie colonne taches.est_absence, plutôt que de laisser le
+            // serveur/la reconstruction suivante redéduire le type depuis le
+            // seul texte.
+            cellules[cle].taches.push({ texte: t.texte, statut: t.statut || null, important: !!t.important, serieId: t.serieId || null, absence: t.type === "absence" });
             if (t.chantier) cellules[cle].chantier = t.chantier;
           });
         }
@@ -5030,7 +5059,13 @@
       return {
         personne_id: personneId, date: iso, demi: demi, ordre: i,
         texte: t.texte, statut_id: t.statut ? (etat.statutIdParCle[t.statut] || null) : null,
-        important: !!t.important, serie_id: t.serieId || null
+        important: !!t.important, serie_id: t.serieId || null,
+        // est_absence (sql/0009_taches_est_absence.sql, round du 14.09.2026) :
+        // écrit tel quel depuis payload.taches[].absence (posé par
+        // calculerEtatLocal ci-dessus) — sans cette colonne, une absence au
+        // texte libre revenait "tâche" dès la reconstruction suivante (cf.
+        // commentaire détaillé sur tacheVue_).
+        est_absence: !!t.absence
       };
     });
     return sbClient.from("taches").delete().eq("personne_id", personneId).eq("date", iso).eq("demi", demi).then(function (res) {
@@ -8208,10 +8243,14 @@
     var isoDebut = isoDeGi(giDebut);
     // enregistrer-serie n'a que 3 types ("tache"|"jalon"|"note", cf.
     // champsSerie côté fonction) : "absence" n'a jamais été une vraie
-    // catégorie serveur (la table `taches` n'a pas de colonne `type` — c'est
-    // le TEXTE qui la rend visuellement distincte côté client, cf.
-    // estAbsence() plus haut) — traduite ici en "tache", comme le reste du
-    // formulaire d'édition le fait déjà.
+    // catégorie de la table `series`/`taches.type` — traduite ici en "tache",
+    // comme le reste du formulaire d'édition le fait déjà. Round du
+    // 14.09.2026 (bug Lionel : une absence en série retombait "tâche" au
+    // premier rechargement, même défaut que le chemin non-série corrigé
+    // ailleurs ce même round, cf. tacheVue_) : `estAbsence` ci-dessous porte
+    // désormais cette information jusqu'à taches.est_absence
+    // (sql/0009_taches_est_absence.sql) sans toucher au type envoyé à
+    // `series` (qui reste "tache", cf. plus haut — colonne inchangée).
     var typeServeur = (type === "absence") ? "tache" : type;
     var chaine = Promise.resolve();
     var dernier = null;
@@ -8227,7 +8266,8 @@
           important: !!important,
           chantierId: chantier ? ((etat.chantierParNom[chantier] && etat.chantierParNom[chantier].ligne) || null) : null,
           dateDebutIso: isoDebut, frequence: choixSerie.frequence, intervalle: choixSerie.intervalle,
-          finType: choixSerie.finType, finValeur: choixSerie.finValeur
+          finType: choixSerie.finType, finValeur: choixSerie.finValeur,
+          estAbsence: type === "absence"
         };
         return invoquerFonctionServeur("enregistrer-serie", payload).then(function (r) { dernier = r; });
       });

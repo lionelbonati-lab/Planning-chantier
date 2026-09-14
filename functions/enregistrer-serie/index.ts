@@ -87,7 +87,11 @@ Deno.serve(async (req: Request) => {
       existantesAssignations = data ?? [];
     }
 
-    const plan = construireOccurrencesSerie(champs, dates, serieId, existantes ?? [], existantesAssignations);
+    // estAbsence (round du 14.09.2026, sql/0009_taches_est_absence.sql) :
+    // porté par le payload client (creerSerieServeur, Index.html), jamais par
+    // `champs` (qui sert aussi à l'insertion dans `series`, sans cette
+    // colonne, cf. construireOccurrencesSerie/logic.js).
+    const plan = construireOccurrencesSerie(champs, dates, serieId, existantes ?? [], existantesAssignations, !!(payload as Record<string, unknown>).estAbsence);
 
     for (const op of plan.ops) {
       const { type: _type, table: opTable, ...ligne } = op as Record<string, unknown>;
