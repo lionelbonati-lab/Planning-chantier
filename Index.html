@@ -284,12 +284,34 @@
   .legende .item.chantier.actif { color: var(--ink); font-weight: 700; background: var(--accent-soft); }
   .legende .item.chantier.actif .swatch { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--accent); }
 
+  /* Round du 14.09.2026 — Lionel, mockup mockup-selecteur-semaine.html à
+     l'appui, validé : « les boutons Aujourd'hui et Imprimer doivent rester
+     au-dessus — on pourrait afficher les boutons 2 semaines et Aujourd'hui
+     dans la cellule à gauche des semaines, vide actuellement. » .semaine-titre
+     n'est plus la grande barre pleine largeur d'avant : c'est maintenant un
+     simple contexte flex/typo (mono, majuscules) réutilisé à 3 endroits très
+     différents, chacun via un modificateur dédié plus bas — .barre-imprimer
+     (la fine barre au-dessus de la grille, Imprimer seul), .coin-nav (la
+     cellule coin de la grille, Aujourd'hui + 2 semaines empilés) et
+     .cellule-semaine-nav (la cellule d'en-tête fusionnée de la grille,
+     flèches + Semaine N + dates). D'où l'absence ici de margin/padding
+     propres à un layout particulier — posés par le modificateur concerné. */
   .semaine-titre {
     display: flex; align-items: center; gap: 8px;
     font-family: 'IBM Plex Mono', monospace; font-weight: 700; font-size: 12px;
-    letter-spacing: .04em; text-transform: uppercase; color: var(--ink-muted); margin: 0 0 8px;
-    padding-left: 78px;
+    letter-spacing: .04em; text-transform: uppercase; color: var(--ink-muted);
   }
+  .semaine-titre.barre-imprimer { justify-content: flex-end; margin: 0 0 8px; }
+  /* .th (plus bas) a la même spécificité que .semaine-titre seule et vient
+     après elle dans la feuille de style : sans le 3e sélecteur .th ici,
+     .th regagnerait font-size/letter-spacing/font-weight sur ces 2 cellules
+     (coin-nav, cellule-semaine-nav) qui sont aussi des .th. */
+  .th.semaine-titre.coin-nav {
+    flex-direction: column; align-items: stretch; justify-content: center; gap: 4px; padding: 6px 8px;
+    font-size: 12px; font-weight: 700; letter-spacing: .04em;
+  }
+  .semaine-titre.coin-nav .btn-titre { margin-left: 0; justify-content: center; font-size: 10.5px; padding: 4px 6px; white-space: nowrap; }
+  .th.semaine-titre.cellule-semaine-nav { justify-content: center; font-size: 12px; font-weight: 700; letter-spacing: .04em; }
   .semaine-titre .fleche-semaine {
     width: 22px; height: 22px; border-radius: 7px; border: 1px solid var(--border);
     background: var(--surface-2); color: var(--ink-muted); cursor: pointer; font-family: inherit;
@@ -307,12 +329,16 @@
      aujourd'hui [...] placer le bouton imprimer à droite du bouton 2 [...]
      le design de bouton doit être cohérent avec le bouton aujourd'hui ».
      .btn-titre remplace .btn-aujourdhui comme classe de base commune aux 3
-     boutons désormais alignés dans .semaine-titre (Aujourd'hui, 2 semaines,
-     Imprimer) — .btn-aujourdhui reste posée EN PLUS sur le 1er pour ne pas
-     casser son sélecteur JS (titre.querySelector(".btn-aujourdhui")). .actif
+     boutons — .btn-aujourdhui/.btn-deux-semaines/.btn-imprimer-titre restent
+     posées EN PLUS pour ne pas casser leurs sélecteurs JS respectifs. .actif
      (2 semaines, quand deuxSemaines est vrai) reprend les mêmes teintes
      --accent/--accent-soft que les autres états "actif" du fichier (cf.
-     .legende .item.chantier.actif) plutôt qu'une nouvelle couleur. */
+     .legende .item.chantier.actif) plutôt qu'une nouvelle couleur. Round du
+     14.09.2026 : les 3 boutons ne sont plus côte à côte au même endroit
+     (cf. .semaine-titre plus haut) — margin-left:4px reste le bon espacement
+     par défaut pour .cellule-semaine-nav (plusieurs éléments en ligne),
+     .coin-nav et .barre-imprimer le neutralisent chacun (un seul bouton, ou
+     un empilement vertical, où cette marge n'a pas de sens). */
   .semaine-titre .btn-titre {
     margin-left: 4px; padding: 4px 10px; border-radius: 7px; border: 1px solid var(--border);
     background: var(--surface-2); color: var(--ink-muted); cursor: pointer; font: inherit;
@@ -322,6 +348,7 @@
   .semaine-titre .btn-titre:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
   .semaine-titre .btn-titre.actif { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 700; }
   .semaine-titre .btn-titre.actif:hover { background: var(--accent-soft); }
+  .semaine-titre.barre-imprimer .btn-titre { margin-left: 0; }
   .sem-entete-dates { display: block; font-size: 9px; font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--ink-faint); margin-top: 1px; }
   .grille-cadre { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
   .scroller { overflow-x: auto; padding-bottom: 4px; }
@@ -5341,8 +5368,6 @@
     var nbSemainesAffichees = deuxSemaines ? 2 : 1;
     var donnees = fenetreDonnees();
 
-    var titre = document.createElement("div");
-    titre.className = "semaine-titre";
     var num0 = donnees[0].numero, num1 = donnees[1] ? donnees[1].numero : null;
     var texteSemaines = (deuxSemaines && num1) ? ("Semaine " + num0 + " → Semaine " + num1) : ("Semaine " + num0);
     var deb0 = libelleJourGi(0), fin0 = libelleJourGi(deuxSemaines && num1 ? 9 : 4);
@@ -5351,28 +5376,24 @@
     // imprimer à droite du bouton 2 [...] le design de bouton doit être
     // cohérent avec le bouton aujourd'hui. » Remplace l'ancienne paire de
     // boutons .toggle-sem ("1 semaine"/"2 semaines", dans .header-actions,
-    // câblée une fois pour toutes) par un bouton UNIQUE .btn-deux-semaines
-    // ici, dans .semaine-titre — reconstruite à chaque rendu comme le reste
-    // de cette barre (flèches/Aujourd'hui), donc son état .actif reflète
-    // toujours deuxSemaines sans câblage séparé à maintenir en phase.
-    // "Imprimer" (ex-.header-actions lui aussi) rejoint la même barre, à sa
-    // droite. Les 3 boutons partagent .btn-titre (cf. CSS) pour un rendu
-    // identique à "Aujourd'hui".
-    titre.innerHTML =
-      '<button type="button" class="fleche-semaine" data-dir="-1" aria-label="Semaine précédente">‹</button>' +
-      '<button type="button" class="lien-aller">' + esc(texteSemaines) + '<span class="semaine-dates"> · ' + deb0.jour + " " + deb0.mois + " – " + fin0.jour + " " + fin0.mois + '</span></button>' +
-      '<button type="button" class="fleche-semaine" data-dir="1" aria-label="Semaine suivante">›</button>' +
-      '<button type="button" class="btn-titre btn-aujourdhui">Aujourd’hui</button>' +
-      '<button type="button" class="btn-titre btn-deux-semaines' + (deuxSemaines ? " actif" : "") + '" title="Afficher 2 semaines à la fois">2 semaines</button>' +
-      '<button type="button" class="btn-titre btn-imprimer-titre" title="Aperçu et export PDF de la semaine affichée">' + ICONS.print + ' Imprimer</button>';
-    racineEl.appendChild(titre);
-    titre.querySelectorAll(".fleche-semaine").forEach(function (btn) {
-      btn.addEventListener("click", function () { naviguerSemaine(parseInt(btn.dataset.dir, 10)); });
-    });
-    titre.querySelector(".lien-aller").addEventListener("click", ouvrirAllerSemaine);
-    titre.querySelector(".btn-aujourdhui").addEventListener("click", allerAujourdhui);
-    titre.querySelector(".btn-deux-semaines").addEventListener("click", basculerDeuxSemaines);
-    titre.querySelector(".btn-imprimer-titre").addEventListener("click", openPrintSheet);
+    // câblée une fois pour toutes) par un bouton UNIQUE .btn-deux-semaines,
+    // câblé ici à chaque rendu, donc son état .actif reflète toujours
+    // deuxSemaines sans câblage séparé à maintenir en phase.
+    // Round du 14.09.2026 — Lionel, mockup validé : « les boutons Aujourd'hui
+    // et Imprimer doivent rester au-dessus — on pourrait afficher les
+    // boutons 2 semaines et Aujourd'hui dans la cellule à gauche des
+    // semaines, vide actuellement. » La grande barre .semaine-titre pleine
+    // largeur (flèches + Semaine N + dates + les 3 boutons) disparaît :
+    // Imprimer reste seul ci-dessous, dans une fine barre au-dessus de la
+    // grille ; Aujourd'hui/2 semaines rejoignent la cellule coin de la
+    // grille (cf. coinNav plus bas) ; les flèches + Semaine N + dates
+    // rejoignent une cellule d'en-tête dédiée de la grille (cf. navSemaine
+    // plus bas), fusionnée sur toute la largeur affichée (1 ou 2 semaines).
+    var barreImprimer = document.createElement("div");
+    barreImprimer.className = "semaine-titre barre-imprimer";
+    barreImprimer.innerHTML = '<button type="button" class="btn-titre btn-imprimer-titre" title="Aperçu et export PDF de la semaine affichée">' + ICONS.print + ' Imprimer</button>';
+    racineEl.appendChild(barreImprimer);
+    barreImprimer.querySelector(".btn-imprimer-titre").addEventListener("click", openPrintSheet);
 
     var cadre = document.createElement("div"); cadre.className = "grille-cadre";
     var scroller = document.createElement("div"); scroller.className = "scroller";
@@ -5405,19 +5426,40 @@
       grille.appendChild(el);
     }
 
+    // Round du 14.09.2026 (suite, cf. commentaire plus haut) — cette ligne
+    // d'en-tête existe désormais TOUJOURS (avant : seulement en mode 2
+    // semaines, pour porter "Semaine 37"/"Semaine 38"). coinNav réutilise la
+    // cellule coin, vide jusqu'ici sur cette ligne, pour Aujourd'hui/2
+    // semaines. navSemaine remplace les anciennes cellules s0/s1 (un texte
+    // par semaine) par UNE SEULE cellule portant la navigation complète,
+    // fusionnée sur toute la largeur affichée (1 semaine : largeurSemaine ;
+    // 2 semaines : largeurSemaine × 2, comme l'ancien couple s0+s1 mis bout
+    // à bout) — le texte "Semaine 37 → Semaine 38" y existait déjà tel quel
+    // (texteSemaines, cf. plus haut), seul son emplacement change.
     var row = 1;
-    if (deuxSemaines && num1) {
-      var coinS = document.createElement("div"); coinS.className = "th coin"; poser(coinS, 1, row);
-      var d0a = libelleJourGi(0), f0a = libelleJourGi(4), d1a = libelleJourGi(5), f1a = libelleJourGi(9);
-      var s0 = document.createElement("div"); s0.className = "th sem-entete";
-      s0.innerHTML = "Semaine " + esc(num0) + '<span class="sem-entete-dates">' + d0a.jour + " " + d0a.mois + " – " + f0a.jour + " " + f0a.mois + "</span>";
-      var largeurSemaine = 5 * colsParJour() + (afficherWeekends ? 2 : 0);
-      poser(s0, colonneGrille(0), row, largeurSemaine);
-      var s1 = document.createElement("div"); s1.className = "th sem-entete sem-frontiere";
-      s1.innerHTML = "Semaine " + esc(num1) + '<span class="sem-entete-dates">' + d1a.jour + " " + d1a.mois + " – " + f1a.jour + " " + f1a.mois + "</span>";
-      poser(s1, colonneGrille(5), row, largeurSemaine);
-      row++;
-    }
+    var coinNav = document.createElement("div");
+    coinNav.className = "th coin coin-nav semaine-titre";
+    coinNav.innerHTML =
+      '<button type="button" class="btn-titre btn-aujourdhui">Aujourd’hui</button>' +
+      '<button type="button" class="btn-titre btn-deux-semaines' + (deuxSemaines ? " actif" : "") + '" title="Afficher 2 semaines à la fois">2 semaines</button>';
+    poser(coinNav, 1, row);
+    coinNav.querySelector(".btn-aujourdhui").addEventListener("click", allerAujourdhui);
+    coinNav.querySelector(".btn-deux-semaines").addEventListener("click", basculerDeuxSemaines);
+
+    var navSemaine = document.createElement("div");
+    navSemaine.className = "th sem-entete cellule-semaine-nav semaine-titre";
+    navSemaine.innerHTML =
+      '<button type="button" class="fleche-semaine" data-dir="-1" aria-label="Semaine précédente">‹</button>' +
+      '<button type="button" class="lien-aller">' + esc(texteSemaines) + '<span class="semaine-dates"> · ' + deb0.jour + " " + deb0.mois + " – " + fin0.jour + " " + fin0.mois + '</span></button>' +
+      '<button type="button" class="fleche-semaine" data-dir="1" aria-label="Semaine suivante">›</button>';
+    var largeurSemaine = 5 * colsParJour() + (afficherWeekends ? 2 : 0);
+    poser(navSemaine, colonneGrille(0), row, largeurSemaine * nbSemainesAffichees);
+    navSemaine.querySelectorAll(".fleche-semaine").forEach(function (btn) {
+      btn.addEventListener("click", function () { naviguerSemaine(parseInt(btn.dataset.dir, 10)); });
+    });
+    navSemaine.querySelector(".lien-aller").addEventListener("click", ouvrirAllerSemaine);
+    row++;
+
     var aujIso = etat.aujourdhui;
     var coin = document.createElement("div"); coin.className = "th coin"; poser(coin, 1, row);
     for (var gi = 0; gi < n; gi++) {

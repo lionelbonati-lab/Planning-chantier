@@ -3719,3 +3719,72 @@ Planning et Personnel (desktop) et Planning (mobile 390px) — pas de régressio
 `node test_enregistrer_plage.js` (41/41), `node test_grille_compacte.js` (64/64), `node
 test_chantier_defaut.js` (16/16) et `node test_chargement.js` (35/35) toujours au vert — changement de
 navigation pur (CSS + routage), aucune des fonctions testées n'y touche.
+
+## 59. Round du 14.09.2026 — Planning : le sélecteur de semaine rejoint la grille (Imprimer seul au-dessus)
+
+### 59.1. Demande et mockup
+
+Lionel, sur le mockup du round précédent (§58, qui avait déplacé toute la barre `.semaine-titre` — y
+compris Aujourd'hui/2 semaines/Imprimer — dans une cellule fusionnée de la grille) : « l'idée est bonne
+mais les boutons Aujourd'hui et Imprimer doivent rester au-dessus. On pourrait afficher les boutons 2
+semaines et Aujourd'hui dans la cellule à gauche des semaines, vide actuellement. »
+
+Travail sur image avant codage, comme toujours : `mockup-selecteur-semaine.html` (blocs 3-4, la
+proposition « v2 ») a montré une nouvelle répartition — Imprimer seul dans une fine barre au-dessus de
+la grille, Aujourd'hui + 2 semaines empilés dans la cellule coin (vide jusque-là), la navigation
+(flèches + Semaine N + dates) dans une cellule dédiée de la grille. Validé par Lionel ensuite (« ok pour
+les boutons superposés », après une question sur l'empilement vs côte-à-côte dans la cellule coin
+étroite).
+
+### 59.2. Implémentation
+
+`construireGrille()` (seule fonction touchée) :
+
+- L'ancienne barre `.semaine-titre` pleine largeur (flèches + Semaine N + dates + 3 boutons) disparaît.
+  À sa place, une fine barre `.barre-imprimer` (toujours `.semaine-titre` comme classe de base, cf.
+  plus bas) ne contient plus que le bouton Imprimer, alignée à droite.
+- La cellule coin de la grille (vide jusqu'ici sur cette ligne) devient `coinNav` — classe
+  `.th.coin.coin-nav.semaine-titre` — et porte Aujourd'hui + 2 semaines, empilés verticalement (la
+  cellule, 116px de large, est trop étroite pour les 2 boutons côte à côte avec leur texte complet).
+- Une cellule `navSemaine` — classe `.th.sem-entete.cellule-semaine-nav.semaine-titre` — porte
+  désormais flèches + Semaine N + dates. Elle existe TOUJOURS (avant : seulement en mode 2 semaines,
+  pour porter "Semaine 37"/"Semaine 38" côte à côte) et est fusionnée sur toute la largeur affichée :
+  en mode 1 semaine c'est une cellule neuve (span = `largeurSemaine`) ; en mode 2 semaines elle
+  remplace les 2 anciennes cellules séparées par une seule (span = `largeurSemaine × 2`), avec le texte
+  "Semaine 37 → Semaine 38" qui existait déjà tel quel (`texteSemaines`) — seul son emplacement change.
+
+CSS : `.semaine-titre` n'est plus la grande barre d'avant, mais un simple contexte flex/typo (mono,
+majuscules) réutilisé à 3 endroits différents via des modificateurs dédiés — `.barre-imprimer`
+(alignée à droite), `.coin-nav` (empilement vertical, boutons resserrés à 10.5px) et
+`.cellule-semaine-nav` (centrée). `.btn-titre`/`.fleche-semaine`/`.lien-aller`/`.semaine-dates` restent
+scopés sous `.semaine-titre` comme avant (aucun changement de sélecteur) — seuls leurs 3 contextes
+changent. Un point de vigilance noté en commentaire CSS : `.th` (règle générique, définie après
+`.semaine-titre` dans la feuille de style) a la même spécificité que `.semaine-titre` seule et
+gagnerait sinon sur police/taille — `.coin-nav`/`.cellule-semaine-nav` prennent donc `.th` dans leur
+propre sélecteur pour rester prioritaires.
+
+### 59.3. Effet de bord positif
+
+Le bug mobile repéré plus tôt (bouton Imprimer complètement hors écran à 390px, cf. round où la version
+mobile de Planning avait été testée pour la première fois) se trouve corrigé au passage, sans action
+dédiée : Imprimer vit maintenant hors de la grille défilante (`.scroller`), dans le flux normal de la
+page — il n'est donc plus soumis au défilement horizontal qui le poussait hors champ.
+
+### 59.4. Vérifications
+
+Scénario Playwright dédié : structure attendue présente (`coin-nav`, `cellule-semaine-nav`,
+`barre-imprimer`), ancienne barre `.semaine-titre` pleine largeur bien absente, une seule cellule
+`.sem-entete` (contre 2 avant, en mode 2 semaines). Clic sur "2 semaines" (dans `coin-nav`) → bascule
+et texte "Semaine 38 → Semaine 39" corrects, bouton `.actif`. Flèche "suivante" (dans
+`cellule-semaine-nav`) → semaine change bien. "Aujourd'hui" (dans `coin-nav`) → revient bien à la
+semaine courante. "Aller à…" (clic sur le texte de la semaine) → popup s'ouvre. "Imprimer" (dans
+`barre-imprimer`) → aperçu d'impression s'ouvre bien (`.impression-modal`). Aucune erreur JS.
+
+Rendu visuel vérifié en 1 et 2 semaines (desktop, ~1360px) et en mobile (390px) : plus aucun élément de
+la nouvelle zone d'en-tête (Imprimer, Aujourd'hui, 2 semaines) ne déborde de l'écran — seule la cellule
+de navigation de semaine déborde, ce qui est attendu et pré-existant (elle fait partie de la grille qui
+défile horizontalement, comme les colonnes de jours).
+
+`node test_grille_compacte.js` (64/64), `node test_chantier_defaut.js` (16/16), `node
+test_chargement.js` (35/35) et `node test_enregistrer_plage.js` (41/41) toujours au vert — aucune des
+fonctions pures testées n'est touchée par ce changement, purement DOM/CSS dans `construireGrille()`.

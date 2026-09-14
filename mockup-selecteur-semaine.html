@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Mockup — sélecteur de semaine dans la grille</title>
+<title>Mockup — sélecteur de semaine dans la grille (v2)</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   /* Tokens repris tels quels d'Index.html (:root) pour un rendu fidèle. */
@@ -112,6 +112,19 @@
   .comparaison .puce { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
   .comparaison .puce.avant { background: var(--ink-faint); }
   .comparaison .puce.apres { background: var(--accent); }
+
+  /* --- v2 : cellule "coin" réutilisée pour Aujourd'hui / 2 semaines ------- */
+  .coin-boutons {
+    background: var(--surface); display: flex; flex-direction: column; align-items: stretch;
+    justify-content: center; gap: 4px; padding: 6px;
+  }
+  .coin-boutons .btn-titre { margin-left: 0; justify-content: center; font-size: 10.5px; padding: 4px 6px; white-space: nowrap; }
+  .barre-imprimer-seule {
+    display: flex; justify-content: flex-end; margin-bottom: 8px;
+  }
+  .barre-imprimer-seule .btn-titre { font-size: 12px; }
+  .bloc-label .tag.maj { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .bloc-label .tag.perime { text-decoration: line-through; opacity: .6; }
 </style>
 </head>
 <body>
@@ -119,12 +132,16 @@
 <div class="page-titre">
   <h1>Mockup — déplacer le sélecteur de semaine dans la grille</h1>
   <p>
-    Proposition suite au retour de Lionel : en mode 1 semaine, la cellule
-    d'en-tête au-dessus des jours accueille directement la navigation de
-    semaine (flèches, « Semaine N », Aujourd'hui, 2&nbsp;semaines, Imprimer),
-    à la place de l'actuelle barre séparée au-dessus de la grille. En mode
-    2&nbsp;semaines, les deux cellules « Semaine 37 » / « Semaine 38 » se
-    fusionnent en une seule cellule qui accueille ce même sélecteur.
+    Proposition initiale (blocs 1-2 ci-dessous) : la cellule d'en-tête
+    au-dessus des jours accueille toute la navigation de semaine, à la place
+    de l'actuelle barre séparée. <b>Retour de Lionel :</b> « l'idée est bonne
+    mais les boutons Aujourd'hui et Imprimer doivent rester au-dessus — on
+    pourrait afficher les boutons 2 semaines et Aujourd'hui dans la cellule à
+    gauche des semaines, vide actuellement ». Les blocs 3-4 (v2) reprennent
+    cette idée : la cellule « coin », vide aujourd'hui, accueille Aujourd'hui
+    + 2 semaines ; la cellule de semaine ne garde que la navigation
+    (flèches + « Semaine N » + dates) ; Imprimer reste seul dans une fine
+    barre au-dessus.
   </p>
   <p class="rappel">Travail sur image — aucun code n'a encore été modifié dans Index.html.</p>
 </div>
@@ -192,8 +209,8 @@
 <div class="bloc">
   <div class="bloc-label">
     <span class="num">1</span>
-    <h2>Proposition — mode 1 semaine</h2>
-    <span class="tag">nouveau</span>
+    <h2>Essai initial — mode 1 semaine</h2>
+    <span class="tag perime">corrigé en v2 (bloc 3)</span>
   </div>
   <p class="bloc-note">
     La grille gagne une ligne d'en-tête (comme celle qui existe déjà en mode
@@ -237,8 +254,8 @@
 <div class="bloc">
   <div class="bloc-label">
     <span class="num">2</span>
-    <h2>Proposition — mode 2 semaines</h2>
-    <span class="tag">nouveau</span>
+    <h2>Essai initial — mode 2 semaines</h2>
+    <span class="tag perime">corrigé en v2 (bloc 4)</span>
   </div>
   <p class="bloc-note">
     Les deux cellules « Semaine 37 » et « Semaine 38 » <b>fusionnent en une
@@ -275,20 +292,107 @@
 
 <div class="bloc">
   <div class="bloc-label">
+    <span class="num">3</span>
+    <h2>v2 — mode 1 semaine</h2>
+    <span class="tag maj">selon ton retour</span>
+  </div>
+  <p class="bloc-note">
+    « Imprimer » redevient seul, dans une fine barre au-dessus de la grille
+    (il n'a pas vraiment sa place « dans » une semaine — c'est une action
+    ponctuelle, pas une navigation). La cellule « coin », en haut à gauche —
+    vide aujourd'hui, aussi bien en 1 qu'en 2 semaines — accueille
+    « Aujourd'hui » et « 2 semaines ». La cellule de la semaine ne porte plus
+    que la navigation : ‹ Semaine N · dates ›.
+  </p>
+  <div class="cadre">
+    <div class="barre-imprimer-seule">
+      <button class="btn-titre">🖶 Imprimer</button>
+    </div>
+    <p class="annot-legende"><span class="trait"></span> cellule coin (Aujourd'hui + 2 semaines) &nbsp;·&nbsp; cellule de la semaine (navigation seule)</p>
+    <div class="grille-demo" style="grid-template-columns: 116px repeat(5, 1fr);">
+      <div class="coin-boutons annot-cadre">
+        <button class="btn-titre">Aujourd'hui</button>
+        <button class="btn-titre">2 semaines</button>
+      </div>
+      <div class="cellule-semaine-fusionnee annot-cadre" style="grid-column: 2 / 7;">
+        <div class="semaine-titre">
+          <button class="fleche-semaine">‹</button>
+          <button class="lien-aller">Semaine 37<span class="semaine-dates"> · 7 sept – 11 sept</span></button>
+          <button class="fleche-semaine">›</button>
+        </div>
+      </div>
+      <div class="th-demo coin"></div>
+      <div class="th-demo">LUN<span class="j">7</span></div>
+      <div class="th-demo">MAR<span class="j">8</span></div>
+      <div class="th-demo">MER<span class="j">9</span></div>
+      <div class="th-demo">JEU<span class="j">10</span></div>
+      <div class="th-demo">VEN<span class="j">11</span></div>
+      <div class="ligne-personne">Lionel<span>Maçon</span></div>
+      <div class="case-demo"></div><div class="case-demo"></div><div class="case-demo"></div><div class="case-demo"></div><div class="case-demo"></div>
+      <div class="ligne-personne">Manu<span>Maçon</span></div>
+      <div class="case-demo"></div><div class="case-demo"></div><div class="case-demo"></div><div class="case-demo"></div><div class="case-demo"></div>
+    </div>
+  </div>
+</div>
+
+<div class="bloc">
+  <div class="bloc-label">
+    <span class="num">4</span>
+    <h2>v2 — mode 2 semaines</h2>
+    <span class="tag maj">selon ton retour</span>
+  </div>
+  <p class="bloc-note">
+    Même principe : « Imprimer » seul au-dessus, « Aujourd'hui » + « 2
+    semaines » dans la cellule coin (inchangée par rapport au mode 1
+    semaine — elle ne dépend pas du nombre de semaines affichées), et les
+    2 cellules « Semaine 37 » / « Semaine 38 » fusionnées ne gardent que la
+    navigation combinée.
+  </p>
+  <div class="cadre">
+    <div class="barre-imprimer-seule">
+      <button class="btn-titre">🖶 Imprimer</button>
+    </div>
+    <p class="annot-legende"><span class="trait"></span> cellule coin (Aujourd'hui + 2 semaines) &nbsp;·&nbsp; cellules de semaine fusionnées (navigation seule)</p>
+    <div class="grille-demo" style="grid-template-columns: 116px repeat(10, 1fr);">
+      <div class="coin-boutons annot-cadre">
+        <button class="btn-titre">Aujourd'hui</button>
+        <button class="btn-titre actif">2 semaines</button>
+      </div>
+      <div class="cellule-semaine-fusionnee annot-cadre" style="grid-column: 2 / 12;">
+        <div class="semaine-titre">
+          <button class="fleche-semaine">‹</button>
+          <button class="lien-aller">Semaine 37 → Semaine 38<span class="semaine-dates"> · 7 sept – 18 sept</span></button>
+          <button class="fleche-semaine">›</button>
+        </div>
+      </div>
+      <div class="th-demo coin"></div>
+      <div class="th-demo">LUN<span class="j">7</span></div><div class="th-demo">MAR<span class="j">8</span></div><div class="th-demo">MER<span class="j">9</span></div><div class="th-demo">JEU<span class="j">10</span></div><div class="th-demo">VEN<span class="j">11</span></div>
+      <div class="th-demo sem-frontiere">LUN<span class="j">14</span></div><div class="th-demo">MAR<span class="j">15</span></div><div class="th-demo">MER<span class="j">16</span></div><div class="th-demo">JEU<span class="j">17</span></div><div class="th-demo">VEN<span class="j">18</span></div>
+      <div class="ligne-personne">Lionel<span>Maçon</span></div>
+      <div class="case-demo"></div><div class="case-demo"></div><div class="case-demo"></div><div class="case-demo"></div><div class="case-demo"></div>
+      <div class="case-demo" style="box-shadow: inset 2px 0 0 var(--border-strong);"></div><div class="case-demo"></div><div class="case-demo"></div><div class="case-demo"></div><div class="case-demo"></div>
+    </div>
+  </div>
+</div>
+
+<div class="bloc">
+  <div class="bloc-label">
     <span class="num">?</span>
     <h2>Points à valider avant de coder</h2>
   </div>
   <p class="bloc-note">
+    — Dans la cellule coin (116px de large), « Aujourd'hui » et « 2 semaines »
+    sont empilés sur 2 lignes plutôt que côte à côte — la cellule est trop
+    étroite pour les 2 boutons sur une seule ligne avec leur texte complet.
+    Si tu préfères des boutons plus compacts (icônes seules, ou textes
+    raccourcis) pour les mettre côte à côte, dis-le.<br>
     — Les libellés individuels « Semaine 37 » / « Semaine 38 » disparaissent
     de l'en-tête une fois fusionnés (seul le sélecteur combiné les
     remplace) : la limite entre les 2 semaines reste repérable via le trait
-    plus épais déjà présent sur la ligne des jours. Si tu préfères garder les
-    2 numéros de semaine visibles quelque part en plus du sélecteur, dis-le
-    et je propose une variante.<br>
-    — Sur un écran très étroit (fenêtre desktop réduite), le sélecteur au
-    complet (flèches + boutons) peut passer à la ligne dans sa cellule,
-    comme il le fait déjà aujourd'hui dans <code>.semaine-titre</code>
-    (<code>flex-wrap: wrap</code>) — pas de nouveau risque introduit ici.
+    plus épais déjà présent sur la ligne des jours.<br>
+    — En mode compact (2 colonnes par jour), la cellule coin est aussi
+    utilisée par la ligne « M | A » juste en dessous — la cellule Aujourd'hui
+    / 2 semaines resterait au-dessus de cette ligne, sans la toucher.
   </p>
 </div>
 
