@@ -133,6 +133,26 @@
      spécificité, sans dépendre de l'ordre dans la feuille de style. */
   table.print-table tr.print-spacer.print-spacer-personne td { border-bottom: 2px solid var(--border-strong); }
 
+  /* Round 10 — Lionel : "Encore une bordure de 2PX sur la ligne
+     inférieure des nom et intervenant" → clarifié : "je veux que ces
+     lignes soient à 2px" (le bas propre de chaque ligne
+     personne/intervenant, jusqu'ici resté à 1px — règle de base — sous
+     François/Mathis/Antoine, alors qu'il était déjà à 2px sous Lionel
+     via le cadre extérieur du tableau). Toutes les lignes
+     personne/intervenant (François, Mathis, Antoine, Lionel — tout ce
+     qui n'est ni Jalons, ni Notes, ni un spacer) ont donc maintenant
+     AUSSI 2px en bas de leur propre ligne, en plus du 2px déjà en haut
+     (venant du spacer précédent, cf. règle au-dessus) : chaque
+     personne/intervenant est ainsi encadrée en haut ET en bas par un
+     trait 2px, avec l'espace neutre de 6px entre ce bas et le haut de
+     la personne suivante. Sélecteur listant les exclusions plutôt qu'une
+     classe dédiée (aucune classe commune n'existe sur ces lignes dans le
+     markup) ; spécificité (2 types + 5 classes) largement suffisante
+     pour battre la base 1px. */
+  table.print-table tbody tr:not(.print-jalons):not(.print-notes):not(.print-spacer):not(.print-spacer-section) td {
+    border-bottom: 2px solid var(--border-strong);
+  }
+
   /* Pointillé matin/aprem — 2 pièges distincts trouvés en construisant ce
      mockup, tous deux déjà réglés une fois côté production (cf. Index.html,
      commentaire d'origine sur .demi-aprem) mais qu'il fallait re-régler ici
@@ -147,13 +167,97 @@
      Index.html). Repris à l'identique des valeurs de production qui,
      elles, ont déjà fait leurs preuves : 2px transparent contre une base à
      1px (écart d'1px, plus large que l'écart de production de 0.6px contre
-     une base à 1.4px). (2) l'inset haut/bas (7px) qui contient le
-     pointillé À L'INTÉRIEUR de la case, pour répondre à "tes pointillé
-     coupent encore les bordures extérieures". */
-  table.print-table .demi-aprem { position: relative; border-left: 2px solid transparent; }
+     une base à 1.4px). (2) l'inset haut/bas, qui contient le pointillé
+     À L'INTÉRIEUR de la case, pour répondre à "tes pointillé coupent
+     encore les bordures extérieures".
+     Round 11 — Lionel : "on distingue comme un trait blanc sous le
+     pointillé, il faut l'enlever". Diagnostiqué au pixel (capture à
+     deviceScaleFactor 10, classification noir/blanc/fond ligne par
+     ligne) : la 1ère hypothèse ("bug de rendu du border-style:dotted")
+     était fausse — remplacer le border-style:dotted par un dégradé en
+     background-image (même position, même ::before) a reproduit
+     EXACTEMENT le même blanc, ce qui a désigné la vraie cause : sous
+     border-collapse, le fond propre d'une case s'arrête à la moitié de
+     l'épaisseur de SA bordure — ici 2px transparent, donc 1px de chaque
+     côté où AUCUNE case adjacente ne peint son propre fond. Ce qui
+     apparaît dans cette bande n'est donc ni le bleu chantier, ni
+     l'orange absence, ni le blanc surface-2 de la case : c'est le fond
+     de l'ancêtre .feuille (blanc) qui transparaît, quelle que soit la
+     vraie couleur de la case — d'où le "trait blanc" quelle que soit la
+     case. Le ::before (position:absolute, donc peint AU-DESSUS de cette
+     bande) dessinait bien les points sombres au bon endroit, mais ses
+     intervalles "transparent" laissaient voir ce blanc au lieu du fond
+     réel de la case. Corrigé une 1ère fois en donnant au ::before (qui
+     dessine les points, inset top/bottom) un background-color: inherit
+     (récupère la vraie couleur de fond de LA case, quelle qu'elle soit
+     — chantier, absence, jalon, surface-2, --bg de l'en-tête…) comme
+     calque de base sous le dégradé des points. Ça a supprimé le blanc
+     DANS la zone du pointillé, mais un second passage au pixel (même
+     méthode) a montré le même blanc persistant AU-DESSUS et EN-DESSOUS
+     de cette zone — logique : le ::before, inset comme le pointillé
+     (top/bottom:3px), ne couvre pas ces marges-là, où le problème de
+     fond (2px transparent sur toute la hauteur de la case) reste
+     entier.
+     Séparé en 2 pseudo-éléments : ::before couvre TOUTE la hauteur de
+     la case (top:0;bottom:0) avec juste background-color:inherit —
+     élimine le blanc sur toute la colonne, marges comprises ; ::after,
+     par-dessus, ne dessine le dégradé de points QUE dans l'inset (3px
+     du haut/bas) — c'est lui qui rapproche visuellement le pointillé
+     des lignes horizontales (Lionel : "il faut rapprocher le pointillé
+     des lignes horizontales"), tout en gardant un espace neutre pour ne
+     pas les toucher (cause du tout 1er retour de Lionel sur ce
+     mockup).
+     Round 13 — Lionel : "la ligne au dessus et au dessous de matin/aprèm
+     est entrecoupée aux endroits des pointillés". Vérifié au pixel
+     (capture deviceScaleFactor 8, zoom sur une frontière matin/aprem) :
+     les lignes horizontales du haut et du bas de la ligne Matin/Aprem
+     avaient bien une coupure exactement à la largeur du pointillé.
+     Diagnostiqué en désactivant isolément chaque suspect : en coupant
+     ::before/::after (display:none) la coupure restait identique —
+     donc PAS causée par les pseudo-éléments ; en remettant EN PLUS
+     border-left à 1px solid normal (au lieu de 2px transparent), la
+     coupure disparaissait complètement, lignes horizontales
+     parfaitement continues. Cause réelle : border-collapse ne résout
+     pas seulement le conflit de largeur le LONG de la frontière
+     verticale, mais aussi À CHAQUE CROISEMENT avec une bordure
+     horizontale — notre transparent 2px, plus large, gagne aussi ces
+     croisements-là (haut ET bas de la case), rendant transparente une
+     largeur de 2px de la ligne horizontale exactement à cet endroit :
+     la "coupure" observée. Comme ce comportement vient de la bordure
+     CSS elle-même (pas d'un pseudo-élément par-dessus), aucun
+     ajustement de ::before/::after ne pouvait le corriger : il fallait
+     renoncer au calcul "transparent qui gagne le collapse" pour
+     supprimer le trait plein.
+     Remplacé par une frontière NORMALE (1px solid, comme n'importe
+     quelle autre ligne intérieure de la grille) : aucun conflit de
+     largeur avec la case voisine (1px des deux côtés), donc aucune
+     règle spéciale à résoudre au croisement — les croisements
+     redeviennent des croix de grille banales, sans coupure. Le
+     pointillé est maintenant un pur habillage décoratif PAR-DESSUS
+     cette ligne normale, cantonné loin des bords de la case : ::before
+     (2px d'inset haut/bas, au lieu de toute la hauteur) peint le fond
+     réel de la case pour effacer visuellement le trait plein SEULEMENT
+     dans la zone centrale — 2px suffit à rester à distance de sûreté de
+     n'importe quelle bordure horizontale de ce fichier (1px normal ou
+     2px pour les séparateurs personne/jalons, le cas le plus épais) ;
+     ::after, inchangé, dessine les points dans un inset encore plus
+     réduit (3px). Résultat : un petit segment de trait plein normal
+     subsiste sur les tout derniers pixels en haut/bas de chaque case
+     (fondu proprement dans le croisement de grille, invisible en
+     pratique), puis plus rien de 2px à 3px, puis les points de 3px
+     jusqu'au centre — vérifié par capture zoomée : lignes horizontales
+     à nouveau continues sur toute leur largeur, pointillé toujours
+     propre et sans trait blanc. */
+  table.print-table .demi-aprem { position: relative; }
   table.print-table .demi-aprem::before {
-    content: ""; position: absolute; left: -1px; top: 7px; bottom: 7px;
-    border-left: 1px dotted var(--border-strong);
+    content: ""; position: absolute; left: -1px; top: 2px; bottom: 2px; width: 1px;
+    background-color: inherit;
+  }
+  table.print-table .demi-aprem::after {
+    content: ""; position: absolute; left: -1px; top: 3px; bottom: 3px; width: 1px;
+    background-image: linear-gradient(var(--border-strong) 50%, transparent 50%);
+    background-size: 1px 2px;
+    background-repeat: repeat-y;
   }
 
   /* Notes : Lionel — "les notes ne sont pas correct [...] ne bordure que ou
@@ -182,6 +286,23 @@
   table.print-table tr.print-notes td { border: none; padding: 0 7px; }
   table.print-table tr.print-notes td.filled { border: 1px solid var(--border-strong); background: var(--note-bg); padding: 4px 7px; }
 
+  /* Round 12 — Lionel : "fait de même entre les matins et après-midi.
+     Fusionner les cases qui comportent la même tâche." Même principe déjà
+     appliqué aux lignes Jalons/Notes (colspan="2" par jour, jamais
+     scindées) : quand le texte de la case Matin et celui de la case Aprem
+     d'un même jour sont IDENTIQUES ET NON VIDES (une vraie tâche assignée
+     aux deux demi-journées), les deux <td> sont fusionnées en une seule
+     <td colspan="2"> — plus de pointillé matin/aprem à afficher puisqu'il
+     n'y a plus qu'une seule case (la classe .demi-aprem, qui porte le
+     pointillé, est simplement retirée de ces cases-là). Choix fait pour
+     les cases VIDES (aucune tâche ni le matin ni l'aprem, ex. mercredi
+     chez François/Antoine/Lionel) : lues littéralement, "la même tâche"
+     suppose une tâche réellement assignée des deux côtés — une case vide
+     n'en comporte aucune, donc pas fusionnée ici, elle garde son
+     pointillé comme avant. Mathis (mercredi = "80% — Congé" des deux
+     côtés) fusionne en revanche, comme lundi/mardi de tout le monde
+     (même texte de tâche des deux côtés). Jeudi et vendredi restent
+     scindés partout : la tâche change entre matin et aprem. */
   .print-statut { display: inline-block; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; padding: 1px 6px; border-radius: 999px; margin-top: 3px; }
   .print-important { color: var(--important-ink); font-weight: 700; }
   .print-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
@@ -238,10 +359,8 @@
 
       <tr>
         <td style="font-weight:700;white-space:nowrap">François</td>
-        <td style="background:var(--chantier)">Coffrage dalle</td>
-        <td class="demi-aprem" style="background:var(--chantier)">Coffrage dalle</td>
-        <td style="background:var(--chantier)">Coffrage bords de dalle</td>
-        <td class="demi-aprem" style="background:var(--chantier)">Coffrage bords de dalle</td>
+        <td colspan="2" style="background:var(--chantier)">Coffrage dalle</td>
+        <td colspan="2" style="background:var(--chantier)">Coffrage bords de dalle</td>
         <td style="background:var(--surface-2)"></td>
         <td class="demi-aprem" style="background:var(--surface-2)"></td>
         <td style="background:var(--chantier)">Préparation coffrage murs étage</td>
@@ -253,12 +372,9 @@
 
       <tr>
         <td style="font-weight:700;white-space:nowrap">Mathis</td>
-        <td style="background:var(--chantier)">Coffrage dalle</td>
-        <td class="demi-aprem" style="background:var(--chantier)">Coffrage dalle</td>
-        <td style="background:var(--chantier)">Coffrage bords de dalle</td>
-        <td class="demi-aprem" style="background:var(--chantier)">Coffrage bords de dalle</td>
-        <td style="background:var(--absence-bg)"><span class="print-important">80% — Congé</span></td>
-        <td class="demi-aprem" style="background:var(--absence-bg)"><span class="print-important">80% — Congé</span></td>
+        <td colspan="2" style="background:var(--chantier)">Coffrage dalle</td>
+        <td colspan="2" style="background:var(--chantier)">Coffrage bords de dalle</td>
+        <td colspan="2" style="background:var(--absence-bg)"><span class="print-important">80% — Congé</span></td>
         <td style="background:var(--chantier)">Préparation coffrage murs étage</td>
         <td class="demi-aprem" style="background:var(--chantier)">Bétonnage dalle</td>
         <td style="background:var(--chantier)">Coffrage murs étage</td>
@@ -268,10 +384,8 @@
 
       <tr>
         <td style="font-weight:700;white-space:nowrap">Antoine</td>
-        <td style="background:var(--chantier)">Coffrage dalle</td>
-        <td class="demi-aprem" style="background:var(--chantier)">Coffrage dalle</td>
-        <td style="background:var(--chantier)">Coffrage bords de dalle</td>
-        <td class="demi-aprem" style="background:var(--chantier)">Coffrage bords de dalle</td>
+        <td colspan="2" style="background:var(--chantier)">Coffrage dalle</td>
+        <td colspan="2" style="background:var(--chantier)">Coffrage bords de dalle</td>
         <td style="background:var(--surface-2)"></td>
         <td class="demi-aprem" style="background:var(--surface-2)"></td>
         <td style="background:var(--chantier)">Préparation coffrage murs étage</td>
@@ -283,10 +397,8 @@
 
       <tr>
         <td style="font-weight:700;white-space:nowrap">Lionel</td>
-        <td style="background:var(--chantier)">Coffrage dalle</td>
-        <td class="demi-aprem" style="background:var(--chantier)">Coffrage dalle</td>
-        <td style="background:var(--chantier)">Coffrage bords de dalle</td>
-        <td class="demi-aprem" style="background:var(--chantier)">Coffrage bords de dalle</td>
+        <td colspan="2" style="background:var(--chantier)">Coffrage dalle</td>
+        <td colspan="2" style="background:var(--chantier)">Coffrage bords de dalle</td>
         <td style="background:var(--surface-2)"></td>
         <td class="demi-aprem" style="background:var(--surface-2)"></td>
         <td style="background:var(--chantier)">Préparation coffrage murs étage</td>

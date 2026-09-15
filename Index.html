@@ -1107,6 +1107,30 @@
   .print-doc { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px; font-size: 12px; }
   table.print-table { width: 100%; border-collapse: collapse; }
   table.print-table th, table.print-table td { border: 1.4px solid var(--border-strong); padding: 5px 7px; font-size: 11px; vertical-align: top; }
+  /* Portage du mockup d'affinage des bordures (mockup-impression-bordures.html,
+     rounds 1 à 13, validés par Lionel le 15.09.2026 — "super, passe à la
+     mise en place sur l'appli") : cadre extérieur du tableau à 2px, contre
+     1.4px pour la grille intérieure. Écart repris de celui déjà éprouvé en
+     prod pour le pointillé matin/aprem plus bas (2px contre 1.4px, "a déjà
+     fait ses preuves" sur un vrai PDF) — un écart trop faible risquerait de
+     se faire arrondir au même pixel par le moteur d'impression sous
+     border-collapse, et la bordure fine l'emporterait quand même (déjà
+     rencontré sur ce fichier). Exclut les lignes spacer/spacer-section/
+     notes : pas de cadre extérieur à afficher sur une ligne qui doit rester
+     sans bordure ou sans trace de grille — même piège de "sélecteur plus
+     spécifique qui regagne silencieusement" que documenté plus bas sur
+     .print-spacer et .print-notes, d'où le ":not()" plutôt que de compter
+     sur la règle de base pour perdre d'elle-même. */
+  table.print-table thead tr:first-child th { border-top: 2px solid var(--border-strong); }
+  table.print-table tbody tr:last-child td { border-bottom: 2px solid var(--border-strong); }
+  table.print-table tr:not(.print-spacer):not(.print-spacer-section):not(.print-notes) th:first-child,
+  table.print-table tr:not(.print-spacer):not(.print-spacer-section):not(.print-notes) td:first-child {
+    border-left: 2px solid var(--border-strong);
+  }
+  table.print-table tr:not(.print-spacer):not(.print-spacer-section):not(.print-notes) th:last-child,
+  table.print-table tr:not(.print-spacer):not(.print-spacer-section):not(.print-notes) td:last-child {
+    border-right: 2px solid var(--border-strong);
+  }
   /* round du 15.09.2026 — Lionel : "la ligne des dates en grisé comme la
      colonne des noms" — fond neutre plutôt que --jalon-bg (violet, déjà le
      code couleur de la ligne Jalons juste en dessous : le réutiliser ici
@@ -1140,6 +1164,18 @@
      jour/date juste au-dessus (l'info qu'on cherche en premier sur la
      feuille reste "quel jour", pas "matin ou aprem"). */
   .print-demis th { font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; color: var(--ink-faint); padding-top: 3px; padding-bottom: 3px; }
+  /* Portage mockup — colonne des noms : bordure DROITE de la 1ère colonne
+     (noms/"Jalons"/"Notes") aussi à 2px, pour la détacher nettement de la
+     grille des jours. Exclut .print-demis (ligne Matin/Aprem — pas de
+     cellule à elle dans la colonne des noms, rowspan=2 de .coin-semaine posé
+     sur la ligne au-dessus, cf. openPrintSheet) : sans cette exclusion, le
+     premier "Matin" hériterait à tort de ce 2px, en conflit avec le
+     pointillé matin/aprem juste à côté (même largeur) — bug repéré dans le
+     mockup, visible seulement sur le 1er jour de la semaine. */
+  table.print-table tr:not(.print-spacer):not(.print-spacer-section):not(.print-demis):not(.print-notes) th:first-child,
+  table.print-table tr:not(.print-spacer):not(.print-spacer-section):not(.print-demis):not(.print-notes) td:first-child {
+    border-right: 2px solid var(--border-strong);
+  }
   .print-jalons td { background: var(--surface-2); }
   .print-jalons td.filled { background: var(--jalon-bg); }
   /* round du 15.09.2026 (suite) — Lionel : "ligne entre personnel fine et
@@ -1158,6 +1194,25 @@
      plus, jamais seule), juste plus haut ; uniquement à la frontière
      Personnel/Intervenants (cf. openPrintSheet, indexFrontiereSection). */
   table.print-table tr.print-spacer-section td { height: 14px; }
+  /* Portage mockup (rounds 7 à 10) — 3 nouvelles lignes de repère, toutes à
+     2px : (1) sous Jalons, posée sur le PREMIER spacer qui suit la ligne
+     Jalons (classe print-spacer-jalons — qu'il s'agisse du spacer avant
+     Notes si elle est remplie, ou directement du spacer avant la 1ère
+     personne sinon, cf. openPrintSheet) ; (2) au-dessus de CHAQUE personne/
+     intervenant, posée en border-BOTTOM sur le spacer qui la précède
+     (classe print-spacer-personne) — pas border-top, qui collerait au
+     contraire à la ligne du DESSUS (bug rencontré et corrigé dans le
+     mockup, round 9) : border-bottom colle bien à la personne SUIVANTE,
+     avec l'espace neutre du spacer restant visible avant, côté ligne
+     précédente ; (3) en bas de CHAQUE ligne personne/intervenant elle-même
+     (round 10), en plus du 2px déjà en haut via (2) — chaque personne se
+     retrouve ainsi encadrée en haut ET en bas, séparée de la suivante par
+     l'espace neutre du spacer. */
+  table.print-table tr.print-spacer.print-spacer-jalons td { border-top: 2px solid var(--border-strong); }
+  table.print-table tr.print-spacer.print-spacer-personne td { border-bottom: 2px solid var(--border-strong); }
+  table.print-table tbody tr:not(.print-jalons):not(.print-notes):not(.print-spacer):not(.print-spacer-section) td {
+    border-bottom: 2px solid var(--border-strong);
+  }
   /* round du 15.09.2026 (suite) — Lionel : "traitillé entre aprèm et
      matin", puis (round suivant) "le traitillé de la demi-journée plus fin
      et discret". Seule la frontière INTERNE matin→aprem (bordure gauche de
@@ -1196,14 +1251,76 @@
      round précédent, mais moins lisible que voulu — remis en noir
      (var(--border-strong), la même encre que tout le reste du tableau),
      seule la LARGEUR reste réduite (1px, contre 1.4px pour les autres
-     bordures) : c'est elle qui rend le trait "plus fin", pas sa couleur. */
-  table.print-table .demi-aprem { position: relative; border-left: 2px solid transparent; }
+     bordures) : c'est elle qui rend le trait "plus fin", pas sa couleur.
+     Portage du mockup (rounds 11 et 13) — 2 bugs latents découverts en
+     poussant plus loin l'affinage des bordures dans le mockup, tous deux
+     déjà présents ici avec la technique ci-dessus ("2px transparent qui
+     gagne le collapse") mais jamais remarqués en prod avant ce round-là :
+     (1) sous border-collapse, le fond propre d'une case s'arrête à la
+     moitié de l'épaisseur de SA bordure — ici 2px transparent, donc 1px de
+     chaque côté où aucune case adjacente ne peint son propre fond : ce qui
+     apparaît dans cette bande n'est donc ni le bleu chantier, ni l'orange
+     absence, ni le blanc surface-2 de la case, mais le fond de l'ancêtre
+     (blanc à l'impression, cf. .impression-modal dans @media print) qui
+     transparaît par-dessous — un mince trait blanc parasite, quelle que
+     soit la couleur de la case. (2) border-collapse ne résout pas
+     seulement le conflit de largeur le LONG de la frontière verticale,
+     mais aussi À CHAQUE CROISEMENT avec une bordure horizontale : notre
+     transparent 2px, plus large que la base 1.4px, gagne aussi ces
+     croisements-là (haut ET bas de chaque case), rendant transparente une
+     largeur de 2px de la ligne horizontale exactement à cet endroit — une
+     coupure visible dans TOUTES les lignes horizontales qui croisent la
+     frontière matin/aprem (d'autant plus visible maintenant que les
+     lignes 2px personne/jalons ci-dessus la croisent aussi). Diagnostiqué
+     et corrigé dans le mockup en désactivant isolément chaque suspect
+     (cf. son historique de commits) : aucun réglage de pseudo-élément ne
+     peut corriger (2), qui vient de la déclaration border-collapse
+     elle-même — il fallait renoncer au calcul "transparent qui gagne le
+     collapse".
+     Remplacé par une frontière NORMALE (1.4px solid, comme n'importe
+     quelle autre ligne intérieure de la grille) : aucun conflit de largeur
+     avec la case voisine, donc les croisements avec les lignes
+     horizontales redeviennent des croix de grille banales, sans coupure —
+     (2) réglé structurellement. Le pointillé devient un pur habillage
+     décoratif PAR-DESSUS cette ligne normale, cantonné loin des bords de
+     la case (2px d'inset haut/bas, largement suffisant pour rester à
+     distance de sûreté de n'importe quelle bordure horizontale du fichier,
+     1.4px normale ou 2px pour les séparateurs personne/jalons, le cas le
+     plus épais) : ::before peint le fond réel de la case pour effacer
+     visuellement le trait plein dans cette zone — (1) réglé, plus de
+     résidu blanc, seulement le fond de la case ou du dégradé ci-dessous ;
+     ::after, par-dessus, dessine le VRAI motif décoratif dans un inset
+     encore plus réduit (3px). Style (round suivant, portage) — Lionel a
+     choisi le motif en POINTS du mockup final plutôt que de garder les
+     tirets déjà en place ici : dégradé répété 1.4px/2px (au lieu de
+     bordure dashed) pour dessiner ces points, seule différence entre cette
+     règle et le fichier mockup (qui, lui, travaillait sur une grille de
+     base à 1px, cf. son propre historique de rounds pour le détail complet
+     du diagnostic). */
+  table.print-table .demi-aprem { position: relative; }
   table.print-table .demi-aprem::before {
-    content: ""; position: absolute; left: -1px; top: 0; bottom: 0;
-    border-left: 1px dashed var(--border-strong);
+    content: ""; position: absolute; left: -1px; top: 2px; bottom: 2px; width: 1.4px;
+    background-color: inherit;
   }
-  .print-notes td { border: none; padding: 0 7px; }
-  .print-notes td.filled { border: 1.4px solid var(--border-strong); background: var(--note-bg); padding: 4px 7px; }
+  table.print-table .demi-aprem::after {
+    content: ""; position: absolute; left: -1px; top: 3px; bottom: 3px; width: 1.4px;
+    background-image: linear-gradient(var(--border-strong) 50%, transparent 50%);
+    background-size: 1.4px 2px;
+    background-repeat: repeat-y;
+  }
+  /* Portage mockup (round 5) — même piège de spécificité que .print-spacer
+     documenté plus haut : ".print-notes td" (1 classe + 1 type) était battu
+     par la règle de base "table.print-table th, table.print-table td" (1
+     classe + 2 types), qui gagnait donc silencieusement et affichait un
+     cadre 1.4px plein sur chaque case vide de la ligne Notes malgré ce
+     "border:none" bien présent ici. Porté au même gabarit que le reste du
+     fichier (table.print-table tr.XXX td, 2 classes) pour gagner de façon
+     fiable, tout en restant sous les règles de cadre extérieur 2px
+     (première/dernière colonne) qui, elles, doivent continuer à gagner sur
+     cette ligne (cf. leur propre exclusion ":not(.print-notes)" plus
+     haut). */
+  table.print-table tr.print-notes td { border: none; padding: 0 7px; }
+  table.print-table tr.print-notes td.filled { border: 1.4px solid var(--border-strong); background: var(--note-bg); padding: 4px 7px; }
   .print-statut { display: inline-block; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; padding: 1px 6px; border-radius: 999px; margin-top: 3px; }
   .print-important { color: var(--important-ink); font-weight: 700; }
   .print-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
@@ -9553,8 +9670,14 @@
     });
     h += '</tr>';
 
+    // Portage mockup (rounds 7-9) — classes print-spacer-jalons/personne
+    // (cf. leur commentaire CSS) : le PREMIER spacer qui suit la ligne
+    // Jalons porte toujours print-spacer-jalons, que ce soit le spacer
+    // avant Notes (si elle est remplie) ou, sinon, directement le spacer
+    // avant la 1ère personne juste en dessous — ces 2 cas ne peuvent pas
+    // survenir en même temps, donc jamais posée 2 fois.
     if (notesRemplies) {
-      h += '<tr class="print-spacer"><td colspan="' + NB_COLS + '"></td></tr>';
+      h += '<tr class="print-spacer print-spacer-jalons"><td colspan="' + NB_COLS + '"></td></tr>';
       h += '<tr class="print-notes"><td style="font-weight:700;white-space:nowrap">Notes</td>';
       (data.notes || []).forEach(function (entries) {
         var rempli = entries && entries.length > 0;
@@ -9568,14 +9691,28 @@
       h += '</tr>';
     }
 
-    h += '<tr class="print-spacer"><td colspan="' + NB_COLS + '"></td></tr>';
+    // print-spacer-personne (round 8) : ce spacer précède TOUJOURS la 1ère
+    // personne, donc porte toujours cette classe. print-spacer-jalons SE
+    // CUMULE dessus seulement si Notes n'a pas déjà pris ce rôle juste
+    // au-dessus (sinon ce spacer-ci n'est plus le premier après Jalons).
+    h += '<tr class="print-spacer print-spacer-personne' + (notesRemplies ? '' : ' print-spacer-jalons') + '"><td colspan="' + NB_COLS + '"></td></tr>';
 
     // classeDemi (round du 15.09.2026, suite — "traitillé entre aprèm et
     // matin") : posée uniquement côté aprem, pour que le CSS (.demi-aprem)
     // ne mette en traitillé QUE la frontière interne matin→aprem, jamais
     // la frontière entre 2 jours (bordure gauche de la case matin du jour
     // suivant, qui elle n'a pas cette classe et reste pleine).
-    function celluleTache(p, cell, classeDemi) {
+    // infoCase/celluleTache (portage mockup round 12 — Lionel : "fait de
+    // même entre les matins et après-midi. Fusionner les cases qui
+    // comportent la même tâche") : séparé en 2 étapes — infoCase calcule
+    // fond + texte d'UNE case (logique inchangée, reprise telle quelle de
+    // l'ancien celluleTache), celluleTache se contente maintenant de
+    // sérialiser un <td> à partir de ce résultat déjà calculé, pour pouvoir
+    // comparer matin et aprem AVANT de décider s'il faut 1 cellule fusionnée
+    // (colspan=2, sans .demi-aprem — plus de frontière matin/aprem à
+    // marquer puisqu'il n'y a plus qu'une case) ou 2 cellules distinctes
+    // comme avant (matin plein, aprem avec .demi-aprem et son pointillé).
+    function infoCase(p, cell) {
       var bg = fondCase(cell);
       var taches = (cell && cell.taches) || [];
       var txt = taches.map(function (t) {
@@ -9584,15 +9721,28 @@
         var ferme = t.important ? '</span>' : "";
         return ouvre + esc(t.texte) + ferme + badge;
       }).join("<br>");
-      return '<td' + (classeDemi ? ' class="' + classeDemi + '"' : '') + ' style="background:' + (bg === "transparent" ? "var(--surface-2)" : bg) + '">' + txt + '</td>';
+      return { bg: (bg === "transparent" ? "var(--surface-2)" : bg), txt: txt };
+    }
+    function celluleTache(info, classeDemi, fusionnee) {
+      return '<td' + (classeDemi ? ' class="' + classeDemi + '"' : '') + (fusionnee ? ' colspan="2"' : '') + ' style="background:' + info.bg + '">' + info.txt + '</td>';
     }
 
     imprimes.forEach(function (p, idx) {
       h += '<tr>';
       h += '<td style="font-weight:700;white-space:nowrap">' + esc(p.nom) + '</td>';
       for (var i = 0; i < jl.length; i++) {
-        h += celluleTache(p, (p.matin || [])[i]);
-        h += celluleTache(p, (p.aprem || [])[i], "demi-aprem");
+        var infoMatin = infoCase(p, (p.matin || [])[i]);
+        var infoAprem = infoCase(p, (p.aprem || [])[i]);
+        // Fusion (round 12) seulement si la tâche est RÉELLEMENT la même
+        // des 2 côtés (texte ET fond identiques) ET non vide — 2 cases
+        // vides ne "comportent" aucune tâche, donc pas de fusion entre
+        // elles (choix de Lionel dans le mockup, jamais amendé depuis).
+        if (infoMatin.txt && infoMatin.txt === infoAprem.txt && infoMatin.bg === infoAprem.bg) {
+          h += celluleTache(infoMatin, null, true);
+        } else {
+          h += celluleTache(infoMatin, null, false);
+          h += celluleTache(infoAprem, "demi-aprem", false);
+        }
       }
       h += '</tr>';
       if (idx < imprimes.length - 1) {
@@ -9600,8 +9750,10 @@
         // intervenants, vide et sans couleur aussi, un peu plus large que
         // celle entre le personnel" — même spacer invisible partout, avec
         // en plus la classe "print-spacer-section" (juste plus haute)
-        // seulement à la frontière calculée plus haut.
-        var classeSpacer = (idx === indexFrontiereSection) ? "print-spacer print-spacer-section" : "print-spacer";
+        // seulement à la frontière calculée plus haut. print-spacer-personne
+        // (portage mockup, rounds 8-9) : posée sur TOUS ces spacers, cf. son
+        // commentaire CSS pour le raisonnement complet.
+        var classeSpacer = "print-spacer print-spacer-personne" + (idx === indexFrontiereSection ? " print-spacer-section" : "");
         h += '<tr class="' + classeSpacer + '"><td colspan="' + NB_COLS + '"></td></tr>';
       }
     });
