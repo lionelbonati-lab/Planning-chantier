@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Mockup — aperçu impression, bordures</title>
+<style>
+  /* Mêmes tokens couleur que le vrai print (Index.html, @media print,
+     .impression-modal) — reproduits ici tels quels pour que ce mockup soit
+     fidèle à ce qui sort réellement à l'impression, pas à l'aperçu écran. */
+  :root {
+    --bg:#eef0ec; --surface:#fbfaf7; --surface-2:#ffffff;
+    --ink:#1a2129; --ink-muted:#57616b; --ink-faint:#8b93a0;
+    --border:#d7dad2; --border-strong:#1a2129;
+    --important-ink:#93362b; --absence-bg:#f6c893; --jalon-bg:#d7cdf0; --note-bg:#f7e6ab;
+    --chantier: #b9d6ee;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 28px; background: #ddd; font: 12px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; color: var(--ink); }
+  .page-label { max-width: 1100px; margin: 0 auto 14px; font: 600 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; color: #444; }
+  .page-label b { color: var(--important-ink); }
+  .feuille { max-width: 1100px; margin: 0 auto 40px; background: #fff; padding: 14mm 12mm; box-shadow: 0 2px 10px rgba(0,0,0,.18); }
+
+  table.print-table { width: 100%; border-collapse: collapse; }
+  /* Round 3 (retour de Lionel sur la v2) — je m'étais trompé : "j'ai
+     demandé de changer UNIQUEMENT les bordures INTÉRIEURES, tu as tout
+     changé". La v1 avait bien tout mis à 2px (extérieur ET intérieur) ; la
+     correction demandée ne portait QUE sur l'intérieur, remis à 1px ici —
+     l'EXTÉRIEUR du tableau (les 4 bords du cadre général) doit lui RESTER à
+     2px, épais. Seul l'intérieur (entre 2 cases quelconques) est fin,
+     hormis l'exception "colonne des noms" ci-dessous. */
+  table.print-table th, table.print-table td { border: 1px solid var(--border-strong); padding: 5px 7px; font-size: 11px; vertical-align: top; }
+
+  /* Extérieur du tableau : 2px sur les 4 bords du cadre général — jamais de
+     conflit de collapse à gérer ici (rien "de l'autre côté" de ces bords,
+     donc rien à faire gagner face à autre chose). Exclut les lignes spacer
+     (qui restent entièrement sans bordure, cf. règle plus bas) : sans ce
+     :not(), ce sélecteur plus spécifique regagnerait sur "border:none" et
+     ferait réapparaître un trait sur une ligne qui doit rester invisible.
+     Round 6 — Lionel : "trois bordures résiduelles [...] au niveau des
+     notes, en bas, à gauche et à droite" : les côtés gauche/droite du
+     cadre extérieur, qui traversent bien SÛR aussi la ligne Notes (sinon
+     le cadre du tableau aurait un trou), combinés à la ligne 2px ajoutée
+     au round précédent juste en dessous (séparateur avant François),
+     dessinaient une boîte à 3 côtés autour de la zone vide des notes —
+     visible sur les captures zoomées gauche/droite (trait vertical +
+     trait horizontal en bas, aucun trait en haut, exactement les 3
+     bordures décrites). Comme pour la "colonne des noms" plus bas,
+     .print-notes est donc exclue ICI AUSSI du cadre extérieur
+     gauche/droite : cette ligne n'a plus aucune trace de grille, seuls
+     ses éventuels encadrés jaunes restent visibles — le séparateur 2px
+     avant François reste seul en dessous, sans plus former de boîte. */
+  table.print-table thead tr:first-child th { border-top: 2px solid var(--border-strong); }
+  table.print-table tbody tr:last-child td { border-bottom: 2px solid var(--border-strong); }
+  table.print-table tr:not(.print-spacer):not(.print-spacer-section):not(.print-notes) th:first-child,
+  table.print-table tr:not(.print-spacer):not(.print-spacer-section):not(.print-notes) td:first-child {
+    border-left: 2px solid var(--border-strong);
+  }
+  table.print-table tr:not(.print-spacer):not(.print-spacer-section):not(.print-notes) th:last-child,
+  table.print-table tr:not(.print-spacer):not(.print-spacer-section):not(.print-notes) td:last-child {
+    border-right: 2px solid var(--border-strong);
+  }
+
+  /* Round 5 — Lionel avait demandé 2px sur la frontière entre l'en-tête et
+     Jalons. Round 7 — Lionel : "remplace la ligne sur les jalons par une
+     ligne de 1px" : revient sur ce point, cette frontière redevient une
+     ligne intérieure normale (1px, règle de base, rien à déclarer ici :
+     l'épaisseur se déplace désormais SOUS Jalons, cf. règle plus bas). */
+
+  /* Colonne des noms : seule exception À L'INTÉRIEUR — la bordure DROITE de
+     la 1ère colonne (noms/"Jalons"/"Notes") reste elle aussi à 2px, pour la
+     détacher nettement de la grille des jours — Lionel : "seul bordure de
+     2px à laisser [en plus de l'extérieur] est celle à droite de la
+     première colonne, pour marquer les noms". Exclut EN PLUS .print-demis
+     (ligne Matin/Aprem) : cette ligne n'a PAS de cellule à elle dans la
+     colonne des noms (rowspan=2 de .coin-semaine, posée sur la ligne du
+     dessus, la "consomme") — son PREMIER enfant réel est donc le "Matin" du
+     lundi, pas une cellule de nom. Sans cette exclusion (repérée au round
+     précédent), ce "Matin" récupérait à tort la bordure 2px, qui entrait en
+     conflit avec le pointillé matin/aprem juste à côté (même largeur, 2px
+     partout) et le pointillé perdait le conflit de collapse — visible
+     seulement sur le lundi, pas les autres jours. Cette exclusion NE
+     s'applique PAS à la règle "extérieur gauche" juste au-dessus : le bord
+     gauche du tableau doit lui rester visible/épais sur TOUTE sa hauteur,
+     print-demis compris.
+     Exclut ENCORE .print-notes (round suivant) — Lionel : "enlever aussi
+     le titre et la bordure de la première colonne notes" : cette ligne
+     perd le libellé "Notes" (cf. markup) ET ce séparateur, pour ne laisser
+     aucune trace visuelle de ligne "Notes" hors des encadrés jaunes
+     eux-mêmes. Sans exclusion, la 1ère cellule de cette ligne retomberait
+     simplement sur .print-notes td{border:none} (même règle qui gère déjà
+     les cases vides de cette ligne) — exactement l'effet voulu. */
+  table.print-table tr:not(.print-spacer):not(.print-spacer-section):not(.print-demis):not(.print-notes) th:first-child,
+  table.print-table tr:not(.print-spacer):not(.print-spacer-section):not(.print-demis):not(.print-notes) td:first-child {
+    border-right: 2px solid var(--border-strong);
+  }
+
+  table.print-table thead th { background: var(--bg); font-weight: 700; text-align: center; }
+  .print-mois th { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-muted); }
+  .print-mois .coin-annee { text-align: left; padding-left: 7px; }
+  table.print-table .coin-semaine { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-muted); text-align: left; padding-left: 7px; }
+  .print-demis th { font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; color: var(--ink-faint); padding-top: 3px; padding-bottom: 3px; }
+  .print-jalons td { background: var(--surface-2); }
+  .print-jalons td.filled { background: var(--jalon-bg); }
+  table.print-table tr.print-spacer td { border: none; padding: 0; height: 6px; }
+  table.print-table tr.print-spacer-section td { height: 14px; }
+  /* Round 7 — Lionel : "remplace la ligne sous les jalons par une ligne
+     pleine de 2 px." Frontière Jalons → Notes, jusqu'ici un spacer neutre
+     comme les autres (0px). Classe dédiée .print-spacer-jalons sur ce
+     seul spacer (cf. markup), même gabarit de sélecteur composé que
+     .print-spacer-personne ci-dessous pour battre "tr.print-spacer td
+     {border:none}" par spécificité. */
+  table.print-table tr.print-spacer.print-spacer-jalons td { border-top: 2px solid var(--border-strong); }
+  /* Horizontales entre chaque personne : Lionel — "maintenant les
+     horizontales entre chaque personnes aussi en 2px". Round 5 avait
+     temporairement étendu cette classe au spacer Notes→François ("la
+     ligne supérieure de la première personne"), mais round 7 revient
+     dessus : avec la ligne épaisse désormais sous Jalons (cf. règle
+     .print-spacer-jalons plus haut), Lionel a choisi de repasser ce
+     spacer-là en neutre (invisible) plutôt que d'avoir 2 lignes épaisses
+     dans le bloc Jalons/Notes — cf. .print-spacer sans .print-spacer-
+     personne sur cette ligne dans le markup. Cette classe ne s'applique
+     donc plus qu'aux séparateurs ENTRE personnes. Sélecteur composé (2
+     classes + 2 types) pour battre sûrement "tr.print-spacer td
+     {border:none}" par spécificité, sans dépendre de l'ordre dans la
+     feuille de style. */
+  table.print-table tr.print-spacer.print-spacer-personne td { border-top: 2px solid var(--border-strong); }
+
+  /* Pointillé matin/aprem — 2 pièges distincts trouvés en construisant ce
+     mockup, tous deux déjà réglés une fois côté production (cf. Index.html,
+     commentaire d'origine sur .demi-aprem) mais qu'il fallait re-régler ici
+     avec la grille de base repassée à 1px (contre 1.4px en production) :
+     (1) le "transparent qui doit gagner le conflit de bordure" doit
+     dépasser LARGEMENT la largeur de base, pas juste être "un peu plus
+     grand" — à 1.6px (contre 1px de base, un écart de seulement 0.6px),
+     Chrome arrondit les 2 largeurs au MÊME pixel sous border-collapse et le
+     trait plein regagne quand même (repéré ici en inspectant le style
+     résolu, pas juste en le lisant dans la feuille de style — le même piège
+     qu'à la toute 1ère construction de cette feature, déjà documenté dans
+     Index.html). Repris à l'identique des valeurs de production qui,
+     elles, ont déjà fait leurs preuves : 2px transparent contre une base à
+     1px (écart d'1px, plus large que l'écart de production de 0.6px contre
+     une base à 1.4px). (2) l'inset haut/bas (7px) qui contient le
+     pointillé À L'INTÉRIEUR de la case, pour répondre à "tes pointillé
+     coupent encore les bordures extérieures". */
+  table.print-table .demi-aprem { position: relative; border-left: 2px solid transparent; }
+  table.print-table .demi-aprem::before {
+    content: ""; position: absolute; left: -1px; top: 7px; bottom: 7px;
+    border-left: 1px dotted var(--border-strong);
+  }
+
+  /* Notes : Lionel — "les notes ne sont pas correct [...] ne bordure que ou
+     il y a du texte, bordure 1px, fond jaune clair". 1px plein (pas 1.4px
+     comme le 1er essai), fond jaune clair — celui déjà utilisé ailleurs
+     dans l'appli pour une note (var(--note-bg)), remis ici après l'avoir
+     enlevé à tort au 1er essai. Coins carrés (le border-radius du 1er
+     essai faisait "badge", pas un encadré simple).
+     Round 5 — Lionel : "les notes ont encore des bordures". Le "border:
+     none" ci-dessous sur `.print-notes td` n'avait EN RÉALITÉ jamais gagné
+     contre la règle de base `table.print-table td {border:1px solid}` :
+     en spécificité CSS, une classe + 1 type (.print-notes td) est BATTU
+     par 1 classe + 2 types (table.print-table td) — la comparaison se
+     fait d'abord sur le nombre de classes (égal ici), puis sur le nombre
+     de types, où la règle de base en a un de plus. Le style résolu
+     confirmait un cadre 1px plein sur les 4 côtés de chaque case vide,
+     malgré ce "border:none" bien présent dans la feuille de style (même
+     famille de piège que le "gagnant du conflit de collapse" déjà
+     rencontré sur le pointillé matin/aprem — la lecture de la feuille de
+     style ne suffit pas, il faut le style résolu). Corrigé en portant ces
+     2 règles au même gabarit `table.print-table tr.XXX td` que le reste
+     du fichier (2 classes, spécificité supérieure à la base dans tous les
+     cas), tout en restant sous les règles de cadre extérieur 2px
+     (première/dernière colonne) qui, elles, doivent continuer à gagner
+     sur cette ligne. */
+  table.print-table tr.print-notes td { border: none; padding: 0 7px; }
+  table.print-table tr.print-notes td.filled { border: 1px solid var(--border-strong); background: var(--note-bg); padding: 4px 7px; }
+
+  .print-statut { display: inline-block; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; padding: 1px 6px; border-radius: 999px; margin-top: 3px; }
+  .print-important { color: var(--important-ink); font-weight: 700; }
+  .print-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .print-legend .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink); }
+  .print-legend .legend-item .sw { width: 13px; height: 13px; border-radius: 3px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.15); }
+</style>
+</head>
+<body>
+
+<div class="feuille">
+  <table class="print-table">
+    <thead>
+      <tr class="print-mois">
+        <th class="coin-annee">2026</th>
+        <th colspan="10">Septembre</th>
+      </tr>
+      <tr>
+        <th rowspan="2" class="coin-semaine">Semaine 38</th>
+        <th colspan="2">Lun 14</th>
+        <th colspan="2">Mar 15</th>
+        <th colspan="2">Mer 16</th>
+        <th colspan="2">Jeu 17</th>
+        <th colspan="2">Ven 18</th>
+      </tr>
+      <tr class="print-demis">
+        <th>Matin</th><th class="demi-aprem">Aprem</th>
+        <th>Matin</th><th class="demi-aprem">Aprem</th>
+        <th>Matin</th><th class="demi-aprem">Aprem</th>
+        <th>Matin</th><th class="demi-aprem">Aprem</th>
+        <th>Matin</th><th class="demi-aprem">Aprem</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="print-jalons">
+        <td style="font-weight:700;white-space:nowrap">Jalons</td>
+        <td colspan="2" class="filled">Montage échafaudages Filisetti</td>
+        <td colspan="2"></td>
+        <td colspan="2"></td>
+        <td colspan="2"></td>
+        <td colspan="2" class="filled">28 jours bétonnage balcon BINE</td>
+      </tr>
+
+      <tr class="print-spacer print-spacer-jalons"><td colspan="11"></td></tr>
+      <tr class="print-notes">
+        <td></td>
+        <td colspan="2"></td>
+        <td colspan="2" class="filled">Grutier à réserver</td>
+        <td colspan="2"></td>
+        <td colspan="2" class="filled">Livraison armature murs étage</td>
+        <td colspan="2"></td>
+      </tr>
+
+      <tr class="print-spacer"><td colspan="11"></td></tr>
+
+      <tr>
+        <td style="font-weight:700;white-space:nowrap">François</td>
+        <td style="background:var(--chantier)">Coffrage dalle</td>
+        <td class="demi-aprem" style="background:var(--chantier)">Coffrage dalle</td>
+        <td style="background:var(--chantier)">Coffrage bords de dalle</td>
+        <td class="demi-aprem" style="background:var(--chantier)">Coffrage bords de dalle</td>
+        <td style="background:var(--surface-2)"></td>
+        <td class="demi-aprem" style="background:var(--surface-2)"></td>
+        <td style="background:var(--chantier)">Préparation coffrage murs étage</td>
+        <td class="demi-aprem" style="background:var(--chantier)">Bétonnage dalle</td>
+        <td style="background:var(--chantier)">Coffrage murs étage</td>
+        <td class="demi-aprem" style="background:var(--chantier)">Décoffrage tour de dalle</td>
+      </tr>
+      <tr class="print-spacer print-spacer-personne"><td colspan="11"></td></tr>
+
+      <tr>
+        <td style="font-weight:700;white-space:nowrap">Mathis</td>
+        <td style="background:var(--chantier)">Coffrage dalle</td>
+        <td class="demi-aprem" style="background:var(--chantier)">Coffrage dalle</td>
+        <td style="background:var(--chantier)">Coffrage bords de dalle</td>
+        <td class="demi-aprem" style="background:var(--chantier)">Coffrage bords de dalle</td>
+        <td style="background:var(--absence-bg)"><span class="print-important">80% — Congé</span></td>
+        <td class="demi-aprem" style="background:var(--absence-bg)"><span class="print-important">80% — Congé</span></td>
+        <td style="background:var(--chantier)">Préparation coffrage murs étage</td>
+        <td class="demi-aprem" style="background:var(--chantier)">Bétonnage dalle</td>
+        <td style="background:var(--chantier)">Coffrage murs étage</td>
+        <td class="demi-aprem" style="background:var(--chantier)">Décoffrage tour de dalle</td>
+      </tr>
+      <tr class="print-spacer print-spacer-personne"><td colspan="11"></td></tr>
+
+      <tr>
+        <td style="font-weight:700;white-space:nowrap">Antoine</td>
+        <td style="background:var(--chantier)">Coffrage dalle</td>
+        <td class="demi-aprem" style="background:var(--chantier)">Coffrage dalle</td>
+        <td style="background:var(--chantier)">Coffrage bords de dalle</td>
+        <td class="demi-aprem" style="background:var(--chantier)">Coffrage bords de dalle</td>
+        <td style="background:var(--surface-2)"></td>
+        <td class="demi-aprem" style="background:var(--surface-2)"></td>
+        <td style="background:var(--chantier)">Préparation coffrage murs étage</td>
+        <td class="demi-aprem" style="background:var(--chantier)">Bétonnage dalle</td>
+        <td style="background:var(--chantier)">Coffrage murs étage</td>
+        <td class="demi-aprem" style="background:var(--chantier)">Décoffrage tour de dalle</td>
+      </tr>
+      <tr class="print-spacer print-spacer-section print-spacer-personne"><td colspan="11"></td></tr>
+
+      <tr>
+        <td style="font-weight:700;white-space:nowrap">Lionel</td>
+        <td style="background:var(--chantier)">Coffrage dalle</td>
+        <td class="demi-aprem" style="background:var(--chantier)">Coffrage dalle</td>
+        <td style="background:var(--chantier)">Coffrage bords de dalle</td>
+        <td class="demi-aprem" style="background:var(--chantier)">Coffrage bords de dalle</td>
+        <td style="background:var(--surface-2)"></td>
+        <td class="demi-aprem" style="background:var(--surface-2)"></td>
+        <td style="background:var(--chantier)">Préparation coffrage murs étage</td>
+        <td class="demi-aprem" style="background:var(--chantier)">Bétonnage dalle</td>
+        <td style="background:var(--chantier)">Coffrage murs étage</td>
+        <td class="demi-aprem" style="background:var(--chantier)">Décoffrage tour de dalle</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="print-legend">
+    <div class="legend-item"><span class="sw" style="background:var(--chantier)"></span>Filisetti</div>
+  </div>
+</div>
+
+</body>
+</html>
