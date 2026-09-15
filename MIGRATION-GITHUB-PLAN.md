@@ -392,7 +392,14 @@ Auth) devient un préalable à tout le reste — rien ne fonctionnera avant.
 
 ## 8. Points encore ouverts
 
-- **PDF** (§5) : pas encore de solution retenue, à trancher en phase 3.
+- **PDF** (§5) : ✅ tranché et fait — round du 15.09.2026, cf.
+  `FRONTEND-CHANGELOG.md` §64. Solution retenue : impression du NAVIGATEUR
+  (choix de Lionel entre les 2 options proposées) plutôt qu'une Edge
+  Function dédiée — le bouton "Générer le PDF" (renommé "Imprimer / PDF")
+  déclenche `window.print()` sur l'aperçu déjà affiché ; "Enregistrer en
+  PDF" comme imprimante donne le fichier voulu, sans aller-retour serveur.
+  `apiGenererPdf` (WebApp.gs) n'est donc plus appelée par le client, mais
+  reste en l'état côté serveur (inutile de la supprimer, elle ne gêne rien).
 - **Qui doit pouvoir se connecter** : Lionel seul, ou aussi d'autres membres
   de l'équipe (avec quels droits — lecture seule pour l'équipe de chantier,
   écriture pour Lionel uniquement ?). Par défaut je pars sur "Lionel seul,

@@ -41,7 +41,8 @@ const sandbox = {};
 vm.createContext(sandbox);
 vm.runInContext(
   extraireVar('MAX_OCCURRENCES_SERIE') + '\n' +
-  ['pasCalendaire', 'genererDatesSerie', 'champsSerie', 'construireOccurrencesSerie']
+  ['pasCalendaire', 'joursOuvresDepuisCompte', 'demisTacheParJour', 'demiJalonNoteParJour',
+   'genererDatesSerie', 'champsSerie', 'construireOccurrencesSerie']
     .map(extraireFonction).join('\n'),
   sandbox
 );
@@ -264,6 +265,138 @@ assertEqual(
     { type: 'insert', table: 'notes', date: '2026-09-08', texte: 'Livraison', important: true, serie_id: 9 },
   ], 'note : toujours posée, même si une note existe déjà ce jour-là (jamais ignorée, jamais dédupliquée)');
   assertEqual([plan.posees, plan.ignorees], [2, 0], 'note : 2 posées, jamais ignorée');
+})();
+
+// =======================================================================
+// 4) Round du 15.09.2026 — bug Lionel : « si je sélectionne 2 case ou
+//    plus, la bulle vient uniquement dans la première case de chaque
+//    répétition ». joursOuvresDepuisCompte/demisTacheParJour/
+//    demiJalonNoteParJour + construireOccurrencesSerie(..., duree,
+//    demiDebut, demiFin) : chaque occurrence doit désormais reproduire
+//    TOUTE la largeur de la sélection d'origine, pas seulement son ancre.
+// =======================================================================
+
+assertEqual(
+  sandbox.joursOuvresDepuisCompte('2026-09-07', 3),
+  ['2026-09-07', '2026-09-08', '2026-09-09'],
+  'joursOuvresDepuisCompte : 3 jours sans week-end dans la plage -> 3 jours consécutifs');
+
+assertEqual(
+  sandbox.joursOuvresDepuisCompte('2026-09-10', 5),
+  ['2026-09-10', '2026-09-11', '2026-09-14', '2026-09-15', '2026-09-16'],
+  'joursOuvresDepuisCompte : jeudi + 5 jours ouvrés -> jeudi, vendredi, puis lundi/mardi/mercredi (saute le week-end, même scénario que test_ajout_lointain.js)');
+
+assertEqual(
+  sandbox.joursOuvresDepuisCompte('2026-09-12', 1),
+  ['2026-09-12'],
+  'joursOuvresDepuisCompte : le 1er jour est toujours inclus tel quel, même un samedi (cas limite d\'une occurrence de série retombée un week-end)');
+
+assertEqual(sandbox.demisTacheParJour(0, 1, undefined, undefined, 'aprem'), ['aprem'],
+  'demisTacheParJour : 1 seul jour, bords non fournis -> repli sur cible_demi (compat ancien appel à 1 seule demi)');
+assertEqual(sandbox.demisTacheParJour(0, 1, null, null, 'matin'), ['matin', 'aprem'],
+  'demisTacheParJour : 1 seul jour, bords fournis mais nuls -> journée entière (les 2 cases, PAS juste cible_demi) — exactement le bug de Lionel (matin+aprem d\'un même jour sélectionnés)');
+assertEqual(sandbox.demisTacheParJour(0, 1, 'matin', 'matin', 'aprem'), ['matin'],
+  'demisTacheParJour : 1 seul jour, une vraie demi -> elle seule');
+assertEqual(sandbox.demisTacheParJour(0, 3, 'aprem', 'matin', null), ['aprem'],
+  'demisTacheParJour : 1er jour d\'une plage de plusieurs jours, bord "aprem" -> seulement aprem');
+assertEqual(sandbox.demisTacheParJour(0, 3, null, 'matin', null), ['matin', 'aprem'],
+  'demisTacheParJour : 1er jour sans bord -> journée entière');
+assertEqual(sandbox.demisTacheParJour(2, 3, 'aprem', 'matin', null), ['matin'],
+  'demisTacheParJour : dernier jour, bord "matin" -> seulement matin');
+assertEqual(sandbox.demisTacheParJour(2, 3, 'aprem', null, null), ['matin', 'aprem'],
+  'demisTacheParJour : dernier jour sans bord -> journée entière');
+assertEqual(sandbox.demisTacheParJour(1, 3, 'aprem', 'matin', null), ['matin', 'aprem'],
+  'demisTacheParJour : jour du MILIEU d\'une plage -> toujours journée entière, quels que soient les bords');
+
+assertEqual(sandbox.demiJalonNoteParJour(0, 1, undefined, undefined), null,
+  'demiJalonNoteParJour : 1 seul jour, bords non fournis -> null (comportement historique, aucune clé demi)');
+assertEqual(sandbox.demiJalonNoteParJour(0, 1, null, null), null,
+  'demiJalonNoteParJour : 1 seul jour, bords fournis mais nuls -> null (journée entière, explicite)');
+assertEqual(sandbox.demiJalonNoteParJour(0, 1, 'matin', 'matin'), 'matin',
+  'demiJalonNoteParJour : 1 seul jour, une vraie demi -> elle');
+assertEqual(sandbox.demiJalonNoteParJour(0, 3, 'aprem', 'matin'), 'aprem',
+  'demiJalonNoteParJour : 1er jour d\'une plage -> son bord');
+assertEqual(sandbox.demiJalonNoteParJour(2, 3, 'aprem', 'matin'), 'matin',
+  'demiJalonNoteParJour : dernier jour d\'une plage -> son bord');
+assertEqual(sandbox.demiJalonNoteParJour(1, 3, 'aprem', 'matin'), null,
+  'demiJalonNoteParJour : jour du milieu -> toujours journée entière (null)');
+
+// --- tache, LE bug de Lionel : 2 cases du même jour (matin+aprem), en série ---
+(function () {
+  const champs = sandbox.champsSerie({
+    type: 'tache', texte: 'Coffrage', personneId: 12, demi: 'matin', chantierId: 7,
+    dateDebutIso: '2026-09-07', frequence: 'jour', finType: 'occurrences', finValeur: 2,
+  });
+  const dates = ['2026-09-07', '2026-09-08'];
+  // duree=1 mais demiDebut/demiFin tous deux null : le cas exact décrit par
+  // Lionel (matin ET aprem du même jour sélectionnés au glissé, cf.
+  // bornesDepuisDemiSlots côté client, PAS un jour de plus).
+  const plan = sandbox.construireOccurrencesSerie(champs, dates, 501, [], [], false, 1, null, null);
+  assertEqual(plan.ops, [
+    { type: 'insert', table: 'taches', personne_id: 12, date: '2026-09-07', demi: 'matin', ordre: 0, texte: 'Coffrage', statut_id: null, important: false, serie_id: 501 },
+    { type: 'insert', table: 'assignations', personne_id: 12, date: '2026-09-07', demi: 'matin', chantier_id: 7 },
+    { type: 'insert', table: 'taches', personne_id: 12, date: '2026-09-07', demi: 'aprem', ordre: 0, texte: 'Coffrage', statut_id: null, important: false, serie_id: 501 },
+    { type: 'insert', table: 'assignations', personne_id: 12, date: '2026-09-07', demi: 'aprem', chantier_id: 7 },
+    { type: 'insert', table: 'taches', personne_id: 12, date: '2026-09-08', demi: 'matin', ordre: 0, texte: 'Coffrage', statut_id: null, important: false, serie_id: 501 },
+    { type: 'insert', table: 'assignations', personne_id: 12, date: '2026-09-08', demi: 'matin', chantier_id: 7 },
+    { type: 'insert', table: 'taches', personne_id: 12, date: '2026-09-08', demi: 'aprem', ordre: 0, texte: 'Coffrage', statut_id: null, important: false, serie_id: 501 },
+    { type: 'insert', table: 'assignations', personne_id: 12, date: '2026-09-08', demi: 'aprem', chantier_id: 7 },
+  ], 'BUG Lionel corrigé : matin+aprem sélectionnés -> CHAQUE répétition pose bien les 2 demis, pas seulement la 1ère (matin)');
+})();
+
+// --- tache, plage de plusieurs jours, entièrement pleine (2ème forme du même bug) ---
+(function () {
+  const champs = sandbox.champsSerie({
+    type: 'tache', texte: 'Coffrage', personneId: 12, demi: 'matin',
+    dateDebutIso: '2026-09-07', frequence: 'semaine', finType: 'occurrences', finValeur: 1,
+  });
+  // 3 jours ouvrés (lun-mer), aucun bord -> journée entière chaque jour.
+  const plan = sandbox.construireOccurrencesSerie(champs, ['2026-09-07'], 501, [], [], false, 3, null, null);
+  const dates = plan.ops.filter(o => o.table === 'taches').map(o => o.date + '/' + o.demi);
+  assertEqual(dates, [
+    '2026-09-07/matin', '2026-09-07/aprem',
+    '2026-09-08/matin', '2026-09-08/aprem',
+    '2026-09-09/matin', '2026-09-09/aprem',
+  ], 'plage de 3 jours entiers -> les 6 cases (3 jours x 2 demis) posées pour cette occurrence, pas seulement le 1er jour');
+})();
+
+// --- tache, plage à cheval sur le week-end (jeudi + 5 jours ouvrés) ---
+(function () {
+  const champs = sandbox.champsSerie({
+    type: 'tache', texte: 'Congés', personneId: 12, demi: 'matin',
+    dateDebutIso: '2026-09-10', frequence: 'jour', finType: 'occurrences', finValeur: 1,
+  });
+  const plan = sandbox.construireOccurrencesSerie(champs, ['2026-09-10'], 501, [], [], true, 5, null, null);
+  const dates = [...new Set(plan.ops.filter(o => o.table === 'taches').map(o => o.date))];
+  assertEqual(dates, ['2026-09-10', '2026-09-11', '2026-09-14', '2026-09-15', '2026-09-16'],
+    'plage de 5 jours ouvrés à partir d\'un jeudi -> saute le week-end (10,11 puis 14,15,16), comme une plage non-série (test_ajout_lointain.js)');
+})();
+
+// --- tache, bords "aprem"/"matin" sur une plage de 3 jours (1er/dernier
+// jour partiels, jour du milieu entier) ---
+(function () {
+  const champs = sandbox.champsSerie({
+    type: 'tache', texte: 'Coffrage', personneId: 12, demi: 'matin',
+    dateDebutIso: '2026-09-07', frequence: 'jour', finType: 'occurrences', finValeur: 1,
+  });
+  const plan = sandbox.construireOccurrencesSerie(champs, ['2026-09-07'], 501, [], [], false, 3, 'aprem', 'matin');
+  const dates = plan.ops.filter(o => o.table === 'taches').map(o => o.date + '/' + o.demi);
+  assertEqual(dates, [
+    '2026-09-07/aprem',
+    '2026-09-08/matin', '2026-09-08/aprem',
+    '2026-09-09/matin',
+  ], 'bords aprem (1er jour) / matin (dernier jour) -> 1er et dernier jour partiels, jour du milieu entier');
+})();
+
+// --- jalon, plage de plusieurs jours avec bords ---
+(function () {
+  const champs = sandbox.champsSerie({ type: 'jalon', texte: 'Visite architecte', dateDebutIso: '2026-09-07', frequence: 'jour', finType: 'occurrences', finValeur: 1 });
+  const plan = sandbox.construireOccurrencesSerie(champs, ['2026-09-07'], 9, [], [], false, 3, 'aprem', 'matin');
+  assertEqual(plan.ops, [
+    { type: 'insert', table: 'jalons', date: '2026-09-07', texte: 'Visite architecte', serie_id: 9, demi: 'aprem' },
+    { type: 'insert', table: 'jalons', date: '2026-09-08', texte: 'Visite architecte', serie_id: 9 },
+    { type: 'insert', table: 'jalons', date: '2026-09-09', texte: 'Visite architecte', serie_id: 9, demi: 'matin' },
+  ], 'jalon sur 3 jours, bords aprem/matin -> 1 ligne par jour, demi seulement sur les bords (jour du milieu sans clé demi, comme avant)');
 })();
 
 console.log('\n' + (total - echecs) + '/' + total + ' assertions réussies.');

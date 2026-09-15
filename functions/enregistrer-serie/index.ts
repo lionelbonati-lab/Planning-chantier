@@ -16,7 +16,7 @@
 // jour un vrai problème.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { genererDatesSerie, champsSerie, construireOccurrencesSerie } from "./logic.js";
+import { genererDatesSerie, champsSerie, construireOccurrencesSerie, joursOuvresDepuisCompte } from "./logic.js";
 
 const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -63,8 +63,23 @@ Deno.serve(async (req: Request) => {
     if (erreurSerie) return json({ ok: false, erreur: erreurSerie.message }, 500);
     const serieId = serie.id;
 
+    // duree/demiDebut/demiFin (round du 15.09.2026, bug Lionel : « si je
+    // sélectionne 2 case ou plus, la bulle vient uniquement dans la première
+    // case de chaque répétition ») : largeur de la sélection d'origine,
+    // portée par le payload client (creerSerieServeur, Index.html) — comme
+    // estAbsence ci-dessous, jamais par `champs` (qui sert aussi tel quel à
+    // l'insertion dans `series`, cf. champsSerie/logic.js, colonnes
+    // inchangées). `duree` élargit la fenêtre de lecture ci-dessous : la
+    // DERNIÈRE occurrence peut déborder après `max` une fois sa propre plage
+    // dépliée (cf. joursOuvresDepuisCompte, jours ouvrés uniquement).
+    const payloadRec = payload as Record<string, unknown>;
+    const duree = Math.max(1, parseInt(String(payloadRec.duree ?? 1), 10) || 1);
+    const demiDebut = payloadRec.demiDebut as string | null | undefined;
+    const demiFin = payloadRec.demiFin as string | null | undefined;
+
     const min = dates.reduce((a, b) => (a < b ? a : b));
-    const max = dates.reduce((a, b) => (a > b ? a : b));
+    const maxAncre = dates.reduce((a, b) => (a > b ? a : b));
+    const max = duree > 1 ? joursOuvresDepuisCompte(maxAncre, duree).slice(-1)[0] : maxAncre;
     const table = champs.type === "tache" ? "taches" : (champs.type === "jalon" ? "jalons" : "notes");
     const colonnes = champs.type === "tache" ? "date, personne_id, demi" : "date";
 
@@ -87,11 +102,7 @@ Deno.serve(async (req: Request) => {
       existantesAssignations = data ?? [];
     }
 
-    // estAbsence (round du 14.09.2026, sql/0009_taches_est_absence.sql) :
-    // porté par le payload client (creerSerieServeur, Index.html), jamais par
-    // `champs` (qui sert aussi à l'insertion dans `series`, sans cette
-    // colonne, cf. construireOccurrencesSerie/logic.js).
-    const plan = construireOccurrencesSerie(champs, dates, serieId, existantes ?? [], existantesAssignations, !!(payload as Record<string, unknown>).estAbsence);
+    const plan = construireOccurrencesSerie(champs, dates, serieId, existantes ?? [], existantesAssignations, !!payloadRec.estAbsence, duree, demiDebut, demiFin);
 
     for (const op of plan.ops) {
       const { type: _type, table: opTable, ...ligne } = op as Record<string, unknown>;

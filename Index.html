@@ -1107,10 +1107,101 @@
   .print-doc { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px; font-size: 12px; }
   table.print-table { width: 100%; border-collapse: collapse; }
   table.print-table th, table.print-table td { border: 1.4px solid var(--border-strong); padding: 5px 7px; font-size: 11px; vertical-align: top; }
-  table.print-table thead th { background: var(--jalon-bg); font-weight: 700; text-align: center; }
+  /* round du 15.09.2026 — Lionel : "la ligne des dates en grisé comme la
+     colonne des noms" — fond neutre plutôt que --jalon-bg (violet, déjà le
+     code couleur de la ligne Jalons juste en dessous : le réutiliser ici
+     n'avait pas de sens et prêtait à confusion). var(--bg) est exactement
+     la teinte déjà visible dans la colonne des noms (celle-ci n'a jamais eu
+     de fond propre, donc montre par transparence le fond de .print-doc). */
+  table.print-table thead th { background: var(--bg); font-weight: 700; text-align: center; }
+  /* Ligne mois (round du 15.09.2026, suite — "rajouter une ligne mois,
+     l'année peut être placée dans la cellule haut gauche") : un cran plus
+     discret que la ligne jour/date juste en dessous (petite majuscule,
+     encre atténuée) pour ne pas rivaliser avec elle — c'est un repère,
+     pas l'information principale de l'en-tête. */
+  .print-mois th { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-muted); }
+  .print-mois .coin-annee { text-align: left; padding-left: 7px; }
+  /* .coin-semaine (round du 15.09.2026, suite — "Inscription semaine N
+     dans la case sous l'année") : même traitement que .coin-annee juste
+     au-dessus (dont elle reprend aussi l'alignement à gauche), pour que
+     "2026" et "Semaine 38" se lisent comme un seul bloc de repère dans le
+     coin, plutôt que comme 2 styles différents empilés au hasard.
+     Sélecteur "table.print-table .coin-semaine" (pas juste ".coin-semaine")
+     — même bug de spécificité qu'ailleurs dans ce fichier : la règle
+     générale "table.print-table thead th" (1 classe + 3 types) écrasait
+     silencieusement le text-align:left d'un simple ".coin-semaine" (1
+     classe, 0 type) et "Semaine 38" restait centré au lieu d'être aligné
+     avec "2026" et les noms de personnes juste en dessous (repéré sur un
+     PDF réel, pas au premier coup d'œil dans le code). */
+  table.print-table .coin-semaine { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-muted); text-align: left; padding-left: 7px; }
+  /* Sous-en-tête Matin/Aprem (round du 15.09.2026, suite — "l'affichage
+     matin/après-midi côte à côte, comme le planning") : même traitement
+     discret que la ligne mois, pour ne pas rivaliser avec la ligne
+     jour/date juste au-dessus (l'info qu'on cherche en premier sur la
+     feuille reste "quel jour", pas "matin ou aprem"). */
+  .print-demis th { font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; color: var(--ink-faint); padding-top: 3px; padding-bottom: 3px; }
   .print-jalons td { background: var(--surface-2); }
   .print-jalons td.filled { background: var(--jalon-bg); }
-  .print-spacer td { border: none; padding: 0; height: 6px; }
+  /* round du 15.09.2026 (suite) — Lionel : "ligne entre personnel fine et
+     vide, sans couleur". Le sélecteur juste au-dessus
+     (table.print-table th, table.print-table td) a une spécificité de
+     (0,1,2) : plus élevée que ".print-spacer td" seul, (0,1,1) — il gagnait
+     donc silencieusement et affichait un trait plein là où "border: none"
+     était déjà écrit. Ajout de "table.print-table tr" pour repasser devant,
+     (0,1,3), sans toucher au reste (padding/height inchangés). */
+  table.print-table tr.print-spacer td { border: none; padding: 0; height: 6px; }
+  /* round du 15.09.2026 (suite) — Lionel : "Ligne entre personnel et
+     intervenants, vide et sans couleur aussi, un peu plus large que celle
+     entre le personnel pour bien voir la distinction" — même séparateur
+     invisible que .print-spacer (aucune bordure/couleur : la règle
+     ci-dessus s'applique déjà, .print-spacer-section vient toujours en
+     plus, jamais seule), juste plus haut ; uniquement à la frontière
+     Personnel/Intervenants (cf. openPrintSheet, indexFrontiereSection). */
+  table.print-table tr.print-spacer-section td { height: 14px; }
+  /* round du 15.09.2026 (suite) — Lionel : "traitillé entre aprèm et
+     matin", puis (round suivant) "le traitillé de la demi-journée plus fin
+     et discret". Seule la frontière INTERNE matin→aprem (bordure gauche de
+     la sous-colonne Aprem, classe .demi-aprem posée à la fois sur le
+     sous-en-tête et sur chaque cellule aprem — cf. openPrintSheet) doit
+     paraître traitillée ; la frontière entre 2 jours (bordure gauche de la
+     sous-colonne Matin du jour suivant, sans cette classe) doit elle rester
+     pleine, sans quoi on ne distinguerait plus un changement de jour d'un
+     simple changement de demi-journée.
+     PAS un vrai "border-left: dashed" sur la cellule (essayé au round
+     précédent) : avec border-collapse: collapse, la bordure d'une cellule
+     et celle de sa voisine partagent le même trait, et le conflit se
+     résout d'abord par la largeur AVANT le style — donc pour gagner face
+     au trait plein 1.4px de la case Matin voisine, il fallait une largeur
+     sensiblement plus grande (2px), sans quoi navigateur/impression
+     arrondissaient les 2 largeurs au même pixel et le plein l'emportait
+     quand même (constaté sur un PDF réel à 1.6px : toujours plein, malgré
+     "dashed" bien annoncé par getComputedStyle). Mais 2px de large, c'est
+     justement ce que Lionel trouve trop épais/voyant une fois imprimé — et
+     rien entre 1.4 et 2px n'est fiable.
+     2 étapes séparées, cette fois : (1) la bordure RÉELLE de la cellule
+     (celle qui participe au collapse) est repassée à une largeur qui gagne
+     de façon fiable (2px), mais en couleur TRANSPARENTE — elle "gagne"
+     toujours le conflit, mais ne dessine plus rien : le trait plein sombre
+     du reste du tableau disparaît à cette frontière précise, sans laisser
+     de résidu visible dans les tirets du pointillé (piège du 1er essai :
+     un ::before dessiné PAR-DESSUS le trait plein d'origine ne masque que
+     ses propres tirets "pleins" — le sombre continuait à apparaître DANS
+     les espaces vides entre 2 tirets, donnant un trait bicolore pleins/
+     tirets au lieu d'un pointillé propre). (2) un ::before purement
+     décoratif, hors du système de bordures de la table, dessine ENSUITE le
+     vrai pointillé sur ce fond redevenu neutre.
+     Couleur (round suivant) — Lionel : "je ne suis pas convaincu par ce
+     pointillé, tu peux le laisser noir mais plus fin" : essayé en
+     var(--border) (plus doux que le reste du tableau, cf. plus haut) au
+     round précédent, mais moins lisible que voulu — remis en noir
+     (var(--border-strong), la même encre que tout le reste du tableau),
+     seule la LARGEUR reste réduite (1px, contre 1.4px pour les autres
+     bordures) : c'est elle qui rend le trait "plus fin", pas sa couleur. */
+  table.print-table .demi-aprem { position: relative; border-left: 2px solid transparent; }
+  table.print-table .demi-aprem::before {
+    content: ""; position: absolute; left: -1px; top: 0; bottom: 0;
+    border-left: 1px dashed var(--border-strong);
+  }
   .print-notes td { border: none; padding: 0 7px; }
   .print-notes td.filled { border: 1.4px solid var(--border-strong); background: var(--note-bg); padding: 4px 7px; }
   .print-statut { display: inline-block; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; padding: 1px 6px; border-radius: 999px; margin-top: 3px; }
@@ -1120,6 +1211,85 @@
   .print-legend .legend-item .sw { width: 13px; height: 13px; border-radius: 3px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.15); }
   .skip-note { font-size: 11.5px; color: var(--ink-faint); font-style: italic; margin-top: 10px; }
   .impression-actions { display: flex; gap: 10px; margin-top: 16px; justify-content: flex-end; }
+
+  /* round du 15.09.2026 — Lionel : "on peut travailler sur la page
+     d'impression ?", puis "impression du navigateur" une fois le choix
+     posé (cf. FRONTEND-CHANGELOG.md). apiGenererPdf (Google Apps
+     Script/Drive) n'a pas d'équivalent une fois hébergé sur GitHub Pages —
+     le bouton "Générer le PDF" appelait déjà gs("apiGenererPdf", ...), qui
+     lève systématiquement une exception rattrapée par le try/catch de
+     openPrintSheet() (cf. plus bas) depuis ce round-ci du portage. Plutôt
+     que d'écrire une fonction serveur dédiée (Edge Function) pour
+     reconstruire un PDF depuis zéro, le bouton déclenche maintenant
+     l'impression du NAVIGATEUR directement sur l'aperçu déjà affiché :
+     dans la boîte qui s'ouvre, "Enregistrer en PDF" comme imprimante donne
+     exactement le même fichier qu'avant, sans aucun aller-retour serveur.
+     Règles ci-dessous : tout ce qui n'est pas l'aperçu (l'appli en
+     dessous, le voile sombre, les boutons Fermer/Générer eux-mêmes) est
+     masqué à l'impression ; la modale, normalement centrée en
+     position:fixed avec une hauteur plafonnée + défilement (cf. .pop),
+     redevient un document normal qui peut s'étaler sur plusieurs pages ;
+     les couleurs restent celles du mode CLAIR même si Lionel a le mode
+     sombre activé à l'écran (imprimer un fond sombre gâcherait l'encre et
+     la lisibilité sur papier) ; -webkit-print-color-adjust/print-color-adjust
+     forcent l'impression des couleurs de chantier (sans ça, certains
+     navigateurs les omettent par défaut pour économiser l'encre — ici
+     elles sont le seul repère visuel du chantier). Format paysage par
+     défaut (table large de 5 à 10 jours) — Lionel garde la main pour
+     changer dans la boîte du navigateur si besoin. */
+  @media print {
+    /* overlay (.voile-confirm) et modale (.impression-modal) sont 2 enfants
+       DIRECTS de <body>, pas l'un dans l'autre (cf. openPrintSheet : 2
+       appendChild(document.body) séparés) — cette règle masque tout le
+       reste de la page (l'appli, toute autre modale déjà ouverte), sans
+       rien supposer de plus sur la structure. */
+    body > *:not(.voile-confirm):not(.impression-modal) { display: none !important; }
+    /* Fond de <body> forcé en blanc : sans ça, la teinte --bg (claire mais
+       pas blanche, cf. :root plus haut — encore plus visible en mode
+       sombre) remplit toute la page autour du document, gaspille de
+       l'encre et ne ressemble pas à du papier. */
+    body { background: #fff !important; }
+    .voile-confirm { position: static !important; background: none !important; }
+    .impression-modal {
+      position: static !important; transform: none !important; left: auto !important; top: auto !important;
+      width: auto !important; max-width: none !important; max-height: none !important; overflow: visible !important;
+      box-shadow: none !important; border: none !important; margin: 0 !important;
+      --bg: #eef0ec; --surface: #fbfaf7; --surface-2: #ffffff;
+      --ink: #1a2129; --ink-muted: #57616b; --ink-faint: #8b93a0;
+      --border: #d7dad2; --border-strong: #1a2129;
+      --important-ink: #93362b; --absence-bg: #f6c893; --jalon-bg: #d7cdf0; --note-bg: #f7e6ab;
+      color: var(--ink); background: #fff;
+    }
+    .impression-actions { display: none !important; }
+    /* round du 15.09.2026 (suite) — Lionel : "Il reste une grande fenêtre
+       rectangle sous le planning, la supprimer. je veux un fond blanc et
+       uni". .print-doc est une carte pensée pour l'APERÇU À L'ÉCRAN (fond
+       légèrement teinté, bordure arrondie, cf. règle de base plus haut) —
+       une fois sur le papier, cette carte devient un grand rectangle
+       visible autour (et sous) le tableau, sur un fond qui n'est jamais
+       tout à fait blanc. À l'impression uniquement (l'aperçu à l'écran
+       garde sa carte, utile pour se repérer avant d'imprimer) : plus de
+       bordure, plus de coins arrondis, plus de fond teinté — juste le
+       tableau posé à même la page, sur le blanc uni du papier (déjà forcé
+       plus haut sur body). Le padding de la carte est retiré aussi (la
+       modale elle-même en garde un, cf. .impression-modal, et la marge de
+       @page ci-dessous) pour ne pas laisser un cadre de respiration qui
+       ferait encore deviner l'ancienne carte. */
+    .print-doc { background: #fff; border: none; border-radius: 0; padding: 0; }
+    /* Lionel : "Pas besoin de aperçu avant impression - semaine N, ni de
+       la légende de la personne masquée" — 2 mentions utiles pour se
+       repérer À L'ÉCRAN avant d'imprimer (quelle semaine ? qui a été
+       masqué et pourquoi ?) mais qui n'ont rien à faire sur le document
+       final une fois imprimé — masquées ici plutôt que retirées de
+       l'aperçu à l'écran, où elles restent affichées. */
+    .cp-titre, .skip-note { display: none !important; }
+    .print-doc, table.print-table, table.print-table th, table.print-table td {
+      -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact;
+    }
+    table.print-table { page-break-inside: auto; }
+    table.print-table tr { page-break-inside: avoid; }
+    @page { size: landscape; margin: 12mm; }
+  }
 </style>
 </head>
 <body>
@@ -4722,13 +4892,30 @@
         return chantierCelluleAuGi(donnees, p.id, demi, gi);
       }
       var consommesT = {}; // hi -> Set(index déjà utilisé par un item déjà construit)
-      function indexNonConsommeCorrespondantT_(hi, texte, important, statut, chantier) {
+      // ignorerChantier (round du 15.09.2026 — bug signalé par Lionel,
+      // capture d'écran à l'appui : une absence en série, posée sur matin ET
+      // aprem d'un même jour, se rendait en 2 bulles séparées au lieu d'une
+      // seule) : le chantier d'une case n'est comparé que pour une VRAIE
+      // tâche — une absence l'ignore déjà totalement à l'affichage
+      // (`chantier: typT === "absence" ? null : chantierT` juste en dessous,
+      // inchangé), mais AVANT ce correctif la fusion matin/aprem (ou
+      // jour-à-jour) l'exigeait quand même égal pour prolonger un run. Une
+      // absence ne pose jamais elle-même d'assignation (champs.chantier_id
+      // est toujours null pour ce type, cf. champsSerie/enregistrer-serie),
+      // donc le chantier resté sur une case n'est qu'un résidu d'une
+      // assignation PRÉEXISTANTE et non écrasée (règle "jamais recouverte",
+      // cf. BACKEND-CHANGELOG.md §27.2/§28.2) — rien à voir avec l'absence
+      // elle-même, et ce résidu peut très bien différer entre matin et aprem
+      // (ou d'un jour à l'autre) sans que ça doive jamais empêcher de
+      // fusionner 2 demi-journées de la MÊME absence en une seule bulle.
+      function indexNonConsommeCorrespondantT_(hi, texte, important, statut, chantier, ignorerChantier) {
         var arr = tableauAuHalfSlot_(hi);
         var used = consommesT[hi];
         var chIci = chantierAuHalfSlot_(hi) || null;
         for (var i = 0; i < arr.length; i++) {
           if (used && used[i]) continue;
-          if (arr[i].texte === texte && !!arr[i].important === !!important && (arr[i].statut || null) === (statut || null) && chIci === (chantier || null)) return i;
+          if (arr[i].texte === texte && !!arr[i].important === !!important && (arr[i].statut || null) === (statut || null) &&
+            (ignorerChantier || chIci === (chantier || null))) return i;
         }
         return -1;
       }
@@ -4742,21 +4929,23 @@
           if (consommesT[hiStart] && consommesT[hiStart][idxStart]) continue;
           var entreeT = arrStart[idxStart];
           var chantierT = chantierAuHalfSlot_(hiStart) || null;
+          // Round du 14.09.2026 : entreeT.absence (colonne réelle
+          // taches.est_absence, cf. tacheVue_) prime désormais sur
+          // estAbsence(texte) — gardée en OR seulement comme filet de
+          // sécurité pour les lignes antérieures à ce round, cf. commentaire
+          // détaillé sur tacheVue_ plus haut. Calculé ICI (avant la fusion,
+          // pas seulement après comme avant le round du 15.09.2026) pour
+          // piloter ignorerChantier ci-dessous.
+          var typT = (entreeT.absence || estAbsence(entreeT.texte)) ? "absence" : "tache";
           marquerConsommeT_(hiStart, idxStart);
           var finHi = hiStart;
           while (finHi + 1 < nHalfFenetre && !estGiWeekend(Math.floor((finHi + 1) / 2))) {
-            var idxSuivT = indexNonConsommeCorrespondantT_(finHi + 1, entreeT.texte, entreeT.important, entreeT.statut, chantierT);
+            var idxSuivT = indexNonConsommeCorrespondantT_(finHi + 1, entreeT.texte, entreeT.important, entreeT.statut, chantierT, typT === "absence");
             if (idxSuivT === -1) break;
             finHi++;
             marquerConsommeT_(finHi, idxSuivT);
           }
           var bornesT = bornesDepuisDemiSlots(hiStart, finHi);
-          // Round du 14.09.2026 : entreeT.absence (colonne réelle
-          // taches.est_absence, cf. tacheVue_) prime désormais sur
-          // estAbsence(texte) — gardée en OR seulement comme filet de
-          // sécurité pour les lignes antérieures à ce round, cf. commentaire
-          // détaillé sur tacheVue_ plus haut.
-          var typT = (entreeT.absence || estAbsence(entreeT.texte)) ? "absence" : "tache";
           var ittT = itemPlageTache(typT, entreeT.texte, p.id, bornesT.giDebut, bornesT.duree, {
             chantier: typT === "absence" ? null : chantierT, important: entreeT.important, statut: entreeT.statut || null,
             demiDebut: bornesT.demiDebut, demiFin: bornesT.demiFin
@@ -8266,7 +8455,22 @@
   // seule cible {ancre,demi} par appel, contrairement au moteur du prototype
   // qui partageait un seul serieId entre toutes les lignes d'une sélection
   // multi-personnes — ici chaque ligne reçoit sa propre série.
-  function creerSerieServeur(type, cibles, giDebut, texte, important, chantier, statut, choixSerie, apresChaqueAppel) {
+  //
+  // duree/demiDebut/demiFin (round du 15.09.2026 — bug Lionel : « si je
+  // sélectionne 2 case ou plus, la bulle vient uniquement dans la première
+  // case de chaque répétition ») : AJOUTÉS en fin de signature plutôt
+  // qu'insérés au milieu, pour ne risquer de décaler aucun des arguments
+  // positionnels déjà en place aux 3 sites d'appel existants. Avant ce
+  // round, cette fonction ne recevait QUE `giDebut` (l'ancre) — la largeur
+  // de la sélection d'origine (plusieurs jours et/ou les 2 demis d'un même
+  // jour, cf. bornesDepuisDemiSlots côté appelant) était silencieusement
+  // perdue : chaque occurrence ne posait jamais qu'UNE seule case (le jour
+  // et la demi de l'ancre), jamais tout le reste de la plage sélectionnée.
+  // Optionnels (undefined si un futur 4e site d'appel ne les fournit pas)
+  // pour que le serveur puisse retomber sur son ancien comportement à 1
+  // seule demi (cible_demi) — cf. le commentaire de champsSerie/
+  // construireOccurrencesSerie (enregistrer-serie/logic.js).
+  function creerSerieServeur(type, cibles, giDebut, texte, important, chantier, statut, choixSerie, apresChaqueAppel, duree, demiDebut, demiFin) {
     var isoDebut = isoDeGi(giDebut);
     // enregistrer-serie n'a que 3 types ("tache"|"jalon"|"note", cf.
     // champsSerie côté fonction) : "absence" n'a jamais été une vraie
@@ -8294,7 +8498,15 @@
           chantierId: chantier ? ((etat.chantierParNom[chantier] && etat.chantierParNom[chantier].ligne) || null) : null,
           dateDebutIso: isoDebut, frequence: choixSerie.frequence, intervalle: choixSerie.intervalle,
           finType: choixSerie.finType, finValeur: choixSerie.finValeur,
-          estAbsence: type === "absence"
+          estAbsence: type === "absence",
+          // Largeur de la sélection d'origine (round du 15.09.2026, cf.
+          // commentaire de tête de fonction) — toujours envoyés explicitement
+          // (même `null`) dès que cette fonction en reçoit, pour que chaque
+          // occurrence de la série reproduise exactement la même plage que
+          // la 1ère case posée, au lieu de la seule ancre.
+          duree: Math.max(1, duree || 1),
+          demiDebut: demiDebut !== undefined ? demiDebut : null,
+          demiFin: demiFin !== undefined ? demiFin : null
         };
         return invoquerFonctionServeur("enregistrer-serie", payload).then(function (r) { dernier = r; });
       });
@@ -8721,9 +8933,14 @@
       var choixSerie = lireChoixSerie();
       if (choixSerie) {
         fermer();
+        // duree/demiDebut/demiFin (round du 15.09.2026) : déjà en scope ici
+        // (paramètres de ouvrirFormulaireDynamique) et déjà transmis tels
+        // quels à creerGroupeTaches ci-dessous pour le chemin normal — il
+        // manquait seulement de les transmettre pareillement au chemin
+        // "Série", qui les ignorait silencieusement.
         creerSerieServeur(typeEntreeDyn, cibles, giDebut, texte, false, chantier, statutActuel, choixSerie, function (r) {
           apresEcritureSerie(r); toast("Série ajoutée.");
-        }).catch(function (err) {
+        }, duree, demiDebut, demiFin).catch(function (err) {
           toast("Échec de la création de la série : " + (err && err.message ? err.message : err));
         });
       } else {
@@ -8958,9 +9175,13 @@
       var choixSerie = lireChoixSerie();
       if (choixSerie) {
         fermer();
+        // dureeFinal/demiDebutFinal/demiFinFinal (round du 15.09.2026) :
+        // déjà calculés juste au-dessus (utilisés par la branche "sans
+        // série" ci-dessous) — il manquait de les transmettre pareillement
+        // ici, cf. commentaire de tête de creerSerieServeur.
         creerSerieServeur(typeAffiche, cibles, giDebutFinal, texte, important, chantier, statutFinal, choixSerie, function (r) {
           apresEcritureSerie(r); toast("Série ajoutée.");
-        }).catch(function (err) {
+        }, dureeFinal, demiDebutFinal, demiFinFinal).catch(function (err) {
           toast("Échec de la création de la série : " + (err && err.message ? err.message : err));
         });
       } else {
@@ -9131,9 +9352,12 @@
         var choixSerie = lireChoixSerie();
         if (choixSerie) {
           fermer();
+          // dureeFinal/demiDebutFinal/demiFinFinal (round du 15.09.2026) :
+          // même correctif que côté ouvrirEdition ci-dessus, pour un
+          // jalon/note en série couvrant plusieurs jours.
           creerSerieServeur(kind, [{}], giDebutFinal, texte, important, null, null, choixSerie, function (r) {
             apresEcritureSerie(r); toast("Série ajoutée.");
-          }).catch(function (err) {
+          }, dureeFinal, demiDebutFinal, demiFinFinal).catch(function (err) {
             toast("Échec de la création de la série : " + (err && err.message ? err.message : err));
           });
         } else {
@@ -9220,10 +9444,52 @@
     var labG = labGCourant();
     var data = etat.cache[labG];
     if (!data) { toast("Cette semaine n’est pas encore chargée — réessaie."); return; }
-    var jl = JOURS.map(function (j, i) { return { j: j, d: data.dates[i], m: data.mois[i] }; });
+    var jl = JOURS.map(function (j, i) { return { j: j, d: data.dates[i], m: data.mois[i], iso: data.isoDates[i] }; });
 
-    var imprimes = (data.personnes || []).filter(function (p) { return !personneVide(p); });
-    var sautees = (data.personnes || []).length - imprimes.length;
+    // round du 15.09.2026 — Lionel, sur l'aperçu impression : "les dates ne
+    // sont pas complètes, on ne voit ni le mois ni l'année [...] rajouter
+    // une ligne mois, l'année peut être placée dans la cellule haut
+    // gauche". data.mois[i]/data.isoDates[i] existaient déjà (repris tels
+    // quels d'infosSemaineDepuisLabG) mais n'étaient jusqu'ici affichés
+    // nulle part dans l'aperçu — seul "Lun 14" apparaissait, ambigu dès
+    // qu'on ressort une impression après coup (quel mois ? quelle année ?).
+    // Regroupe les jours CONSÉCUTIFS du même mois (une semaine de 5 jours
+    // ouvrés ne chevauche 2 mois qu'en fin de mois — ex. jeu 30/ven 31 août
+    // -> lun 1er/mar 2/mer 3 septembre) pour un colspan par groupe plutôt
+    // qu'un mois répété identique sur chaque colonne.
+    var groupesMois = [];
+    jl.forEach(function (j) {
+      var moisPlein = MOIS_FR[parseInt(j.iso.slice(5, 7), 10) - 1];
+      var dernier = groupesMois[groupesMois.length - 1];
+      if (dernier && dernier.mois === moisPlein) dernier.span++;
+      else groupesMois.push({ mois: moisPlein, span: 1 });
+    });
+    // Année(s) de la cellule en haut à gauche : la quasi-totalité du temps
+    // une seule ("2026") ; à cheval sur le nouvel an (semaine du dernier
+    // lundi de décembre), les 2 sont affichées ("2026 / 2027") plutôt que
+    // de trancher arbitrairement pour l'une des deux.
+    var anneesSemaine = [];
+    jl.forEach(function (j) { var a = j.iso.slice(0, 4); if (anneesSemaine.indexOf(a) === -1) anneesSemaine.push(a); });
+
+    // round du 15.09.2026 (suite) — Lionel : "L'ordre sur le pdf doit être
+    // celui à l'écran". La grille compacte affiche 2 sections successives,
+    // Personnel puis Intervenants (cf. construireGrille : groupePersonnel/
+    // groupeIntervenants juste avant ligneSection, lignes ~6237) — alors
+    // que data.personnes est simplement trié par le champ "ordre" côté
+    // serveur, qui peut très bien entremêler personnel et sous-traitants.
+    // On reproduit ici le même regroupement (p.sousTraitant est déjà
+    // disponible sur cette forme de données, cf. construireVueDepuisCache).
+    var imprimesTous = (data.personnes || []).filter(function (p) { return !personneVide(p); });
+    var sautees = (data.personnes || []).length - imprimesTous.length;
+    var imprPersonnel = imprimesTous.filter(function (p) { return !p.sousTraitant; });
+    var imprIntervenants = imprimesTous.filter(function (p) { return p.sousTraitant; });
+    var imprimes = imprPersonnel.concat(imprIntervenants);
+    // Index (dans `imprimes`) du dernier "Personnel" avant le 1er
+    // "Intervenant" — sert plus bas à insérer une séparation plus large que
+    // le spacer ordinaire entre 2 personnes du même groupe (cf.
+    // "print-spacer-section" dans le CSS), seulement quand les 2 groupes
+    // sont représentés cette semaine-là.
+    var indexFrontiereSection = (imprPersonnel.length > 0 && imprIntervenants.length > 0) ? (imprPersonnel.length - 1) : -1;
     var chantiersUtilises = {};
     imprimes.forEach(function (p) {
       (p.matin || []).concat(p.aprem || []).forEach(function (cell) {
@@ -9237,20 +9503,59 @@
     var pop = document.createElement("div");
     pop.className = "pop confirm-pop impression-modal";
     var h = '<div class="cp-titre">Aperçu impression — semaine ' + esc(data.numero) + '</div>';
-    h += '<div class="print-doc"><table class="print-table"><thead><tr><th></th>';
-    jl.forEach(function (j) { h += '<th>' + j.j + ' ' + j.d + '</th>'; });
+    // NB_COLS : 1 colonne "nom" + 2 sous-colonnes (matin/aprem) par jour —
+    // toute cellule qui doit couvrir la largeur entière du tableau
+    // (spacers, colspan de secours) s'appuie sur cette constante plutôt
+    // qu'un nombre en dur, pour ne plus jamais désynchroniser un colspan
+    // si le nombre de jours affichés change un jour.
+    var NB_COLS = 1 + jl.length * 2;
+    h += '<div class="print-doc"><table class="print-table"><thead>';
+    // round du 15.09.2026 (suite) — Lionel : "j'aimerai bien l'affichage
+    // matin/après-midi côte à côte, comme le planning". La grille compacte
+    // (planning à l'écran) place déjà matin et aprem à côté l'un de
+    // l'autre plutôt que sur 2 lignes — l'aperçu impression, jusqu'ici,
+    // faisait l'inverse (cf. plus bas : 1 ligne "matin" + 1 ligne "aprem"
+    // par personne). Reprend le même principe qu'à l'écran : chaque jour
+    // devient 2 SOUS-COLONNES ("th colspan=2" pour son en-tête), chaque
+    // personne tient sur UNE SEULE ligne. Jalons/notes restent au niveau
+    // du JOUR (data.jalons[i]/data.notes[i] n'ont pas de granularité demi
+    // côté forme serveur brute, contrairement aux cases personne — cf.
+    // personneVide/fondCase juste au-dessus) : leur cellule s'étale sur
+    // les 2 sous-colonnes de son jour (colspan=2), comme une plage en
+    // "journée entière" dans la grille à l'écran.
+    h += '<tr class="print-mois"><th class="coin-annee">' + esc(anneesSemaine.join(" / ")) + '</th>';
+    groupesMois.forEach(function (g) { h += '<th colspan="' + (g.span * 2) + '">' + esc(g.mois) + '</th>'; });
+    h += '</tr>';
+    // round du 15.09.2026 (suite) — Lionel : "Inscription semaine N dans la
+    // case sous l'année". Cette case de coin (rowspan=2, sous "2026")
+    // était vide jusqu'ici ; elle prend maintenant le numéro de semaine —
+    // d'autant plus utile que "Aperçu impression — semaine N" (le titre de
+    // la modale, cf. cp-titre plus haut) ne s'imprime plus (cf. @media
+    // print, "pas besoin de aperçu avant impression - semaine N") : sans
+    // ça, le numéro de semaine aurait disparu du document imprimé.
+    h += '<tr><th rowspan="2" class="coin-semaine">Semaine ' + esc(data.numero) + '</th>';
+    jl.forEach(function (j) { h += '<th colspan="2">' + j.j + ' ' + j.d + '</th>'; });
+    h += '</tr>';
+    h += '<tr class="print-demis">';
+    jl.forEach(function () { h += '<th>Matin</th><th class="demi-aprem">Aprem</th>'; });
     h += '</tr></thead><tbody>';
 
-    h += '<tr class="print-jalons"><td></td>';
+    // round du 15.09.2026 (suite, suite, suite) — Lionel : "ajoute les
+    // libellé jalon et note dans la colonne gauche" (même demande, et
+    // mêmes libellés "Jalons"/"Notes", que sur la grille compacte à
+    // l'écran — cf. construireGrille, "Titre de ligne" — pour la même
+    // raison : sans repère textuel, la colonne de gauche ne dit plus quelle
+    // ligne est quoi une fois qu'on ne voit plus la légende de couleurs).
+    h += '<tr class="print-jalons"><td style="font-weight:700;white-space:nowrap">Jalons</td>';
     (data.jalons || []).forEach(function (t) {
       var txt = t ? t.texte : "";
-      h += '<td class="' + (txt ? "filled" : "") + '">' + esc(txt || "") + '</td>';
+      h += '<td colspan="2" class="' + (txt ? "filled" : "") + '">' + esc(txt || "") + '</td>';
     });
     h += '</tr>';
 
     if (notesRemplies) {
-      h += '<tr class="print-spacer"><td colspan="6"></td></tr>';
-      h += '<tr class="print-notes"><td></td>';
+      h += '<tr class="print-spacer"><td colspan="' + NB_COLS + '"></td></tr>';
+      h += '<tr class="print-notes"><td style="font-weight:700;white-space:nowrap">Notes</td>';
       (data.notes || []).forEach(function (entries) {
         var rempli = entries && entries.length > 0;
         var txt = (entries || []).map(function (n) {
@@ -9258,31 +9563,47 @@
           var ferme = n.important ? '</span>' : "";
           return ouvre + esc(n.texte) + ferme;
         }).join("<br>");
-        h += '<td class="' + (rempli ? "filled" : "") + '">' + txt + '</td>';
+        h += '<td colspan="2" class="' + (rempli ? "filled" : "") + '">' + txt + '</td>';
       });
       h += '</tr>';
     }
 
-    h += '<tr class="print-spacer"><td colspan="6"></td></tr>';
+    h += '<tr class="print-spacer"><td colspan="' + NB_COLS + '"></td></tr>';
+
+    // classeDemi (round du 15.09.2026, suite — "traitillé entre aprèm et
+    // matin") : posée uniquement côté aprem, pour que le CSS (.demi-aprem)
+    // ne mette en traitillé QUE la frontière interne matin→aprem, jamais
+    // la frontière entre 2 jours (bordure gauche de la case matin du jour
+    // suivant, qui elle n'a pas cette classe et reste pleine).
+    function celluleTache(p, cell, classeDemi) {
+      var bg = fondCase(cell);
+      var taches = (cell && cell.taches) || [];
+      var txt = taches.map(function (t) {
+        var badge = (p.sousTraitant && t.statut && STATUTS[t.statut]) ? ' <span class="print-statut" style="background:' + STATUTS[t.statut].couleur + '">' + esc(STATUTS[t.statut].nom) + '</span>' : "";
+        var ouvre = t.important ? '<span class="print-important">' : "";
+        var ferme = t.important ? '</span>' : "";
+        return ouvre + esc(t.texte) + ferme + badge;
+      }).join("<br>");
+      return '<td' + (classeDemi ? ' class="' + classeDemi + '"' : '') + ' style="background:' + (bg === "transparent" ? "var(--surface-2)" : bg) + '">' + txt + '</td>';
+    }
 
     imprimes.forEach(function (p, idx) {
-      ["matin", "aprem"].forEach(function (demi, di) {
-        h += '<tr>';
-        if (di === 0) h += '<td rowspan="2" style="font-weight:700;white-space:nowrap">' + esc(p.nom) + '</td>';
-        (p[demi] || []).forEach(function (cell) {
-          var bg = fondCase(cell);
-          var taches = (cell && cell.taches) || [];
-          var txt = taches.map(function (t) {
-            var badge = (p.sousTraitant && t.statut && STATUTS[t.statut]) ? ' <span class="print-statut" style="background:' + STATUTS[t.statut].couleur + '">' + esc(STATUTS[t.statut].nom) + '</span>' : "";
-            var ouvre = t.important ? '<span class="print-important">' : "";
-            var ferme = t.important ? '</span>' : "";
-            return ouvre + esc(t.texte) + ferme + badge;
-          }).join("<br>");
-          h += '<td style="background:' + (bg === "transparent" ? "var(--surface-2)" : bg) + '">' + txt + '</td>';
-        });
-        h += '</tr>';
-      });
-      if (idx < imprimes.length - 1) h += '<tr class="print-spacer"><td colspan="6"></td></tr>';
+      h += '<tr>';
+      h += '<td style="font-weight:700;white-space:nowrap">' + esc(p.nom) + '</td>';
+      for (var i = 0; i < jl.length; i++) {
+        h += celluleTache(p, (p.matin || [])[i]);
+        h += celluleTache(p, (p.aprem || [])[i], "demi-aprem");
+      }
+      h += '</tr>';
+      if (idx < imprimes.length - 1) {
+        // round du 15.09.2026 (suite) — Lionel : "Ligne entre personnel et
+        // intervenants, vide et sans couleur aussi, un peu plus large que
+        // celle entre le personnel" — même spacer invisible partout, avec
+        // en plus la classe "print-spacer-section" (juste plus haute)
+        // seulement à la frontière calculée plus haut.
+        var classeSpacer = (idx === indexFrontiereSection) ? "print-spacer print-spacer-section" : "print-spacer";
+        h += '<tr class="' + classeSpacer + '"><td colspan="' + NB_COLS + '"></td></tr>';
+      }
     });
 
     h += '</tbody></table>';
@@ -9301,7 +9622,7 @@
     }
     h += '</div>'; // .print-doc
 
-    h += '<div class="impression-actions"><button type="button" class="f-fermer">Fermer</button><button type="button" class="btn-primaire f-genpdf">Générer le PDF</button></div>';
+    h += '<div class="impression-actions"><button type="button" class="f-fermer">Fermer</button><button type="button" class="btn-primaire f-genpdf">Imprimer / PDF</button></div>';
     pop.innerHTML = h;
     document.body.appendChild(overlay);
     document.body.appendChild(pop);
@@ -9310,38 +9631,20 @@
     pop.querySelector(".f-fermer").addEventListener("click", nettoyer);
     popFermerActuel = nettoyer;
 
+    // round du 15.09.2026 — Lionel : "on peut travailler sur la page
+    // d'impression ?". Ce bouton appelait gs("apiGenererPdf", ...), donc
+    // google.script.run — plus rien depuis l'hébergement sur GitHub Pages
+    // (§8 du plan de migration, resté ouvert) : l'appel levait une
+    // exception systématiquement rattrapée par le catch ci-dessous depuis
+    // le 07.09.2026 (message clair, mais aucun PDF produit). Plutôt qu'une
+    // nouvelle fonction serveur pour reconstruire un PDF depuis zéro
+    // (Edge Function), choix de Lionel : s'appuyer sur l'impression du
+    // NAVIGATEUR, directement sur cet aperçu (cf. @media print,
+    // .impression-modal, plus haut dans <style>) — "Enregistrer en PDF"
+    // dans la boîte qui s'ouvre donne le même fichier, sans aller-retour
+    // serveur ni dépendance nouvelle.
     var genBtn = pop.querySelector(".f-genpdf");
-    genBtn.addEventListener("click", function () {
-      genBtn.disabled = true; genBtn.textContent = "Génération…";
-      // apiGenererPdf n'a pas encore d'équivalent Supabase (§8 du plan,
-      // reporté à une étape 6 séparée) : gs() appellerait encore
-      // google.script.run, qui n'existe plus une fois hébergé sur GitHub
-      // Pages, et lèverait une exception non rattrapée qui laisserait ce
-      // bouton bloqué sur "Génération…" pour de bon. Repéré et corrigé le
-      // 07.09.2026 (phase 4, étape 5) : message clair plutôt qu'un plantage
-      // silencieux, en attendant que le PDF soit traité.
-      try {
-      gs("apiGenererPdf", [labG], function (r) {
-        // L'onglet "📋 S<n>" créé pour l'export n'est plus laissé dans le
-        // fichier une fois le PDF généré avec succès (comportement V2
-        // inchangé — cf. WebApp.gs). Si l'export Drive échoue, l'onglet est
-        // gardé comme filet de sécurité (r.supprimee === false) et signalé
-        // dans le message.
-        var msg = (r.pdf && r.pdf.msg) ? r.pdf.msg : "PDF généré.";
-        if (!r.supprimee && r.feuille) {
-          msg += ' Onglet "' + r.feuille + '" gardé, à imprimer/exporter toi-même si besoin.';
-        }
-        nettoyer();
-        toast(msg);
-      }, function (err) {
-        genBtn.disabled = false; genBtn.textContent = "Générer le PDF";
-        toast("Échec : " + (err && err.message ? err.message : err));
-      });
-      } catch (err) {
-        genBtn.disabled = false; genBtn.textContent = "Générer le PDF";
-        toast("Export PDF pas encore disponible sur la nouvelle version (à venir).");
-      }
-    });
+    genBtn.addEventListener("click", function () { window.print(); });
   }
 
   verifierSessionEtDemarrer();

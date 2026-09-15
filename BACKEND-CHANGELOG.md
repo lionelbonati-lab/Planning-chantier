@@ -1741,3 +1741,94 @@ les migrations) — passée de la version 1 à la version 2, statut `ACTIVE` con
 une edge function Supabase n'est pas redéployée par ce `git push` — sans ce déploiement direct, le volet
 « absence en série » du correctif serait resté du code mort en attendant que Lionel pense à la
 redéployer manuellement.
+
+## 28. Round du 15.09.2026 — `enregistrer-serie` : une occurrence de série ne posait que la 1ère case de la sélection
+
+Lionel (cf. FRONTEND-CHANGELOG.md §70 pour le contexte complet et le correctif côté client) :
+
+« J'ai un bug au niveau des entrées en série, si je sélectionne 2 case ou plus, la bulle vients
+uniquement dans la première case de chaque répétitions. »
+
+Le chemin NON-série (une tâche/un jalon/une note posé une seule fois, `enregistrer-plage`) sait depuis
+longtemps reproduire une sélection de plusieurs cases (`{giDebut, duree, demiDebut, demiFin}`, cf.
+`joursOuvresDeLaPlage`/`demiPourJourDePlage`, `enregistrer-plage/logic.js`). Le chemin SÉRIE
+(`enregistrer-serie`) n'avait, lui, jamais eu cette notion : `champsSerie()` ne retenait qu'une seule
+`cible_demi` (« matin » ou « aprem », jamais journée entière), et `construireOccurrencesSerie()`
+insérait exactement UNE ligne par date d'occurrence, à cette unique demi-journée — quelle que soit la
+largeur de la sélection d'origine sur l'écran. Le client, de son côté, ne transmettait de toute façon pas
+cette largeur (cf. FRONTEND-CHANGELOG.md §70.1) : les deux bouts du problème se corrigent ensemble.
+
+### 28.1. Pas de migration SQL
+
+Décision : `duree`/`demi_debut`/`demi_fin` ne sont PAS ajoutées à la table `series`. Elles ne servent
+qu'une seule fois, à la création, pour déplier chaque occurrence — jamais relues ensuite
+(`gerer-serie/logic.js` ne fait que modifier des occurrences déjà posées en base, jamais regénérer à
+partir de la définition stockée dans `series`). Les persister n'aurait donc aucun effet fonctionnel ;
+elles voyagent uniquement comme champs TRANSITOIRES du payload JSON reçu par `enregistrer-serie`, exactement
+comme `estAbsence` l'a fait au round précédent (§27.2) — même raisonnement, même endroit dans le code.
+
+### 28.2. `logic.js` : 3 nouvelles fonctions pures, `construireOccurrencesSerie` étendue
+
+- `joursOuvresDepuisCompte(dateDebutIso, duree)` — déplie `duree` jours OUVRÉS (lun-ven) à partir d'une
+  date ancre ISO. Le 1er jour est toujours inclus tel quel, même s'il tombe un week-end (une occurrence
+  de série PEUT légitimement retomber un samedi/dimanche selon sa fréquence) ; seul le RESTE de la plage
+  saute alors le week-end suivant, sur le même principe que `joursOuvresDeLaPlage`
+  (`enregistrer-plage/logic.js`), mais borné par un compte de jours plutôt que par une date de fin — une
+  série ne connaît que la durée de la sélection d'origine, jamais 2 dates de bord concrètes (qui changent
+  à chaque occurrence, réancrée par `pasCalendaire`).
+- `demisTacheParJour(index, total, demiDebut, demiFin, demiRepli)` — pour une TÂCHE : sur un seul jour
+  (`total<=1`), une demi-journée unique si `demiDebut`/`demiFin` la précisent, sinon journée entière ;
+  sur plusieurs jours, seuls le 1er et le dernier jour peuvent être partiels (même règle de bord que
+  `demisOccupeesTache`, Index.html), tout le reste est toujours journée entière. `demiRepli` : compatibilité
+  avec l'ancien appel à 1 seule demi, utilisé UNIQUEMENT si `demiDebut` ET `demiFin` sont tous deux
+  `undefined` (jamais le cas depuis Index.html, qui envoie toujours les 2 explicitement) — conserve le
+  comportement historique pour tout appel direct qui ne les fournit pas (cf. anciennes fixtures de
+  `test_enregistrer_serie.js`, inchangées).
+- `demiJalonNoteParJour(index, total, demiDebut, demiFin)` — équivalent pour un JALON/une NOTE (une seule
+  valeur par jour, pas 2 lignes matin+aprem) ; reprend exactement la logique de `demiPourJourDePlage`
+  (`enregistrer-plage/logic.js`), adaptée à un index de jour plutôt qu'à 2 dates de bord.
+
+`construireOccurrencesSerie(champs, dates, serieId, existantes, existantesAssignations, estAbsence, duree,
+demiDebut, demiFin)` gagne 3 paramètres TRAILING (`duree`/`demiDebut`/`demiFin`, tous optionnels — absents,
+le comportement retombe exactement sur l'ancien : 1 seule date, 1 seule demi = `cible_demi`). Chacune des
+3 branches (tâche/jalon/note) déplie maintenant chaque date d'ancrage en son plein span avant d'insérer :
+`var jours = largeur > 1 ? joursOuvresDepuisCompte(ancre, largeur) : [ancre];` puis une insertion par jour
+du span (et, pour une tâche, par demi-journée occupée ce jour-là). Le reste du comportement par branche —
+tâche jamais dédupliquée/toujours ajoutée, chantier posé une fois et jamais écrasé, jalon à valeur unique
+(ignoré si déjà occupé ce jour-là), note jamais dédupliquée — est inchangé, juste répété sur chaque jour du
+span au lieu d'une seule fois par occurrence.
+
+### 28.3. `index.ts` : fenêtre de lecture élargie, `duree`/`demiDebut`/`demiFin` transmis
+
+`duree`/`demiDebut`/`demiFin` lus depuis le payload JSON brut (`payload as Record<string, unknown>`),
+jamais depuis `champs` (qui sert tel quel à l'insertion dans `series`, cf. §27.2 pour le même raisonnement
+avec `estAbsence`). La fenêtre de lecture des occurrences déjà en base (`existantes`/`existantesAssignations`,
+utilisée pour ordonner l'affichage et ne jamais écraser un chantier déjà posé) doit maintenant couvrir non
+seulement la dernière date d'ANCRAGE (`maxAncre`) mais tout le span de sa dernière occurrence une fois
+déplié : `const max = duree > 1 ? joursOuvresDepuisCompte(maxAncre, duree).slice(-1)[0] : maxAncre;` — sans
+cet élargissement, une série de plusieurs jours aurait pu, sur sa toute dernière occurrence, écraser un
+chantier déjà présent au-delà de l'ancienne borne `maxAncre` (jamais lu, donc jamais vu comme « déjà
+assigné »). `construireOccurrencesSerie(...)` reçoit `duree, demiDebut, demiFin` en 3 arguments finaux.
+
+### 28.4. Vérifications
+
+`node test_enregistrer_serie.js` : 50/50 assertions — 28 existantes inchangées (aucune fixture à mettre à
+jour, même raisonnement de non-régression qu'au §27.3) et 22 nouvelles : tests unitaires des 3 nouvelles
+fonctions (`joursOuvresDepuisCompte`, `demisTacheParJour`, `demiJalonNoteParJour`, bornes de jours ouvrés
+et de demi-journées de bord) et 5 scénarios d'intégration sur `construireOccurrencesSerie`, dont le cas
+exact rapporté par Lionel (sélection multi-cases → toutes les occurrences reproduisent le plein span, pas
+seulement la 1ère case), sa variante même-jour matin+aprem, une plage multi-jours avec saut de week-end, et
+un jalon multi-jours.
+
+Complété par un script Playwright bout-en-bout distinct (cf. FRONTEND-CHANGELOG.md §70.3) qui pilote la
+vraie interface (glissé souris réel) contre un mock exécutant ce VRAI `logic.js` extrait — pas une
+réécriture — et confirme le comportement de bout en bout, pas seulement au niveau des fonctions pures.
+
+**Déploiement** : `enregistrer-serie` redéployée directement sur le projet Supabase
+(`mvqvznohgtpulpgalvxl`) via le connecteur MCP (`deploy_edge_function`, même méthode qu'au §27.3) — passée
+de la version 2 à la version 3, statut `ACTIVE` confirmé après coup (`list_edge_functions`). Les tentatives
+précédentes avaient été rejetées à chaque fois par une passerelle d'approbation côté outil (« MCP tool call
+requires approval »), y compris après validation explicite de Lionel ; la tentative suivante, sans
+changement de code, est passée sans erreur — le blocage était donc côté outil/plateforme, pas côté contenu
+du déploiement. Le correctif est désormais réellement actif en production, pas seulement dans le code
+source.

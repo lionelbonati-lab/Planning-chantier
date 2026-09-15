@@ -4055,3 +4055,467 @@ glissement (corps de la bulle, pas la poignée) de la même tâche sur toute la 
 loggant à chaque pas la géométrie réelle affichée. Les deux confirmés cassants sur le code d'avant ce
 round (`git stash` temporaire) — respectivement plusieurs décrochages de sens à chaque frontière
 matin/aprem en étirement, et 5 en déplacement — puis 0 décrochage une fois le correctif restauré.
+
+## 64. Round du 15.09.2026 — le bouton "Générer le PDF" ne produisait plus rien
+
+Lionel : « on peut travailler sur la page d'impression ? ». À l'examen, l'aperçu (le tableau qui
+s'affiche) fonctionnait très bien ; c'est le bouton "Générer le PDF" qui ne faisait plus rien de réel —
+point resté explicitement ouvert dans le plan de migration (`MIGRATION-GITHUB-PLAN.md` §8, "PDF : pas
+encore de solution retenue"). 2 questions posées à Lionel avant de commencer (cf. le fil de discussion) :
+remettre le PDF en marche, plutôt qu'autre chose sur cette page — puis, la méthode : impression du
+NAVIGATEUR plutôt qu'une nouvelle Edge Function dédiée.
+
+### 64.1. Cause
+
+`apiGenererPdf` (WebApp.gs) générait le PDF via Google Sheets + Drive — aucun équivalent une fois
+l'appli hébergée sur GitHub Pages (backend Supabase). Le bouton appelait encore `gs("apiGenererPdf",
+[labG], ...)`, donc `google.script.run`, inexistant hors Apps Script : levait une exception, rattrapée
+depuis le 07.09.2026 (phase 4, étape 5, §36) par un message clair plutôt qu'un plantage silencieux — mais
+strictement aucun PDF ne sortait plus de ce bouton depuis le passage à GitHub Pages.
+
+### 64.2. Correctif — impression du navigateur, pas de nouvelle Edge Function
+
+`openPrintSheet()` construit déjà tout l'aperçu en HTML pur (`.print-doc`/`table.print-table`) — c'était
+déjà, de fait, un document prêt à imprimer. Plutôt que reconstruire un PDF depuis zéro côté serveur
+(Deno n'a pas de moteur de mise en page HTML→PDF simple, et ça aurait fait diverger le rendu imprimé de
+l'aperçu à l'écran), le bouton (renommé "Imprimer / PDF") appelle maintenant directement `window.print()`
+sur l'aperçu déjà affiché : dans la boîte qui s'ouvre, "Enregistrer en PDF" comme imprimante donne
+exactement le fichier voulu, sans aucun aller-retour serveur ni dépendance nouvelle. `apiGenererPdf`
+reste inchangée côté serveur (WebApp.gs) — simplement plus appelée depuis ce fichier (cf.
+`MIGRATION-GITHUB-PLAN.md` §8, mis à jour).
+
+Nouveau bloc `@media print` (dans `<style>`, juste après les règles existantes de `.impression-modal`) :
+- masque tout le reste de la page (l'appli, le voile sombre, les boutons Fermer/Imprimer eux-mêmes) —
+  seul l'aperçu doit apparaître sur le papier ;
+- la modale, normalement `position: fixed` centrée avec une hauteur plafonnée + défilement (cf. `.pop`,
+  nécessaire à l'écran), redevient un document normal qui peut s'étaler sur autant de pages que
+  nécessaire ;
+- fige la palette de couleurs sur le mode CLAIR même si Lionel a le mode sombre activé à l'écran (fond
+  de `<body>` forcé en blanc y compris) — imprimer un fond sombre gâcherait l'encre et la lisibilité sur
+  papier, sans rapport avec le réglage d'affichage du moment ;
+- `print-color-adjust: exact` (+ préfixe `-webkit-`) sur le tableau : sans ça, certains navigateurs
+  omettent les couleurs de fond par défaut pour économiser l'encre — ici les couleurs de chantier sont le
+  seul repère visuel, indispensables sur la feuille ;
+- format PAYSAGE par défaut (`@page { size: landscape }`) — le tableau est large de 5 à 10 jours,
+  Lionel garde la main pour changer dans la boîte du navigateur si besoin.
+
+### 64.3. Vérifications
+
+Script Playwright dédié (`verif_impression.js`, scratchpad de session) : ouvre l'aperçu, clique
+"Imprimer / PDF", vérifie que `window.print()` est appelé exactement une fois (piégé avant le clic) et
+que la modale reste ouverte après (pas de fermeture automatique) ; bascule ensuite le média émulé sur
+`print` et vérifie que `#app` passe à `display:none`, que `.impression-modal` n'est plus
+`position:fixed`, que sa `max-height` repasse à `none`, et que `.impression-actions` est bien masqué —
+tout au vert.
+
+Vérification visuelle complémentaire : semaine de test peuplée (tâches avec chantier, jalon, note,
+absence) puis un VRAI PDF généré via `page.pdf({ printBackground:true, landscape:true })` (donc
+représentatif de ce qui sortirait d'un "Enregistrer en PDF" réel, pas juste une capture d'écran) —
+converti en image (`pdftoppm`) et relu : couleurs de chantier et d'absence bien présentes, tâches
+importantes en évidence, légende correcte, page blanche en dehors du document (pas de fond de l'appli
+qui déborde), mise en page paysage lisible.
+
+Reste de la suite `test_*.js` inchangée et au vert (`test_edge_functions.js` mis à part — échec
+préexistant déjà documenté, sans rapport).
+
+## 65. Round du 15.09.2026 (suite) — dates incomplètes et couleur de la ligne d'en-tête, sur l'aperçu impression
+
+Lionel, sur l'aperçu impression (juste livré au §64) : « La ligne des dates en grisé comme la colonne des
+noms, les dates ne sont pas complètes, on ne voit ni le mois ni l'année. Possibilité de rajouter une
+ligne mois, l'année peut être placée dans la cellule haut gauche. » 2 sujets distincts, confirmés
+séparément avec Lionel avant de coder (cf. le fil de discussion) : la couleur de fond de la ligne
+jour/date, et l'ajout du mois/année.
+
+### 65.1. Ligne jour/date : fond neutre au lieu du violet des Jalons
+
+`table.print-table thead th` utilisait `var(--jalon-bg)` (violet clair) — la même couleur que la ligne
+Jalons juste en dessous, sans aucun rapport avec elle, prêtant à confusion. Passé à `var(--bg)`, la
+teinte déjà visible par transparence dans la colonne des noms (qui n'a jamais eu de fond propre) — d'où
+la formulation de Lionel, "comme la colonne des noms". Un seul endroit changé, s'applique aux 2 lignes
+d'en-tête (mois ET jour/date, cf. ci-dessous) pour un bandeau uniforme.
+
+### 65.2. Ligne mois + année en case haut-gauche
+
+`data.mois[i]` et `data.isoDates[i]` existaient déjà (`infosSemaineDepuisLabG`) mais n'étaient utilisés
+nulle part dans `openPrintSheet()` — seul "Lun 14" apparaissait, sans mois ni année : en ressortant
+l'imprimé plus tard (l'imprimé n'a pas de date de génération dessus), impossible de savoir de quelle
+semaine il s'agissait. Ajouts :
+- une ligne `<tr class="print-mois">` au-dessus de la ligne jour/date, avec un `<th>` par MOIS (pas par
+  jour) : les jours consécutifs du même mois sont regroupés sous un seul `<th colspan="N">` plutôt que de
+  répéter le mois sur chaque colonne — utile dès qu'une semaine chevauche 2 mois (ex. jeu 30/ven 31 août
+  → lun 1er/mar 2/mer 3 septembre). Texte en toutes lettres et capitalisé (`MOIS_FR`, déjà utilisé par le
+  calendrier des fériés), pas l'abréviation `data.mois` ("sept.") déjà utilisée ailleurs dans l'appli — la
+  ligne mois a la place, autant que ce soit lisible.
+- la cellule en haut à gauche (`.coin-annee`, 1ère cellule de cette nouvelle ligne) affiche l'année. En
+  général une seule ("2026") ; à cheval sur le nouvel an (semaine du dernier lundi de décembre), les 2
+  années apparaissent ("2025 / 2026") plutôt que d'en choisir une arbitrairement.
+
+### 65.3. Vérifications
+
+Nouveau script Playwright (`verif_mois_annee.js`, scratchpad de session), 3 semaines : une semaine
+normale (Septembre seul, colspan 5, année "2026") ; une semaine à cheval sur 2 mois DE LA MÊME année
+(lundi 31 août → vendredi 4 septembre 2026 : "Août" colspan 1 + "Septembre" colspan 4, année "2026") ;
+une semaine à cheval sur le NOUVEL AN (lundi 29 décembre 2025 → vendredi 2 janvier 2026 : "Décembre"
+colspan 3 + "Janvier" colspan 2, année "2025 / 2026") — navigation via le sélecteur "Aller à…" existant
+(`.lien-aller`/`.f-semaine`). Les 3 cas au vert, colonnes/colspans et jours affichés vérifiés jusqu'au
+détail. Vérification visuelle complémentaire par un vrai PDF (même méthode qu'au §64) : bandeau d'en-tête
+gris uniforme sur les 2 lignes, "2026" bien en case haut-gauche, "SEPTEMBRE" bien centré sur les 5
+colonnes de jours.
+
+Reste de la suite `test_*.js` inchangée et au vert (`test_edge_functions.js` mis à part, sans rapport).
+
+## 66. Round du 15.09.2026 (suite) — matin/après-midi côte à côte sur l'aperçu impression, comme le planning
+
+Lionel : « j'aimerai bien l'affichage matin/après-midi côte à côte, comme le planning. »
+
+### 66.1. Avant ce round
+
+`openPrintSheet()` posait chaque personne sur 2 LIGNES (une "matin", une "aprem" juste en dessous,
+`rowspan="2"` sur la cellule de son nom), chaque ligne ayant 1 cellule par jour (5 colonnes) — l'inverse
+de la grille compacte à l'écran, qui place matin et aprem À CÔTÉ l'un de l'autre plutôt que l'un
+au-dessus de l'autre. D'où la demande de Lionel : retrouver sur le papier la même lecture que sur son
+écran.
+
+### 66.2. Correctif
+
+Chaque jour devient 2 SOUS-COLONNES (matin puis aprem) au lieu d'une seule — le tableau passe de 6
+colonnes (1 nom + 5 jours) à 11 (1 nom + 5 jours × 2). En-tête sur 3 lignes désormais (`<thead>`) : année
++ mois (colspan doublé pour rester aligné sur les sous-colonnes), jour/date (`colspan="2"`, un
+`rowspan="2"` sur la case vide de coin pour éviter de la répéter sur la 3e ligne), puis une nouvelle
+ligne "Matin"/"Aprem" discrète (`.print-demis`, même traitement visuel atténué que la ligne mois — cf.
+§65 — pour ne pas rivaliser avec la ligne jour/date, l'info qu'on cherche en premier). Chaque personne
+tient désormais sur UNE SEULE ligne (`p.matin[i]` et `p.aprem[i]`, déjà disponibles séparément dans la
+forme serveur brute, juste réordonnés jour par jour plutôt que par demi — factorisé dans une petite
+fonction `celluleTache(p, cell)` commune aux 2 appels).
+
+Jalons et notes restent au niveau du JOUR (`data.jalons[i]`/`data.notes[i]` n'ont pas de granularité demi
+côté forme serveur brute, à la différence des cases personne) : leur cellule s'étale sur les 2
+sous-colonnes de son jour (`colspan="2"`), comme le ferait une plage en "journée entière" dans la grille
+à l'écran — pas de trou ni de fausse asymétrie entre les 2 sous-colonnes d'un même jour pour ces 2
+lignes-là.
+
+Tous les `colspan` "pleine largeur" (lignes d'espacement, ligne Notes quand elle n'existe pas encore) sont
+passés d'un `6` en dur à une constante `NB_COLS` calculée (`1 + jl.length * 2`) — pour ne plus jamais
+désynchroniser un colspan si le nombre de jours affichés change un jour (2 semaines à la fois, par
+exemple).
+
+### 66.3. Vérifications
+
+`verif_mois_annee.js` (scratchpad de session) étendu à 4 cas : les 3 précédents (§65) adaptés aux
+colspans doublés, plus un nouveau cas dédié — une personne avec une tâche le matin ET une autre l'aprem
+du même jour, vérifie que sa ligne compte bien 11 cellules et que "Coffrage" (matin) et "Ferraillage"
+(aprem) tombent dans 2 cellules ADJACENTES de la MÊME ligne (pas 2 lignes séparées comme avant ce round).
+Les 4 cas au vert. `verif_impression.js` (bouton PDF/impression navigateur, §64) rejoué sans changement
+de comportement. Vérification visuelle par un vrai PDF : matin/aprem bien côte à côte, jalon et note bien
+étalés sur leurs 2 sous-colonnes, sous-en-tête MATIN/APREM discret et lisible.
+
+Reste de la suite `test_*.js` inchangée et au vert (`test_edge_functions.js` mis à part, sans rapport).
+
+## 67. Round du 15.09.2026 (suite) — ordre, séparateurs et traitillé sur l'aperçu impression
+
+Lionel : « Plusieurs changements, traitillé entre aprèm et matin. L'ordre sur le pdf doit etre celui a
+l'écran. ligne entre personnel fine et vide, sans couleur. Ligne en[tre] personnel et intervenants, vide
+et sans couleur aussi, un peu plus large que celle entre le personnel pour bien voir la distiction. »
+
+Quatre demandes distinctes sur l'aperçu mis en place au §66, traitées ensemble.
+
+### 67.1. Ordre des lignes = celui de l'écran
+
+`data.personnes` est trié par le champ "ordre" côté serveur, qui peut très bien entremêler personnel et
+sous-traitants — alors qu'à l'écran, `construireGrille()` affiche 2 sections successives et complètes,
+"Personnel" puis "Intervenants" (`groupePersonnel`/`groupeIntervenants`, filtrés sur `p.sousTraitant`).
+L'aperçu impression, lui, se contentait jusqu'ici de l'ordre brut. Correctif : même regroupement côté
+impression — `p.sousTraitant` est déjà disponible sur cette forme de données (posé dans
+`construireVueDepuisCache`) — `imprimes` devient la concaténation de "Personnel" puis "Intervenants",
+chaque groupe gardant son ordre relatif d'origine, filtré comme avant sur `personneVide`.
+
+### 67.2. Trait fin et invisible entre 2 personnes, trait plus large entre les 2 groupes
+
+Bug de spécificité CSS trouvé au passage : la règle générale `table.print-table th, table.print-table td`
+(bordure 1.4px pleine) a une spécificité plus élevée que `.print-spacer td { border: none; ... }` — cette
+dernière perdait donc silencieusement, et un trait plein apparaissait entre chaque personne alors que le
+CSS disait déjà "border: none". Corrigé en renforçant le sélecteur (`table.print-table tr.print-spacer
+td`) pour repasser devant, sans toucher au reste. Une 2e ligne d'espacement, dédiée
+(`print-spacer-section`, uniquement à la frontière Personnel/Intervenants, seulement quand les 2 groupes
+sont représentés cette semaine-là), reprend exactement le même style "sans bordure/couleur" mais avec une
+hauteur plus grande (14px contre 6px) pour bien marquer le changement de section.
+
+### 67.3. Traitillé entre matin et aprem
+
+Ajout d'une classe `.demi-aprem` posée à la fois sur le sous-en-tête "Aprem" et sur chaque cellule aprem
+(jamais sur les cellules matin), pour ne cibler QUE la frontière interne matin→aprem — la frontière entre
+2 jours (bordure gauche de la case matin du jour suivant) reste pleine. Piège rencontré en vérifiant le
+rendu sur un vrai PDF plutôt que de se fier au seul `getComputedStyle` : avec `border-collapse: collapse`,
+la bordure affichée à la jonction de 2 cellules est un ARBITRAGE entre leurs 2 bordures déclarées, pas
+simplement celle de la cellule interrogée — et à largeur égale, "solid" gagne toujours sur "dashed" dans
+cet arbitrage. La cellule Matin voisine (bordure générale 1.4px pleine, jamais modifiée) écrasait donc le
+traitillé alors que `getComputedStyle` sur la cellule Aprem elle-même annonçait bien "dashed". Corrigé en
+donnant à `.demi-aprem` une largeur légèrement supérieure (2px) : la règle d'arbitrage fait gagner la
+bordure la plus large, quel que soit son style — le traitillé s'affiche donc enfin réellement.
+
+### 67.4. Vérifications
+
+Nouveau script Playwright dédié (`verif_impression_ordre_lignes.js`, scratchpad de session), données
+semées avec un ordre brut délibérément entremêlé (Bernard-personnel, Zorro-intervenant, Lionel-personnel,
+Ali-intervenant, dans cet ordre de champ "ordre") : (1) ordre des lignes imprimées = Bernard, Lionel, puis
+Zorro, Ali — Personnel avant Intervenants, PAS l'ordre brut ; (2) bordure gauche de chaque cellule Aprem
+= `dashed`, bordure gauche de la case Matin du jour suivant = `solid` (frontière de jour non affectée) ;
+(3) tous les spacers ont un `border` calculé `none/none/none/none` sur les 4 côtés, et le spacer de
+section (exactement 1, à la bonne frontière) est strictement plus haut que les spacers ordinaires. Les 3
+cas au vert. Vérification visuelle par un vrai PDF, convertie en PNG à haute résolution (400dpi) et
+inspectée pixel par pixel sur la colonne de la frontière matin/aprem pour confirmer visuellement
+l'alternance de traits caractéristique d'un pointillé (pas seulement la valeur CSS déclarée, pour la
+raison expliquée au §67.3) : confirmé.
+
+`verif_mois_annee.js` et `verif_impression.js` (§64-§66) rejoués sans changement de comportement. Reste de
+la suite `test_*.js` inchangée et au vert (`test_edge_functions.js` mis à part, sans rapport).
+
+## 68. Round du 15.09.2026 (suite, suite) — cadre blanc uni, sans titre ni légende superflus, traitillé enfin discret
+
+Lionel, en 3 messages successifs sur le même aperçu :
+
+« Il reste une grande fenêtre rectangle sous le planning, la supprimer. je veux un fond blanc et uni le
+traitillé de la demi journé plus fin et discret »
+
+« Pas besoin de aperçu avant impression - semaine N, ni de la légende de la personne masquée »
+
+« Inscription semaine N dans la case sous l'année » puis « Aligner tous les textes de la colonne gauche de
+la même manière »
+
+### 68.1. Suppression du cadre autour du document imprimé
+
+`.print-doc` est une carte pensée pour l'aperçu À L'ÉCRAN (fond légèrement teinté, bordure, coins arrondis,
+padding généreux) — une fois transposée telle quelle sur le papier, cette carte devient le "grand rectangle"
+que Lionel voit sous/autour du tableau, sur un fond qui n'est jamais tout à fait blanc. Corrigé uniquement à
+l'impression (`@media print` — l'aperçu à l'écran garde sa carte, un repère utile avant d'imprimer) :
+`.print-doc` y perd sa bordure, ses coins arrondis, son padding, et son fond redevient un blanc pur et
+uniforme — le tableau repose directement sur le papier.
+
+### 68.2. Titre et légende "personne masquée" retirés de l'impression
+
+Le titre de la modale ("Aperçu impression — semaine N") et la légende signalant les personnes sans rien
+cette semaine ("X personne(s) sans rien … masquée(s) à l'impression") sont utiles À L'ÉCRAN pour se repérer
+avant d'imprimer, mais n'ont rien à faire sur le document final. Masqués eux aussi uniquement sous `@media
+print` (`display: none`, même mécanisme déjà utilisé pour `.impression-actions` depuis le §64) — ils restent
+affichés normalement dans l'aperçu à l'écran.
+
+### 68.3. "Semaine N" dans la case du coin, alignement de toute la colonne gauche
+
+Puisque le titre ne s'imprime plus (§68.2), le numéro de semaine aurait purement et simplement disparu du
+document une fois sur le papier. La case de coin (`rowspan="2"`, sous "2026"), restée vide depuis sa
+création au §65, affiche maintenant "Semaine N".
+
+Ajoutée avec le même traitement visuel que la case "2026" juste au-dessus — sauf que le sélecteur CSS
+`.coin-semaine` seul (1 classe) perdait silencieusement contre la règle générale `table.print-table thead
+th` (1 classe + 3 types, qui centre le texte) : "Semaine 38" restait centré au lieu d'être aligné avec
+"2026" et les noms de personnes juste en dessous (encore un bug de spécificité du même genre qu'au §67.2,
+repéré cette fois directement sur le PDF plutôt qu'en lisant le code). Corrigé en réécrivant le sélecteur
+`table.print-table .coin-semaine` (2 classes), qui regagne la priorité — toute la colonne de gauche ("2026",
+"Semaine N", puis chaque nom de personne) s'aligne maintenant de la même manière, à gauche.
+
+### 68.4. Traitillé matin/aprem : vraiment fin et discret cette fois
+
+Le traitillé posé au §67.3 (bordure `border-left` élargie à 2px pour gagner l'arbitrage border-collapse
+face au trait plein voisin) faisait le travail mais restait plus épais/voyant que voulu. Impossible de
+simplement réduire la largeur : en dessous de 2px, la largeur de la bordure traitillée et celle du trait
+plein voisin s'arrondissent au même pixel à l'impression, et le plein regagne l'arbitrage (revérifié à
+1.6px : toujours plein). Nouvelle approche en 2 temps, cette fois éprouvée sur un vrai PDF zoomé pixel par
+pixel : (1) la bordure réelle de la cellule (participant au collapse) passe à une largeur qui gagne de façon
+fiable (2px) mais en couleur TRANSPARENTE — elle gagne toujours l'arbitrage, mais ne dessine plus rien, donc
+le trait plein sombre disparaît complètement à cette frontière ; (2) un `::before` purement décoratif, hors
+du système de bordures de la table, dessine par-dessus le vrai pointillé — fin (1px) et doux
+(`var(--border)`, plus clair que `var(--border-strong)` utilisé partout ailleurs dans le tableau).
+
+Piège rencontré en cours de route : une 1ère version du `::before` peignait le pointillé PAR-DESSUS le trait
+plein d'origine sans le neutraliser — chaque espace vide entre 2 tirets laissait réapparaître le plein
+sombre en dessous, donnant un trait bicolore (tirets clairs / segments pleins sombres) au lieu d'un
+pointillé propre. Invisible en lisant le code ou en interrogeant `getComputedStyle` (qui ne reflète que la
+déclaration, jamais l'arbitrage réel entre 2 bordures voisines) — seul un agrandissement pixel par pixel
+d'un vrai PDF généré l'a révélé, d'où l'étape (1) ajoutée pour neutraliser proprement le trait sous-jacent
+avant de dessiner le pointillé dessus.
+
+### 68.5. Vérifications
+
+Nouveau script (`verif_impression_cadre_blanc.js`, scratchpad de session) : à l'écran, titre et légende
+"personne masquée" restent visibles ; sous `@media print` (émulé), les deux sont `display:none`, et
+`.print-doc` calcule bien un fond `rgb(255,255,255)`, sans bordure, sans coin arrondi, sans padding ; la
+case de coin affiche "Semaine N" et partage le même `text-align:left` que la case année. `verif_impression_
+ordre_lignes.js` (§67) rejoué et étendu : le `::before` des cellules aprem est bien `dashed`, la frontière
+de jour reste un vrai border `solid`. Vérification visuelle complémentaire, cette fois décisive : PDF réel
+converti en PNG à 400dpi, lu pixel par pixel sur une colonne totalement vide (aucun texte alentour, pour ne
+pas confondre bordure et antialiasing de lettres) — confirme une alternance propre de segments clairs
+(le pointillé) et de BLANC (plus de résidu sombre dans les espaces, contrairement au 1er essai) ; capture de
+la colonne de gauche complète confirmant "2026"/"Semaine 38"/noms de personnes tous alignés à gauche de la
+même façon. Suite `test_*.js`, `verif_mois_annee.js` et `verif_impression.js` rejouées sans régression
+(`test_edge_functions.js` mis à part, sans rapport).
+
+## 69. Round du 15.09.2026 (suite, suite, suite) — traitillé remis en noir, libellés Jalons/Notes ajoutés
+
+Lionel, sur le même aperçu impression, 2 remarques parmi 3 (la 3e — un bug sur les entrées en série — fait
+l'objet d'un chantier séparé, plus important, en cours) :
+
+« je ne suis pas convaincu par ce pointillé, tu peux le laisser noir mais plus fin. »
+
+« ajoute les libellé jalon et note dans la colonne gauche. »
+
+### 69.1. Traitillé matin/aprem : remis en noir, toujours fin
+
+Le §68.4 avait éclairci la couleur du pointillé (`var(--border)`, plus doux que le reste du tableau) en même
+temps qu'il en réduisait l'épaisseur — pensant que couleur ET épaisseur contribuaient toutes les deux à le
+rendre "plus discret". Lionel corrige : c'est bien l'épaisseur qu'il voulait réduire, pas la couleur — le
+pointillé plus clair que le reste du tableau se voit moins bien, pas mieux. Remis en `var(--border-strong)`
+(la même encre noire que toutes les autres bordures du tableau) ; la largeur reste à 1px (contre 1.4px pour
+les bordures normales) — c'est elle, et elle seule, qui rend le trait "plus fin", exactement comme demandé
+cette fois. Le mécanisme lui-même (`::before` décoratif hors du système de bordures, cf. §68.4) est inchangé
+— seule la couleur de ce `::before` a changé.
+
+### 69.2. Libellés "Jalons" / "Notes" dans la colonne de gauche
+
+Les lignes Jalons et Notes du tableau imprimé commençaient par une cellule vide : sur la grille compacte à
+l'écran, un repère de couleur suffit à les identifier, mais sur le papier (noir et blanc, sans le code
+couleur de l'écran) rien ne dit plus quelle ligne est quoi. Ajouté `<td>Jalons</td>` et `<td>Notes</td>` en
+tête de ces 2 lignes, en gras comme les noms de personnes juste au-dessus, avec exactement le même libellé
+(orthographe et majuscule) que celui déjà affiché à l'écran sur la grille compacte (`construireGrille`,
+couple `["jalon", JALONS, "Jalons"]` / `["note", NOTES, "Notes"]`).
+
+### 69.3. Vérifications
+
+`verif_impression_ordre_lignes.js` (§67) mis à jour et rejoué : la vérification du `::before` matin/aprem
+change de couleur attendue (repasse de `var(--border)` à `var(--border-strong)`, non testée directement en
+couleur mais via une capture PDF réelle, cf. plus bas) ; toujours `dashed` sur le `::before`, toujours
+`solid` sur la vraie frontière jour/jour. Nouvelle capture PDF réelle → PNG 400dpi, lue pixel par pixel :
+confirme un pointillé fin ET noir (plus le gris clair du §68.4), et les libellés "Jalons"/"Notes" bien
+présents, en gras, alignés comme le reste de la colonne de gauche. Suite `test_*.js`, `verif_mois_annee.js`
+et `verif_impression.js` rejouées sans régression (`test_edge_functions.js` mis à part, toujours sans
+rapport, pré-existant).
+
+## 70. Round du 15.09.2026 (suite) — bug des séries sur sélection multi-cases
+
+Lionel, 3e remarque du même message (cf. §69, cette fois le « chantier séparé, plus important » annoncé
+là-bas) :
+
+« J'ai un bug au niveau des entrées en série, si je sélectionne 2 case ou plus, la bulle vients
+uniquement dans la première case de chaque répétitions. »
+
+Autrement dit : glisser une sélection sur 2 cases ou plus (matin+aprem d'un même jour, ou plusieurs
+jours) puis cocher « Série (se répète) » ne pose la bulle, à CHAQUE répétition, que sur la toute première
+case de la sélection d'origine — le reste de la sélection (2e demi-journée, jours suivants) est purement
+et simplement perdu, à chaque occurrence.
+
+### 70.1. Cause : `creerSerieServeur` ne transmettait jamais la largeur de la sélection
+
+`creerSerieServeur(type, cibles, giDebut, texte, important, chantier, statut, choixSerie,
+apresChaqueAppel)` ne recevait — et donc n'envoyait au serveur — qu'un `giDebut` (une seule case
+d'ancrage) et un `demi` unique (`cibles[i].demi`, replié sur la première case de `cibles`). Rien dans son
+payload ne portait la LARGEUR de la sélection d'origine (`duree`, en jours) ni ses demi-journées de bord
+(`demiDebut`/`demiFin`) — alors que ces 3 valeurs existaient déjà, calculées, dans chacun des 3 endroits
+qui appellent `creerSerieServeur` (`ouvrirFormulaireDynamique`, `ouvrirEdition`, `ouvrirEditionPlage`) et
+servaient déjà, correctement, au chemin NON-série (`creerGroupeTaches` / insertion directe d'un
+`itemPlageTache`). Le bug n'était donc pas dans le calcul de la sélection — déjà juste — mais dans
+l'unique fonction qui, sur le chemin « série », oubliait de le transmettre.
+
+### 70.2. Correctif : `duree`/`demiDebut`/`demiFin` ajoutés en fin de signature
+
+`creerSerieServeur` gagne 3 paramètres, volontairement en FIN de signature (pas au milieu) pour ne rien
+déplacer dans les appels existants : `creerSerieServeur(type, cibles, giDebut, texte, important, chantier,
+statut, choixSerie, apresChaqueAppel, duree, demiDebut, demiFin)`. Le payload envoyé au serveur porte
+maintenant :
+
+```js
+duree: Math.max(1, duree || 1),
+demiDebut: demiDebut !== undefined ? demiDebut : null,
+demiFin: demiFin !== undefined ? demiFin : null
+```
+
+Les 3 sites d'appel passent chacun leurs propres variables déjà en portée (déjà utilisées pour le chemin
+non-série, donc déjà correctes) : `ouvrirFormulaireDynamique` passe `duree, demiDebut, demiFin` ;
+`ouvrirEdition` et `ouvrirEditionPlage` passent leurs équivalents `dureeFinal, demiDebutFinal,
+demiFinFinal`. Le reste du fonctionnement de `creerSerieServeur` (choix « cette occurrence » / « toute la
+série », etc.) est inchangé.
+
+Le pendant serveur (nouvelle prise en compte de ces 3 champs pour reproduire la pleine largeur de la
+sélection à CHAQUE occurrence, pas seulement à l'ancrage) est documenté dans BACKEND-CHANGELOG.md §28.
+
+### 70.3. Vérifications
+
+`test_enregistrer_serie.js` : 50/50 assertions (voir le détail des nouveaux cas côté serveur dans
+BACKEND-CHANGELOG.md §28.3). Côté client, nouveau script Playwright bout-en-bout (pas un simple test
+unitaire) qui pilote la VRAIE interface — glissé souris réel sur les cases, vrai formulaire, vraie case
+« Série (se répète) » — contre un mock qui exécute le VRAI `logic.js` serveur extrait (même technique que
+`test_enregistrer_serie.js`, jamais une réécriture à la main) : 2 scénarios, tous deux conformes au bug
+rapporté par Lionel — (a) sélection sur une seule journée matin+aprem, en série hebdomadaire : chaque
+occurrence pose bien les 2 demi-journées, pas seulement la première ; (b) sélection sur 2 jours
+consécutifs (span complet, pas juste la 1ère case), en série hebdomadaire : chaque occurrence reproduit
+bien les 2 jours, journée entière au milieu comme au premier/dernier jour selon les bornes de la
+sélection d'origine. Les deux scénarios échouaient avant ce correctif (seule la première case de la
+sélection était posée à chaque répétition, exactement la description de Lionel) et passent après.
+
+**Déploiement Supabase** : ce correctif touche l'edge function `enregistrer-serie`, redéployée en
+production (version 2 → 3, statut `ACTIVE`) — détails dans BACKEND-CHANGELOG.md §28.4. Le correctif est
+donc actif de bout en bout : client (ce fichier) et serveur.
+
+## 71. Round du 15.09.2026 (suite, suite) — une absence en série scindée en 2 bulles sur un même jour
+
+Lionel, après confirmation que le correctif §70 fonctionne, capture d'écran à l'appui (grille de
+production, Mathis, vendredi) : une absence posée en série ("80% ↺série") s'affichait en DEUX bulles
+séparées sur ce même vendredi — une sous matin, une sous aprem — au lieu d'une seule couvrant la journée
+entière :
+
+« La bulle sur le vendredi devrait être une seul et même bulle. »
+
+Ce rapport a d'abord été confondu avec un autre sujet en cours d'investigation (bulles scindées sur les
+SEMAINES SUIVANTES d'une série à cheval sur un week-end — limitation d'affichage liée à la pagination par
+semaine, distincte de celle-ci et encore non tranchée avec Lionel à ce stade) ; la capture d'écran a permis
+de recentrer sur le vrai bug, localisé sur un seul jour, sans lien avec la navigation entre semaines.
+
+### 71.1. Cause : la fusion matin/aprem exigeait un chantier identique, même pour une absence
+
+Une requête directe sur la base de production a confirmé la donnée exacte derrière la capture : les 2
+lignes `taches` (matin et aprem, même absence, même `serie_id`, même texte "80%") étaient strictement
+identiques sur tous les champs pertinents — sauf le chantier posé en base (table `assignations`) sur la
+case du matin : `chantier_id=2`, résiduel, alors qu'aprem n'en avait aucun. Ce résidu n'a rien à voir avec
+l'absence elle-même — une absence n'écrit jamais de chantier (`champs.chantier_id` reste toujours `null`
+pour ce type, cf. `champsSerie`/`construireOccurrencesSerie` côté `enregistrer-serie`) — il s'agissait d'un
+chantier posé par autre chose AVANT la création de l'absence, jamais recouvert depuis (règle "jamais
+écrasé", déjà documentée §27.2/§28.2 : un chantier existant sur une case n'est retiré/remplacé que si la
+nouvelle écriture en spécifie un elle-même).
+
+Côté affichage (`construireVueDepuisCache`, la fonction qui reconstruit `TACHES` depuis le cache pour
+produire une bulle par item fusionné), la fusion de 2 demi-journées consécutives en un seul item exigeait
+jusqu'ici un chantier IDENTIQUE entre les deux (`indexNonConsommeCorrespondantT_`), pour une absence
+COMME pour une vraie tâche — alors que le résultat affiché d'une absence ignore déjà totalement le
+chantier (`itemPlageTache(..., { chantier: typT === "absence" ? null : chantierT, ... })`, inchangé). Le
+résidu de chantier sur matin seulement suffisait donc à faire échouer la comparaison et à produire 2 bulles
+séparées, même si l'affichage final des deux aurait de toute façon été identique (aucun chantier visible).
+
+### 71.2. Correctif : le chantier n'est plus comparé pour fusionner une ABSENCE
+
+`indexNonConsommeCorrespondantT_` gagne un paramètre `ignorerChantier`, et le calcul du type (tâche vs
+absence, `typT`) est avancé avant la boucle de fusion (il n'était calculé qu'après, une fois par item déjà
+constitué) pour pouvoir piloter ce paramètre :
+
+```js
+var typT = (entreeT.absence || estAbsence(entreeT.texte)) ? "absence" : "tache";
+...
+var idxSuivT = indexNonConsommeCorrespondantT_(finHi + 1, entreeT.texte, entreeT.important, entreeT.statut, chantierT, typT === "absence");
+```
+
+Pour une absence (`typT === "absence"`), la comparaison de chantier entre les deux demi-journées est
+désormais sautée (`ignorerChantier || chIci === (chantier || null)`) : seuls texte/important/statut
+continuent de compter pour décider si deux demi-journées consécutives forment une seule et même bulle. Pour
+une vraie tâche, rien ne change : deux chantiers réellement différents continuent d'empêcher la fusion,
+exactement comme avant ce correctif.
+
+### 71.3. Vérifications
+
+Nouveau script Playwright bout-en-bout, même méthodologie que §70.3 (mock exécutant le VRAI `logic.js`
+serveur extrait, jamais réécrit à la main) : chantier résiduel seedé sur matin AVANT toute création (comme
+en production), absence "80%" posée en série sur matin+aprem d'un vendredi. Confirme (a) le résidu de
+chantier reste bien en place sur matin après coup (règle "jamais écrasé" toujours respectée côté serveur,
+qui n'a jamais tenté de le toucher — une absence n'envoie pas de `chantierId`) et (b) une seule bulle "80%"
+est affichée — 2 avant ce correctif, exactement le bug de Lionel (vérifié en comparant les deux états du
+fichier, avant/après le correctif, avec le même script). Non-régression associée : une vraie tâche avec 2
+chantiers explicitement différents entre matin et aprem continue de se scinder en 2 bulles séparées, sans
+changement de comportement.
+
+Purement client (`Index.html`) : aucune edge function ni migration SQL concernées par ce correctif.
