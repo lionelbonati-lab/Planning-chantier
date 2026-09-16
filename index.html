@@ -303,101 +303,107 @@
   .barre-action .ovale-bleu { border: 1.5px solid var(--accent); background: var(--accent); color: var(--accent-ink); }
   .barre-action .ovale-bleu:hover { opacity: .88; }
 
-  /* .barre-undo — round du 16.09.2026 (suite, encore) : Lionel, croquis
-     annoté, « les boutons annuler/refaire passent dans la case vide à
-     gauche des jours ». Elle n'est plus une barre FLOTTANTE en survol
-     (position:sticky + height:0 + translateY, cf. l'historique de ce
-     fichier) : les 2 boutons sont désormais déplacés (JS, cf.
-     construireGrille — coin.appendChild(barreUndoEl)) DANS la cellule
-     .th.coin de la ligne des jours (celle, vide, à gauche de "LUN 14…" que
-     montre la flèche rouge du croquis) — donc un simple rangement flex
-     normal à l'intérieur d'une case de la grille, plus aucun besoin de
-     sticky/z-index/translateY qui compensaient son ancien survol flottant. */
-  .barre-undo {
-    display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%;
-  }
-  .barre-undo button {
-    width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-    font-size: 13px; line-height: 1; font-weight: 700; cursor: pointer;
-    border: 1.5px solid var(--border); background: var(--surface); color: var(--ink);
-    transition: opacity .12s, background .12s, border-color .12s;
-  }
-  .barre-undo button:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent); }
-  .barre-undo button:disabled { opacity: .32; cursor: default; }
+  /* .barre-undo (case vide à gauche des jours) et sa CSS ont vécu : §83
+     (round du 16.09.2026, encore un autre, suite×7) — Lionel, mockup
+     mockup-sous-menu-outils.html à l'appui, « toolbar et menu ok » : les
+     boutons annuler/refaire rejoignent la nouvelle barre d'outils façon
+     Sheets sous les onglets (cf. .toolbar-sheets/.toolbar-btn plus bas, et
+     htmlPagePlanning/construireGrille) — la cellule coin de la ligne des
+     jours redevient donc simplement vide (.th.coin), comme avant le round
+     du 16.09.2026 précédent qui l'y avait installée. */
 
-  /* .legende-barre — round du 16.09.2026 (suite, encore). Remplace .legende
-     comme conteneur FIXÉ en haut d'écran (même principe que .onglets-nav
-     ci-dessus : sticky + fond opaque) : Lionel a en effet demandé, sur le
-     même croquis, que « les chantiers se placent sur la même ligne que le
-     bouton imprimer » — les 2 rejoignent donc une seule ligne flex
-     (.legende à gauche, qui garde son rôle de simple liste ; le bouton
-     Imprimer à droite, cf. htmlPagePlanning), et c'est cette ligne commune
-     qui porte maintenant toute la mécanique de fixation (auparavant sur
-     .legende seule). top est posé dynamiquement en JS (cf.
-     ajusterEnteteFixe()) plutôt qu'en dur : Round A avait calculé top:83px
-     à la main pour .legende, une valeur qui a déjà dû être recalculée une
-     fois (cf. l'historique de .barre-undo ci-dessus) — la mesurer en JS à
-     chaque rendu évite de refaire ce calcul à la main à chaque futur
-     changement de hauteur de .onglets-nav. padding-top:14 (au lieu de
-     l'ancien 46 de .legende) : la réduction des espaces roses ci-dessus
-     (margin-bottom .onglets-nav 18→8, padding-top .page-scroll 14→6) laisse
-     un espace résiduel de 8+6=14px entre le bas de .onglets-nav et cette
-     ligne — toujours absorbé en padding (couvert par le fond opaque),
-     jamais en marge (transparente), pour la même raison que Round A avait
-     déjà dû corriger deux fois (cf. FRONTEND-CHANGELOG §73.2) : une marge
-     ici laisserait le même genre de fuite de contenu défilé réapparaître
-     dans cette bande. margin:0 (son rôle de séparation avec la grille en
-     dessous est repris par .entete-planning-figee, cf. plus bas). */
-  /* padding-top réduit de 14 à 8 (round du 16.09.2026, encore un autre,
-     suite, suite — §80, 2e rectangle rouge du croquis) : même resserrement
-     que .onglets-nav ci-dessus, sans risque de "fuite" puisque c'est un
-     padding (couvert par le fond opaque de cette même barre), pas une
-     marge — cf. l'historique de ce fichier (FRONTEND-CHANGELOG §73.2/73.4)
-     pour la distinction qui compte ici. */
-  .legende-barre {
-    display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
-    margin: 0; padding-top: 8px;
+  /* .toolbar-sheets — §83 (round du 16.09.2026, encore un autre, suite×7).
+     Remplace .legende-barre : Lionel, mockup mockup-sous-menu-outils.html à
+     l'appui (« comme la barre d'icônes de Sheets, sous sa barre de menus »),
+     « toolbar et menu ok » — une seule ligne dense regroupe maintenant
+     Annuler/Refaire (ex-.barre-undo, cf. son historique ci-dessus), Imprimer
+     (déjà ici depuis le round précédent), le chantier par défaut (ex-clic
+     sur un swatch de la légende, cf. .select-chantier plus bas) et les 4
+     icônes masquer/afficher (ex-.btn-affichage texte du §82) — chaque groupe
+     séparé par .toolbar-separateur, exactement comme le mockup validé. La
+     légende des chantiers elle-même DISPARAÎT (Lionel : « on ne réaffiche
+     pas la légende des chantiers ») : les bulles du planning restent
+     identifiables par leur couleur + l'infobulle au survol (cf.
+     bulleEl plus bas), comme avant, simplement sans ce rappel permanent.
+     Reste conteneur FIXÉ en haut d'écran (même principe que .onglets-nav :
+     sticky + fond opaque) — top posé dynamiquement en JS (cf.
+     ajusterEnteteFixe()), padding/fond repris tels quels de .legende-barre
+     (cf. son historique, FRONTEND-CHANGELOG §73.2/73.4, pour le pourquoi du
+     padding plutôt qu'une marge ici). background: var(--bg) (pas
+     var(--surface-2) du mockup, pensé comme une carte autonome) pour
+     continuer à former UN SEUL panneau visuel avec .onglets-nav/
+     .entete-planning-figee, comme ces 3 bandes sticky l'ont toujours fait —
+     d'où aussi le hover de .toolbar-btn/.toolbar-toggle ci-dessous en
+     var(--surface-2) (inverse du mockup), même logique que .onglet:hover
+     juste au-dessus. */
+  .toolbar-sheets {
+    display: flex; align-items: center; gap: 2px; flex-wrap: wrap;
+    margin: 0; padding-top: 8px; padding-bottom: 2px;
     position: sticky; z-index: 39; background: var(--bg);
   }
-  /* spécificité (3 classes) volontairement plus élevée que .semaine-titre.
-     barre-imprimer plus bas (2 classes, définie APRÈS dans la feuille) : sans
-     ça, son margin:0 0 8px (pensé pour l'ancienne barre pleine largeur,
-     au-dessus de la grille) l'emporterait à égalité de spécificité et
-     décalerait légèrement le bouton dans sa nouvelle ligne flex. */
-  .legende-barre .semaine-titre.barre-imprimer { margin: 0; flex-shrink: 0; }
-  /* §82 (round du 16.09.2026, encore un autre, suite, suite, encore, encore)
-     — Lionel : les flèches ▾ de repli (Jalons/Notes/Personnel/Intervenants,
-     §80) étaient mal placées (minuscules, une par ligne). Remplacées par 4
-     "textes à cliquer" regroupés au même endroit, « dans la zone du
-     rectangle rouge » du croquis d'origine — l'espace resté vide de
-     .legende-barre entre la légende des chantiers et le bouton Imprimer.
-     .legende-barre-gauche regroupe la légende + ces 4 contrôles dans un
-     même groupe flex, pour que .legende-barre garde exactement 2 enfants de
-     haut niveau (justify-content:space-between la répartit alors comme
-     avant : ce groupe collé à gauche, Imprimer collé à droite — sans lui, un
-     3e enfant de haut niveau se serait retrouvé centré sur un grand écran,
-     loin de la légende). */
-  .legende-barre-gauche { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; min-width: 0; }
-  .legende { display: flex; gap: 12px; flex-wrap: wrap; }
-  .legende .item { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink-muted); font-family: 'IBM Plex Mono', monospace; }
-  .legende .swatch { width: 11px; height: 11px; border-radius: 3px; flex-shrink: 0; }
-  /* Chantier par défaut des formulaires (round du 03.09.2026) : un item de
-     légende "chantier" se choisit d'un clic. */
-  .legende .item.chantier { cursor: pointer; padding: 2px 7px 2px 5px; margin: -2px -7px -2px -5px; border-radius: 6px; transition: background .12s; }
-  .legende .item.chantier:hover { background: var(--surface-2); color: var(--ink); }
-  .legende .item.chantier.actif { color: var(--ink); font-weight: 700; background: var(--accent-soft); }
-  .legende .item.chantier.actif .swatch { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--accent); }
-  .controles-affichage { display: flex; align-items: center; gap: 1px; padding-left: 12px; border-left: 1px solid var(--border); }
-  .btn-affichage {
-    font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: .03em; color: var(--ink-muted); background: none; border: none; cursor: pointer;
-    padding: 4px 8px; border-radius: 6px; transition: background .12s, color .12s;
+  .toolbar-groupe { display: flex; align-items: center; gap: 2px; }
+  .toolbar-separateur { width: 1px; height: 22px; background: var(--border); margin: 0 8px; flex-shrink: 0; }
+  .toolbar-btn {
+    width: 30px; height: 30px; display: grid; place-items: center; border-radius: 7px; border: none;
+    background: none; color: var(--ink-muted); cursor: pointer; transition: background .12s, color .12s; flex-shrink: 0;
+    font-family: inherit;
   }
-  .btn-affichage:hover { background: var(--surface-2); color: var(--ink); }
-  /* .masque : section actuellement repliée — même sémantique que le "replié"
-     du §80, juste un état visuel de texte (barré, atténué) plutôt qu'une
-     icône pivotée. */
-  .btn-affichage.masque { color: var(--ink-faint); text-decoration: line-through; text-decoration-color: var(--ink-faint); text-decoration-thickness: 1.4px; }
+  .toolbar-btn:hover:not(:disabled) { background: var(--surface-2); color: var(--ink); }
+  .toolbar-btn:disabled { opacity: .32; cursor: default; }
+  .toolbar-btn svg { width: 16px; height: 16px; }
+  /* Chantier par défaut des formulaires (round du 03.09.2026, ré-habillé en
+     sélecteur explicite au §83 — Lionel : plus proche d'un menu déroulant
+     classique qu'un clic sur un swatch de légende, cf. construireSelectChantier
+     ex-construireLegende). Un swatch + le nom + un caret, ouverture d'un
+     petit panneau listant les chantiers actifs (mêmes swatches que la
+     grille réelle). */
+  .select-chantier { position: relative; flex-shrink: 0; }
+  .select-chantier-btn {
+    display: flex; align-items: center; gap: 7px; padding: 5px 9px 5px 7px; border-radius: 7px;
+    border: 1px solid transparent; background: none; cursor: pointer; font: inherit; font-size: 12px;
+    font-weight: 600; color: var(--ink); transition: background .12s, border-color .12s;
+  }
+  .select-chantier-btn:hover, .select-chantier.ouvert .select-chantier-btn { background: var(--surface-2); border-color: var(--border); }
+  .select-chantier-btn .swatch { width: 12px; height: 12px; border-radius: 4px; flex-shrink: 0; }
+  .select-chantier-btn .caret { color: var(--ink-faint); font-size: 9px; margin-left: 1px; }
+  .select-chantier-panneau {
+    position: absolute; top: calc(100% + 4px); left: 0; z-index: 10; min-width: 168px;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: 0 6px 20px var(--shadow-lg); padding: 5px; display: none;
+  }
+  .select-chantier.ouvert .select-chantier-panneau { display: block; }
+  .select-chantier-item {
+    display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 8px; border-radius: 7px;
+    border: none; background: none; cursor: pointer; font: inherit; font-size: 12.5px; color: var(--ink); text-align: left;
+  }
+  .select-chantier-item:hover { background: var(--accent-soft); }
+  .select-chantier-item .swatch { width: 12px; height: 12px; border-radius: 4px; flex-shrink: 0; }
+  .select-chantier-item.actif { font-weight: 700; color: var(--accent); }
+  .select-chantier-item .coche { margin-left: auto; color: var(--accent); font-size: 12px; visibility: hidden; }
+  .select-chantier-item.actif .coche { visibility: visible; }
+  /* Icônes de masquage — ex-.btn-affichage texte (§82). Lionel : « je
+     préfèrerai des icones pour les 4 sous-groupes » puis « toolbar et menu
+     ok ». Une icône DIFFÉRENTE par sous-groupe (plutôt que 4× la même icône
+     œil, qui obligerait à survoler chacune pour savoir laquelle est
+     laquelle) : reconnaissables sans hésitation, comme Annuler/Refaire/
+     Imprimer ci-dessus. .actif teinte la case du fond DÉJÀ associé à cette
+     ligne dans la grille (--jalon-bg violet, --note-bg jaune) — Personnel/
+     Intervenants n'ayant pas de teinte propre, ils reprennent l'accent bleu
+     du reste de la barre (même logique que l'onglet actif). .desactive
+     reprend le même principe que .ligne-desactivee (opacité réduite) —
+     jamais un gris plat, juste l'icône qui s'estompe, exactement comme le
+     mockup validé. */
+  .toolbar-toggle {
+    width: 30px; height: 30px; display: grid; place-items: center; border-radius: 7px; border: none;
+    background: none; color: var(--ink-muted); cursor: pointer; flex-shrink: 0; font-family: inherit;
+    transition: background .12s, color .12s, opacity .12s;
+  }
+  .toolbar-toggle svg { width: 16px; height: 16px; }
+  .toolbar-toggle:hover { background: var(--surface-2); }
+  .toolbar-toggle.actif[data-affichage-cible="jalon"] { background: var(--jalon-bg); color: #4a3d78; }
+  .toolbar-toggle.actif[data-affichage-cible="note"] { background: var(--note-bg); color: #7a5d00; }
+  .toolbar-toggle.actif[data-affichage-cible="personnel"], .toolbar-toggle.actif[data-affichage-cible="intervenants"] { background: var(--accent-soft); color: var(--accent); }
+  .toolbar-toggle.desactive { opacity: .5; background: none; color: var(--ink-faint); }
 
   /* .entete-planning-figee / .entete-planning-scroll — round du 16.09.2026
      (suite, encore) : Lionel, même croquis, « faire défiler la page après
@@ -445,19 +451,22 @@
      au-dessus — on pourrait afficher les boutons 2 semaines et Aujourd'hui
      dans la cellule à gauche des semaines, vide actuellement. » .semaine-titre
      n'est plus la grande barre pleine largeur d'avant : c'est maintenant un
-     simple contexte flex/typo (mono, majuscules) réutilisé à 3 endroits très
-     différents, chacun via un modificateur dédié plus bas — .barre-imprimer
-     (la fine barre au-dessus de la grille, Imprimer seul), .coin-nav (la
+     simple contexte flex/typo (mono, majuscules) réutilisé à 2 endroits
+     différents, chacun via un modificateur dédié plus bas — .coin-nav (la
      cellule coin de la grille, Aujourd'hui + 2 semaines empilés) et
      .cellule-semaine-nav (la cellule d'en-tête fusionnée de la grille,
      flèches + Semaine N + dates). D'où l'absence ici de margin/padding
-     propres à un layout particulier — posés par le modificateur concerné. */
+     propres à un layout particulier — posés par le modificateur concerné.
+     Le 3e endroit, .barre-imprimer (Imprimer seul, fine barre au-dessus de
+     la grille), a disparu au §83 (round du 16.09.2026, encore un autre,
+     suite×7) : Imprimer est redevenu un simple .toolbar-btn de la nouvelle
+     barre d'outils façon Sheets (cf. son historique plus haut), il n'a plus
+     besoin de ce contexte .semaine-titre. */
   .semaine-titre {
     display: flex; align-items: center; gap: 8px;
     font-family: 'IBM Plex Mono', monospace; font-weight: 700; font-size: 12px;
     letter-spacing: .04em; text-transform: uppercase; color: var(--ink-muted);
   }
-  .semaine-titre.barre-imprimer { justify-content: flex-end; margin: 0 0 8px; }
   /* .th (plus bas) a la même spécificité que .semaine-titre seule et vient
      après elle dans la feuille de style : sans le 3e sélecteur .th ici,
      .th regagnerait font-size/letter-spacing/font-weight sur ces 2 cellules
@@ -489,12 +498,12 @@
      posées EN PLUS pour ne pas casser leurs sélecteurs JS respectifs. .actif
      (2 semaines, quand deuxSemaines est vrai) reprend les mêmes teintes
      --accent/--accent-soft que les autres états "actif" du fichier (cf.
-     .legende .item.chantier.actif) plutôt qu'une nouvelle couleur. Round du
+     .select-chantier-item.actif) plutôt qu'une nouvelle couleur. Round du
      14.09.2026 : les 3 boutons ne sont plus côte à côte au même endroit
      (cf. .semaine-titre plus haut) — margin-left:4px reste le bon espacement
      par défaut pour .cellule-semaine-nav (plusieurs éléments en ligne),
-     .coin-nav et .barre-imprimer le neutralisent chacun (un seul bouton, ou
-     un empilement vertical, où cette marge n'a pas de sens). */
+     .coin-nav le neutralise (un seul bouton, ou un empilement vertical, où
+     cette marge n'a pas de sens). */
   .semaine-titre .btn-titre {
     margin-left: 4px; padding: 4px 10px; border-radius: 7px; border: 1px solid var(--border);
     background: var(--surface-2); color: var(--ink-muted); cursor: pointer; font: inherit;
@@ -504,7 +513,6 @@
   .semaine-titre .btn-titre:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
   .semaine-titre .btn-titre.actif { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 700; }
   .semaine-titre .btn-titre.actif:hover { background: var(--accent-soft); }
-  .semaine-titre.barre-imprimer .btn-titre { margin-left: 0; }
   .sem-entete-dates { display: block; font-size: 9px; font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--ink-faint); margin-top: 1px; }
   /* border-top:none/border-radius bas seulement (round du 16.09.2026, suite,
      encore) : .grille-cadre ne porte plus que le CORPS (Personnel/
@@ -520,11 +528,6 @@
     text-transform: uppercase; letter-spacing: .06em; color: var(--ink-muted); text-align: center;
   }
   .th.coin { background: var(--surface); }
-  /* .th.coin-undo — round du 16.09.2026 (suite, encore) : la cellule coin de
-     la ligne des jours (vide jusqu'ici) héberge maintenant les boutons
-     annuler/refaire (cf. .barre-undo ci-dessus et construireGrille), donc un
-     agencement flex plutôt que le padding/texte centré par défaut de .th. */
-  .th.coin-undo { display: flex; align-items: center; justify-content: center; padding: 4px; }
   .th.sem-entete { background: var(--surface); color: var(--ink); font-size: 10.5px; }
   .th-ferie-label {
     display: block; font-size: 8.5px; font-weight: 700; margin-top: 3px;
@@ -1115,10 +1118,17 @@
   /* Onglets en pilules (au lieu du trait sous le texte) — même mockup,
      langage visuel du bandeau Nolio pris en référence par Lionel. */
   .onglet {
+    display: flex; align-items: center; gap: 6px;
     padding: 7px 14px; font-size: 12.5px; font-weight: 700; color: var(--ink-muted);
     border: none; border-radius: 8px; background: none; cursor: pointer;
     white-space: nowrap; flex-shrink: 0; font-family: inherit; transition: background .12s, color .12s;
   }
+  /* §83 — Lionel : « profites-en pour ajouter les icones dans le menu ».
+     Jalons/Personnel/Intervenants reprennent EXACTEMENT les icônes de
+     .toolbar-toggle plus bas (cf. htmlPagePlanning/construireCoquille) pour
+     que l'œil fasse tout de suite le lien entre l'onglet et son contrôle de
+     masquage dans la barre d'outils. */
+  .onglet svg { width: 14px; height: 14px; flex-shrink: 0; }
   .onglet:hover { background: var(--surface-2); color: var(--ink); }
   .onglet.actif { background: var(--accent-soft); color: var(--accent); }
   /* Pages de réglages (Général/Chantiers/Statuts/Fériés/Entrée rapide) : en
@@ -1891,7 +1901,24 @@
     // Suppression définitive (round du 14.09.2026, listes Personnel/
     // Intervenants/Chantiers — cf. .lien-supprimer-def) : icône poubelle,
     // Lionel : « bouton supprimer avec icone rouge suffit ».
-    trash: '<svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M2.5 4h11M6 4V2.6c0-.4.3-.7.7-.7h2.6c.4 0 .7.3.7.7V4M6.5 7.2v4.6M9.5 7.2v4.6M3.5 4l.6 8.2c0 .7.6 1.3 1.3 1.3h5.2c.7 0 1.3-.6 1.3-1.3L12.5 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+    trash: '<svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M2.5 4h11M6 4V2.6c0-.4.3-.7.7-.7h2.6c.4 0 .7.3.7.7V4M6.5 7.2v4.6M9.5 7.2v4.6M3.5 4l.6 8.2c0 .7.6 1.3 1.3 1.3h5.2c.7 0 1.3-.6 1.3-1.3L12.5 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    // §83 (round du 16.09.2026, encore un autre, suite×7) — Lionel, mockup
+    // mockup-sous-menu-outils.html à l'appui, « toolbar et menu ok » : icônes
+    // de la nouvelle barre d'outils façon Sheets (undo/redo, les 4 contrôles
+    // masquer/afficher) ET des onglets de navigation (« profites-en pour
+    // ajouter les icones dans le menu ») — une icône par sous-groupe plutôt
+    // que 4× la même icône œil, pour rester reconnaissable sans survoler.
+    undo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>',
+    redo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>',
+    flag: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M5 2v16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M5 3h9.5l-2.2 3.5L14.5 10H5" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>',
+    note: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M5 2.5h7l3 3v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-13a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M12 2.5v3h3" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M6.5 11h6M6.5 14h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    hardhat: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M3 15h14a1 1 0 0 0 1-1v-.5a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v.5a1 1 0 0 0 1 1z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M4.5 12.5C4.5 8 7.5 5 10 5s5.5 3 5.5 7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M10 5V3.3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    calendar: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><rect x="2.5" y="4" width="15" height="13" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 8h15" stroke="currentColor" stroke-width="1.5"/><path d="M6 2.5v3M14 2.5v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    gear: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="2.6" stroke="currentColor" stroke-width="1.5"/><path d="M10 2.5v2M10 15.5v2M17.5 10h-2M4.5 10h-2M15.4 4.6l-1.4 1.4M6 12.6l-1.4 1.4M15.4 15.4l-1.4-1.4M6 7.4 4.6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    building: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M3 17V5.5L9 3v14M9 6h5.5a1 1 0 0 1 1 1v10" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M5.5 7h1.5M5.5 10h1.5M5.5 13h1.5M11.5 9.5h2M11.5 12.5h2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+    tag: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M9.4 2.5H4a1 1 0 0 0-1 1v5.4c0 .27.1.52.3.7l7.6 7.6c.4.4 1 .4 1.4 0l5.4-5.4c.4-.4.4-1 0-1.4L10.1 2.8a1 1 0 0 0-.7-.3z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="6.3" cy="6.3" r="1.1" fill="currentColor"/></svg>',
+    star: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M10 2.5l2.2 4.6 5 .7-3.6 3.6.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.6 5-.7L10 2.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>',
+    bolt: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M11 2 4 11.5h5L8.5 18 16 8h-5.5L11 2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"/></svg>'
   };
 
   var app = document.getElementById("app");
@@ -2347,15 +2374,15 @@
         '<nav class="onglets-nav" id="ongletsNav">' +
           '<div class="marque-nav"><img src="icons/icon-32.png" width="28" height="28" alt="Planning Chantiers"></div>' +
           '<div class="onglets-liste">' +
-            '<button type="button" class="onglet actif" data-page="planning">Planning</button>' +
-            '<button type="button" class="onglet" data-page="jalons">Jalons</button>' +
-            '<button type="button" class="onglet" data-page="personnel">Personnel</button>' +
-            '<button type="button" class="onglet" data-page="intervenants">Intervenants</button>' +
-            '<button type="button" class="onglet secondaire" data-page="general">Général</button>' +
-            '<button type="button" class="onglet secondaire" data-page="chantiers">Chantiers</button>' +
-            '<button type="button" class="onglet secondaire" data-page="statuts">Statuts</button>' +
-            '<button type="button" class="onglet secondaire" data-page="feries">Fériés</button>' +
-            '<button type="button" class="onglet secondaire" data-page="entree-rapide">Entrée rapide</button>' +
+            '<button type="button" class="onglet actif" data-page="planning">' + ICONS.calendar + 'Planning</button>' +
+            '<button type="button" class="onglet" data-page="jalons">' + ICONS.flag + 'Jalons</button>' +
+            '<button type="button" class="onglet" data-page="personnel">' + ICONS.people + 'Personnel</button>' +
+            '<button type="button" class="onglet" data-page="intervenants">' + ICONS.hardhat + 'Intervenants</button>' +
+            '<button type="button" class="onglet secondaire" data-page="general">' + ICONS.gear + 'Général</button>' +
+            '<button type="button" class="onglet secondaire" data-page="chantiers">' + ICONS.building + 'Chantiers</button>' +
+            '<button type="button" class="onglet secondaire" data-page="statuts">' + ICONS.tag + 'Statuts</button>' +
+            '<button type="button" class="onglet secondaire" data-page="feries">' + ICONS.star + 'Fériés</button>' +
+            '<button type="button" class="onglet secondaire" data-page="entree-rapide">' + ICONS.bolt + 'Entrée rapide</button>' +
           '</div>' +
           '<button type="button" class="avatar-nav" id="lienDeconnexionNav" title="Se déconnecter" aria-label="Se déconnecter">L</button>' +
         '</nav>' +
@@ -2390,36 +2417,44 @@
       // rien à mettre dans un <header> propre à cette page — la légende
       // devient directement le 1er élément de .wrap.
       //
-      // Round du 16.09.2026 (suite, encore) — Lionel, nouveau retour sur
-      // croquis annoté : « les chantiers se placent sur la même ligne que le
-      // bouton imprimer ». .legende-barre est le nouveau conteneur flex qui
-      // porte les deux : la légende des chantiers (#legende, toujours
-      // reconstruite par construireLegende) à gauche, le bouton Imprimer à
-      // droite — ce dernier n'a plus besoin d'être reconstruit à chaque
-      // rendu de la grille (cf. construireGrille : il ne dépendait d'aucune
-      // donnée, juste d'un clic vers openPrintSheet), il devient donc un
-      // bouton STATIQUE câblé une seule fois (cf. cablerPagePlanning) au
-      // lieu d'un <div> recréé à chaque construireGrille(). C'est
-      // .legende-barre (et non plus .legende) qui porte désormais la
-      // fixation en haut d'écran (cf. son commentaire CSS et
-      // ajusterEnteteFixe()) puisque c'est elle, maintenant, toute la
-      // ligne fixe.
-      '<div class="legende-barre" id="legendeBarre">' +
-        '<div class="legende-barre-gauche">' +
-          '<div class="legende" id="legende"></div>' +
-          '<div class="controles-affichage" id="controlesAffichage">' +
-            '<button type="button" class="btn-affichage" data-affichage-cible="jalon">Jalons</button>' +
-            '<button type="button" class="btn-affichage" data-affichage-cible="note">Notes</button>' +
-            '<button type="button" class="btn-affichage" data-affichage-cible="personnel">Personnel</button>' +
-            '<button type="button" class="btn-affichage" data-affichage-cible="intervenants">Intervenants</button>' +
+      // §83 (round du 16.09.2026, encore un autre, suite×7) — Lionel, mockup
+      // mockup-sous-menu-outils.html à l'appui, « toolbar et menu ok » :
+      // .toolbar-sheets remplace .legende-barre — UNE seule barre façon
+      // Sheets sous les onglets, qui regroupe désormais Annuler/Refaire
+      // (ex-.barre-undo, ex-cellule coin de la grille), Imprimer (déjà ici),
+      // le chantier par défaut (ex-clic sur un swatch de #legende, cf.
+      // construireSelectChantier) et les 4 icônes masquer/afficher
+      // (ex-.btn-affichage texte du §82). La légende des chantiers
+      // elle-même disparaît (Lionel : « on ne réaffiche pas la légende des
+      // chantiers ») — tout ce groupe est STATIQUE, câblé une seule fois
+      // (cf. cablerPagePlanning), seul son apparence (chantier choisi,
+      // icônes actives/désactivées) est resynchronisée à chaque rendu (cf.
+      // construireSelectChantier/majControlesAffichage).
+      '<div class="toolbar-sheets" id="legendeBarre">' +
+        '<div class="toolbar-groupe">' +
+          '<button type="button" class="toolbar-btn" id="btnDefaire" title="Annuler (Ctrl+Z)" aria-label="Annuler">' + ICONS.undo + '</button>' +
+          '<button type="button" class="toolbar-btn" id="btnRefaire" title="Refaire (Ctrl+Y)" aria-label="Refaire">' + ICONS.redo + '</button>' +
+        '</div>' +
+        '<div class="toolbar-separateur"></div>' +
+        '<div class="toolbar-groupe">' +
+          '<button type="button" class="toolbar-btn" id="btnImprimerTitre" title="Imprimer — aperçu et export PDF de la semaine affichée">' + ICONS.print + '</button>' +
+        '</div>' +
+        '<div class="toolbar-separateur"></div>' +
+        '<div class="toolbar-groupe">' +
+          '<div class="select-chantier" id="selectChantier">' +
+            '<button type="button" class="select-chantier-btn" id="btnSelectChantier"><span class="swatch"></span><span class="nom-chantier">Chantier</span><span class="caret">▾</span></button>' +
+            '<div class="select-chantier-panneau" id="panneauChantier"></div>' +
           '</div>' +
         '</div>' +
-        '<div class="semaine-titre barre-imprimer">' +
-          '<button type="button" class="btn-titre btn-imprimer-titre" id="btnImprimerTitre" title="Aperçu et export PDF de la semaine affichée">' + ICONS.print + ' Imprimer</button>' +
+        '<div class="toolbar-separateur"></div>' +
+        '<div class="toolbar-groupe" id="controlesAffichage">' +
+          '<button type="button" class="toolbar-toggle actif" data-affichage-cible="jalon" title="Masquer/afficher Jalons">' + ICONS.flag + '</button>' +
+          '<button type="button" class="toolbar-toggle actif" data-affichage-cible="note" title="Masquer/afficher Notes">' + ICONS.note + '</button>' +
+          '<button type="button" class="toolbar-toggle actif" data-affichage-cible="personnel" title="Masquer/afficher Personnel">' + ICONS.people + '</button>' +
+          '<button type="button" class="toolbar-toggle actif" data-affichage-cible="intervenants" title="Masquer/afficher Intervenants">' + ICONS.hardhat + '</button>' +
         '</div>' +
       '</div>' +
       '<div class="zone-planning">' +
-        '<div class="barre-undo" id="barreUndo"><button type="button" id="btnDefaire" title="Annuler (Ctrl+Z)" aria-label="Annuler">↶</button><button type="button" id="btnRefaire" title="Refaire (Ctrl+Y)" aria-label="Refaire">↷</button></div>' +
         '<div id="racine"></div>' +
         '<div class="barre-action" id="barreAction" hidden>' +
           '<button type="button" id="baAnnuler" class="ovale-neutre">Annuler</button>' +
@@ -2587,24 +2622,37 @@
     // rendu — cf. basculerDeuxSemaines juste plus bas, appelée depuis
     // là-bas. "Ajout lointain" a disparu (Lionel : "on peut maintenant le
     // faire via les nouveaux formulaires").
-    // "Imprimer" (round du 16.09.2026, suite, encore) : rejoint désormais
-    // #legendeBarre (Lionel : « les chantiers se placent sur la même ligne
-    // que le bouton imprimer ») en tant que bouton STATIQUE du gabarit HTML
-    // (cf. htmlPagePlanning) — il ne dépend d'aucune donnée de la grille,
-    // donc plus besoin de le recréer à chaque construireGrille() comme
-    // avant (l'ancien <div class="barre-imprimer"> jetable). Câblé ici, une
-    // seule fois.
+    // "Imprimer" (STATIQUE depuis le round du 16.09.2026, suite, encore ;
+    // redevenu un simple bouton icône .toolbar-btn au §83, cf. son historique
+    // CSS plus haut) : il ne dépend d'aucune donnée de la grille, donc
+    // câblé ici, une seule fois, plutôt que recréé à chaque construireGrille().
     var btnImprimerTitre = document.getElementById("btnImprimerTitre");
     if (btnImprimerTitre) btnImprimerTitre.addEventListener("click", openPrintSheet);
+    // §83 (round du 16.09.2026, encore un autre, suite×7) — le sélecteur de
+    // chantier par défaut (ex-clic sur un swatch de la légende) : ouverture/
+    // fermeture du panneau câblées ici, une seule fois (conteneur STATIQUE,
+    // comme Imprimer) ; le CONTENU du panneau (liste des chantiers actifs)
+    // et l'apparence du bouton (swatch/nom) sont reconstruits par
+    // construireSelectChantier() à chaque rendu — cf. plus bas.
+    var selectChantier = document.getElementById("selectChantier");
+    var btnSelectChantier = document.getElementById("btnSelectChantier");
+    if (selectChantier && btnSelectChantier) {
+      btnSelectChantier.addEventListener("click", function (e) {
+        e.stopPropagation();
+        selectChantier.classList.toggle("ouvert");
+      });
+      document.addEventListener("click", function () { selectChantier.classList.remove("ouvert"); });
+    }
     // §82 — les 4 contrôles masquer/afficher (Jalons/Notes/Personnel/
-    // Intervenants, cf. .controles-affichage dans htmlPagePlanning) sont un
-    // conteneur STATIQUE comme le bouton Imprimer ci-dessus : câblés une
-    // seule fois ici plutôt que reconstruits à chaque construireGrille().
-    // majControlesAffichage() (appelée à chaque rendu) se charge ensuite de
-    // tenir leur apparence (barrée = masquée) à jour.
+    // Intervenants, cf. .controles-affichage dans htmlPagePlanning ; devenus
+    // des icônes .toolbar-toggle au §83, Lionel : « je préfèrerai des icones
+    // pour les 4 sous-groupes ») sont un conteneur STATIQUE comme Imprimer
+    // ci-dessus : câblés une seule fois ici plutôt que reconstruits à chaque
+    // construireGrille(). majControlesAffichage() (appelée à chaque rendu)
+    // se charge ensuite de tenir leur apparence (active/désactivée) à jour.
     var contAffichage = document.getElementById("controlesAffichage");
     if (contAffichage) {
-      contAffichage.querySelectorAll(".btn-affichage").forEach(function (btn) {
+      contAffichage.querySelectorAll(".toolbar-toggle").forEach(function (btn) {
         btn.addEventListener("click", function () {
           var cible = btn.dataset.affichageCible;
           if (cible === "jalon") replierJalons = !replierJalons;
@@ -3097,7 +3145,7 @@
     etat.chantiers.forEach(function (c) { etat.chantiersParId[c.ligne] = c.nom; });
     function finir() {
       construireVueDepuisCache();
-      construireLegende();
+      construireSelectChantier();
       render(false);
       renderChantiers();
     }
@@ -4678,15 +4726,14 @@
       mettreEnCache(data);
       appliquerStatutsEtFormulaires();
       idc = 1;
-      // Coquille de navigation (sidebar + 8 pages) : construite une seule
-      // fois ici, APRÈS un premier chargement réussi — #legende/#racine
-      // n'existent qu'à partir de maintenant, d'où le re-fetch juste après
-      // (legendeEl/racineEl étaient restés null, cf. leurs déclarations).
+      // Coquille de navigation (sidebar + 9 pages) : construite une seule
+      // fois ici, APRÈS un premier chargement réussi — #racine n'existe
+      // qu'à partir de maintenant, d'où le re-fetch juste après (racineEl
+      // était resté null, cf. sa déclaration).
       construireCoquille();
-      legendeEl = document.getElementById("legende");
       racineEl = document.getElementById("racine");
       construireVueDepuisCache();
-      construireLegende();
+      construireSelectChantier();
       render();
       // Planning déjà affiché à ce stade : le reste (formulaires rapides,
       // cf. chargerFormulairesRapides) se charge maintenant en arrière-plan,
@@ -6012,49 +6059,67 @@
     return { label: f.libelle, couleur: cat ? cat.couleur : "#c9c9c9" };
   }
 
-  // legendeEl/racineEl : fetchés PARESSEUSEMENT (jamais au chargement du
-  // script) — au moment où ce script s'exécute, #app est encore vide (la
-  // coquille de navigation, #legende/#racine compris, n'est construite
-  // qu'après un premier apiDemarrer() réussi, cf. construireCoquille()).
-  var legendeEl;
+  // racineEl : fetché PARESSEUSEMENT (jamais au chargement du script) — au
+  // moment où ce script s'exécute, #app est encore vide (la coquille de
+  // navigation, #racine compris, n'est construite qu'après un premier
+  // apiDemarrer() réussi, cf. construireCoquille()).
   document.addEventListener("contextmenu", function (e) { e.preventDefault(); });
   var racineEl;
 
-  function construireLegende() {
-    if (!legendeEl) legendeEl = document.getElementById("legende");
-    if (!legendeEl) return;
-    legendeEl.innerHTML = "";
+  // construireSelectChantier() — ex-construireLegende(), renommée au §83
+  // (round du 16.09.2026, encore un autre, suite×7) : la légende des
+  // chantiers a disparu (Lionel : « on ne réaffiche pas la légende des
+  // chantiers »), remplacée par le sélecteur explicite .select-chantier de
+  // la nouvelle barre d'outils (cf. htmlPagePlanning/cablerPagePlanning) —
+  // mais le MÉCANISME qu'elle portait (choisir un chantier "par défaut" des
+  // formulaires, round du 03.09.2026) reste identique, juste ré-habillé :
+  // reconstruit le panneau déroulant (liste des chantiers actifs) ET
+  // l'apparence du bouton (swatch + nom du chantier par défaut, ou un
+  // repli neutre "Chantier" si aucun n'est choisi).
+  function construireSelectChantier() {
+    var btn = document.getElementById("btnSelectChantier");
+    var panneau = document.getElementById("panneauChantier");
+    if (!btn || !panneau) return;
     var defautActuel = chantierParDefautValide();
-    // Round du 14.09.2026 : un chantier désactivé ne s'affiche plus dans la
-    // légende (elle ne sert qu'à choisir le chantier par défaut des
+    var swatchBtn = btn.querySelector(".swatch");
+    var nomBtn = btn.querySelector(".nom-chantier");
+    if (defautActuel) {
+      swatchBtn.style.background = CHANTIERS[defautActuel].couleur;
+      nomBtn.textContent = CHANTIERS[defautActuel].nom;
+      btn.title = "Chantier par défaut des formulaires : " + CHANTIERS[defautActuel].nom + " — cliquer pour changer";
+    } else {
+      swatchBtn.style.background = "var(--border)";
+      nomBtn.textContent = "Chantier";
+      btn.title = "Choisir un chantier par défaut pour les formulaires";
+    }
+    panneau.innerHTML = "";
+    // Round du 14.09.2026 : un chantier désactivé ne s'affiche plus dans ce
+    // panneau (qui ne sert qu'à choisir le chantier par défaut des
     // formulaires, cf. commentaire juste en dessous) — CHANTIERS reste lui
     // la map COMPLÈTE (cf. construireVueDepuisCache), filtrée seulement ici.
     Object.keys(CHANTIERS).filter(function (k) { return CHANTIERS[k].actif !== false; }).forEach(function (k) {
       var c = CHANTIERS[k];
-      var it = document.createElement("div");
+      var it = document.createElement("button");
+      it.type = "button";
       // Cliquable (round du 03.09.2026, demande de Lionel) : choisit ce
       // chantier comme valeur PRÉ-COCHÉE de tous les selects "Chantier" des
       // formulaires (cf. chantierParDefaut, champChantierHTML) — cliquer le
       // chantier déjà actif le désélectionne (retour au comportement
       // d'avant : premier chantier de la liste).
-      it.className = "item chantier" + (k === defautActuel ? " actif" : "");
+      it.className = "select-chantier-item" + (k === defautActuel ? " actif" : "");
       it.title = (k === defautActuel)
         ? "Chantier par défaut des formulaires — cliquer pour désélectionner"
         : "Cliquer pour en faire le chantier par défaut des formulaires";
-      it.innerHTML = '<span class="swatch" style="background:' + c.couleur + '"></span>' + esc(c.nom);
+      it.innerHTML = '<span class="swatch" style="background:' + c.couleur + '"></span>' + esc(c.nom) + '<span class="coche">✓</span>';
       it.addEventListener("click", function () {
         chantierParDefaut = (k === chantierParDefautValide()) ? null : k;
         memoriserChantierParDefaut();
-        construireLegende();
+        construireSelectChantier();
+        var sel = document.getElementById("selectChantier");
+        if (sel) sel.classList.remove("ouvert");
       });
-      legendeEl.appendChild(it);
+      panneau.appendChild(it);
     });
-    // Round du 12.09.2026 — Lionel : « on peut supprimer les légendes jalons,
-    // absence et note car redondant. » Retiré : ces 3 teintes sont déjà
-    // évidentes dans la grille elle-même (lignes JALONS/NOTES dédiées, cases
-    // Absence à même la colonne d'une personne) — contrairement aux chantiers
-    // ci-dessus, qui restent seuls dans .legende (et toujours cliquables pour
-    // choisir le chantier par défaut des formulaires).
     ajusterEnteteFixe();
   }
 
@@ -6629,17 +6694,12 @@
     var scrollerPrecedent = racineEl.querySelector(".scroller");
     var scrollLeftPrecedent = scrollerPrecedent ? scrollerPrecedent.scrollLeft : 0;
     var enteteScrollPrecedent = racineEl.querySelector(".entete-planning-scroll");
-    // barreUndo (round du 16.09.2026, suite, encore) : vit maintenant DANS
-    // la grille (cf. plus bas, cellule .coin-undo, dans la case vide à
-    // gauche des jours) au lieu de flotter au-dessus. Un élément déplacé À
-    // L'INTÉRIEUR de #racine serait détruit par le racineEl.innerHTML = ""
-    // juste en dessous (il réinitialise tout #racine à chaque rendu) : on le
-    // sort donc d'abord — avant de vider #racine — pour le replacer ensuite
-    // dans la grille fraîchement reconstruite sans jamais le perdre, ni
-    // perdre les écouteurs de clic câblés une fois pour toutes sur
-    // #btnDefaire/#btnRefaire (cf. cablerPagePlanning).
-    var barreUndoEl = document.getElementById("barreUndo");
-    if (barreUndoEl && racineEl.contains(barreUndoEl)) document.body.appendChild(barreUndoEl);
+    // §83 (round du 16.09.2026, encore un autre, suite×7) : Annuler/Refaire
+    // ont quitté la cellule coin de cette grille pour la nouvelle barre
+    // d'outils fixe sous les onglets (cf. #btnDefaire/#btnRefaire dans
+    // htmlPagePlanning, câblés une seule fois dans cablerPagePlanning comme
+    // Imprimer) — plus besoin de les extraire/replacer à chaque rendu ici
+    // (ancien va-et-vient .barre-undo, cf. son historique CSS plus haut).
     racineEl.innerHTML = "";
     var n = nbJoursAffiches();
     var nbSemainesAffichees = deuxSemaines ? 2 : 1;
@@ -6769,13 +6829,11 @@
     row++;
 
     var aujIso = etat.aujourdhui;
-    // .coin-undo (round du 16.09.2026, suite, encore) — Lionel, croquis
-    // annoté : « les boutons annuler/refaire passent dans la case vide à
-    // gauche des jours ». C'est exactement cette cellule coin, restée vide
-    // jusqu'ici sur la ligne des jours, qui les accueille désormais (cf.
-    // barreUndoEl, extrait plus haut avant le vidage de #racine).
-    var coin = document.createElement("div"); coin.className = "th coin coin-undo"; poser(coin, 1, row);
-    if (barreUndoEl) coin.appendChild(barreUndoEl);
+    // Cellule coin de la ligne des jours : redevenue simplement vide au §83
+    // (round du 16.09.2026, encore un autre, suite×7) — Annuler/Refaire, qui
+    // l'occupaient depuis le round précédent, ont rejoint la nouvelle barre
+    // d'outils fixe sous les onglets (cf. son historique plus haut).
+    var coin = document.createElement("div"); coin.className = "th coin"; poser(coin, 1, row);
     for (var gi = 0; gi < n; gi++) {
       var th = document.createElement("div");
       var estAuj = isoDeGi(gi) === aujIso;
@@ -8381,13 +8439,13 @@
     r.disabled = !pileRedo.length;
   }
 
-  // §82 (round du 16.09.2026, encore un autre, suite, suite, encore, encore)
-  // — synchronise l'apparence (barré/atténué = masquée) des 4 boutons
-  // texte de .controles-affichage (cf. htmlPagePlanning) sur les 4
-  // variables de repli, à chaque rendu — même idée que majBoutonsUndo()
-  // ci-dessus. Ces boutons sont câblés une seule fois (cablerPagePlanning,
-  // le conteneur est statique), donc rien ici ne recrée ou ne recâble quoi
-  // que ce soit, juste une classe posée/retirée.
+  // §82, icônes au §83 (round du 16.09.2026, encore un autre, suite×7) —
+  // synchronise l'apparence (teintée/active ou atténuée/désactivée) des 4
+  // icônes .toolbar-toggle (cf. htmlPagePlanning) sur les 4 variables de
+  // repli, à chaque rendu — même idée que majBoutonsUndo() ci-dessus. Ces
+  // boutons sont câblés une seule fois (cablerPagePlanning, le conteneur
+  // est statique), donc rien ici ne recrée ou ne recâble quoi que ce soit,
+  // juste des classes posées/retirées.
   function majControlesAffichage() {
     var cont = document.getElementById("controlesAffichage");
     if (!cont) return;
@@ -8397,7 +8455,10 @@
     };
     Object.keys(etats).forEach(function (cle) {
       var btn = cont.querySelector('[data-affichage-cible="' + cle + '"]');
-      if (btn) btn.classList.toggle("masque", etats[cle]);
+      if (btn) {
+        btn.classList.toggle("actif", !etats[cle]);
+        btn.classList.toggle("desactive", etats[cle]);
+      }
     });
   }
 

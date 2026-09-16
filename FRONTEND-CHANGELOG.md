@@ -5499,3 +5499,112 @@ un clic sur "Jalons" pose bien la classe `.masque` et replie la ligne (vérifié
 après), le figé haut/gauche (§74, reconfirmé aux §80.5/81.1) tient toujours, aucune erreur JS.
 
 **Pas encore confirmé par Lionel en conditions réelles** — à revalider une fois synchronisé.
+
+## 83. Round du 16.09.2026 (encore un autre, suite×7) — barre d'outils façon Sheets, icônes dans le menu, légende des chantiers supprimée
+
+Suite du §82 : Lionel propose (captures d'écran de Google Sheets à l'appui) « on pourrait même intégrer un
+"sous-menu" avec des icones, comme dans sheet. y placer les boutons annuler/refaire, imprimer. liste
+déroulante avec chantier par défaut. et 4 icones ON/OFF pour le masques/démasquage des sous-groupes », puis
+précise à plusieurs reprises pendant l'exploration au mockup : « une ligne masquée ne doit pas être grisée,
+mais 'désactivée'. même comportement que personnel/intervenants », puis « je préfèrerai des icones pour les
+4 sous-groupes » (au lieu des interrupteurs `.interrupteur` d'abord essayés), puis « les légende des
+chantiers doivent disparaitre, nous les afficheront ailleurs », puis « profites-en pour ajouter les icones
+dans le menu ». Trois allers-retours de mockup (`mockup-sous-menu-outils.html`, livré et corrigé à chaque
+étape) avant validation finale : « toolbar et menu ok, on ne réaffiche pas la légende des chantiers » — la
+légende n'est donc réaffichée nulle part, ni dans cette barre ni ailleurs.
+
+### 83.1. Ce qui change
+
+Toute la mécanique dispersée depuis les rounds précédents (Annuler/Refaire dans la cellule coin de la
+grille, cf. round précédent ; Imprimer et les 4 contrôles masquer/afficher dans `#legendeBarre`, cf. §82 ;
+le chantier par défaut choisi d'un clic sur un swatch de la légende, round du 03.09.2026) se regroupe en
+UNE seule barre d'outils dense sous les onglets, `.toolbar-sheets` (même id `#legendeBarre` conservé pour
+`ajusterEnteteFixe()` — seul son contenu change), façon barre d'icônes de Google Sheets sous sa barre de
+menus :
+
+- **Annuler/Refaire** quittent la cellule coin de la ligne des jours (`.th.coin`, redevenue simplement
+  vide) pour devenir le 1er groupe de la barre, avec de vraies icônes de flèches courbes (`ICONS.undo`/
+  `ICONS.redo`) à la place des caractères "↶"/"↷" ronds — même `id`/logique JS (`defaire`/`refaire`,
+  `majBoutonsUndo()`), seul le gabarit et l'habillage visuel changent (`.toolbar-btn` plat au lieu du rond
+  bordé de `.barre-undo`).
+- **Imprimer** perd son texte, ne garde que son icône (`ICONS.print`, déjà existante) — `title` reprend le
+  texte explicatif pour le survol. Même `id="btnImprimerTitre"`, même câblage (`openPrintSheet`).
+- **Chantier par défaut** : la légende cliquable (`#legende`, un item par chantier actif) est remplacée par
+  un vrai sélecteur déroulant, `.select-chantier` — un bouton `#btnSelectChantier` (swatch + nom du
+  chantier par défaut, ou un rond neutre + "Chantier" si aucun n'est choisi) qui ouvre un petit panneau
+  `#panneauChantier` listant les chantiers actifs, coche celui en cours. La logique métier ne change pas
+  du tout (`chantierParDefaut`/`chantierParDefautValide()`/`memoriserChantierParDefaut()`, round du
+  03.09.2026, intacts) : cliquer le chantier déjà choisi le désélectionne, comme avant — seul l'habillage
+  passe d'un clic direct sur un swatch de légende à un menu déroulant explicite. `construireLegende()` est
+  renommée `construireSelectChantier()` (même déclenchement : au chargement et après tout changement de
+  `chantiers`, cf. `rafraichirApresChantiers`) et reconstruit désormais le panneau + l'apparence du bouton
+  au lieu d'une liste de `<div>` de légende.
+- **La légende des chantiers elle-même disparaît** : plus aucune trace de `#legende`/`.legende` dans le
+  DOM. Les bulles du planning restent identifiables par leur couleur de fond (`.bulle`, teinte du chantier)
+  et par l'infobulle au survol (`title`, conservée depuis le round du 02.09.2026 — cf. son commentaire dans
+  `bulleEl`) : sans la légende permanente, l'identification au clin d'œil demande un survol pour un
+  chantier dont on ne connaît pas encore la couleur par cœur, ce que Lionel a arbitré en acceptant le
+  compromis (« nous les afficheront ailleurs », puis « on ne réaffiche pas la légende des chantiers » —
+  décision finale : nulle part).
+- **4 icônes remplacent les 4 boutons texte du §82** (`.btn-affichage` → `.toolbar-toggle`) pour
+  Jalons/Notes/Personnel/Intervenants — une icône différente par sous-groupe (drapeau, note, personnes,
+  casque de chantier) plutôt que 4× la même icône, pour rester reconnaissable sans avoir à survoler,
+  exactement comme Annuler/Refaire/Imprimer juste à côté. Icône active : fond teinté dans la couleur DÉJÀ
+  associée à cette ligne dans la grille (`--jalon-bg` violet, `--note-bg` jaune) — Personnel/Intervenants,
+  qui n'ont pas de teinte propre, reprennent l'accent bleu du reste de la barre. Icône désactivée : simple
+  perte d'opacité (`.desactive`, opacité .5), jamais un gris plat inventé — Lionel : « une ligne masquée ne
+  doit pas être grisée, mais 'désactivée' » (même principe que `.ligne-desactivee` sur Personnel/
+  Intervenants). Même déclenchement qu'avant (clic → bascule `replierJalons`/`replierNotes`/
+  `replierSectionPersonnel`/`replierSectionIntervenants` → `render(false)`), `majControlesAffichage()`
+  pose/retire désormais `.actif`/`.desactive` au lieu de `.masque`.
+- **Icônes dans le menu du haut aussi** (Lionel : « profites-en pour ajouter les icones dans le menu ») :
+  chacun des 9 onglets (`.onglet`) reçoit une icône avant son libellé — Jalons/Personnel/Intervenants
+  reprennent EXACTEMENT les mêmes icônes que leurs contrôles de masquage juste en dessous (le lien visuel
+  est immédiat), Planning un calendrier, Général un engrenage, Chantiers un bâtiment, Statuts une
+  étiquette, Fériés une étoile, Entrée rapide un éclair.
+
+### 83.2. Implémentation
+
+Nouvelles icônes ajoutées à l'objet `ICONS` partagé (déjà utilisé pour `close`/`print`/`people`/`trash`) :
+`undo`, `redo`, `flag`, `note`, `hardhat`, `calendar`, `gear`, `building`, `tag`, `star`, `bolt` — mêmes
+gabarits SVG (`viewBox="0 0 20 20"`, `stroke-width="1.5"`) que `print`/`people` existants, pour un rendu
+cohérent. `.toolbar-sheets`/`.toolbar-groupe`/`.toolbar-separateur`/`.toolbar-btn`/`.select-chantier*`/
+`.toolbar-toggle` : nouveau bloc CSS repris du mockup `mockup-sous-menu-outils.html` (structure identique),
+avec un seul écart assumé par rapport au mockup — le fond de la barre reste `var(--bg)` (pas
+`var(--surface-2)` du mockup, pensé comme une carte autonome) pour continuer à former un seul panneau
+visuel avec `.onglets-nav`/`.entete-planning-figee`, comme ces 3 bandes sticky l'ont toujours fait depuis
+le §74 ; le survol de `.toolbar-btn`/`.toolbar-toggle` passe donc en `var(--surface-2)` (inverse du mockup),
+même logique que `.onglet:hover`. CSS mort retiré : `.barre-undo`/`.barre-undo button`, `.th.coin-undo`,
+`.legende-barre`/`.legende-barre-gauche`/`.legende`/`.legende .item*`, `.controles-affichage`/
+`.btn-affichage*`, `.semaine-titre.barre-imprimer*`. `construireGrille()` ne déplace plus `#barreUndo`
+entre `#racine` et `document.body` à chaque rendu (ancien mécanisme du round précédent, devenu inutile
+puisque les boutons vivent maintenant en dehors de la grille, dans le gabarit statique).
+
+### 83.3. Vérifications
+
+`node --check` du `<script>` extrait : vert. Suite `test_*.js` relancée intégralement (18 fichiers) : même
+résultat qu'aux rounds précédents — tout vert sauf `test_edge_functions.js`, préexistant et sans rapport
+(cf. §74.6/§79.4/§80.6/81.1), y compris `test_chantier_defaut.js` qui couvre la logique métier non touchée
+par ce round. Playwright (mêmes vraies données Supabase que les §80/81/82, session factice + bundle
+supabase-js vendored) :
+
+- Légende absente du DOM (`#legende`/`.legende` introuvables) ; les 9 onglets portent tous une icône SVG ;
+  Annuler/Refaire/Imprimer/les 4 contrôles portent tous une icône SVG.
+- Sélecteur de chantier : s'ouvre au clic, ne liste que les 2 chantiers actifs (le 3e, désactivé dans la
+  fixture, en est bien absent) ; choisir "BINE" met à jour le swatch/nom du bouton ET
+  `localStorage["planning.chantierParDefaut"]`, ferme le panneau ; re-cliquer le chantier déjà actif le
+  désélectionne (retour au bouton neutre "Chantier", `localStorage` effacé) ; un clic en dehors ferme le
+  panneau.
+- Icône Jalons : un clic pose `.desactive`/retire `.actif` ET replie réellement la ligne dans la grille
+  (capture d'écran avant/après) ; un second clic restaure les deux.
+- `#btnDefaire` correctement désactivé tant qu'aucune action n'a eu lieu dans la session (confirme que
+  `majBoutonsUndo()` fonctionne toujours avec les boutons déplacés).
+- Figé haut/gauche (§74, reconfirmé à chaque round depuis) : toujours correct — vérifié cette fois à
+  plusieurs profondeurs de défilement (0/50/76/150/400px) plutôt qu'un seul point avant/après, pour
+  confirmer que `.entete-planning-figee` se fige bien à un `top` STABLE (79px, = hauteur onglets + hauteur
+  toolbar) une fois le seuil de défilement atteint, et y reste quel que soit le défilement au-delà.
+- Aucune erreur JS au chargement ni après interactions.
+
+**Pas encore confirmé par Lionel en conditions réelles** — à revalider une fois synchronisé, en particulier
+le rendu des nouvelles icônes (cohérence visuelle avec le reste de l'appli) et l'ergonomie du sélecteur de
+chantier déroulant à l'usage.
