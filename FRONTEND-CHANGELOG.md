@@ -5608,3 +5608,48 @@ supabase-js vendored) :
 **Pas encore confirmé par Lionel en conditions réelles** — à revalider une fois synchronisé, en particulier
 le rendu des nouvelles icônes (cohérence visuelle avec le reste de l'appli) et l'ergonomie du sélecteur de
 chantier déroulant à l'usage.
+
+## 84. Round du 16.09.2026 (encore un autre, suite×8) — les lignes Jalons/Notes masquées disparaissent vraiment, au lieu de rester en barre grise
+
+Retour de Lionel dès la synchronisation du §83 : « les ligne désactivées doivent etre totalement masqué et
+disparaitre du planning, pas grisée. »
+
+### 84.1. Ce qui se passait
+
+Masquer Jalons ou Notes depuis la barre d'outils ne les faisait pas vraiment disparaître : la ligne restait
+présente dans la grille, réduite à une seule "piste" (`nbPistes = 1`) sans aucune cellule de fond posée
+dessus (la boucle de pose des cellules journalières tournait 0 fois quand la section était repliée). Sans
+cellule `.lbl`/`.cell` pour la couvrir, c'est le gris de fond de `.grille` (`background: var(--border)`,
+la fine grille de séparation entre cellules) qui s'étalait sur toute la largeur de cette ligne vide — lu
+comme "grisé" plutôt que "disparu", exactement ce que Lionel signale. Personnel/Intervenants, eux,
+disparaissaient déjà correctement quand repliés (`ligneGroupePersonnes` n'est simplement pas appelée du
+tout, cf. §83.1) — seul le libellé de section ("PERSONNEL"/"INTERVENANTS", avec son bouton "+") restait,
+comme un en-tête. Jalons/Notes n'ayant pas d'en-tête séparé du contenu, le comportement à leur appliquer
+est la disparition complète, libellé compris.
+
+### 84.2. Correctif
+
+Dans la boucle `construireGrille()` qui pose Jalons/Notes, un simple `if (repliee) return;` avant la
+création du libellé : la ligne repliée ne pose plus rien du tout (ni libellé, ni cellule) et n'avance plus
+le compteur `row` — elle n'occupe donc plus aucune hauteur dans la grille, exactement comme les lignes
+Personnel/Intervenants repliées. Nettoyage en conséquence : `visibles`/`nbPistes` n'ont plus besoin de
+gérer le cas replié (`visibles` est toujours le filtre normal, `nbPistes` toujours `Math.max(1,
+assignerPistes(visibles))`), et la boucle de pose des cellules journalières tourne toujours sur `n`
+(atteinte seulement si la fonction n'a pas déjà retourné).
+
+### 84.3. Vérifications
+
+`node --check` du `<script>` extrait : vert. Suite `test_*.js` relancée intégralement : même résultat
+qu'aux rounds précédents (tout vert sauf `test_edge_functions.js`, préexistant et sans rapport). Playwright
+(mêmes vraies données Supabase que les rounds précédents) :
+
+- Masquer Jalons : le libellé "Jalons" disparaît complètement du DOM (`.lbl-speciale`), la hauteur de
+  l'en-tête de grille diminue (209px → 168px sur la mesure de vérification), aucune barre grise résiduelle
+  (confirmé par capture d'écran).
+- Masquer Notes en plus : idem, plus aucun `.lbl-speciale` ne subsiste, hauteur encore réduite (→ 127px).
+- Masquer Personnel en plus, pour comparaison visuelle : le comportement est bien identique à celui déjà
+  en place (en-tête "PERSONNEL" seul, aucune ligne grisée).
+- Réafficher les 3 : Jalons et Notes reviennent correctement, dans le bon ordre.
+- Aucune erreur JS.
+
+**Pas encore confirmé par Lionel en conditions réelles** — à revalider une fois synchronisé.

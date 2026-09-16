@@ -6901,14 +6901,25 @@
 
     [["jalon", JALONS, "Jalons"], ["note", NOTES, "Notes"]].forEach(function (spec) {
       var kind = spec[0], liste = spec[1], label = spec[2];
-      // repliee (round du 16.09.2026, encore un autre, suite, suite — §80,
-      // contrôle déplacé au §82 dans .controles-affichage) : Lionel,
-      // « avoir la possibilité de masquer jalons et note ». Replié, la ligne
-      // perd tout son contenu (visibles=[], nbPistes=1) et ne garde que son
-      // étiquette sur une seule ligne fine.
+      // repliee (round du 16.09.2026, contrôle déplacé au §82 dans
+      // .controles-affichage, icônes au §83) : Lionel, « avoir la
+      // possibilité de masquer jalons et note ». §84 (round du 16.09.2026,
+      // encore un autre, suite×8) — retour de Lionel : « les ligne
+      // désactivées doivent etre totalement masqué et disparaitre du
+      // planning, pas grisée ». La ligne ne réservait jusqu'ici qu'une seule
+      // piste vide (nbPistes=1, sans aucune cellule de fond puisque la
+      // boucle de pose plus bas tournait 0 fois) — sans cellule pour
+      // couvrir ce fond, c'est le gris de `.grille { background:
+      // var(--border) }` qui apparaissait tel quel sur toute la largeur,
+      // lu comme "grisé" plutôt que "disparu". `return` ici évite
+      // totalement de poser le libellé ET d'avancer `row` : la ligne
+      // n'existe simplement plus dans cette grille, exactement comme les
+      // lignes Personnel/Intervenants repliées (cf. plus bas,
+      // ligneGroupePersonnes non appelée du tout quand repliée).
       var repliee = kind === "jalon" ? replierJalons : replierNotes;
-      var visibles = repliee ? [] : liste.filter(function (it) { return giVisible(it.giDebut, n); });
-      var nbPistes = repliee ? 1 : Math.max(1, assignerPistes(visibles));
+      if (repliee) return;
+      var visibles = liste.filter(function (it) { return giVisible(it.giDebut, n); });
+      var nbPistes = Math.max(1, assignerPistes(visibles));
       // Titre de ligne ("Jalons"/"Notes") : retiré le 02.09.2026 (retour de
       // Lionel : "on peut réduire les hauteurs de ligne en enlevant... les
       // titres notes et jalons. on a déjà une légende"), puis REMIS le
@@ -6923,7 +6934,7 @@
       lbl.innerHTML = "<b>" + esc(label) + "</b>";
       lbl.title = label;
       poser(lbl, 1, row, null, nbPistes);
-      for (var g = 0; g < (repliee ? 0 : n); g++) {
+      for (var g = 0; g < n; g++) {
         // Jalons et notes restent des objets à la JOURNÉE (ligne 4 et 5 de la
         // feuille, jamais scindées en demi-journées) : en compact leur case
         // couvre donc les 2 colonnes du jour.
