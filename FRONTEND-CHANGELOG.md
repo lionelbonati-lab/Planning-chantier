@@ -5450,3 +5450,52 @@ erreur JS, et le figé haut/gauche (§74, reconfirmé au §80.5) tient toujours 
 que `icons/icon-32.png` se charge bien (chemin relatif identique à celui déjà utilisé par les balises
 `<link rel="icon">` du `<head>`, donc sans raison de se comporter différemment, mais jamais vérifié tel
 quel dans la barre avant ce round).
+
+## 82. Round du 16.09.2026 (encore un autre, suite, suite, encore, encore) — les flèches de repli remplacées par 4 textes cliquables, regroupés dans la barre légende/imprimer
+
+Retour de Lionel sur le §80 (captures d'écran de l'appli installée à l'appui, rectangle rouge tracé sur la
+barre légende/imprimer) : « Les flèches pour le masquage des jalons/note sont mal placé. Pourquoi pas
+mettre 4 Texte à cliquer pour masquer/démasquer Jalons, Notes, personnel, Intervenants a la place des
+flèches. » — puis, en précision : « dans la zone du rectangle rouge ».
+
+### 82.1. Ce qui change
+
+Les 4 flèches ▾ (`.btn-section-toggle`, une par ligne : Jalons, Notes, Personnel, Intervenants —
+introduites au §80 pour Jalons/Notes, réutilisées telles quelles depuis plus longtemps pour
+Personnel/Intervenants) disparaissent entièrement, remplacées par 4 boutons texte regroupés au même
+endroit : `.controles-affichage`, un nouveau groupe inséré dans `#legendeBarre`, juste après la légende des
+chantiers — exactement la zone que Lionel entoure en rouge, restée vide entre la légende et le bouton
+Imprimer depuis les resserrements du §80.2. `.legende-barre-gauche` regroupe désormais `.legende` et
+`.controles-affichage` dans un même bloc flex, pour que `.legende-barre` garde exactement 2 enfants de haut
+niveau et que `justify-content: space-between` continue de coller ce groupe à gauche et Imprimer à droite —
+sans ce regroupement, un 3e enfant direct se serait retrouvé centré sur un écran large, loin de la légende.
+
+Chaque bouton ("Jalons", "Notes", "Personnel", "Intervenants") affiche l'état de sa section par son propre
+style plutôt que par une icône séparée : texte normal quand la section est visible, texte barré et atténué
+(`.masque`) quand elle est repliée — même sémantique que l'ancienne icône pivotée, mais sur l'élément qu'on
+vient de cliquer, sans repère supplémentaire à interpréter.
+
+### 82.2. Implémentation
+
+`.controles-affichage` est un conteneur STATIQUE du gabarit HTML (`htmlPagePlanning`), comme le bouton
+Imprimer depuis le §74.3 — il ne dépend d'aucune donnée de la grille, donc câblé une seule fois
+(`cablerPagePlanning`) plutôt que reconstruit à chaque `construireGrille()`. Une nouvelle fonction
+`majControlesAffichage()` (même principe que `majBoutonsUndo()`) pose/retire la classe `.masque` sur chaque
+bouton d'après les 4 variables d'état existantes (`replierJalons`, `replierNotes`,
+`replierSectionPersonnel`, `replierSectionIntervenants` — inchangées, déjà là depuis le §80/avant) — appelée
+à chaque rendu, juste à côté de `majBoutonsUndo()`/`ajusterEnteteFixe()`.
+
+Nettoyage en conséquence : `ligneSection()` (Personnel/Intervenants) ne pose plus de bouton toggle, juste le
+libellé et le bouton d'ajout ; la ligne Jalons/Notes (`.lbl-speciale`) redevient un simple libellé. La
+classe `.btn-section-toggle` et son override `.lbl-speciale { display:flex; flex-direction:row… }` (ajouté
+au §80 pour loger la flèche à côté du texte) sont retirés du CSS, devenus morts.
+
+### 82.3. Vérifications
+
+`node --check` du `<script>` extrait : vert. Suite `test_*.js` relancée intégralement : même résultat
+qu'aux rounds précédents (tout vert sauf `test_edge_functions.js`, préexistant et sans rapport). Playwright
+(mêmes vraies données Supabase que les §80/81) : les 4 boutons apparaissent bien groupés dans la zone visée,
+un clic sur "Jalons" pose bien la classe `.masque` et replie la ligne (vérifié par capture d'écran avant/
+après), le figé haut/gauche (§74, reconfirmé aux §80.5/81.1) tient toujours, aucune erreur JS.
+
+**Pas encore confirmé par Lionel en conditions réelles** — à revalider une fois synchronisé.
