@@ -128,25 +128,38 @@ assertEqual(sandbox.lundiDeSemaineUTC('2026-09-13'), '2026-09-07', 'dimanche 13.
 // 4) construireDonneesSemaine — bucketing taches/assignations/jalons/notes,
 //    traduction statut_id -> cle et chantier_id -> nom, tri par `ordre`,
 //    cases vides bien formées.
+//
+//    Round du 16.09.2026 (sql/0010_taches_chantier_id.sql — Lionel :
+//    "plusieurs chantier sur la même case ... actuellement si une tâche est
+//    affecté à un chantier, la tâche déjà en place change de chantier") :
+//    chantier_id est désormais une colonne de LA TÂCHE, plus de la case —
+//    chaque tâche traduit son propre chantier (comme statut_id). `chantier`
+//    au niveau de la case redevient un simple REPLI, lu depuis `assignations`
+//    (table historique) UNIQUEMENT quand la case ne contient AUCUNE tâche.
 // =======================================================================
 (function () {
   const labG = 20260907; // lundi 07.09.2026 .. dimanche 13.09.2026
-  const lookups = { chantiersParId: { 1: 'Chantier Rue du Lac' }, statutsParId: { 10: 'confirme', 11: 'a_reserver' } };
+  const lookups = { chantiersParId: { 1: 'Chantier Rue du Lac', 2: 'Chantier Second' }, statutsParId: { 10: 'confirme', 11: 'a_reserver' } };
   const brut = {
     personnes: [
       { id: 100, nom: 'Alice', sous_traitant: false, ordre: 0 },
       { id: 200, nom: 'Bob', sous_traitant: true, ordre: 1 }
     ],
     assignations: [
-      { id: 1, personne_id: 100, date: '2026-09-07', demi: 'matin', chantier_id: 1 },
-      // 2e assignation sur la MÊME case (personne,date,demi) — la donnée
-      // l'autorise (cf. §4/§8 du plan), on ne doit garder que la 1ère par id.
-      { id: 2, personne_id: 100, date: '2026-09-07', demi: 'matin', chantier_id: 999 }
+      // Mardi matin d'Alice : case SANS AUCUNE tâche -> le chantier de la
+      // case se lit encore, en repli, depuis assignations (1ère par id, pas
+      // la 2e) — le seul cas où cette table historique compte encore.
+      { id: 1, personne_id: 100, date: '2026-09-08', demi: 'matin', chantier_id: 1 },
+      { id: 2, personne_id: 100, date: '2026-09-08', demi: 'matin', chantier_id: 999 }
     ],
     taches: [
-      // ordre volontairement inversé en entrée pour vérifier le tri par `ordre`.
-      { id: 50, personne_id: 100, date: '2026-09-07', demi: 'matin', ordre: 2, texte: 'Nettoyage', statut_id: null, important: false, serie_id: null },
-      { id: 51, personne_id: 100, date: '2026-09-07', demi: 'matin', ordre: 1, texte: 'Coffrage', statut_id: 10, important: true, serie_id: 7 },
+      // Lundi matin d'Alice : 2 tâches empilées sur la MÊME case, chacune
+      // avec son PROPRE chantier_id — exactement le scénario que Lionel
+      // signalait cassé (poser Nettoyage sur un 2e chantier ne doit plus
+      // changer la couleur de Coffrage). ordre volontairement inversé en
+      // entrée pour vérifier le tri par `ordre`.
+      { id: 50, personne_id: 100, date: '2026-09-07', demi: 'matin', ordre: 2, texte: 'Nettoyage', statut_id: null, important: false, serie_id: null, chantier_id: 2 },
+      { id: 51, personne_id: 100, date: '2026-09-07', demi: 'matin', ordre: 1, texte: 'Coffrage', statut_id: 10, important: true, serie_id: 7, chantier_id: 1 },
       // Case week-end (Samedi 12.09.2026), toujours demi="matin" par convention.
       { id: 52, personne_id: 200, date: '2026-09-12', demi: 'matin', ordre: 0, texte: 'Astreinte', statut_id: 11, important: false, serie_id: null }
     ],
@@ -164,19 +177,22 @@ assertEqual(sandbox.lundiDeSemaineUTC('2026-09-13'), '2026-09-07', 'dimanche 13.
   assertEqual(d.numero, String(sandbox.numeroSemaineIsoUTC('2026-09-07')), 'numero = n° de semaine ISO du lundi');
   assertEqual(d.isoDates, ['2026-09-07', '2026-09-08', '2026-09-09', '2026-09-10', '2026-09-11'], 'isoDates Lundi..Vendredi');
 
-  // Case Lundi matin d'Alice : chantier de la 1ère assignation (id=1, pas
-  // id=2), 2 tâches triées par `ordre` (Coffrage avant Nettoyage), statut_id
-  // traduit en cle, important reporté.
+  // Case Lundi matin d'Alice : la case elle-même n'a plus de chantier propre
+  // (elle contient des tâches) ; 2 tâches triées par `ordre` (Coffrage avant
+  // Nettoyage), statut_id traduit en cle, important reporté, chacune avec
+  // SON PROPRE chantier traduit depuis chantier_id.
   const caseAliceLundiMatin = d.personnes[0].matin[0];
-  assertEqual(caseAliceLundiMatin.chantier, 'Chantier Rue du Lac', 'chantier = nom traduit depuis chantier_id, 1ère assignation par id');
+  assertEqual(caseAliceLundiMatin.chantier, null, 'chantier de la CASE -> null dès qu\'elle contient au moins une tâche (round du 16.09.2026)');
   assertEqual(caseAliceLundiMatin.taches, [
-    { texte: 'Coffrage', statut: 'confirme', important: true, serieId: 7, absence: false },
-    { texte: 'Nettoyage', statut: null, important: false, serieId: null, absence: false }
-  ], 'tâches triées par `ordre` croissant, statut_id -> cle, statut absent -> null');
+    { texte: 'Coffrage', statut: 'confirme', important: true, serieId: 7, chantier: 'Chantier Rue du Lac', absence: false },
+    { texte: 'Nettoyage', statut: null, important: false, serieId: null, chantier: 'Chantier Second', absence: false }
+  ], 'tâches triées par `ordre` croissant, statut_id -> cle, chacune son propre chantier_id -> nom, jamais partagé entre elles');
 
-  // Case vide (Mardi matin d'Alice, aucune donnée) : bien formée, jamais undefined.
-  assertEqual(d.personnes[0].matin[1], { chantier: null, taches: [] }, 'case sans donnée -> {chantier:null, taches:[]}, jamais undefined');
-  assertEqual(d.personnes[0].aprem[0], { chantier: null, taches: [] }, 'aprem non renseigné -> case vide bien formée');
+  // Mardi matin d'Alice : case sans aucune tâche -> chantier de la case lu
+  // en repli depuis assignations (1ère par id=1, pas id=2).
+  assertEqual(d.personnes[0].matin[1], { chantier: 'Chantier Rue du Lac', taches: [] },
+    'case sans tâche mais avec une assignation historique -> repli sur assignations (1ère par id)');
+  assertEqual(d.personnes[0].aprem[0], { chantier: null, taches: [] }, 'aprem non renseigné (ni tâche ni assignation) -> case vide bien formée');
 
   // Jalon du mardi (index 1), reste des jours vides mais bien formés.
   // demi (round du 08.09.2026, §47 du FRONTEND-CHANGELOG) : un jalon porte
@@ -193,9 +209,10 @@ assertEqual(sandbox.lundiDeSemaineUTC('2026-09-13'), '2026-09-07', 'dimanche 13.
   assertEqual(d.notes[0], [], 'jour sans note -> tableau vide, jamais undefined');
 
   // Bob (sous-traitant) : case week-end Samedi (weekend[0]) peuplée, avec
-  // statut traduit ; Dimanche (weekend[1]) vide mais bien formée.
+  // statut traduit ; Dimanche (weekend[1]) vide mais bien formée. Astreinte
+  // n'a pas de chantier_id -> chantier: null sur la tâche.
   assertEqual(d.personnes[1].sousTraitant, true, 'sousTraitant reporté depuis sous_traitant');
-  assertEqual(d.personnes[1].weekend[0], { chantier: null, taches: [{ texte: 'Astreinte', statut: 'a_reserver', important: false, serieId: null, absence: false }] },
+  assertEqual(d.personnes[1].weekend[0], { chantier: null, taches: [{ texte: 'Astreinte', statut: 'a_reserver', important: false, serieId: null, chantier: null, absence: false }] },
     'case week-end Samedi peuplée depuis une tâche demi="matin" sur weekendDates[0]');
   assertEqual(d.personnes[1].weekend[1], { chantier: null, taches: [] }, 'case week-end Dimanche vide mais bien formée');
 })();
@@ -224,8 +241,8 @@ assertEqual(sandbox.lundiDeSemaineUTC('2026-09-13'), '2026-09-07', 'dimanche 13.
   };
   const d = sandbox.construireDonneesSemaine(labG, brut, lookups);
   assertEqual(d.personnes[0].matin[2].taches, [
-    { texte: 'Coffrage', statut: null, important: false, serieId: null, absence: false },
-    { texte: 'RDV perso', statut: null, important: false, serieId: null, absence: true }
+    { texte: 'Coffrage', statut: null, important: false, serieId: null, chantier: null, absence: false },
+    { texte: 'RDV perso', statut: null, important: false, serieId: null, chantier: null, absence: true }
   ], 'taches.est_absence -> absence:true/false reporté fidèlement par tacheVue_, indépendamment du texte');
 })();
 

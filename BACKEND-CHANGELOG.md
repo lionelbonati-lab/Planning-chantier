@@ -1832,3 +1832,104 @@ requires approval »), y compris après validation explicite de Lionel ; la tent
 changement de code, est passée sans erreur — le blocage était donc côté outil/plateforme, pas côté contenu
 du déploiement. Le correctif est désormais réellement actif en production, pas seulement dans le code
 source.
+
+## 29. Round du 16.09.2026 — le chantier devient un attribut de la TÂCHE, plus de la case
+
+Lionel :
+
+« J'aimerai pouvoir entrer plusieurs chantier sur la même case (demi-journée) sur planning et à
+l'impression. actuellement si une tâche est affecté à un chantier, la tâche déjà en place change de
+chantier. »
+
+Limite structurelle déjà documentée (FRONTEND-CHANGELOG.md §32.4, MIGRATION-GITHUB-PLAN.md §4/§8) mais
+jamais levée jusqu'ici : une case (personne + demi-journée + jour) ne portait qu'UN SEUL chantier, via une
+ligne `assignations` séparée de la ligne « détail » — jamais une par tâche. Toutes les tâches empilées dans
+une même case partageaient donc forcément ce même chantier : en poser une nouvelle sur un chantier
+différent changeait, à la prochaine écriture de la case, le chantier de TOUTES les tâches déjà en place.
+Le correctif touche TROIS chemins d'écriture indépendants, qui encodaient chacun cette même hypothèse à
+leur façon : l'écriture directe d'une case (`enregistrerCellulePersonneServeur`, Index.html), la création
+d'une série (`enregistrer-serie`) et la modification d'une série (`gerer-serie`).
+
+### 29.1. `sql/0010_taches_chantier_id.sql` — nouvelle colonne, backfill exact
+
+```sql
+alter table taches add column if not exists chantier_id bigint references chantiers(id) on delete set null;
+create index if not exists idx_taches_chantier on taches (chantier_id);
+
+with premiere_assignation as (
+  select distinct on (personne_id, date, demi) personne_id, date, demi, chantier_id
+  from assignations
+  order by personne_id, date, demi, id asc
+)
+update taches t
+set chantier_id = a.chantier_id
+from premiere_assignation a
+where a.personne_id = t.personne_id and a.date = t.date and a.demi = t.demi
+  and t.chantier_id is null
+  and t.est_absence = false;
+```
+
+`chantier_id` est nullable avec `on delete set null` (contrairement à `assignations.chantier_id`, NOT NULL
+sans action de suppression) : une tâche peut très bien n'avoir aucun chantier (rare mais possible), et
+supprimer un chantier encore référencé par des tâches ne doit jamais échouer sur une contrainte — Postgres
+met lui-même chaque tâche concernée à `chantier_id=null`, sans action explicite nécessaire côté application
+(cf. §29.4 plus bas, `retirerChantierServeur`). Backfill : reprend, pour chaque tâche NON-ABSENCE déjà en
+base, le chantier qui était jusqu'ici posé au niveau de sa case (1ère ligne `assignations` par id croissant
+si plusieurs existaient déjà pour la même case — même règle que celle déjà appliquée côté client,
+`construireDonneesSemaine`). `assignations` n'est PAS supprimée (aucune raison de casser une table encore
+référencée par une clé étrangère, et une éventuelle case ancienne « chantier posé mais aucune tâche dessus »
+doit rester lisible en repli) mais devient une table historique : plus aucun chemin d'écriture n'y écrit
+après ce round.
+
+Appliquée directement sur le projet Supabase (`mvqvznohgtpulpgalvxl`) via le connecteur MCP
+(`apply_migration`). Vérifié par `execute_sql` juste après : 116 lignes `taches` au total, 87 avec
+`chantier_id` renseigné, 29 absences (jamais concernées par le backfill), 0 anomalie (absence avec un
+chantier posé) — 87 + 29 = 116 exactement, chaque tâche non-absence a bien été backfillée, aucune manquée.
+
+### 29.2. `enregistrer-serie` : chantier posé directement sur chaque occurrence, plus d'`assignations`
+
+`construireOccurrencesSerie` perd le paramètre `existantesAssignations` (plus besoin de savoir ce qui existe
+déjà dans `assignations` pour décider de « l'écraser ou pas » — toute la logique « chantier posé une fois,
+jamais écrasé » disparaît avec lui, cf. §27.2/§28.2 pour son historique) : chaque ligne `taches` insérée
+reçoit directement son `chantier_id`, si fourni (`if (champs.chantier_id) ligneTache.chantier_id = ...`,
+même convention « omis plutôt que null » que `est_absence`, §27.2). `index.ts` ne lit donc plus jamais la
+table `assignations` avant d'appeler `construireOccurrencesSerie`. Conséquence directe : deux occurrences
+successives de la même série sur des chantiers différents (ou une série ajoutée sur une case déjà occupée
+par une AUTRE tâche/chantier) ne s'écrasent plus jamais entre elles.
+
+### 29.3. `gerer-serie` : chantier circule comme un champ normal, plus de `replace_assignation`
+
+`planModifierSerie` perd son ancien type d'opération `replace_assignation` (qui remplaçait intégralement
+l'assignation de CHAQUE jour touché — exactement le mécanisme qui recolorait à tort toutes les tâches
+empilées sur la même case, y compris celles posées par autre chose que la série modifiée). `chantierId`
+devient un champ de plus dans le même objet `champs` qu'une opération `update` normale
+(`if (chantierFourni) champs.chantier_id = modifs.chantierId;`), posé UNIQUEMENT sur les lignes DE CETTE
+série — plus de déduplication par `(personne, date, demi)`, chaque ligne matchée reçoit sa propre mise à
+jour indépendante. `index.ts` perd la branche `op.type === "replace_assignation"` (devenue du code mort,
+`logic.js` ne l'émet plus) ; le champ `chantier_id` transite simplement dans `op.champs` du bloc `update`
+déjà existant.
+
+### 29.4. Fonctions de gestion des chantiers ajustées côté client (Index.html)
+
+- `compterTachesParPersonne_` lit désormais `chantier_id` directement sur chaque ligne `taches` — le
+  paramètre `assignations` disparaît de sa signature, `compterTachesPersonnesServeur` ne fait plus qu'UNE
+  requête (`taches`) au lieu de deux.
+- `compterUtilisationsChantierServeur` additionne désormais le compte sur `assignations` (historique) ET
+  sur `taches` (source de vérité actuelle), pour ne jamais sous-compter les utilisations réelles avant la
+  confirmation de suppression demandée à Lionel.
+- `retirerChantierServeur` n'a PAS besoin d'un DELETE/UPDATE explicite sur `taches` : sa contrainte
+  `on delete set null` (§29.1) fait le travail automatiquement au moment du DELETE final sur `chantiers`.
+
+### 29.5. Vérifications
+
+`node test_enregistrer_serie.js` (50/50), `node test_gerer_serie.js` (12/12, tests `replace_assignation`
+remplacés par des assertions sur des `update` indépendants par ligne), `node test_config_simple.js` (15/15,
+fixtures `compterTachesParPersonne_` mises à jour avec `chantier_id` inline). Suite complète du projet
+(15 fichiers `test_*.js`, hors `test_edge_functions.js` — cassé pour une raison préexistante sans rapport
+avec ce round) : verte.
+
+**Déploiement** : `enregistrer-serie` (v3→v4) et `gerer-serie` (v1→v2) redéployées sur le projet Supabase
+(`mvqvznohgtpulpgalvxl`) via le connecteur MCP, statut `ACTIVE` confirmé après coup (`list_edge_functions`).
+
+Voir FRONTEND-CHANGELOG.md pour le pendant client (lecture/fusion de la vue, écriture, et rendu impression
+en bandes de couleur par tâche — Option A, choisie par Lionel).

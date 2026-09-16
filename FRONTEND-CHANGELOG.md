@@ -4519,3 +4519,575 @@ chantiers explicitement différents entre matin et aprem continue de se scinder 
 changement de comportement.
 
 Purement client (`Index.html`) : aucune edge function ni migration SQL concernées par ce correctif.
+
+## 72. Round du 16.09.2026 (suite) — chantier par tâche : le client (lecture, fusion, écriture, impression en bandes)
+
+Suite du round §29 de BACKEND-CHANGELOG.md (même demande de Lionel, citée là-bas en entier) : après la
+migration SQL et la réécriture des deux edge functions, le pendant client — tout ce qui lit, fusionne,
+réécrit et imprime `chantier_id` désormais au niveau de la TÂCHE et non plus de la case.
+
+### 72.1. Lecture : le chantier remonte depuis chaque tâche, plus depuis la case
+
+`tacheVue_` (qui transforme une ligne `taches` brute en objet d'affichage) lit maintenant son propre
+chantier :
+
+```js
+chantier: t.chantier_id != null ? (chantiersParId[t.chantier_id] || null) : null,
+```
+
+`celluleVue_` (qui construisait jusqu'ici le chantier de la case à partir de la ligne `assignations`) ne
+s'en sert plus QUE dans un seul cas de repli, désormais rare : une case sans aucune tâche mais où un
+chantier a été posé (ancien mécanisme, table historique depuis §29.1) :
+
+```js
+return { chantier: (!taches.length && a) ? (chantiersParId[a.chantier_id] || null) : null, taches: taches };
+```
+
+Dès qu'au moins une tâche existe dans la case, le chantier de la case (au sens ancien) n'est plus consulté
+du tout : chaque tâche porte le sien.
+
+### 72.2. Fusion de la vue (`construireVueDepuisCache`) et écriture (`calculerEtatLocal`, `diffsCellulesPersonne`, `enregistrerCellulePersonneServeur`)
+
+`construireVueDepuisCache` reconstruit `TACHES` à partir du cache pour produire une bulle par item fusionné
+(2 demi-journées consécutives identiques → 1 bulle). Les deux fonctions qui allaient chercher le chantier
+AU NIVEAU DE LA CASE pour piloter cette fusion (`chantierAuHalfSlot_`, `chantierCelluleAuGi`) disparaissent :
+`indexNonConsommeCorrespondantT_` compare directement le chantier de chaque TÂCHE candidate
+(`(arr[i].chantier || null) === (chantier || null)`), la boucle de fusion principale lit
+`var chantierT = entreeT.chantier || null;` sur l'entrée en cours de traitement, et la boucle des
+week-ends lit `t.chantier || null` sur la tâche elle-même au lieu de `vueJour.chantier` sur la case.
+
+Côté état local et diff, le chantier quitte le niveau case :
+
+- `calculerEtatLocal` : `cellules[cle] = { taches: [] }` (plus de `chantier` au niveau de la case), et
+  chaque tâche poussée dans `taches` porte son propre `chantier: t.chantier || null`.
+- `diffsCellulesPersonne` : la case par défaut devient `{ taches: [] }`, et le payload envoyé au serveur
+  ne transporte plus que `{ taches: a.taches }` — plus de champ `chantier` séparé à comparer/diffuser.
+- `enregistrerCellulePersonneServeur`, le point d'écriture direct d'une case (hors série), pose désormais
+  le chantier sur CHAQUE ligne `taches` individuellement au lieu d'écrire une seule ligne `assignations`
+  partagée par toute la case :
+
+  ```js
+  var lignesTaches = taches.map(function (t, i) {
+    var chantier = t.chantier ? etat.chantierParNom[t.chantier] : null;
+    var ligne = { personne_id: personneId, date: iso, demi: demi, ordre: i,
+      texte: t.texte, statut_id: t.statut ? (etat.statutIdParCle[t.statut] || null) : null,
+      important: !!t.important, serie_id: t.serieId || null, est_absence: !!t.absence };
+    if (chantier) ligne.chantier_id = chantier.ligne;
+    return ligne;
+  });
+  ```
+
+  L'écriture reste « tout supprimer puis tout réinsérer » pour la case (`taches` d'abord, comme avant) ;
+  le DELETE sur `assignations` qui suit n'est plus qu'un nettoyage de la table historique (§29.1), plus
+  jamais suivi d'une réinsertion dedans.
+
+`chantierExistantDansCase` (qui proposait par défaut, à la création d'une nouvelle tâche sur une case déjà
+occupée, le chantier déjà présent) n'a pas changé de comportement — son corps reste identique — mais son
+rôle change de nature : ce n'était jusqu'ici pas qu'un confort, c'était ce qui EMPÊCHAIT concrètement le bug
+de Lionel de s'aggraver plus vite (proposer le même chantier par défaut réduisait les cas où une case
+finissait avec 2 chantiers réellement différents). Depuis ce round, poser des chantiers différents sur la
+même case est un usage normal et pleinement supporté : la fonction n'est plus qu'un confort de saisie,
+jamais un contournement.
+
+### 72.3. Impression : une bande de couleur par tâche (Option A, choisie par Lionel)
+
+Interrogé sur la présentation visuelle souhaitée pour une case imprimée avec plusieurs chantiers empilés
+(une seule couleur de fond pour toute la case ? un neutre avec un simple repère par tâche ? une bande de
+couleur par tâche ?), Lionel a choisi explicitement l'option « bande de couleur par tâche » : chaque tâche
+empilée dans une case garde sa propre couleur de fond sur sa propre portion de la cellule, au lieu qu'une
+seule couleur (mal définie dès qu'il y a plusieurs chantiers) couvre toute la case.
+
+`infoCase` (qui décidait jusqu'ici UNE couleur de fond et UN texte par case) devient `infoCase` +
+`celluleTache`, et retourne désormais un TABLEAU de fragments — un par tâche — au lieu d'un couple
+`{ fond, texte }` unique :
+
+```js
+function infoCase(p, cell) {
+  var taches = (cell && cell.taches) || [];
+  if (!taches.length) {
+    // repli : case vide, éventuel chantier historique posé sans tâche (cf. §72.1)
+    ...
+    return { fragments: [{ bg: ..., txt: "" }], empty: true };
+  }
+  var fragments = taches.map(function (t) {
+    var estAbs = !!t.absence || estAbsence(t.texte);
+    var bg = "transparent";
+    if (estAbs) { bg = "var(--absence-bg)"; }
+    else if (t.chantier) { var ch = etat.chantierParNom[t.chantier]; bg = ch ? ch.couleur : "#e5e5e5"; }
+    ...
+    return { bg: bg === "transparent" ? "var(--surface-2)" : bg, txt: ... };
+  });
+  return { fragments: fragments, empty: false };
+}
+```
+
+`celluleTache` empile un `<div class="print-bande">` par fragment à l'intérieur d'un seul
+`<td class="td-tache">`, séparés par un simple filet (`border-top`) :
+
+```js
+function celluleTache(info, classeDemi, fusionnee) {
+  var bandes = info.fragments.map(function (f) {
+    return '<div class="print-bande" style="background:' + f.bg + '">' + f.txt + '</div>';
+  }).join("");
+  ...
+}
+```
+
+`fondCase` et `detailJoint` (les deux fonctions à cellule-couleur-unique qu'`infoCase`/`celluleTache`
+remplacent) sont supprimées ; la fusion matin/aprem en une seule cellule (`colspan="2"`) compare désormais
+le tableau COMPLET des fragments des deux demi-journées (`JSON.stringify` des deux tableaux), plutôt qu'une
+seule couleur — deux demi-journées ne fusionnent que si elles portent exactement les mêmes tâches, dans le
+même ordre, avec les mêmes chantiers. La légende (liste des chantiers utilisés sur la page, en bas de
+l'impression) est reconstituée en itérant `cell.taches` de chaque case au lieu de son ancien champ
+`cell.chantier` unique.
+
+### 72.4. Bug CSS découvert en vérifiant : `height: 100%` ne s'étire pas dans une cellule de tableau
+
+Première implémentation testée : une bande fait sa hauteur de contenu naturelle, et seule la DERNIÈRE bande
+d'une case est censée s'étirer pour occuper le reste de la hauteur de ligne (déterminée par la case la plus
+chargée de la même ligne du tableau) — via un conteneur flex `height: 100%` + `flex: 1 1 auto` sur la
+dernière bande. Rendu de vérification (Playwright → PDF → `pdftoppm -r 300` → inspection de pixels) : la
+bande courte laissait un grand vide blanc en dessous au lieu de s'étirer, et le pointillé matin/aprem
+(`.demi-aprem`) affichait des artefacts.
+
+Trois reproductions minimales isolées (`<table><td><div style="height:100%">…`, avec et sans flex, avec
+`border-collapse: separate` et `collapse`) ont confirmé que ce n'est PAS un bug Chromium : un pourcentage de
+hauteur sur un enfant STATIQUE (non positionné en absolu) se résout en `auto` dès que la hauteur de son bloc
+englobant (ici la cellule) n'est pas explicitement définie — comportement CSS standard, une cellule de
+tableau à hauteur automatique ne compte jamais comme une hauteur « définie » aux yeux d'un enfant en
+pourcentage, quelle que soit la hauteur réellement dessinée par la ligne.
+
+Correctif retenu, robuste à coup sûr : au lieu de faire s'étirer un enfant, poser la couleur de la DERNIÈRE
+bande directement en style inline sur le `<td>` lui-même — un `<td>` remplit TOUJOURS nativement toute la
+hauteur réellement dessinée de sa ligne, par construction du layout de tableau, sans aucune astuce :
+
+```js
+var lastBg = info.fragments[info.fragments.length - 1].bg;
+return '<td class="td-tache' + ... + '" style="background:' + lastBg + '">' + bandes + '</td>';
+```
+
+```css
+table.print-table td.td-tache { padding: 0; }
+table.print-table .print-bande { padding: 5px 7px; }
+table.print-table .print-bande + .print-bande { border-top: 1px solid var(--border-strong); }
+```
+
+Le conteneur flex et son CSS associé ont été entièrement retirés. Le pointillé `.demi-aprem` reste posé sur
+le `<td>` (jamais déplacé sur les bandes individuelles — une tentative en ce sens, pour ce qui semblait être
+un bug de pointillé séparé, a été essayée puis annulée en comprenant qu'il s'agissait du même bug de hauteur
+que ci-dessus) : re-vérifié par inspection de pixels zoomée, le pointillé couvre bien toute la hauteur de
+ligne sans coupure ni trait plein parasite.
+
+Imperfection mineure connue et acceptée : sur une case avec plusieurs bandes ET fusionnée en `colspan="2"`
+avec son vis-à-vis d'aprem non fusionné, un écart de 1px de couleur peut apparaître à la jointure — cas rare,
+jugé non bloquant par rapport au bénéfice (couleur par tâche enfin correcte) plutôt que de complexifier
+davantage le CSS pour un pixel.
+
+### 72.5. Vérifications
+
+Suite existante : `node test_chargement.js` (36/36 — fixtures `construireDonneesSemaine` étendues avec 2
+tâches à chantiers différents empilées sur une même case, plus le cas de repli case-vide-avec-chantier-
+historique déplacé sur une case sans tâche pour le tester réellement) et `node test_config_simple.js`
+(15/15 — fixtures `compterTachesParPersonne_` avec `chantier_id` inline sur les tâches, signature mise à
+jour). Le reste de la suite (13 autres fichiers `test_*.js`, hors `test_edge_functions.js` — cassé pour une
+raison préexistante sans rapport avec ce round, cf. `git log` sur ce fichier) : verte.
+
+Rendu imprimé vérifié visuellement, méthode habituelle (Playwright → PDF → `pdftoppm -r 300` → crops PIL)
+sur un jeu de cas représentatif : 2 chantiers empilés sur une même case (le scénario exact de Lionel), tâche
+unique (non-régression du cas majoritaire), tâche + absence dans la même case, matin/aprem identiques donc
+fusionnés en une seule cellule, case totalement vide. Confirme empilement correct avec filets de séparation,
+étirement correct de la dernière bande sur toute la hauteur de ligne, et compatibilité visuelle inchangée
+pour le cas à une seule tâche.
+
+Voir BACKEND-CHANGELOG.md §29 pour le pendant serveur (migration SQL, `enregistrer-serie`, `gerer-serie`).
+
+## 73. Round du 16.09.2026 (suite, suite) — 4 retours courts sur l'impression et le planning
+
+Lionel, 4 retours distincts dans le même message :
+
+« il reste le mot "note" dans l'imprimé. le supprimer. » et, sur la page planning : « Fixer la partie
+supérieur au tableau de tâches afin que les onglets et la légende des chantiers reste toujours à l'écran. »,
+« La sur-brillance en bleue d'une tâche en déplacement se perd d'une ligne à l'autre. elle est aussi trop
+petite, actuellement elle fait la taille de la bulle, je préfèrerai que la(les) case cible soient entièrement
+sur-brillé. les sur-brillance interdite en rouge sont elle corrects. » et « redescendre les boutons
+annuler/refaire de quelques pixel pour qu'ils soient centré entre la légende des chantiers et le tableau des
+tâches ».
+
+### 73.1. Le mot « Notes » retiré de l'étiquette de ligne à l'impression
+
+`openPrintSheet` posait un libellé texte « Notes » en tête de la ligne dédiée (round du 15.09.2026, suite,
+suite, suite — Lionel avait alors explicitement demandé CE libellé, en même temps que « Jalons », pour
+repérer les lignes une fois la légende de couleurs hors du premier écran). Revirement assumé sur ce seul mot
+(« Jalons » n'est pas concerné, toujours affiché) :
+
+```js
+h += '<tr class="print-notes"><td style="font-weight:700;white-space:nowrap"></td>';
+```
+
+Seul le texte de l'étiquette disparaît — la ligne elle-même, son fond, ses bordures et le CONTENU des notes
+(`.filled`, texte des notes remplies) restent strictement inchangés ; vérifié qu'aucune règle CSS ne dépendait
+du texte ou de la cellule non-vide (`tr.print-notes td`/`td.filled`, cf. leur définition, ne touchent que
+bordure/fond/padding). Vérifié par une reproduction fidèle (CSS réel extrait de `Index.html`, Playwright) :
+l'étiquette est bien vide, les notes remplies s'affichent normalement à côté.
+
+### 73.2. Onglets + légende des chantiers fixes au défilement de la grille
+
+`#app` est le seul élément qui défile réellement (`position:fixed; overflow-y:auto`, cf. son commentaire) ;
+`.onglets-nav` et `.legende` vivaient jusqu'ici dans son flux normal et disparaissaient donc avec le reste de
+la page dès qu'on faisait défiler le planning vers le bas — perdant à la fois le repère de navigation et la
+légende de couleurs nécessaire pour lire les chantiers empilés (cf. §72). Les deux passent en
+`position: sticky`, empilés l'un sous l'autre en haut de `#app` :
+
+```css
+.onglets-nav {
+  ...
+  padding-top: 44px;
+  position: sticky; top: 0; z-index: 40; background: var(--bg);
+}
+.legende {
+  ...
+  margin: 0 0 16px; padding-top: 46px;
+  position: sticky; top: 83px; z-index: 39; background: var(--bg);
+}
+```
+
+Deux pièges rencontrés et corrigés en vérifiant (Playwright, capture d'écran à l'appui — même méthode que le
+bug CSS du round précédent, §72.4) :
+
+- **La bande réservée à `#lienDeconnexion`** (« Se déconnecter », `position:fixed`, en haut à droite) était
+  jusqu'ici un `padding-top:44px` sur `.app-shell`, donc un espace *vide* avant la barre d'onglets — pas
+  couvert par le fond opaque de celle-ci. Une fois la barre rendue sticky (`top:0`), cet espace vide restait
+  traversable par le contenu de la grille pendant le défilement (un nom de personne redevenait visible
+  au-dessus de la barre). Corrigé en déplaçant ce padding-top DANS `.onglets-nav` elle-même (son propre fond
+  opaque couvre alors toute la bande) plutôt que sur `.app-shell` (retiré).
+- **Même fuite, entre la barre et la légende** : l'espace qui existait avant `.legende` (`margin-bottom`
+  de la barre + `padding-top` de `.page-scroll` + l'ancien `margin-top` de `.legende`, 46px au total)
+  restait lui aussi un vide transparent entre 2 éléments désormais fixes. Corrigé en absorbant ces 46px dans
+  un `padding-top` sur `.legende` (couvert par son propre fond), `top: 83px` (= le bas réel, mesuré, de la
+  barre d'onglets une fois fixée) empilant la légende immédiatement sous elle sans le moindre interstice.
+
+`z-index` choisis pour rester au-dessus de la grille (bulles/cases, z-index ≤ 6) mais sous
+`#lienDeconnexion` (50, doit rester cliquable en toutes circonstances) et très en dessous des popups/modales
+(`.voile-confirm` à 95 et plus) — jamais de conflit avec un panneau ouvert par-dessus.
+
+`top:0`/`top:83` correspondent chacun à la position naturelle (non défilée) de l'élément : les deux sont donc
+« collés » dès le chargement de la page, sans le petit saut visuel qu'un seuil différent aurait produit à mi-
+défilement.
+
+### 73.3. Sur-brillance de dépôt : pleine case, et qui suit vraiment la ligne visée
+
+Deux bugs distincts derrière le même symptôme rapporté par Lionel, tous deux dans `survolerCible()`
+(chemin « précis », activé pour un déplacement à la souris d'un item seul — §37/§38/§49) :
+
+- **« se perd d'une ligne à l'autre »** — l'élément de sur-brillance (`.survol-precis`) copiait
+  `bulleDom.style.gridRow`, c'est-à-dire la ligne de grille de la bulle D'ORIGINE (`bulleDom` reste affichée,
+  juste estompée, à sa place de départ pendant tout le geste — cf. `armer()`/`.glisse-groupe` — seul un
+  fantôme flottant suit le pointeur). Dès que la case survolée (`cible`) était sur une AUTRE ligne (une autre
+  personne), la sur-brillance restait figée sur la ligne de départ au lieu de suivre — donnant l'impression
+  qu'elle « se perdait ». Corrigé en lisant `cible.style.gridRow` (déjà posé correctement par `poser()` sur
+  chaque `.cell`) plutôt que celui de `bulleDom`.
+- **« trop petite, taille de la bulle »** — `.survol-precis` avait `align-self: start` et une hauteur posée
+  en JS (`bulleDom.getBoundingClientRect().height`), un choix du round du 07.09.2026 pour un tout autre bug
+  de l'époque (l'élément s'étirait alors sur toute la ligne et débordait visuellement sous la bulle glissée).
+  Ce même étirement plein-hauteur est exactement ce que Lionel demande maintenant, et `.selection-precis`
+  (round du 12.09.2026, juste en dessous dans le CSS) prouve depuis des jours que ce comportement fonctionne
+  très bien pour une sur-brillance de case. Retiré `align-self: start` du CSS et la ligne de hauteur en JS :
+  `.survol-precis` s'étire donc désormais par défaut sur toute la hauteur réellement dessinée de sa ligne de
+  grille (stretch, comportement par défaut de `.grille`, display:grid sans `align-items`), exactement comme
+  `.cell.drop-hover`/`.cell.cell-interdite` (déjà confirmées correctes par Lionel : « les sur-brillance
+  interdite en rouge sont elle corrects »).
+
+Vérifié par une reproduction isolée (CSS réel de `.survol-precis`, une ligne haute à 2 bulles empilées à côté
+d'une case cible courte) : l'élément de sur-brillance occupe désormais exactement le même rectangle que la
+case cible (69px de haut mesurés, identiques des deux côtés), plus 26px (l'ancienne taille bulle).
+
+### 73.4. Boutons annuler/refaire redescendus
+
+Conséquence directe de §73.2 (légende désormais fixe, donc l'espace où flottent ces 2 boutons — entre le bas
+de la légende et le haut du tableau — est lui aussi devenu une position fixe et stable, plus une position qui
+n'existait qu'à l'instant précis où la page n'avait pas encore défilé). `top` recalculé pour correspondre à
+cette nouvelle position (bas réel de la légende + sa marge, mesuré) plutôt que l'ancien 22px (pensé pour
+l'ancien contexte, non sticky) ; `transform: translateY(...)` réduit de -14px à -8px pour redescendre les
+boutons de quelques pixels comme demandé — ils mordaient jusqu'ici surtout sur la légende, ils sont
+maintenant centrés sur la frontière légende/tableau :
+
+```css
+.barre-undo { position: sticky; top: 159px; height: 0; z-index: 97; ...; transform: translateY(-8px); }
+```
+
+### 73.5. Vérifications
+
+Suite complète (17 fichiers `test_*.js`, hors `test_edge_functions.js` — cassé pour une raison préexistante
+sans rapport avec ce round) : verte — ces 4 correctifs touchent uniquement CSS/DOM/gestes de glissement,
+aucun fichier de test ne couvre ce périmètre (confirmé par recherche : aucun test ne référence
+`survolerCible`, `drop-hover`, `onglets-nav` ou `barre-undo`), d'où une vérification entièrement visuelle
+(Playwright), méthode habituelle de ce fichier pour ce type de changement :
+
+- §73.1 : reproduction du CSS d'impression réel + lignes Jalons/Notes ; étiquette vide confirmée, contenu
+  des notes intact.
+- §73.2 : reproduction du CSS RÉEL entier extrait de `Index.html` (pas une copie à la main, pour exclure
+  toute erreur de transcription) + coquille de page fidèle (`construireCoquille`) + grille de test ; mesuré
+  et capturé à l'écran en position initiale et après défilement — barre d'onglets et légende restent
+  pixel-pour-pixel immobiles, `#lienDeconnexion` reste visible et cliquable par-dessus, plus aucune fuite de
+  contenu de grille entre les deux.
+- §73.3 : reproduction isolée de `.survol-precis` dans une grille à hauteurs de ligne inégales ; rectangle de
+  sur-brillance mesuré identique à celui de la case cible.
+- §73.4 : mesuré dans la même reproduction que §73.2.
+
+## 74. Round du 16.09.2026 (suite, suite, suite) — croquis annoté : espaces roses, boutons undo, légende+imprimer, en-tête fixe étendu
+
+Lionel a renvoyé une capture d'écran annotée de la page Planning telle qu'elle ressortait du round §73, avec
+4 retours :
+
+> Réduire les espaces roses
+> Les boutons annuler/refaire passent dans la case vide à gauche des jours (Rouge)
+> Les chantiers se placent sur la même ligne que le bouton imprimer (trait jaune)
+> faire défiler la page après les notes
+
+Les 3 premiers sont des ajustements locaux. Le 4e est plus profond : il demande d'étendre le principe
+« fixé à l'écran » du §73.2 (jusqu'ici limité aux onglets + à la légende) à TOUT l'en-tête de la grille — nav
+de semaine, jours, ligne M/A, Jalons, Notes — pour que seules les lignes Personnel/Intervenants défilent
+réellement. Traité en dernier ci-dessous car il change l'architecture DOM dont dépendent les 3 autres.
+
+### 74.1. Pourquoi une seule grille ne pouvait pas suffire
+
+Rendre sticky des cellules de `.grille` pour qu'elles restent à l'écran pendant le défilement semblait la
+suite logique du §73.2 (qui l'avait déjà fait pour `.onglets-nav`/`.legende`). Ça ne fonctionne pas ici :
+`.scroller` (le conteneur qui permet de défiler horizontalement dans la semaine) porte
+`overflow-x: auto`. Une règle CSS ancienne (déjà dans CSS 2.1) force alors le calcul de `overflow-y` à
+`auto` dès que `overflow-x` ne vaut pas `visible` — même si `.scroller` ne défile en réalité JAMAIS
+verticalement (sa hauteur épouse toujours exactement celle de son contenu). Résultat : `.scroller` devient,
+sans le vouloir, le référentiel de `position: sticky` de tout ce qu'il contient — et comme lui-même ne défile
+jamais verticalement, un `top` posé sur un de ses enfants n'a plus aucun effet (rien à quoi se fixer). C'est
+un piège CSS connu (« sticky ne marche pas dans un conteneur à défilement horizontal ») sur lequel il valait
+mieux ne pas se contenter d'un essai/erreur.
+
+**Solution retenue** : scinder la grille CSS unique en deux grilles séparées, mêmes colonnes
+(`gridTemplateColumns`/`minWidth` calculés une seule fois en JS et appliqués aux deux, pour qu'elles restent
+pixel-alignées) :
+
+- `grilleEntete` — nav de semaine, jours, M/A (mode compact), Jalons, Notes. Enveloppée dans
+  `.entete-planning-figee` (`position: sticky`, sans overflow propre — donc bien référencée contre `#app`,
+  le vrai conteneur qui défile) puis `.entete-planning-scroll` (`overflow: hidden`, sans barre de défilement
+  visible ni interaction directe).
+- `grilleCorps` — Personnel/Intervenants, dans `.grille-cadre`/`.scroller` (inchangés, seuls à porter le
+  vrai défilement horizontal, à la souris/au doigt).
+
+Le défilement horizontal de `.scroller` est recopié en JS sur `.entete-planning-scroll` à chaque événement
+`scroll` (`scroller.addEventListener("scroll", () => enteteScroll.scrollLeft = scroller.scrollLeft)`) : les
+jours de l'en-tête glissent ainsi en phase avec les colonnes du corps, sans que l'en-tête ait besoin de sa
+propre barre de défilement. `.entete-planning-figee` étant sticky comme UN SEUL bloc (et non cellule par
+cellule), sa hauteur peut varier librement (plus ou moins de jalons/notes empilés une semaine que l'autre)
+sans le moindre calcul en JS — tout le contenu qu'elle contient reste simplement en flux normal à l'intérieur
+d'un bloc qui, lui, est fixé.
+
+`poser()`/`poserPleineLargeur()` (les 2 fonctions internes de `construireGrille` qui placent chaque cellule
+dans la grille) sont désormais produites par une fabrique (`poserDans(grilleXxx)`) et RÉASSIGNÉES en cours de
+fonction : elles visent `grilleEntete` du début jusqu'à la fin de la ligne Notes, puis `grilleCorps` à partir
+de `ligneSection("personnel", …)` — `row` repart à 1 à ce même point, propre à la 2e grille. Comme
+`ligneSection`/`ligneGroupePersonnesCompact` les référencent par fermeture (closure), elles utilisent la
+valeur en vigueur au moment de leur APPEL (après réassignation), pas de leur définition.
+
+Effet de bord utile, gratuit : le 3e espace rose du croquis (entre Notes et Personnel) disparaît par
+construction — `.entete-planning-scroll` (coins hauts arrondis, bord sans bord bas) et `.grille-cadre` (coins
+bas arrondis, bord sans bord haut) se touchent désormais pile, sans marge entre eux, plutôt que d'avoir dû
+ajuster un réglage d'espacement précis.
+
+### 74.2. Espaces roses réduits
+
+Trois endroits, tous absorbés en `padding` (jamais en `margin`) sur l'élément qui suit, pour la même raison
+qu'au §73.2 : une marge est transparente et laisse fuir le contenu défilé derrière un élément sticky, un
+padding fait partie de sa boîte peinte et le couvre.
+
+- `.onglets-nav { margin-bottom: 18px → 8px }` et `.page-scroll { padding-top: 14px → 6px }` (classe commune à
+  toutes les pages — resserre l'appli entière de façon cohérente, pas seulement Planning).
+- Le nouveau `#legendeBarre` (§74.3) absorbe le résidu (8+6=14px) en `padding-top: 14px` (`.legende` seule
+  portait `padding-top: 46px` avant ce round).
+- `.entete-planning-figee { padding-top: 6px }` absorbe l'espace résiduel entre `#legendeBarre` et la grille
+  (auparavant 16px de `margin-bottom` sur `.legende`).
+
+`top` de `#legendeBarre` et de `.entete-planning-figee` ne sont plus calculés à la main (l'exercice avait déjà
+dû être refait 2 fois de suite au §73.2/73.4) : `ajusterEnteteFixe()`, une nouvelle fonction, les mesure et
+les pose en JS à chaque rendu (`hauteur de .onglets-nav`, puis `+ hauteur de #legendeBarre`) — reste juste
+même si la légende change de hauteur (plus ou moins de chantiers, retour à la ligne sur écran étroit).
+Appelée en fin de `construireGrille()`/`construireLegende()`, au redimensionnement de la fenêtre (débounce
+120 ms), et à la bascule VERS l'onglet Planning (`RENDU_PAR_PAGE.planning`) — nécessaire parce que
+`#page-planning` passe à `display: none` sur les autres onglets, ce qui rendrait toute mesure prise pendant ce
+temps-là nulle et fausse tant qu'elle n'est pas reprise une fois la page revisible.
+
+### 74.3. Légende des chantiers et bouton Imprimer sur la même ligne
+
+`#legendeBarre` est le nouveau conteneur flex (`justify-content: space-between`) qui porte les deux : `.legende`
+(inchangée à l'intérieur, juste réduite à un simple enfant flex) à gauche, le bouton Imprimer à droite. Ce
+dernier ne dépendait d'aucune donnée de la grille (juste un clic vers `openPrintSheet`) — il n'a donc plus
+besoin d'être reconstruit à chaque `construireGrille()` comme avant (l'ancien `<div class="barre-imprimer">`
+jetable, recréé à chaque rendu) : il devient un bouton statique du gabarit HTML (`htmlPagePlanning`), câblé
+une seule fois (`cablerPagePlanning`).
+
+### 74.4. Boutons annuler/refaire dans la case vide à gauche des jours
+
+`.barre-undo` n'est plus une barre flottante en survol de la grille (`position: sticky` + `height: 0` +
+`transform`, cf. §73.4) : ses 2 boutons sont déplacés en JS dans la cellule `.th.coin` de la ligne des jours —
+celle, vide, que montrait la flèche rouge du croquis. Cette cellule porte déjà `position: sticky; left: 0`
+(comme la colonne des noms), donc les boutons restent visibles à gauche même en défilant horizontalement dans
+la semaine — vérifié : ils restent bien ancrés après un défilement horizontal de 300px dans la reproduction
+de vérification.
+
+Piège évité : `#barreUndo` est un élément unique, câblé une seule fois (`#btnDefaire`/`#btnRefaire`,
+`cablerPagePlanning`) — le déplacer DANS `#racine` puis laisser le prochain rendu faire
+`racineEl.innerHTML = ""` l'aurait détruit avec le reste (et perdu ses écouteurs de clic) puisqu'il vit
+maintenant à l'intérieur du sous-arbre vidé à chaque rendu. `construireGrille()` le sort donc d'abord (vers
+`document.body`, un aller-retour synchrone invisible) avant de vider `#racine`, pour le replacer ensuite dans
+la cellule fraîchement reconstruite — vérifié par 2 reconstructions successives dans la reproduction, boutons
+toujours présents et cliquables à la fin.
+
+### 74.5. `trouverScroller()` — le panoramique/défilement auto pendant un glissé de jalon/note
+
+Effet de bord de la scission en 2 grilles (§74.1) repéré en relisant tout le code de glissement plutôt qu'en
+le découvrant en prod : plusieurs endroits retrouvent le conteneur qui défile horizontalement via
+`el.closest(".scroller")` pour faire défiler automatiquement quand on approche du bord de l'écran pendant un
+glissé (déplacement d'une bulle, sélection d'une plage à la souris). Une bulle ou une case de la ligne Jalons
+ou Notes vit maintenant dans `.entete-planning-scroll`, PAS dans `.scroller` — ce lookup n'y trouvait donc
+plus rien pour ces 2 lignes précises (sans planter, grâce aux `if (scroller)` déjà présents partout, mais le
+panoramique/défilement auto restait silencieusement sans effet). Remplacé par `trouverScroller(el)`, qui
+redirige systématiquement vers le VRAI `.scroller` quand l'ancêtre trouvé est `.entete-planning-scroll` (lui
+appliquer un défilement directement l'aurait désynchronisé du corps, son `scrollLeft` n'étant qu'un miroir,
+cf. §74.1) — le mirroring existant se charge ensuite de répercuter le mouvement sur l'en-tête.
+
+### 74.6. Vérifications
+
+Suite complète (17 fichiers `test_*.js`, hors `test_edge_functions.js`, préexistant, sans rapport) : verte —
+vérifié aussi `node --check` sur le `<script>` extrait et l'équilibre des accolades CSS (477=477) et JS
+(1690=1690) après coup, changement d'une taille inhabituelle pour ce fichier. Vérification visuelle
+(Playwright, CSS RÉEL extrait d'`Index.html`, reproduction fidèle de la structure DOM produite par
+`construireGrille()` avec Jalons à 1 piste et Notes à 2 pistes pour couvrir le cas d'une hauteur variable) :
+
+- Légende + Imprimer bien sur une seule ligne, espaces resserrés entre onglets/légende/nav de semaine.
+- Boutons annuler/refaire dans la case coin, ancrés à gauche même après défilement horizontal.
+- Défilement vertical de 900px : onglets, légende+imprimer, nav de semaine, jours, Jalons et Notes restent
+  parfaitement immobiles à l'écran ; seules les lignes Personnel/Intervenants défilent dessous, aucune fuite
+  visible à la jonction.
+- Défilement horizontal de 300px dans le corps : les colonnes de jours de l'en-tête suivent exactement les
+  colonnes de tâches du corps (`enteteScroll.scrollLeft === scroller.scrollLeft` à chaque instant, mesuré).
+- 2 reconstructions successives de la grille (simulant des changements de données consécutifs) : boutons
+  annuler/refaire toujours présents et cliquables, aucune erreur JS console.
+
+## 75. Round du 16.09.2026 (suite, suite, suite, encore) — nettoyage CSS suite à une relecture externe
+
+Une relecture externe du fichier (pas un retour de Lionel sur l'usage de l'appli, mais une revue de code)
+a signalé 4 points. Vérification faite avant toute action, puisque le point le plus grave contredisait ce
+qui avait déjà été validé (accolades CSS/JS équilibrées, `node --check` propre, balises fermées) :
+
+- **« Fichier tronqué »** — FAUX pour `Index.html` du dépôt (celui livré/synchronisé) : dernière ligne
+  `</html>`, `</body>`/`</html>` présents une fois chacun, `<style>`/`</style>` 2 fois chacun (une seconde
+  petite feuille existe ailleurs dans le fichier, rien d'anormal), `node --check` du `<script>` extrait
+  toujours vert. Le fichier que la relecture a examiné (nommé "Index (7).html" — une convention de nom de
+  téléchargement de navigateur pour une 7e copie) est probablement un téléchargement local incomplet ou
+  périmé, distinct de ce dépôt.
+- **« Variables dark-mode déclarées deux fois »** — partiellement fondé, mais pas pour la raison invoquée.
+  Les 2 sélecteurs (`@media(prefers-color-scheme:dark) :root:not([data-theme="light"])` et
+  `:root[data-theme="dark"]`) ne sont pas une simple duplication à fusionner en temps normal : ils couvrent 2
+  cas différents d'un système de thème à 3 états (suivre le système, sauf choix explicite clair / forcer le
+  sombre quel que soit le système). Mais cette appli n'a JAMAIS posé l'attribut `data-theme` nulle part (pas
+  de bouton de bascule thème) : le 2e sélecteur était du code mort depuis l'origine. Supprimé (cf. commentaire
+  laissé dans le CSS) — seul le suivi de la préférence système reste, qui est le seul cas qui s'applique
+  réellement dans cette appli.
+- **Usage de `!important`** — 26 occurrences, concentrées dans les surcharges d'impression (`@media print`,
+  qui en ont structurellement besoin pour l'emporter de façon fiable sur les styles écran) et les états de
+  glisser-déposer (qui doivent l'emporter sur des styles inline posés par JS ailleurs). Laissé tel quel :
+  chacune est déjà justifiée par un commentaire ciblé au moment de son ajout, ce n'est pas une accumulation
+  accidentelle.
+- **`z-index` codés en dur** et **volume de commentaires** — remarques valables pour un refactor de
+  maintenabilité (variables CSS nommées pour les paliers de profondeur ; les commentaires "Round"
+  documentent l'historique réel des retours de Lionel et ont déjà évité de refaire 2 fois la même erreur
+  dans ce fichier, cf. §73.2/§74.2 — mais alourdissent effectivement la lecture). Laissés en l'état à la
+  demande de Lionel : chantier proposé, pas retenu pour l'instant.
+
+Vérifié après coup : accolades CSS toujours équilibrées (476=476, une paire en moins que le bloc supprimé),
+`node --check` du script extrait toujours vert, suite `test_*.js` toujours verte (hors
+`test_edge_functions.js`, préexistant).
+
+## 76. Round du 16.09.2026 (suite, suite, suite, encore, encore) — PWA : manifest.json + icônes
+
+Lionel propose la PWA (« Ajouter à l'écran d'accueil », icône propre, plein écran, sans passer par un
+store). Portée retenue après discussion : **manifest + icônes seulement**, pas de service worker à ce
+stade (pas d'installation automatique Android ni de résilience hors-ligne, mais rien à maintenir en plus —
+« Ajouter à l'écran d'accueil » fonctionne déjà très bien sur iOS et Android via le menu du navigateur avec
+juste ça).
+
+### 76.1. Hébergement — pas besoin de passer par GitHub Pages
+
+`MIGRATION-GITHUB-PLAN.md` visait GitHub Pages par défaut pour le frontend, mais un fichier `_redirects`
+(`/    /Index.html   200`) déjà présent dans le dépôt, plus une mention dans `BACKEND-CHANGELOG.md` §27.3
+(« poussé par Lionel lui-même depuis GitHub Desktop, puis reconstruit côté Netlify »), montrent que
+l'hébergement réel du frontend est déjà **Netlify** (déploiement automatique à chaque `git push`) — pas
+GitHub Pages. Question posée à Lionel : « via netlify, comment passer par github Pages ? ». Réponse : **pas
+nécessaire pour la PWA**. Une PWA a seulement besoin d'une vraie origine HTTPS stable pour que le manifest
+et les icônes soient pris en compte par le téléphone — Netlify remplit ce rôle exactement comme le ferait
+GitHub Pages, aucune des balises ajoutées ci-dessous ne dépend de l'hébergeur. Migrer vers GitHub Pages
+reste possible plus tard si Lionel le souhaite pour d'autres raisons (ex. tout centraliser sur GitHub), mais
+ce n'est plus un prérequis de ce chantier.
+
+### 76.2. Icône — motif généré, pas encore un vrai logo
+
+Lionel n'a pas de logo d'entreprise sous la main pour l'instant : icône générée par script (`Pillow`), pas
+dessinée à la main — motif simple d'un mur de briques (3 rangs en quinconce, blanc sur fond `--accent`
+`#1f4d8f`, la couleur d'accent déjà utilisée dans toute l'appli), lisible aussi bien en 512px qu'en 32px
+(vérifié visuellement aux deux tailles). Contenu maintenu dans la zone de sécurité centrale (~80%) utilisée
+par les icônes adaptatives Android, posées en `"purpose": "any maskable"` dans le manifest — le système peut
+découper l'icône dans la forme qu'il veut (cercle, carré arrondi...) sans couper le motif. À remplacer
+facilement le jour où Lionel a un vrai logo : il suffit de régénérer les fichiers `icons/icon-*.png` avec la
+même nomenclature, rien d'autre à toucher.
+
+Fichiers ajoutés dans `icons/` : `icon-512.png`, `icon-192.png` (icônes du manifest, écran d'accueil),
+`icon-180.png` (`apple-touch-icon`, taille recommandée pour iOS), `icon-32.png` (favicon d'onglet).
+
+### 76.3. `manifest.json` (nouveau fichier, racine du dépôt)
+
+```json
+{
+  "name": "Planning Chantiers",
+  "short_name": "Planning",
+  "description": "Planning des chantiers, du personnel et des sous-traitants.",
+  "lang": "fr",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#eef0ec",
+  "theme_color": "#1f4d8f",
+  "icons": [...]
+}
+```
+
+`start_url`/`scope` en chemin relatif (`.`) : résolus par rapport à l'URL du manifest lui-même (donc la
+racine du site, là où vit déjà `Index.html`) — fonctionne sans changement si le nom de domaine change un
+jour. `background_color` reprend `--bg` (fond clair de l'appli, visible un court instant à l'ouverture avant
+que le CSS ne soit appliqué) ; `theme_color` reprend `--accent` (barre de statut du téléphone en mode
+plein écran).
+
+### 76.4. `Index.html` — balises ajoutées dans `<head>`
+
+Le fichier n'avait jusqu'ici **aucune balise `<title>`** (confirmé par recherche avant d'ajouter — l'onglet
+du navigateur affichait donc l'URL brute) : ajoutée au passage, `<title>Planning Chantiers</title>`.
+Ajoutés aussi : `<link rel="manifest">`, `<meta name="theme-color">`, 3 tailles de favicon (`<link
+rel="icon">`), `<link rel="apple-touch-icon">`, et les meta `apple-mobile-web-app-*`/`mobile-web-app-capable`
+qui permettent à Safari iOS de traiter la page comme une appli plein écran (iOS ignore encore largement le
+manifest pour ces réglages-là, d'où ces balises historiques en plus, toujours nécessaires en 2026).
+
+### 76.5. Vérifications
+
+`node --check` du `<script>` extrait toujours vert ; comptage des balises `<html>`/`<head>`/`<body>`/
+`<style>`/`<script>` inchangé par rapport à `HEAD` avant ce round (seul le nombre de lignes change, +24,
+uniquement des ajouts dans `<head>`) — pas de régression structurelle. Servi en local (`python3 -m
+http.server`) et ouvert avec Playwright : `<title>` correct, `manifest.json` se charge et son JSON est
+valide avec les bonnes valeurs, favicon 32px chargé (200). Les erreurs réseau vues dans la console
+(polices Google Fonts, `supabase-js` en CDN) sont la limite réseau connue de cet environnement (cf.
+`MIGRATION-GITHUB-PLAN.md` §5), pas une régression de ce round — rien à voir avec le manifest ou les icônes,
+qui eux se chargent bien en local.
+
+**Pas encore vérifié en conditions réelles** (comme toujours pour tout ce qui touche à l'installation sur
+téléphone, cf. limite réseau de cet environnement) : Lionel doit tester « Ajouter à l'écran d'accueil »
+depuis son téléphone une fois ce round synchronisé sur Netlify, sur iOS (Safari > icône de partage >
+« Sur l'écran d'accueil ») et/ou Android (Chrome > menu ⋮ > « Installer l'application » ou « Ajouter à
+l'écran d'accueil » selon la version).

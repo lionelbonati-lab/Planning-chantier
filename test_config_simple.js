@@ -10,8 +10,9 @@
  * comme test_chargement.js le fait pour la section chargement :
  *
  *  - compterTachesParPersonne_ : reconstitue le "nombre de tâches en cours"
- *    par personne depuis des lignes taches/assignations brutes, en
- *    reproduisant la fusion "même tâche reconduite sur des jours ouvrés
+ *    par personne depuis des lignes `taches` brutes (chantier_id lu
+ *    directement dessus, round du 16.09.2026 — sql/0010_taches_chantier_id.sql),
+ *    en reproduisant la fusion "même tâche reconduite sur des jours ouvrés
  *    consécutifs ne compte qu'une fois" (cf. WebApp.gs,
  *    compterTachesParPersonne_, et Index.html, construireVueDepuisCache).
  *  - genererCleStatut_ (+ slugifierStatut_ dont elle dépend) : calcule la
@@ -77,27 +78,23 @@ assertEqual(sandbox.prochainJourOuvreIso_('2026-09-07'), '2026-09-08', 'lundi ->
   // Alice (id 100) : même tâche "Coffrage" Lundi+Mardi+Mercredi (07-09.09,
   // matin) -> 1 seule tâche "en cours". Jeudi (10.09) change de chantier ->
   // rupture, nouvelle tâche. Le Lundi précédent (31.08, avant "depuis") est
-  // ignoré.
+  // ignoré. Round du 16.09.2026 (sql/0010_taches_chantier_id.sql) :
+  // chantier_id se lit directement sur chaque ligne `taches`, plus besoin
+  // d'un tableau `assignations` séparé à croiser.
   const taches = [
-    { personne_id: 100, date: '2026-08-31', demi: 'matin', texte: 'Coffrage', statut_id: null, important: false }, // avant "depuis" : ignoré
-    { personne_id: 100, date: '2026-09-07', demi: 'matin', texte: 'Coffrage', statut_id: null, important: false },
-    { personne_id: 100, date: '2026-09-08', demi: 'matin', texte: 'Coffrage', statut_id: null, important: false },
-    { personne_id: 100, date: '2026-09-09', demi: 'matin', texte: 'Coffrage', statut_id: null, important: false },
-    { personne_id: 100, date: '2026-09-10', demi: 'matin', texte: 'Coffrage', statut_id: null, important: false }, // même texte mais chantier différent -> rupture
+    { personne_id: 100, date: '2026-08-31', demi: 'matin', texte: 'Coffrage', statut_id: null, important: false, chantier_id: 1 }, // avant "depuis" : ignoré
+    { personne_id: 100, date: '2026-09-07', demi: 'matin', texte: 'Coffrage', statut_id: null, important: false, chantier_id: 1 },
+    { personne_id: 100, date: '2026-09-08', demi: 'matin', texte: 'Coffrage', statut_id: null, important: false, chantier_id: 1 },
+    { personne_id: 100, date: '2026-09-09', demi: 'matin', texte: 'Coffrage', statut_id: null, important: false, chantier_id: 1 },
+    { personne_id: 100, date: '2026-09-10', demi: 'matin', texte: 'Coffrage', statut_id: null, important: false, chantier_id: 2 }, // même texte mais chantier différent -> rupture
     // Week-end : 2 tâches identiques Samedi/Dimanche, jamais fusionnées
     // (cf. §2 du plan — case isolée, contrairement aux jours ouvrés).
-    { personne_id: 100, date: '2026-09-12', demi: 'matin', texte: 'Astreinte', statut_id: null, important: false },
-    { personne_id: 100, date: '2026-09-13', demi: 'matin', texte: 'Astreinte', statut_id: null, important: false },
+    { personne_id: 100, date: '2026-09-12', demi: 'matin', texte: 'Astreinte', statut_id: null, important: false, chantier_id: null },
+    { personne_id: 100, date: '2026-09-13', demi: 'matin', texte: 'Astreinte', statut_id: null, important: false, chantier_id: null },
     // Bob (id 200), aprem : tâche isolée.
-    { personne_id: 200, date: '2026-09-07', demi: 'aprem', texte: 'Nettoyage', statut_id: 5, important: true }
+    { personne_id: 200, date: '2026-09-07', demi: 'aprem', texte: 'Nettoyage', statut_id: 5, important: true, chantier_id: null }
   ];
-  const assignations = [
-    { personne_id: 100, date: '2026-09-07', demi: 'matin', chantier_id: 1 },
-    { personne_id: 100, date: '2026-09-08', demi: 'matin', chantier_id: 1 },
-    { personne_id: 100, date: '2026-09-09', demi: 'matin', chantier_id: 1 },
-    { personne_id: 100, date: '2026-09-10', demi: 'matin', chantier_id: 2 } // chantier différent -> pas de fusion avec les 3 précédentes
-  ];
-  const out = sandbox.compterTachesParPersonne_(taches, assignations, '2026-09-01');
+  const out = sandbox.compterTachesParPersonne_(taches, '2026-09-01');
   assertEqual(out['100'], 4, 'Alice : Lun-Mer fusionnées (1) + Jeu (chantier différent, 1) + Samedi (1) + Dimanche (jamais fusionné, 1) = 4');
   assertEqual(out['200'], 1, 'Bob : une seule tâche isolée');
 })();
@@ -105,17 +102,17 @@ assertEqual(sandbox.prochainJourOuvreIso_('2026-09-07'), '2026-09-08', 'lundi ->
   // depuisIso filtre bien le passé, y compris pour une personne qui n'a
   // plus rien après cette date (out ne doit même pas contenir sa clé si
   // aucune ligne ne passe le filtre).
-  const taches = [{ personne_id: 300, date: '2026-01-01', demi: 'matin', texte: 'Vieux chantier', statut_id: null, important: false }];
-  const out = sandbox.compterTachesParPersonne_(taches, [], '2026-09-01');
+  const taches = [{ personne_id: 300, date: '2026-01-01', demi: 'matin', texte: 'Vieux chantier', statut_id: null, important: false, chantier_id: null }];
+  const out = sandbox.compterTachesParPersonne_(taches, '2026-09-01');
   assertEqual(out['300'], undefined, 'personne sans aucune tâche >= depuisIso : absente du résultat (jamais 0 inventé)');
 })();
 (function () {
   // Rupture sur le statut seul (texte identique, statut différent).
   const taches = [
-    { personne_id: 400, date: '2026-09-07', demi: 'matin', texte: 'Pose', statut_id: 1, important: false },
-    { personne_id: 400, date: '2026-09-08', demi: 'matin', texte: 'Pose', statut_id: 2, important: false }
+    { personne_id: 400, date: '2026-09-07', demi: 'matin', texte: 'Pose', statut_id: 1, important: false, chantier_id: null },
+    { personne_id: 400, date: '2026-09-08', demi: 'matin', texte: 'Pose', statut_id: 2, important: false, chantier_id: null }
   ];
-  const out = sandbox.compterTachesParPersonne_(taches, [], '2026-09-01');
+  const out = sandbox.compterTachesParPersonne_(taches, '2026-09-01');
   assertEqual(out['400'], 2, 'même texte mais statut_id différent -> pas de fusion, 2 tâches');
 })();
 
