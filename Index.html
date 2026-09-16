@@ -1106,21 +1106,44 @@
   .impression-modal .cp-titre { font-size: 13px; }
   .print-doc { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px; font-size: 12px; }
   table.print-table { width: 100%; border-collapse: collapse; }
-  table.print-table th, table.print-table td { border: 1.4px solid var(--border-strong); padding: 5px 7px; font-size: 11px; vertical-align: top; }
+  table.print-table th, table.print-table td { border: 1px solid var(--border-strong); padding: 5px 7px; font-size: 11px; vertical-align: top; }
   /* Portage du mockup d'affinage des bordures (mockup-impression-bordures.html,
      rounds 1 à 13, validés par Lionel le 15.09.2026 — "super, passe à la
      mise en place sur l'appli") : cadre extérieur du tableau à 2px, contre
-     1.4px pour la grille intérieure. Écart repris de celui déjà éprouvé en
-     prod pour le pointillé matin/aprem plus bas (2px contre 1.4px, "a déjà
-     fait ses preuves" sur un vrai PDF) — un écart trop faible risquerait de
-     se faire arrondir au même pixel par le moteur d'impression sous
-     border-collapse, et la bordure fine l'emporterait quand même (déjà
-     rencontré sur ce fichier). Exclut les lignes spacer/spacer-section/
-     notes : pas de cadre extérieur à afficher sur une ligne qui doit rester
-     sans bordure ou sans trace de grille — même piège de "sélecteur plus
-     spécifique qui regagne silencieusement" que documenté plus bas sur
-     .print-spacer et .print-notes, d'où le ":not()" plutôt que de compter
-     sur la règle de base pour perdre d'elle-même. */
+     1px pour la grille intérieure (round du 16.09.2026 — voir juste
+     ci-dessous : à l'origine 1.4px, changé le jour même). Écart voulu assez
+     large pour ne pas se faire arrondir au même pixel par le moteur
+     d'impression sous border-collapse (la bordure fine l'emporterait quand
+     même — déjà rencontré sur ce fichier). Exclut les lignes spacer/
+     spacer-section/notes : pas de cadre extérieur à afficher sur une ligne
+     qui doit rester sans bordure ou sans trace de grille — même piège de
+     "sélecteur plus spécifique qui regagne silencieusement" que documenté
+     plus bas sur .print-spacer et .print-notes, d'où le ":not()" plutôt que
+     de compter sur la règle de base pour perdre d'elle-même.
+
+     round du 16.09.2026 — Lionel, sur un vrai PDF généré depuis le site en
+     ligne : "sur un zoom à 100% les bordures sont de tailles différentes".
+     Vérifié sur CE PDF précis (pas une capture d'écran, le fichier lui-même,
+     mesuré pixel par pixel) : la même bordure de grille, à la même position
+     logique (ex. la frontière Jeu17/Ven18), mesurait tantôt 2px, tantôt 3px
+     de large selon la ligne personne où elle tombait (Lionel/François :
+     2px — Mathis/Antoine : 3px), alors que le CSS est strictement
+     identique aux 4 endroits. Cause : 1.4px n'est pas un nombre entier de
+     pixels d'impression — le moteur (ici Skia/PDF, Chrome 152 côté Lionel)
+     doit arrondir cette largeur à chaque ligne, et le point d'arrondi
+     dépend de la position sous-pixel exacte de CETTE ligne dans la page
+     (qui dérive légèrement d'une ligne personne à l'autre selon la hauteur
+     cumulée du contenu au-dessus) — d'où un résultat qui varie alors que la
+     règle ne varie pas. Reproduit à l'identique avec une bordure 1.4px dans
+     un test isolé (4 lignes personne, même frontière verticale mesurée aux
+     mêmes 4 positions x sur chacune) : passer cette largeur à 1px (entier)
+     élimine la dérive dans ce test — les 4 lignes mesurent alors exactement
+     la même largeur en pixels d'impression, quelle que soit leur position
+     verticale. Répercuté partout où 1.4px servait de largeur de grille
+     (règle ci-dessus, pointillé matin/aprem, cadre des notes remplies plus
+     bas) : l'écart avec le cadre 2px reste net (toujours au-dessus du seuil
+     qui se ferait absorber par l'arrondi, cf. paragraphe précédent) tout en
+     gardant chaque largeur individuellement stable. */
   table.print-table thead tr:first-child th { border-top: 2px solid var(--border-strong); }
   table.print-table tbody tr:last-child td { border-bottom: 2px solid var(--border-strong); }
   table.print-table tr:not(.print-spacer):not(.print-spacer-section):not(.print-notes) th:first-child,
@@ -1251,7 +1274,11 @@
      round précédent, mais moins lisible que voulu — remis en noir
      (var(--border-strong), la même encre que tout le reste du tableau),
      seule la LARGEUR reste réduite (1px, contre 1.4px pour les autres
-     bordures) : c'est elle qui rend le trait "plus fin", pas sa couleur.
+     bordures à l'époque de ce round — la grille est passée à 1px aussi
+     depuis, cf. round du 16.09.2026 documenté plus haut ; paragraphe
+     conservé tel quel pour l'historique, cf. la suite de ce commentaire où
+     cette technique est de toute façon remplacée) : c'est elle qui rend le
+     trait "plus fin", pas sa couleur.
      Portage du mockup (rounds 11 et 13) — 2 bugs latents découverts en
      poussant plus loin l'affinage des bordures dans le mockup, tous deux
      déjà présents ici avec la technique ci-dessus ("2px transparent qui
@@ -1296,31 +1323,36 @@
      bordure dashed) pour dessiner ces points, seule différence entre cette
      règle et le fichier mockup (qui, lui, travaillait sur une grille de
      base à 1px, cf. son propre historique de rounds pour le détail complet
-     du diagnostic). */
+     du diagnostic).
+     Largeurs 1.4px → 1px (round du 16.09.2026, cf. le commentaire détaillé
+     sur la règle de base de la grille, plus haut) : même correctif que le
+     reste du fichier, pour la même raison — 1.4px n'étant pas un nombre
+     entier de pixels d'impression, ces largeurs subissaient la même dérive
+     d'arrondi (2px/3px selon la ligne) que la grille elle-même. */
   table.print-table .demi-aprem { position: relative; }
   table.print-table .demi-aprem::before {
-    content: ""; position: absolute; left: -1px; top: 2px; bottom: 2px; width: 1.4px;
+    content: ""; position: absolute; left: -1px; top: 2px; bottom: 2px; width: 1px;
     background-color: inherit;
   }
   table.print-table .demi-aprem::after {
-    content: ""; position: absolute; left: -1px; top: 3px; bottom: 3px; width: 1.4px;
+    content: ""; position: absolute; left: -1px; top: 3px; bottom: 3px; width: 1px;
     background-image: linear-gradient(var(--border-strong) 50%, transparent 50%);
-    background-size: 1.4px 2px;
+    background-size: 1px 2px;
     background-repeat: repeat-y;
   }
   /* Portage mockup (round 5) — même piège de spécificité que .print-spacer
      documenté plus haut : ".print-notes td" (1 classe + 1 type) était battu
      par la règle de base "table.print-table th, table.print-table td" (1
      classe + 2 types), qui gagnait donc silencieusement et affichait un
-     cadre 1.4px plein sur chaque case vide de la ligne Notes malgré ce
-     "border:none" bien présent ici. Porté au même gabarit que le reste du
-     fichier (table.print-table tr.XXX td, 2 classes) pour gagner de façon
-     fiable, tout en restant sous les règles de cadre extérieur 2px
-     (première/dernière colonne) qui, elles, doivent continuer à gagner sur
-     cette ligne (cf. leur propre exclusion ":not(.print-notes)" plus
-     haut). */
+     cadre 1.4px (1px depuis le round du 16.09.2026, cf. plus haut) plein
+     sur chaque case vide de la ligne Notes malgré ce "border:none" bien
+     présent ici. Porté au même gabarit que le reste du fichier
+     (table.print-table tr.XXX td, 2 classes) pour gagner de façon fiable,
+     tout en restant sous les règles de cadre extérieur 2px (première/
+     dernière colonne) qui, elles, doivent continuer à gagner sur cette
+     ligne (cf. leur propre exclusion ":not(.print-notes)" plus haut). */
   table.print-table tr.print-notes td { border: none; padding: 0 7px; }
-  table.print-table tr.print-notes td.filled { border: 1.4px solid var(--border-strong); background: var(--note-bg); padding: 4px 7px; }
+  table.print-table tr.print-notes td.filled { border: 1px solid var(--border-strong); background: var(--note-bg); padding: 4px 7px; }
   .print-statut { display: inline-block; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; padding: 1px 6px; border-radius: 999px; margin-top: 3px; }
   .print-important { color: var(--important-ink); font-weight: 700; }
   .print-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
