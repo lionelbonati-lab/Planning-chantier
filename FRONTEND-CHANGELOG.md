@@ -5298,3 +5298,113 @@ genre de glisser tactile personnalisé. Si le problème persistait malgré tout 
 faudrait le modèle du téléphone et le navigateur utilisé (Chrome, Safari, Samsung Internet…) pour
 diagnostiquer plus loin, faute de pouvoir reproduire un vrai geste tactile matériel depuis cet
 environnement.
+
+## 80. Round du 16.09.2026 (encore un autre, suite, suite) — croquis annoté : 4 zones à désencombrer, repli Jalons/Notes, confirmation du figé haut+gauche
+
+Lionel a renvoyé une capture d'écran annotée de l'appli installée (PWA Windows), avec 4 rectangles rouges,
+une ligne verte et une ligne rose :
+
+> on peut encore gagner de la place en réduisant les zones ou j'ai fait des rectangles rouge.
+> avoir la possibilité de masquer jalons et note avec une petite flèche comme le personnel et les
+> intervenants (rond bleu)
+> tout ce qui est au dessus de la ligne verte doit être fixe
+> idem pour tout ce qui est à gauche de la ligne rose
+
+Les 4 rectangles rouges : la bande vide en haut contenant "Se déconnecter", l'espace entre les onglets et la
+légende, et les bandes vides sous JALONS et sous NOTES. La ligne verte coupe horizontalement juste au-dessus
+de la ligne JALONS ; la ligne rose coupe verticalement juste après la colonne des noms.
+
+### 80.1. Bouton "Se déconnecter" ramené dans la barre d'onglets (1er rectangle)
+
+`.lien-deconnexion` (position:fixed, top:10, cf. `afficherLienDeconnexion`) survolait l'appli en PERMANENCE
+depuis la connexion jusqu'à la déconnexion — `.onglets-nav` portait donc un `padding-top: 44px` fixe pour lui
+réserver de la place tout du long, même une fois la vraie coquille de navigation construite et déjà pourvue
+de sa propre barre. Ce padding constant, sur toute la durée de la session, était la vraie source de la bande
+vide repérée par Lionel.
+
+Le lien rejoint maintenant `.onglets-nav` elle-même, comme un second enfant flex à côté de la liste d'onglets
+(devenue `.onglets-liste`, seule à défiler horizontalement au doigt sur mobile) : nouveau bouton
+`.lien-deconnexion-nav`, câblé dans `construireCoquille()`. Une fois la coquille construite, la version
+flottante devient redondante et `construireCoquille()` la retire du DOM — elle ne reste donc plus visible
+qu'une fraction de seconde, entre la connexion réussie et le premier rendu réel (le temps que `demarrer()`
+charge les données), ou en cas d'échec de chargement (`erreurFatale`, où elle reste utile pour se
+déconnecter/changer de compte). `padding-top: 44px` disparaît en conséquence — plus besoin de réserver quoi
+que ce soit puisque le bouton occupe désormais une place normale dans le flux.
+
+### 80.2. Espacement resserré entre onglets et légende (2e rectangle)
+
+Même resserrement qu'au §74.2, un cran de plus : `.onglets-nav { margin-bottom: 8px → 4px }` et
+`.legende-barre { padding-top: 14px → 8px }`. Absorbé en `padding` (jamais en `margin`), toujours pour la
+même raison qu'aux §73.2/74.2 : un padding fait partie de la boîte peinte d'un élément sticky et la couvre,
+une marge est transparente et laisserait le contenu défilé réapparaître dans cette bande.
+
+### 80.3. La vraie cause de la bande vide sous Jalons/Notes (3e et 4e rectangles)
+
+Avant de corriger quoi que ce soit, vérifié — plutôt que supposé — l'hypothèse la plus probable a priori
+(une 2e piste fantôme dans `assignerPistes`, causée par des jalons des semaines voisines qui fuiraient dans
+le calcul). Récupéré les vraies données de la semaine du croquis (14–18 sept. 2026) depuis Supabase, puis
+rejoué exactement le même calcul de fusion/pistes que l'appli (`itemPlage`/`assignerPistes`) dans un script
+Node isolé : résultat, une seule piste occupée (`nbPistes = 1`) — l'hypothèse de la piste fantôme est fausse,
+`fenetreDonnees()` ne charge de toute façon que la semaine affichée, jamais les semaines voisines.
+
+La vraie cause est architecturale : `.cell` (le fond de chaque case, un élément FRÈRE de la bulle qu'il
+héberge dans la grille, pas son parent — cf. `poser()`) porte un `min-height: 52px` commun à TOUS les types
+de case, dimensionné pour Personnel/Intervenants qui peuvent afficher jusqu'à 2 lignes de texte de tâche. Un
+jalon ou une note tient quasiment toujours sur une seule ligne (`.bulle-plage` porte `align-self: start`, pas
+d'étirement) : le fond `.cell` impose malgré tout 52px à toute la ligne de grille, et la bulle plus courte
+laisse le reste visible en dessous, vide.
+
+Corrigé en scopant un `min-height: 36px` à `.cell.cell-jalon, .cell.cell-note` uniquement — juste assez pour
+une bulle d'une ligne avec un peu de respiration, sans jamais brider une bulle sur 2 lignes si le texte
+déborde exceptionnellement (un `min-height` est un plancher, pas un plafond). `.cell-personne`
+(Personnel/Intervenants) garde ses 52px, inchangé.
+
+### 80.4. Flèche de repli pour Jalons et Notes
+
+Même principe que `replierSectionPersonnel`/`replierSectionIntervenants` (Personnel/Intervenants, rond bleu
+du croquis de Lionel) : nouvelles variables `replierJalons`/`replierNotes` (déplié par défaut, jamais
+persisté — reparties à `false` à chaque rechargement, comme les 2 autres), et le même bouton
+`.btn-section-toggle` (flèche qui pivote à -90° une fois repliée) réutilisé tel quel. Différence avec
+Personnel/Intervenants : Jalons/Notes n'ont pas de ligne d'en-tête séparée (`ligneSection`) — le bouton est
+donc posé directement dans le libellé de ligne existant (`.lbl.lbl-speciale`), qui passe de
+`flex-direction: column` à `row` pour que le libellé et la flèche partagent la même ligne plutôt que d'être
+empilés. Repliée, la ligne perd tout son contenu (`visibles = []`, `nbPistes` forcé à 1) et ne garde plus
+qu'une bande fine avec son étiquette.
+
+### 80.5. Confirmation du figé haut (ligne verte) et gauche (ligne rose)
+
+Ces deux comportements sont déjà en place depuis le §74 (grille scindée `grilleEntete`/`grilleCorps`,
+`.entete-planning-figee` sticky contre `#app` pour tout ce qui est au-dessus de Personnel/Intervenants ; et
+`position: sticky; left: 0` sur `.th.coin, .lbl, .lbl-speciale`, présent depuis bien avant, pour la colonne
+des noms) — aucun changement de code n'était nécessaire ici. Ce round revérifie seulement, en conditions
+proches du réel, que les changements 80.1–80.4 ci-dessus (déconnexion déplacée, espaces resserrés, hauteurs
+réduites, lignes repliables) ne les ont pas cassés.
+
+Vérification par Playwright, avec les vraies données Supabase de la semaine du croquis (personnes,
+chantiers, statuts, tâches, assignations, jalons, notes du 14 au 18 sept. 2026), `index.html` chargé tel
+quel et une session Supabase simulée localement (jeton dans `localStorage`, avant même le premier script de
+la page — le CDN jsDelivr qui sert `@supabase/supabase-js` étant bloqué dans ce bac à sable, sa copie a été
+récupérée depuis le registre npm et servie localement à la place, sans toucher `index.html`) :
+
+- Défilement vertical de `#app` : `.entete-planning-figee` (nav de semaine, jours, M/A, Jalons, Notes) reste
+  parfaitement immobile à l'écran une fois le point d'accroche sticky atteint ; seules les lignes
+  Personnel/Intervenants défilent dessous.
+- Défilement horizontal de `.scroller` (viewport volontairement étroit pour forcer un vrai débordement) :
+  la colonne des noms (`.lbl`) garde exactement le même `left` avant/après, pendant que les colonnes de
+  jours glissent dessous.
+- Repli/dépli de Jalons : la ligne se réduit à une bande fine avec sa flèche pivotée, Notes juste en dessous
+  n'est pas affectée.
+- Bouton "Se déconnecter" : présent une seule fois, dans la barre d'onglets ; la version flottante a bien
+  disparu du DOM.
+- Aucune erreur JS (console ou page) sur l'ensemble du scénario.
+
+### 80.6. Vérifications
+
+`node --check` du `<script>` extrait : vert. Suite `test_*.js` relancée intégralement : 18/19 verts,
+`test_edge_functions.js` en échec — préexistant et sans rapport (référence `joursOuvresDepuis`, supprimée du
+fichier depuis le retrait de « ajout lointain » au round D du 11.09.2026, jamais mis à jour depuis ; déjà
+signalé identiquement aux §74.6 et §79.4).
+
+**Pas encore confirmé par Lionel en conditions réelles** — les captures d'écran et mesures ci-dessus
+reproduisent fidèlement la semaine de son croquis avec les vraies données, mais restent depuis cet
+environnement plutôt que sur son PWA Windows installé. À revalider une fois synchronisé.

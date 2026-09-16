@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — barre du haut, version "pro"</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  /* Tokens repris tels quels d'index.html (:root, round du 16.09.2026) pour
+     un rendu fidèle — rien n'est inventé côté couleurs/typo. */
+  :root {
+    --bg: #eef0ec; --surface: #fbfaf7; --surface-2: #ffffff;
+    --ink: #1a2129; --ink-muted: #57616b; --ink-faint: #8b93a0;
+    --border: #d7dad2; --border-strong: #1a2129;
+    --accent: #1f4d8f; --accent-ink: #ffffff; --accent-soft: #e3ecf7;
+    --shadow: rgba(24, 33, 41, 0.16); --shadow-lg: rgba(15, 21, 27, 0.32);
+    --filisetti: #f8c8b5; --bine: #adcbef;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: 'Archivo', 'Helvetica Neue', Arial, sans-serif;
+    padding: 28px 20px 60px;
+  }
+  .page-titre { max-width: 1300px; margin: 0 auto 28px; }
+  .page-titre h1 { font-size: 19px; font-weight: 800; margin: 0 0 6px; }
+  .page-titre p { font-size: 13px; color: var(--ink-muted); line-height: 1.6; margin: 0; max-width: 74ch; }
+  .page-titre .rappel { font-size: 12px; color: var(--ink-faint); margin-top: 10px; font-style: italic; }
+
+  .bloc { max-width: 1300px; margin: 0 auto 40px; }
+  .bloc-label { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+  .bloc-label .num {
+    width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: var(--accent-ink);
+    display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800;
+    font-family: 'IBM Plex Mono', monospace; flex-shrink: 0;
+  }
+  .bloc-label h2 { font-size: 15px; font-weight: 800; margin: 0; }
+  .bloc-label .tag {
+    font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+    padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--ink-muted); border: 1px solid var(--border);
+  }
+  .bloc-note { font-size: 12.5px; color: var(--ink-muted); line-height: 1.6; margin: 6px 0 14px; max-width: 82ch; }
+  .bloc-note b { color: var(--ink); }
+
+  .cadre {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 0; overflow: hidden; box-shadow: 0 2px 10px var(--shadow);
+  }
+  .etat-actuel .cadre { opacity: .82; }
+  .apercu-grille {
+    display: grid; grid-template-columns: 116px repeat(4, 1fr); border-top: 1px solid var(--border);
+  }
+  .apercu-grille > div {
+    padding: 8px 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em;
+    color: var(--ink-muted); text-align: center; border-right: 1px solid var(--border); background: var(--surface-2);
+  }
+  .apercu-grille > div:first-child { text-align: left; }
+  .apercu-grille > div .j { display: block; font-size: 13px; color: var(--ink); margin-top: 2px; }
+  .apercu-legende {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    padding: 10px 20px; border-top: 1px solid var(--border);
+  }
+  .legende { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .legende .item { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink-muted); font-family: 'IBM Plex Mono', monospace; white-space: nowrap; }
+  .legende .swatch { width: 11px; height: 11px; border-radius: 3px; flex-shrink: 0; }
+  .legende .item.actif { color: var(--ink); font-weight: 700; }
+  .btn-imprimer {
+    font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; font-weight: 700; letter-spacing: .03em;
+    text-transform: uppercase; color: var(--ink-muted); background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 12px; cursor: pointer;
+  }
+
+  /* ================= état actuel ================= */
+  .barre-actuelle {
+    display: flex; align-items: center; gap: 10px; padding: 10px 12px 0 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .barre-actuelle .liste { display: flex; gap: 2px; overflow-x: auto; flex: 1 1 auto; min-width: 0; }
+  .onglet {
+    padding: 11px 16px; font-size: 12.5px; font-weight: 700; color: var(--ink-muted);
+    border: none; border-bottom: 2.5px solid transparent; background: none; cursor: pointer; white-space: nowrap;
+    font-family: inherit;
+  }
+  .onglet.actif { color: var(--accent); border-bottom-color: var(--accent); }
+  .onglet.secondaire { color: var(--ink-faint); font-weight: 600; }
+  .lien-deco-actuel {
+    flex-shrink: 0; font-size: 11.5px; font-weight: 600; color: var(--ink-faint);
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 7px;
+    padding: 5px 10px; margin: 0 0 4px 12px; cursor: pointer; font-family: inherit;
+  }
+
+  /* ================= option 1 : mêmes éléments, mieux dessinés ================= */
+  .barre-o1 {
+    display: flex; align-items: center; gap: 14px; padding: 8px 14px 8px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .barre-o1 .liste { display: flex; gap: 3px; overflow-x: auto; flex: 1 1 auto; min-width: 0; }
+  .onglet-pill {
+    padding: 7px 14px; font-size: 12.5px; font-weight: 700; color: var(--ink-muted);
+    border: none; border-radius: 8px; background: none; cursor: pointer; white-space: nowrap;
+    font-family: inherit; transition: background .12s, color .12s;
+  }
+  .onglet-pill:hover { background: var(--surface-2); color: var(--ink); }
+  .onglet-pill.actif { background: var(--accent-soft); color: var(--accent); }
+  .onglet-pill.secondaire { color: var(--ink-faint); font-weight: 600; }
+  .separateur-o1 { width: 1px; align-self: stretch; margin: 6px 0; background: var(--border); flex-shrink: 0; }
+  .lien-deco-o1 {
+    flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11.5px; font-weight: 600; color: var(--ink-muted);
+    background: none; border: none; padding: 6px 4px; cursor: pointer; font-family: inherit;
+  }
+  .lien-deco-o1:hover { color: var(--ink); }
+  .lien-deco-o1 svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+  /* ================= option 2 : identité + avatar ================= */
+  .barre-o2 {
+    display: flex; align-items: center; gap: 16px; padding: 9px 14px 9px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .marque {
+    display: flex; align-items: center; gap: 9px; flex-shrink: 0; padding-right: 14px;
+    border-right: 1px solid var(--border);
+  }
+  .marque .logo {
+    width: 30px; height: 30px; border-radius: 8px; background: var(--accent); flex-shrink: 0;
+    display: grid; place-items: center;
+  }
+  .marque .logo svg { width: 17px; height: 17px; }
+  .marque .nom { font-size: 13.5px; font-weight: 800; letter-spacing: -.01em; white-space: nowrap; }
+  .barre-o2 .liste { display: flex; gap: 3px; overflow-x: auto; flex: 1 1 auto; min-width: 0; }
+  .barre-o2 .droite { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .avatar {
+    width: 28px; height: 28px; border-radius: 50%; background: var(--accent-soft); color: var(--accent);
+    display: grid; place-items: center; font-size: 12px; font-weight: 800; font-family: 'IBM Plex Mono', monospace;
+    cursor: pointer; border: 1px solid var(--border); flex-shrink: 0;
+  }
+
+  .annot {
+    font-size: 11.5px; color: var(--accent); font-family: 'IBM Plex Mono', monospace; margin-top: 10px;
+    background: var(--accent-soft); border-radius: 8px; padding: 8px 12px; display: inline-block;
+  }
+  .liste-points { font-size: 12.5px; color: var(--ink-muted); line-height: 1.7; margin: 0 0 14px; padding-left: 20px; }
+  .liste-points li { margin-bottom: 3px; }
+  .liste-points b { color: var(--ink); }
+</style>
+</head>
+<body>
+
+  <div class="page-titre">
+    <h1>Mockup — la barre du haut, version "plus pro"</h1>
+    <p>Suite à ton retour (« retravailler un peu le visuel pour que ça fasse plus pro », captures du bandeau
+    Nolio à l'appui) : on se concentre ici sur la barre d'onglets, sans toucher au reste de l'appli
+    (planning, formulaires, etc.). Deux pistes, d'un simple resserrement à un vrai bandeau avec identité.
+    Rien n'est codé dans l'appli réelle — c'est pour choisir la direction avant d'y toucher.</p>
+    <p class="rappel">Grille simplifiée (juste l'en-tête + la ligne légende/imprimer) pour se concentrer sur
+    la barre du haut.</p>
+  </div>
+
+  <div class="bloc etat-actuel">
+    <div class="bloc-label"><span class="tag">Rappel</span><h2>État actuel</h2></div>
+    <div class="bloc-note">Les onglets, sobres mais un peu "nus" : aucun repère visuel de marque, l'onglet
+    actif se distingue juste par un trait sous le texte, le bouton déconnexion est un simple bloc gris qui
+    flotte à droite sans lien visuel avec le reste de la barre.</div>
+    <div class="cadre">
+      <div class="barre-actuelle">
+        <div class="liste">
+          <button class="onglet actif">Planning</button>
+          <button class="onglet">Jalons</button>
+          <button class="onglet">Personnel</button>
+          <button class="onglet">Intervenants</button>
+          <button class="onglet secondaire">Général</button>
+          <button class="onglet secondaire">Chantiers</button>
+          <button class="onglet secondaire">Statuts</button>
+          <button class="onglet secondaire">Fériés</button>
+          <button class="onglet secondaire">Entrée rapide</button>
+        </div>
+        <button class="lien-deco-actuel">Se déconnecter</button>
+      </div>
+      <div class="apercu-legende">
+        <div class="legende">
+          <span class="item actif"><span class="swatch" style="background:var(--filisetti)"></span>Filisetti</span>
+          <span class="item"><span class="swatch" style="background:var(--bine)"></span>BINE</span>
+        </div>
+        <button class="btn-imprimer">🖶 Imprimer</button>
+      </div>
+      <div class="apercu-grille">
+        <div></div>
+        <div>LUN<span class="j">14</span></div>
+        <div>MAR<span class="j">15</span></div>
+        <div>MER<span class="j">16</span></div>
+        <div>JEU<span class="j">17</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bloc">
+    <div class="bloc-label"><span class="num">1</span><h2>Option 1 — mêmes éléments, juste mieux dessinés</h2></div>
+    <div class="bloc-note">Changement discret, réversible en un instant : l'onglet actif devient une
+    <b>pastille pleine</b> (fond bleu clair, texte bleu) au lieu d'un simple trait — c'est exactement le
+    langage visuel du bandeau Nolio (onglets en pilules) — et les autres réagissent au survol. Le bouton
+    déconnexion perd son cadre gris et devient un lien discret avec une petite icône, séparé du reste par un
+    filet vertical plutôt que par un espace vide. Aucun nouvel élément, juste un dessin plus soigné de ce
+    qui existe déjà.</div>
+    <div class="cadre">
+      <div class="barre-o1">
+        <div class="liste">
+          <button class="onglet-pill actif">Planning</button>
+          <button class="onglet-pill">Jalons</button>
+          <button class="onglet-pill">Personnel</button>
+          <button class="onglet-pill">Intervenants</button>
+          <button class="onglet-pill secondaire">Général</button>
+          <button class="onglet-pill secondaire">Chantiers</button>
+          <button class="onglet-pill secondaire">Statuts</button>
+          <button class="onglet-pill secondaire">Fériés</button>
+          <button class="onglet-pill secondaire">Entrée rapide</button>
+        </div>
+        <div class="separateur-o1"></div>
+        <button class="lien-deco-o1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Se déconnecter
+        </button>
+      </div>
+      <div class="apercu-legende">
+        <div class="legende">
+          <span class="item actif"><span class="swatch" style="background:var(--filisetti)"></span>Filisetti</span>
+          <span class="item"><span class="swatch" style="background:var(--bine)"></span>BINE</span>
+        </div>
+        <button class="btn-imprimer">🖶 Imprimer</button>
+      </div>
+      <div class="apercu-grille">
+        <div></div>
+        <div>LUN<span class="j">14</span></div>
+        <div>MAR<span class="j">15</span></div>
+        <div>MER<span class="j">16</span></div>
+        <div>JEU<span class="j">17</span></div>
+      </div>
+    </div>
+    <div class="annot">↳ le plus rapide à mettre en place — une dizaine de règles CSS, aucune structure HTML ni logique JS à changer.</div>
+  </div>
+
+  <div class="bloc">
+    <div class="bloc-label"><span class="num">2</span><h2>Option 2 — un vrai bandeau, avec une identité</h2></div>
+    <div class="bloc-note">Reprend l'option 1 (onglets en pilules) et ajoute ce qui manque le plus pour que
+    la barre ressemble à un vrai bandeau d'appli plutôt qu'à une simple rangée d'onglets flottants : un
+    petit repère de marque à gauche (pictogramme + "Planning Chantiers"), séparé du reste par un filet, et à
+    droite un <b>avatar</b> avec ton initiale à la place du bouton texte — un clic dessus ouvrirait le menu
+    (déconnexion, et plus tard d'autres réglages de compte si besoin). C'est la structure la plus proche du
+    bandeau Nolio (logo + nav + profil à droite).</div>
+    <div class="cadre">
+      <div class="barre-o2">
+        <div class="marque">
+          <span class="logo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V9l7-5 7 5v12"/><path d="M9 21v-6h6v6"/></svg>
+          </span>
+          <span class="nom">Planning Chantiers</span>
+        </div>
+        <div class="liste">
+          <button class="onglet-pill actif">Planning</button>
+          <button class="onglet-pill">Jalons</button>
+          <button class="onglet-pill">Personnel</button>
+          <button class="onglet-pill">Intervenants</button>
+          <button class="onglet-pill secondaire">Général</button>
+          <button class="onglet-pill secondaire">Chantiers</button>
+          <button class="onglet-pill secondaire">Statuts</button>
+          <button class="onglet-pill secondaire">Fériés</button>
+          <button class="onglet-pill secondaire">Entrée rapide</button>
+        </div>
+        <div class="droite">
+          <span class="avatar" title="Lionel — cliquer pour se déconnecter">L</span>
+        </div>
+      </div>
+      <div class="apercu-legende">
+        <div class="legende">
+          <span class="item actif"><span class="swatch" style="background:var(--filisetti)"></span>Filisetti</span>
+          <span class="item"><span class="swatch" style="background:var(--bine)"></span>BINE</span>
+        </div>
+        <button class="btn-imprimer">🖶 Imprimer</button>
+      </div>
+      <div class="apercu-grille">
+        <div></div>
+        <div>LUN<span class="j">14</span></div>
+        <div>MAR<span class="j">15</span></div>
+        <div>MER<span class="j">16</span></div>
+        <div>JEU<span class="j">17</span></div>
+      </div>
+    </div>
+    <ul class="liste-points">
+      <li><b>Pictogramme</b> : un toit/maison simple (cohérent avec le métier), pas un vrai logo à créer — juste de quoi ancrer visuellement la marque, comme le "N" de Nolio.</li>
+      <li><b>Avatar</b> : initiale "L", fond bleu clair — si l'appli gère un jour plusieurs comptes, il affiche l'utilisateur connecté au lieu d'un bouton anonyme.</li>
+      <li>Sur mobile étroit, le pictogramme peut disparaître en premier (le nom seul suffit à ancrer la barre) — l'avatar et les onglets restent.</li>
+    </ul>
+    <div class="annot">↳ plus structurant : nouveau HTML dans construireCoquille() (marque + avatar), et un petit menu à ouvrir au clic sur l'avatar (juste "Se déconnecter" pour l'instant, mais la place est prise pour la suite).</div>
+  </div>
+
+</body>
+</html>

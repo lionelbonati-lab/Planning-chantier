@@ -172,6 +172,17 @@
     background: var(--accent); color: var(--accent-ink); font-weight: 600; font-size: 14px; cursor: pointer;
   }
   .login-card button:disabled { opacity: .6; cursor: default; }
+  /* Round du 16.09.2026 (encore un autre, suite, suite — §80) : cette
+     version FIXE de "Se déconnecter" ne sert plus qu'à la brève fenêtre
+     entre la connexion réussie et la construction de la vraie coquille
+     (construireCoquille) — pendant que demarrer() charge les données, ou si
+     ce chargement échoue (erreurFatale, qui reste utile pour se
+     déconnecter/changer de compte). Une fois la coquille construite, elle
+     rejoint la barre d'onglets elle-même (.lien-deconnexion-nav, cf. son
+     commentaire juste au-dessus de .onglets-nav) et cette version flottante
+     est retirée du DOM par construireCoquille — elle ne reste donc plus
+     jamais indéfiniment superposée à l'écran comme avant, d'où la
+     suppression du padding-top:44 qui la compensait sur .onglets-nav. */
   .lien-deconnexion {
     position: fixed; top: 10px; right: 12px; z-index: 50; font-size: 11.5px; color: var(--ink-faint);
     background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 4px 9px; cursor: pointer;
@@ -337,9 +348,15 @@
      ici laisserait le même genre de fuite de contenu défilé réapparaître
      dans cette bande. margin:0 (son rôle de séparation avec la grille en
      dessous est repris par .entete-planning-figee, cf. plus bas). */
+  /* padding-top réduit de 14 à 8 (round du 16.09.2026, encore un autre,
+     suite, suite — §80, 2e rectangle rouge du croquis) : même resserrement
+     que .onglets-nav ci-dessus, sans risque de "fuite" puisque c'est un
+     padding (couvert par le fond opaque de cette même barre), pas une
+     marge — cf. l'historique de ce fichier (FRONTEND-CHANGELOG §73.2/73.4)
+     pour la distinction qui compte ici. */
   .legende-barre {
     display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
-    margin: 0; padding-top: 14px;
+    margin: 0; padding-top: 8px;
     position: sticky; z-index: 39; background: var(--bg);
   }
   /* spécificité (3 classes) volontairement plus élevée que .semaine-titre.
@@ -497,6 +514,14 @@
   .lbl span { font-size: 10px; color: var(--ink-faint); font-family: 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: .04em; }
   .lbl-speciale { background: var(--surface); }
   .lbl-speciale b { color: var(--ink-muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+  /* §80 (round du 16.09.2026, encore un autre, suite, suite) — Lionel :
+     flèche de repli pour Jalons/Notes, comme Personnel/Intervenants
+     (.section-row-sticky/.btn-section-toggle, cf. leurs définitions plus
+     haut, réutilisées ici telles quelles). display:flex (au lieu du
+     flex-direction:column hérité de .lbl) : la flèche rejoint le libellé sur
+     UNE seule ligne plutôt que dessous — spécificité 2 classes (.lbl.lbl-speciale),
+     l'emporte sur le display:flex column de .lbl seul. */
+  .lbl-speciale { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 6px; }
   .th.coin, .lbl, .lbl-speciale { position: sticky; left: 0; z-index: 2; }
   .th.sem-frontiere, .cell.sem-frontiere, .lbl.sem-frontiere { border-left: 2px solid var(--border-strong); }
   .th-weekend { min-width: 46px; }
@@ -585,7 +610,23 @@
     min-height: 52px; padding: 6px; display: flex; flex-direction: column; gap: 5px;
     transition: box-shadow .12s, background .5s; cursor: pointer; touch-action: none;
   }
-  .cell.cell-jalon, .cell.cell-note { background: var(--surface); }
+  /* min-height réduit (round du 16.09.2026, encore un autre, suite, suite —
+     §80, 3e/4e rectangles rouges du croquis) : Lionel repère une bande quasi
+     vide sous les bulles JALONS/NOTES. Cause réelle, vérifiée en rejouant le
+     calcul de pistes (assignerPistes) sur les vraies données de la semaine
+     du croquis : une seule piste est occupée (nbPistes=1, pas un 2e créneau
+     fantôme) — la bande vide vient simplement du min-height:52px COMMUN à
+     .cell (pensé pour les cases Personnel/Intervenants, qui peuvent porter
+     jusqu'à 2 lignes de texte de tâche, cf. .b-txt plus bas), alors qu'un
+     jalon/une note tient quasiment toujours sur 1 seule ligne (align-self:
+     start sur .bulle-plage, cf. son commentaire) : le fond .cell force la
+     ligne de grille à 52px, la bulle plus courte laisse le reste visible en
+     dessous. 36px (au lieu de 52) : juste assez pour une bulle d'une ligne +
+     un peu de respiration, sans jamais BRIDER une bulle sur 2 lignes — un
+     min-height est un plancher, pas un plafond, la grille grandit encore
+     normalement si le texte déborde. Seuls .cell-jalon/.cell-note sont
+     concernés : .cell-personne (Personnel/Intervenants) garde ses 52px. */
+  .cell.cell-jalon, .cell.cell-note { background: var(--surface); min-height: 36px; }
   .cell.drop-hover { box-shadow: inset 0 0 0 2px var(--accent); background: var(--accent-soft); }
   /* selection-active/selection-add (round du 11.09.2026 — bug signalé par
      Lionel, vidéo à l'appui : « la sélection verte lors du glisser se
@@ -998,27 +1039,51 @@
      restent toujours à l'écran. » position:sticky top:0 + fond opaque : la
      barre reste désormais visible en permanence pendant le défilement de
      #app (seule zone qui défile réellement, cf. son commentaire plus haut),
-     au lieu de disparaître avec le reste de la page. padding-top:44 (au lieu
-     du padding-top sur .app-shell ci-dessus, retiré) : le fond opaque de la
-     barre doit lui-même couvrir toute la bande réservée à #lienDeconnexion
-     ("Se déconnecter", position:fixed, top:10, cf. .lien-deconnexion un peu
-     plus haut) — sans ça, cette bande (0 à 44px) restait un simple espace
-     vide, à travers lequel le contenu de la grille (lui NON fixe) redevenait
-     visible dès qu'on faisait défiler suffisamment, un comportement confus,
-     repéré lors de la vérification de ce correctif (Playwright, capture
-     d'écran). z-index:40 : au-dessus de la grille (bulles/cases, z-index
-     ≤ 6) mais SOUS #lienDeconnexion (z-index:50, doit rester cliquable) et
-     très en dessous des popups/modales (.voile-confirm z-index:95 et plus).
-     margin-bottom réduit de 18 à 8 (round du 16.09.2026, suite, encore —
-     Lionel : « réduire les espaces roses ») : cf. le commentaire de
-     .page-scroll, même logique — resserre la barre d'onglets et le début de
-     chaque page, absorbé plus bas par .legende-barre. */
+     au lieu de disparaître avec le reste de la page. z-index:40 : au-dessus
+     de la grille (bulles/cases, z-index ≤ 6) mais très en dessous des
+     popups/modales (.voile-confirm z-index:95 et plus). margin-bottom réduit
+     de 18 à 8 (round du 16.09.2026, suite, encore — Lionel : « réduire les
+     espaces roses ») : cf. le commentaire de .page-scroll, même logique —
+     resserre la barre d'onglets et le début de chaque page, absorbé plus bas
+     par .legende-barre.
+
+     Round du 16.09.2026 (encore un autre, suite, suite — §80, croquis
+     annoté, 1er rectangle rouge) — Lionel : « on peut encore gagner de la
+     place ». padding-top:44 a disparu : il ne servait qu'à réserver, en
+     PERMANENCE sur toute la hauteur de l'appli, la bande que le lien "Se
+     déconnecter" — alors en position:fixed, cf. l'ancien commentaire de
+     .lien-deconnexion — venait survoler par-dessus. Ce lien rejoint
+     maintenant la barre d'onglets elle-même (.onglets-liste ci-dessous pour
+     les onglets défilants + le nouveau bouton .lien-deconnexion-nav, cf.
+     construireCoquille) : plus besoin de lui réserver un espace séparé
+     puisqu'il occupe désormais une place normale dans le flux, comme
+     n'importe quel autre élément de la barre. .lien-deconnexion (fixed)
+     reste utilisée par afficherLienDeconnexion() pour la toute première
+     fraction de seconde après la connexion, le temps que demarrer() charge
+     les données et que construireCoquille() construise la vraie barre —
+     celle-ci retire alors le lien flottant devenu redondant (cf.
+     construireCoquille). display:flex + align-items:center (remplace
+     l'ancien display:flex simple, qui ne s'appliquait qu'aux onglets
+     eux-mêmes) : la barre contient maintenant 2 enfants côte à côte
+     (.onglets-liste qui défile seule au doigt sur mobile + le bouton
+     déconnexion, toujours visible, jamais emporté par ce défilement). */
   .onglets-nav {
-    display: flex; gap: 2px; overflow-x: auto; -webkit-overflow-scrolling: touch;
-    border-bottom: 1px solid var(--border); margin-bottom: 8px; flex-shrink: 0; padding-right: 12px;
-    padding-top: 44px;
+    display: flex; align-items: center; gap: 10px;
+    border-bottom: 1px solid var(--border); margin-bottom: 4px; flex-shrink: 0;
+    padding-top: 10px;
     position: sticky; top: 0; z-index: 40; background: var(--bg);
   }
+  .onglets-liste {
+    display: flex; gap: 2px; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    flex: 1 1 auto; min-width: 0;
+  }
+  .lien-deconnexion-nav {
+    flex-shrink: 0; font-size: 11.5px; font-weight: 600; color: var(--ink-faint);
+    background: var(--surface); border: 1px solid var(--border); border-radius: 7px;
+    padding: 5px 10px; margin-right: 12px; cursor: pointer; font-family: inherit;
+    transition: background .12s, border-color .12s, color .12s;
+  }
+  .lien-deconnexion-nav:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--ink); }
   .onglet {
     padding: 11px 16px; font-size: 12.5px; font-weight: 700; color: var(--ink-muted);
     border: none; border-bottom: 2.5px solid transparent; background: none; cursor: pointer;
@@ -2203,6 +2268,14 @@
   var deuxSemaines = false;
   var afficherWeekends = false;
   var replierSectionPersonnel = false, replierSectionIntervenants = false;
+  // §80 (round du 16.09.2026, encore un autre, suite, suite) — Lionel :
+  // « avoir la possibilité de masquer jalons et note avec une petite flèche
+  // comme le personnel et les intervenants ». Même principe que
+  // replierSectionPersonnel/Intervenants ci-dessus, mais pour les 2 lignes
+  // Jalons/Notes (cf. leur rendu dans construireGrille) — pas de session
+  // partagée, comme les 2 autres : repart à false (déplié) à chaque
+  // rechargement de page, jamais persisté.
+  var replierJalons = false, replierNotes = false;
   var bullesSelectionnees = {};
   var pressePapier = [];
   var pileUndo = [], pileRedo = [];
@@ -2242,15 +2315,18 @@
     app.innerHTML =
       '<div class="app-shell">' +
         '<nav class="onglets-nav" id="ongletsNav">' +
-          '<button type="button" class="onglet actif" data-page="planning">Planning</button>' +
-          '<button type="button" class="onglet" data-page="jalons">Jalons</button>' +
-          '<button type="button" class="onglet" data-page="personnel">Personnel</button>' +
-          '<button type="button" class="onglet" data-page="intervenants">Intervenants</button>' +
-          '<button type="button" class="onglet secondaire" data-page="general">Général</button>' +
-          '<button type="button" class="onglet secondaire" data-page="chantiers">Chantiers</button>' +
-          '<button type="button" class="onglet secondaire" data-page="statuts">Statuts</button>' +
-          '<button type="button" class="onglet secondaire" data-page="feries">Fériés</button>' +
-          '<button type="button" class="onglet secondaire" data-page="entree-rapide">Entrée rapide</button>' +
+          '<div class="onglets-liste">' +
+            '<button type="button" class="onglet actif" data-page="planning">Planning</button>' +
+            '<button type="button" class="onglet" data-page="jalons">Jalons</button>' +
+            '<button type="button" class="onglet" data-page="personnel">Personnel</button>' +
+            '<button type="button" class="onglet" data-page="intervenants">Intervenants</button>' +
+            '<button type="button" class="onglet secondaire" data-page="general">Général</button>' +
+            '<button type="button" class="onglet secondaire" data-page="chantiers">Chantiers</button>' +
+            '<button type="button" class="onglet secondaire" data-page="statuts">Statuts</button>' +
+            '<button type="button" class="onglet secondaire" data-page="feries">Fériés</button>' +
+            '<button type="button" class="onglet secondaire" data-page="entree-rapide">Entrée rapide</button>' +
+          '</div>' +
+          '<button type="button" class="lien-deconnexion-nav" id="lienDeconnexionNav">Se déconnecter</button>' +
         '</nav>' +
         '<div class="app-main">' +
           htmlPagePlanning() + htmlPageJalons() + htmlPageGeneral() + htmlPagePersonnel() + htmlPageIntervenants() +
@@ -2262,6 +2338,15 @@
     cablerPagePlanning();
     cablerPageEntreeRapide();
     cablerPageFeries();
+    // §80 : le lien flottant (position:fixed, cf. afficherLienDeconnexion) ne
+    // sert plus qu'à la fenêtre entre connexion et 1er rendu — la vraie
+    // coquille étant maintenant construite, il devient redondant avec le
+    // bouton juste posé dans la barre d'onglets ci-dessus.
+    var flottant = document.getElementById("lienDeconnexion");
+    if (flottant) flottant.remove();
+    document.getElementById("lienDeconnexionNav").addEventListener("click", function () {
+      sbClient.auth.signOut().then(function () { window.location.reload(); });
+    });
   }
 
   function htmlPagePlanning() {
@@ -6700,8 +6785,19 @@
 
     [["jalon", JALONS, "Jalons"], ["note", NOTES, "Notes"]].forEach(function (spec) {
       var kind = spec[0], liste = spec[1], label = spec[2];
-      var visibles = liste.filter(function (it) { return giVisible(it.giDebut, n); });
-      var nbPistes = Math.max(1, assignerPistes(visibles));
+      // repliee (round du 16.09.2026, encore un autre, suite, suite — §80) :
+      // Lionel, « avoir la possibilité de masquer jalons et note avec une
+      // petite flèche comme le personnel et les intervenants ». Même bouton
+      // (.btn-section-toggle, cf. ligneSection un peu plus bas pour
+      // Personnel/Intervenants) posé directement dans le libellé de ligne
+      // (pas de ligne d'en-tête séparée ici, contrairement à ces 2
+      // sections) : replié, la ligne perd tout son contenu (visibles=[],
+      // nbPistes=1) et ne garde que son étiquette sur une seule ligne fine —
+      // exactement le même principe de repli, adapté à une ligne qui n'a
+      // jamais eu de ligne d'en-tête à elle.
+      var repliee = kind === "jalon" ? replierJalons : replierNotes;
+      var visibles = repliee ? [] : liste.filter(function (it) { return giVisible(it.giDebut, n); });
+      var nbPistes = repliee ? 1 : Math.max(1, assignerPistes(visibles));
       // Titre de ligne ("Jalons"/"Notes") : retiré le 02.09.2026 (retour de
       // Lionel : "on peut réduire les hauteurs de ligne en enlevant... les
       // titres notes et jalons. on a déjà une légende"), puis REMIS le
@@ -6711,10 +6807,15 @@
       // premier écran). `title` conservé en plus pour le survol.
       var lbl = document.createElement("div");
       lbl.className = "lbl lbl-speciale";
-      lbl.innerHTML = "<b>" + esc(label) + "</b>";
+      lbl.innerHTML = "<b>" + esc(label) + "</b>" +
+        '<button type="button" class="btn-section-toggle' + (repliee ? " replie" : "") + '" data-repli-ligne="' + kind + '" aria-label="Masquer/afficher la ligne ' + esc(label) + '">▾</button>';
       lbl.title = label;
       poser(lbl, 1, row, null, nbPistes);
-      for (var g = 0; g < n; g++) {
+      lbl.querySelector(".btn-section-toggle").addEventListener("click", function () {
+        if (kind === "jalon") replierJalons = !replierJalons; else replierNotes = !replierNotes;
+        render(false);
+      });
+      for (var g = 0; g < (repliee ? 0 : n); g++) {
         // Jalons et notes restent des objets à la JOURNÉE (ligne 4 et 5 de la
         // feuille, jamais scindées en demi-journées) : en compact leur case
         // couvre donc les 2 colonnes du jour.
