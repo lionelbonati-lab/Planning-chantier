@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — sous-menu façon Sheets</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  /* Tokens + composants repris tels quels d'index.html pour un rendu fidèle
+     (.interrupteur, .ligne-desactivee, .semaine-titre/.btn-titre…). */
+  :root {
+    --bg: #eef0ec; --surface: #fbfaf7; --surface-2: #ffffff;
+    --ink: #1a2129; --ink-muted: #57616b; --ink-faint: #8b93a0;
+    --border: #d7dad2; --border-strong: #1a2129;
+    --accent: #1f4d8f; --accent-ink: #ffffff; --accent-soft: #e3ecf7;
+    --shadow: rgba(24, 33, 41, 0.16); --shadow-lg: rgba(15, 21, 27, 0.32);
+    --filisetti: #f8c8b5; --bine: #adcbef;
+    --jalon-bg: #d7cdf0; --note-bg: #f7e6ab;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: 'Archivo', 'Helvetica Neue', Arial, sans-serif;
+    padding: 28px 20px 60px;
+  }
+  .page-titre { max-width: 1300px; margin: 0 auto 28px; }
+  .page-titre h1 { font-size: 19px; font-weight: 800; margin: 0 0 6px; }
+  .page-titre p { font-size: 13px; color: var(--ink-muted); line-height: 1.6; margin: 0; max-width: 76ch; }
+  .page-titre .rappel { font-size: 12px; color: var(--ink-faint); margin-top: 10px; font-style: italic; }
+
+  .bloc { max-width: 1300px; margin: 0 auto 34px; }
+  .bloc-label { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+  .bloc-label .tag {
+    font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+    padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--ink-muted); border: 1px solid var(--border);
+  }
+  .bloc-label h2 { font-size: 15px; font-weight: 800; margin: 0; }
+  .bloc-note { font-size: 12.5px; color: var(--ink-muted); line-height: 1.6; margin: 6px 0 14px; max-width: 84ch; }
+  .bloc-note b { color: var(--ink); }
+  .liste-points { font-size: 12.5px; color: var(--ink-muted); line-height: 1.7; margin: 10px 0 0; padding-left: 20px; }
+  .liste-points li { margin-bottom: 4px; }
+  .liste-points b { color: var(--ink); }
+
+  .cadre {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 0; overflow: hidden; box-shadow: 0 2px 10px var(--shadow);
+  }
+
+  /* ---- barre d'onglets (rappel, inchangée depuis §81) ---- */
+  .onglets-nav { display: flex; align-items: center; gap: 10px; padding: 8px 14px 8px 18px; border-bottom: 1px solid var(--border); }
+  .marque-nav { display: flex; align-items: center; flex-shrink: 0; padding-right: 10px; border-right: 1px solid var(--border); }
+  .marque-nav .logo { width: 26px; height: 26px; border-radius: 7px; background: var(--accent); display: grid; place-items: center; flex-shrink: 0; }
+  .marque-nav .logo svg { width: 15px; height: 15px; }
+  .onglets-liste { display: flex; gap: 3px; overflow-x: auto; flex: 1 1 auto; min-width: 0; }
+  .onglet-pill {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 13px; font-size: 12px; font-weight: 700; color: var(--ink-muted);
+    border: none; border-radius: 8px; background: none; cursor: pointer; white-space: nowrap; font-family: inherit;
+  }
+  .onglet-pill svg { width: 14px; height: 14px; flex-shrink: 0; }
+  .onglet-pill.actif { background: var(--accent-soft); color: var(--accent); }
+  .onglet-pill.secondaire { color: var(--ink-faint); font-weight: 600; }
+  .avatar-nav {
+    flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%; background: var(--accent-soft); color: var(--accent);
+    display: grid; place-items: center; font-size: 11px; font-weight: 800; font-family: 'IBM Plex Mono', monospace;
+    border: 1px solid var(--border);
+  }
+
+  /* ---- nouveau sous-menu façon Sheets ---- */
+  .toolbar-sheets {
+    display: flex; align-items: center; gap: 2px; padding: 5px 14px; border-bottom: 1px solid var(--border);
+    background: var(--surface-2); flex-wrap: wrap;
+  }
+  .toolbar-groupe { display: flex; align-items: center; gap: 2px; }
+  .toolbar-separateur { width: 1px; height: 22px; background: var(--border); margin: 0 8px; flex-shrink: 0; }
+  .toolbar-btn {
+    width: 30px; height: 30px; display: grid; place-items: center; border-radius: 7px; border: none;
+    background: none; color: var(--ink-muted); cursor: pointer; transition: background .12s, color .12s; flex-shrink: 0;
+    font-family: inherit;
+  }
+  .toolbar-btn:hover:not(:disabled) { background: var(--bg); color: var(--ink); }
+  .toolbar-btn:disabled { opacity: .32; cursor: default; }
+  .toolbar-btn svg { width: 16px; height: 16px; }
+
+  /* Sélecteur "chantier par défaut" — remplace les items cliquables de
+     l'ancienne .legende. Un swatch + le nom + un caret, ouverture d'un petit
+     panneau listant les chantiers (même swatches que la grille réelle). */
+  .select-chantier { position: relative; flex-shrink: 0; }
+  .select-chantier-btn {
+    display: flex; align-items: center; gap: 7px; padding: 5px 9px 5px 7px; border-radius: 7px;
+    border: 1px solid transparent; background: none; cursor: pointer; font: inherit; font-size: 12px;
+    font-weight: 600; color: var(--ink); transition: background .12s, border-color .12s;
+  }
+  .select-chantier-btn:hover, .select-chantier.ouvert .select-chantier-btn { background: var(--bg); border-color: var(--border); }
+  .select-chantier-btn .swatch { width: 12px; height: 12px; border-radius: 4px; flex-shrink: 0; }
+  .select-chantier-btn .caret { color: var(--ink-faint); font-size: 9px; margin-left: 1px; }
+  .select-chantier-panneau {
+    position: absolute; top: calc(100% + 4px); left: 0; z-index: 10; min-width: 168px;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: 0 6px 20px var(--shadow-lg); padding: 5px; display: none;
+  }
+  .select-chantier.ouvert .select-chantier-panneau { display: block; }
+  .select-chantier-item {
+    display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 8px; border-radius: 7px;
+    border: none; background: none; cursor: pointer; font: inherit; font-size: 12.5px; color: var(--ink); text-align: left;
+  }
+  .select-chantier-item:hover { background: var(--accent-soft); }
+  .select-chantier-item .swatch { width: 12px; height: 12px; border-radius: 4px; flex-shrink: 0; }
+  .select-chantier-item.actif { font-weight: 700; color: var(--accent); }
+  .select-chantier-item .coche { margin-left: auto; color: var(--accent); font-size: 12px; visibility: hidden; }
+  .select-chantier-item.actif .coche { visibility: visible; }
+
+  /* Icônes de masquage — Lionel préfère des icônes aux interrupteurs (round
+     suivant). Une icône DIFFÉRENTE par sous-groupe (plutôt que 4× la même
+     icône œil, qui obligerait à survoler chacune pour savoir laquelle est
+     laquelle) : reconnaissables sans hésitation, comme le reste de cette
+     barre (Annuler/Refaire/Imprimer sont déjà chacune leur propre icône).
+     .actif teinte la case du fond DÉJÀ associé à cette ligne dans la grille
+     (--jalon-bg violet, --note-bg jaune) — Personnel/Intervenants n'ayant
+     pas de teinte propre, ils reprennent l'accent bleu du reste de la barre
+     (même logique que l'onglet actif). .desactive reprend le même principe
+     que .ligne-desactivee (opacité réduite) demandé par Lionel — pas de
+     gris plat inventé, juste l'icône qui s'estompe. */
+  .toolbar-toggle {
+    width: 30px; height: 30px; display: grid; place-items: center; border-radius: 7px; border: none;
+    background: none; color: var(--ink-muted); cursor: pointer; flex-shrink: 0; font-family: inherit;
+    transition: background .12s, color .12s, opacity .12s;
+  }
+  .toolbar-toggle svg { width: 16px; height: 16px; }
+  .toolbar-toggle:hover { background: var(--bg); }
+  .toolbar-toggle.actif[data-cible="jalon"] { background: var(--jalon-bg); color: #4a3d78; }
+  .toolbar-toggle.actif[data-cible="note"] { background: var(--note-bg); color: #7a5d00; }
+  .toolbar-toggle.actif[data-cible="personnel"], .toolbar-toggle.actif[data-cible="intervenants"] { background: var(--accent-soft); color: var(--accent); }
+  .toolbar-toggle.desactive { opacity: .5; background: none; color: var(--ink-faint); }
+
+  /* ---- grille (aperçu) ----
+     La légende des chantiers (Filisetti/BINE) qui vivait ici a été retirée :
+     Lionel l'affichera ailleurs (§82bis, "les légende des chantiers doivent
+     disparaitre, nous les afficheront ailleurs") — plus de doublon avec le
+     sélecteur "chantier par défaut" ci-dessus, qui porte déjà les swatches. */
+  .apercu-grille { display: grid; grid-template-columns: 116px repeat(4, 1fr); border-top: 1px solid var(--border); }
+  .apercu-grille > div {
+    padding: 8px 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em;
+    color: var(--ink-muted); text-align: center; border-right: 1px solid var(--border); background: var(--surface-2);
+  }
+  .apercu-grille > div:first-child { text-align: left; }
+  .apercu-grille > div .j { display: block; font-size: 13px; color: var(--ink); margin-top: 2px; }
+  .ligne-jalons {
+    display: grid; grid-template-columns: 116px 1fr; border-top: 1px solid var(--border); align-items: stretch;
+  }
+  .ligne-jalons .lbl { padding: 9px 11px; font-size: 12.5px; font-weight: 700; background: var(--surface); }
+  .ligne-jalons .contenu { background: var(--surface); border-left: 1px solid var(--border); padding: 8px 10px; font-size: 12px; color: var(--ink-faint); font-style: italic; }
+  .ligne-jalons.repliee { opacity: .5; }
+  .ligne-jalons.repliee .lbl { text-decoration: line-through; text-decoration-color: var(--ink-faint); }
+
+  .annot {
+    font-size: 11.5px; color: var(--accent); font-family: 'IBM Plex Mono', monospace; margin-top: 10px;
+    background: var(--accent-soft); border-radius: 8px; padding: 8px 12px; display: inline-block;
+  }
+</style>
+</head>
+<body>
+
+  <div class="page-titre">
+    <h1>Mockup — un sous-menu façon Google Sheets</h1>
+    <p>Suite à ton idée : regrouper Annuler/Refaire, Imprimer, le chantier par défaut et les 4 icônes
+    Jalons/Notes/Personnel/Intervenants dans une seule barre d'outils dense, sous les onglets — comme la
+    barre d'icônes de Sheets, sous sa barre de menus. Chaque icône est différente (pas 4× la même icône
+    "œil") pour rester reconnaissable sans avoir à survoler. Une section masquée prend le même traitement
+    "désactivée" (atténuée, teinte estompée) que les lignes inactives de Personnel/Intervenants — pas un
+    style grisé inventé pour l'occasion. La légende des chantiers a été retirée de cette barre : elle sera
+    affichée ailleurs.</p>
+    <p class="rappel">Essaie de cliquer : le sélecteur de chantier s'ouvre, les 4 icônes et l'aperçu
+    Jalons en dessous réagissent vraiment.</p>
+  </div>
+
+  <div class="bloc">
+    <div class="bloc-label"><span class="tag">Proposition</span><h2>Barre d'outils sous les onglets</h2></div>
+    <div class="cadre">
+      <div class="onglets-nav">
+        <div class="marque-nav">
+          <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="8" height="6" rx="1"/><rect x="13" y="4" width="8" height="6" rx="1"/><rect x="3" y="14" width="5" height="6" rx="1"/><rect x="10" y="14" width="8" height="6" rx="1"/></svg></span>
+        </div>
+        <div class="onglets-liste">
+          <button class="onglet-pill actif">
+            <svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="4" width="15" height="13" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 8h15" stroke="currentColor" stroke-width="1.5"/><path d="M6 2.5v3M14 2.5v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            Planning
+          </button>
+          <button class="onglet-pill">
+            <svg viewBox="0 0 20 20" fill="none"><path d="M5 2v16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M5 3h9.5l-2.2 3.5L14.5 10H5" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+            Jalons
+          </button>
+          <button class="onglet-pill">
+            <svg viewBox="0 0 20 20" fill="none"><circle cx="7" cy="6.2" r="2.6" stroke="currentColor" stroke-width="1.5"/><path d="M2.3 16c0-2.8 2.1-4.7 4.7-4.7s4.7 1.9 4.7 4.7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="14.6" cy="6.7" r="2.1" stroke="currentColor" stroke-width="1.4"/><path d="M12.7 11.7c2-.5 3.9.5 5 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+            Personnel
+          </button>
+          <button class="onglet-pill">
+            <svg viewBox="0 0 20 20" fill="none"><path d="M3 15h14a1 1 0 0 0 1-1v-.5a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v.5a1 1 0 0 0 1 1z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M4.5 12.5C4.5 8 7.5 5 10 5s5.5 3 5.5 7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M10 5V3.3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            Intervenants
+          </button>
+          <button class="onglet-pill secondaire">
+            <svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="2.6" stroke="currentColor" stroke-width="1.5"/><path d="M10 2.5v2M10 15.5v2M17.5 10h-2M4.5 10h-2M15.4 4.6l-1.4 1.4M6 12.6l-1.4 1.4M15.4 15.4l-1.4-1.4M6 7.4 4.6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            Général
+          </button>
+          <button class="onglet-pill secondaire">
+            <svg viewBox="0 0 20 20" fill="none"><path d="M3 17V5.5L9 3v14M9 6h5.5a1 1 0 0 1 1 1v10" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M5.5 7h1.5M5.5 10h1.5M5.5 13h1.5M11.5 9.5h2M11.5 12.5h2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+            Chantiers
+          </button>
+          <button class="onglet-pill secondaire">
+            <svg viewBox="0 0 20 20" fill="none"><path d="M9.4 2.5H4a1 1 0 0 0-1 1v5.4c0 .27.1.52.3.7l7.6 7.6c.4.4 1 .4 1.4 0l5.4-5.4c.4-.4.4-1 0-1.4L10.1 2.8a1 1 0 0 0-.7-.3z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="6.3" cy="6.3" r="1.1" fill="currentColor"/></svg>
+            Statuts
+          </button>
+        </div>
+        <span class="avatar-nav">L</span>
+      </div>
+
+      <div class="toolbar-sheets">
+        <div class="toolbar-groupe">
+          <button class="toolbar-btn" title="Annuler (Ctrl+Z)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+          </button>
+          <button class="toolbar-btn" disabled title="Refaire (Ctrl+Y)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>
+          </button>
+        </div>
+        <div class="toolbar-separateur"></div>
+        <div class="toolbar-groupe">
+          <button class="toolbar-btn" title="Imprimer">
+            <svg viewBox="0 0 20 20" fill="none"><path d="M5 8V3h10v5M5 15h10v3H5v-3zM3 8h14a1 1 0 0 1 1 1v5h-3M3 8a1 1 0 0 0-1 1v5h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+        <div class="toolbar-separateur"></div>
+        <div class="toolbar-groupe">
+          <div class="select-chantier" id="selectChantier">
+            <button type="button" class="select-chantier-btn" id="btnSelectChantier">
+              <span class="swatch" style="background:var(--filisetti)"></span><span class="nom-chantier">Filisetti</span><span class="caret">▾</span>
+            </button>
+            <div class="select-chantier-panneau" id="panneauChantier">
+              <button type="button" class="select-chantier-item actif" data-chantier="filisetti"><span class="swatch" style="background:var(--filisetti)"></span>Filisetti<span class="coche">✓</span></button>
+              <button type="button" class="select-chantier-item" data-chantier="bine"><span class="swatch" style="background:var(--bine)"></span>BINE<span class="coche">✓</span></button>
+            </div>
+          </div>
+        </div>
+        <div class="toolbar-separateur"></div>
+        <div class="toolbar-groupe">
+          <button type="button" class="toolbar-toggle actif" data-cible="jalon" title="Masquer/afficher Jalons">
+            <svg viewBox="0 0 20 20" fill="none"><path d="M5 2v16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M5 3h9.5l-2.2 3.5L14.5 10H5" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+          </button>
+          <button type="button" class="toolbar-toggle actif" data-cible="note" title="Masquer/afficher Notes">
+            <svg viewBox="0 0 20 20" fill="none"><path d="M5 2.5h7l3 3v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-13a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M12 2.5v3h3" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M6.5 11h6M6.5 14h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </button>
+          <button type="button" class="toolbar-toggle actif" data-cible="personnel" title="Masquer/afficher Personnel">
+            <svg viewBox="0 0 20 20" fill="none"><circle cx="7" cy="6.2" r="2.6" stroke="currentColor" stroke-width="1.5"/><path d="M2.3 16c0-2.8 2.1-4.7 4.7-4.7s4.7 1.9 4.7 4.7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="14.6" cy="6.7" r="2.1" stroke="currentColor" stroke-width="1.4"/><path d="M12.7 11.7c2-.5 3.9.5 5 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          </button>
+          <button type="button" class="toolbar-toggle actif" data-cible="intervenants" title="Masquer/afficher Intervenants">
+            <svg viewBox="0 0 20 20" fill="none"><path d="M3 15h14a1 1 0 0 0 1-1v-.5a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v.5a1 1 0 0 0 1 1z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M4.5 12.5C4.5 8 7.5 5 10 5s5.5 3 5.5 7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M10 5V3.3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="apercu-grille">
+        <div></div>
+        <div>LUN<span class="j">14</span></div>
+        <div>MAR<span class="j">15</span></div>
+        <div>MER<span class="j">16</span></div>
+        <div>JEU<span class="j">17</span></div>
+      </div>
+      <div class="ligne-jalons" id="ligneJalonsApercu">
+        <div class="lbl">Jalons</div>
+        <div class="contenu">Maçonnerie · Maçonnerie · Maçonnerie · Dalle — clique l'icône "Jalons" ci-dessus pour replier cette ligne.</div>
+      </div>
+    </div>
+    <ul class="liste-points">
+      <li><b>Annuler/Refaire</b> quittent la case coin de la grille (§80) pour s'installer ici — cette case redevient vide dans la grille en dessous.</li>
+      <li><b>Chantier par défaut</b> remplace le clic direct sur un swatch de la légende par un sélecteur explicite, plus proche d'un menu déroulant classique. La légende des chantiers elle-même disparaît de cette barre — elle sera affichée ailleurs.</li>
+      <li><b>Les 4 icônes</b> (Jalons/Notes/Personnel/Intervenants) remplacent les interrupteurs : une icône par sous-groupe, pour rester reconnaissable au premier coup d'œil comme Annuler/Refaire/Imprimer. Un clic bascule l'icône entre "active" (teintée dans la couleur de sa ligne) et "désactivée" (atténuée, comme les lignes inactives de Personnel/Intervenants) — jamais un grisé plat.</li>
+      <li><b>Les onglets</b> du menu du haut reçoivent aussi chacun leur icône (Jalons/Personnel/Intervenants reprennent exactement les mêmes que la barre d'outils juste en dessous, pour que l'œil fasse tout de suite le lien) — Planning, Général, Chantiers et Statuts en reçoivent une propre.</li>
+    </ul>
+    <div class="annot">↳ essaie : clique sur l'icône "Jalons" — elle s'atténue et la ligne d'aperçu en dessous se replie et prend le style "désactivé".</div>
+  </div>
+
+  <script>
+    var sel = document.getElementById('selectChantier');
+    document.getElementById('btnSelectChantier').addEventListener('click', function (e) {
+      e.stopPropagation();
+      sel.classList.toggle('ouvert');
+    });
+    document.addEventListener('click', function () { sel.classList.remove('ouvert'); });
+    sel.querySelectorAll('.select-chantier-item').forEach(function (item) {
+      item.addEventListener('click', function () {
+        sel.querySelectorAll('.select-chantier-item').forEach(function (i) { i.classList.remove('actif'); });
+        item.classList.add('actif');
+        var swatch = item.querySelector('.swatch').style.background;
+        var nom = item.querySelector('.swatch').nextSibling.textContent.trim();
+        var btn = document.getElementById('btnSelectChantier');
+        btn.querySelector('.swatch').style.background = swatch;
+        btn.querySelector('.nom-chantier').textContent = nom;
+        sel.classList.remove('ouvert');
+      });
+    });
+
+    document.querySelectorAll('.toolbar-toggle').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var actif = !btn.classList.contains('actif');
+        btn.classList.toggle('actif', actif);
+        btn.classList.toggle('desactive', !actif);
+        if (btn.dataset.cible === 'jalon') {
+          document.getElementById('ligneJalonsApercu').classList.toggle('repliee', !actif);
+        }
+      });
+    });
+  </script>
+</body>
+</html>
