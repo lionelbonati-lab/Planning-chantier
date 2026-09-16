@@ -7035,12 +7035,13 @@
         clearTimeout(minuteur);
         document.body.classList.remove("en-glissement");
         handleEl.classList.remove("actif");
-        handleEl.removeEventListener("pointermove", onMove);
-        handleEl.removeEventListener("pointerup", onUp);
-        handleEl.removeEventListener("pointercancel", onCancel);
+        document.removeEventListener("pointermove", onMove);
+        document.removeEventListener("pointerup", onUp);
+        document.removeEventListener("pointercancel", onCancel);
         try { handleEl.releasePointerCapture(pointerId); } catch (ex) {}
       }
       function onMove(e2) {
+        if (e2.pointerId !== pointerId) return;
         if (!arme) {
           var dist = Math.abs(e2.clientX - sx) + Math.abs(e2.clientY - sy);
           if (!enDefilement && dist > SEUIL_DEFILEMENT) { enDefilement = true; clearTimeout(minuteur); }
@@ -7086,7 +7087,8 @@
         var cs = colonneEtSpanDemi(giDebutOrig, giFinExclusifFixe - giDebutOrig, demiDebutOrig, demiFinOrig);
         bulleDom.style.gridColumn = cs[0] + " / span " + cs[1];
       }
-      function onUp() {
+      function onUp(e2) {
+        if (e2.pointerId !== pointerId) return;
         detacher();
         if (enDefilement) { reappliquerFormeOrigine(); return; }
         if (!arme) { reappliquerFormeOrigine(); return; }
@@ -7100,7 +7102,8 @@
         it.demiDebut = demiDebutPrevisu; it.demiFin = demiFinPrevisu;
         render(); toast("Étendu.");
       }
-      function onCancel() {
+      function onCancel(e2) {
+        if (e2.pointerId !== pointerId) return;
         detacher();
         reappliquerFormeOrigine();
       }
@@ -7109,9 +7112,10 @@
       var minuteur = immediat ? null : setTimeout(armer, DELAI_SELECTION);
       if (immediat) armer();
       try { handleEl.setPointerCapture(pointerId); } catch (ex) {}
-      handleEl.addEventListener("pointermove", onMove);
-      handleEl.addEventListener("pointerup", onUp);
-      handleEl.addEventListener("pointercancel", onCancel);
+      // document (pas handleEl) — cf. §79.
+      document.addEventListener("pointermove", onMove);
+      document.addEventListener("pointerup", onUp);
+      document.addEventListener("pointercancel", onCancel);
     });
   }
 
@@ -7336,12 +7340,13 @@
       autoDefil.arreter();
       if (baSupprimerEl) baSupprimerEl.classList.remove("cible-suppr");
       nettoyerSurvol();
-      bulleDom.removeEventListener("pointermove", onMove);
-      bulleDom.removeEventListener("pointerup", onUp);
-      bulleDom.removeEventListener("pointercancel", onCancel);
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      document.removeEventListener("pointercancel", onCancel);
       try { bulleDom.releasePointerCapture(pointerId); } catch (ex) {}
     }
     function onMove(e2) {
+      if (e2.pointerId !== pointerId) return;
       if (!arme) {
         var dist = Math.abs(e2.clientX - sx) + Math.abs(e2.clientY - sy);
         if (!enDefilement && dist > SEUIL_DEFILEMENT) { enDefilement = true; clearTimeout(minuteur); }
@@ -7663,6 +7668,7 @@
       var elementCapte = e0.currentTarget;
       var cibleActuelle2 = null, surBoutonSuppr2 = false;
       function onMove2(e2) {
+        if (e2.pointerId !== pointerId2) return;
         var dx = e2.clientX - sx2, dy = e2.clientY - sy2;
         fantomes.forEach(function (f) { f.clone.style.left = (f.left + dx) + "px"; f.clone.style.top = (f.top + dy) + "px"; });
         autoDefil2.maj(e2.clientX);
@@ -7677,25 +7683,28 @@
         autoDefil2.arreter();
         if (baSupprimerEl) baSupprimerEl.classList.remove("cible-suppr");
         nettoyerSurvol();
-        elementCapte.removeEventListener("pointermove", onMove2);
-        elementCapte.removeEventListener("pointerup", onUp2);
-        elementCapte.removeEventListener("pointercancel", onCancel2);
+        document.removeEventListener("pointermove", onMove2);
+        document.removeEventListener("pointerup", onUp2);
+        document.removeEventListener("pointercancel", onCancel2);
         try { elementCapte.releasePointerCapture(pointerId2); } catch (ex) {}
       }
       function onUp2(e2) {
+        if (e2.pointerId !== pointerId2) return;
         var celluleCible2 = cibleActuelle2, surSuppr2 = surBoutonSuppr2;
         detacher2();
         if (surSuppr2) { supprimerGroupeConfirme(); return; }
         if (!celluleCible2) { reposer(); return; }
         resoudreCibleGroupe(celluleCible2, e2.clientX);
       }
-      function onCancel2() { detacher2(); reposer(); }
+      function onCancel2(e2) { if (e2.pointerId !== pointerId2) return; detacher2(); reposer(); }
       try { elementCapte.setPointerCapture(pointerId2); } catch (ex) {}
-      elementCapte.addEventListener("pointermove", onMove2);
-      elementCapte.addEventListener("pointerup", onUp2);
-      elementCapte.addEventListener("pointercancel", onCancel2);
+      // document (pas elementCapte) — cf. §79.
+      document.addEventListener("pointermove", onMove2);
+      document.addEventListener("pointerup", onUp2);
+      document.addEventListener("pointercancel", onCancel2);
     }
     function onUp(e2) {
+      if (e2.pointerId !== pointerId) return;
       var celluleCible = cibleActuelle, surSuppr = surBoutonSuppr;
       detacher();
       if (enDefilement) { nettoyerFantomes(); return; }
@@ -7703,15 +7712,16 @@
       if (surSuppr) { supprimerGroupeConfirme(); return; }
       resoudreCibleGroupe(celluleCible, e2.clientX);
     }
-    function onCancel() { detacher(); nettoyerFantomes(); }
+    function onCancel(e2) { if (e2.pointerId !== pointerId) return; detacher(); nettoyerFantomes(); }
 
     var immediat = !tactile;
     var minuteur = immediat ? null : setTimeout(armer, DELAI_SELECTION);
     if (immediat) armer();
     try { bulleDom.setPointerCapture(pointerId); } catch (ex) {}
-    bulleDom.addEventListener("pointermove", onMove);
-    bulleDom.addEventListener("pointerup", onUp);
-    bulleDom.addEventListener("pointercancel", onCancel);
+    // document (pas bulleDom) — cf. §79.
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+    document.addEventListener("pointercancel", onCancel);
   }
 
   function onPointerDownBulle(e) {
@@ -7933,12 +7943,17 @@
         clearTimeout(minuteur);
         cell.classList.remove("armement-selection");
         document.body.classList.remove("en-glissement");
-        cell.removeEventListener("pointermove", onMove);
-        cell.removeEventListener("pointerup", onUp);
-        cell.removeEventListener("pointercancel", onCancel);
+        document.removeEventListener("pointermove", onMove);
+        document.removeEventListener("pointerup", onUp);
+        document.removeEventListener("pointercancel", onCancel);
         try { cell.releasePointerCapture(pointerId); } catch (ex) {}
       }
+      // pointerId!==... (round du 16.09.2026, cf. FRONTEND-CHANGELOG §79) :
+      // onMove/onUp/onCancel sont désormais posés sur document (voir plus
+      // bas) plutôt que sur `cell` elle-même, donc ce garde-fou est
+      // nécessaire pour ignorer le pointer d'un AUTRE doigt.
       function onMove(e2) {
+        if (e2.pointerId !== pointerId) return;
         if (!arme) {
           var dist = Math.abs(e2.clientX - sx) + Math.abs(e2.clientY - sy);
           if (!enDefilement && dist > SEUIL_DEFILEMENT) { enDefilement = true; clearTimeout(minuteur); }
@@ -7967,6 +7982,7 @@
         }
       }
       function onUp(e2) {
+        if (e2.pointerId !== pointerId) return;
         detacher();
         effacerSurlignage();
         if (enDefilement) return;
@@ -7988,15 +8004,35 @@
         if (e.pointerType === "touch" && !arme) return;
         ouvrirAjout(cell, e2.clientX, e2.clientY);
       }
-      function onCancel() { detacher(); effacerSurlignage(); }
+      function onCancel(e2) { if (e2.pointerId !== pointerId) return; detacher(); effacerSurlignage(); }
 
       var immediat = e.pointerType !== "touch";
       var minuteur = immediat ? null : setTimeout(armerSelection, DELAI_SELECTION);
       if (immediat) armerSelection();
       try { cell.setPointerCapture(pointerId); } catch (ex) {}
-      cell.addEventListener("pointermove", onMove);
-      cell.addEventListener("pointerup", onUp);
-      cell.addEventListener("pointercancel", onCancel);
+      // document.addEventListener (pas cell.addEventListener) — round du
+      // 16.09.2026, cf. FRONTEND-CHANGELOG §79 : Lionel a signalé que le
+      // glisser tactile ne fonctionnait TOUJOURS que sur la colonne des
+      // noms (seule zone sans touch-action:none, donc seule à profiter du
+      // scroll natif du navigateur) après le correctif précédent (§78).
+      // Cause réelle : cablerAjoutCellule posait pointermove/pointerup sur
+      // `cell` elle-même — cela ne fonctionne QUE si setPointerCapture()
+      // réussit vraiment (elle redirige alors tous les événements suivants
+      // vers `cell`, où qu'aille le doigt). Si elle échoue silencieusement
+      // (try/catch du §78 empêchait juste le plantage, pas ce problème),
+      // le pointermove suivant se déclenche sur la VRAIE cellule survolée
+      // (une cellule voisine, .cell étant une grille de cases côte à côte) —
+      // jamais sur `cell`, qui n'est plus un ancêtre de cet événement. Le
+      // panoramique s'arrêtait donc dès que le doigt quittait la case de
+      // départ, ce qui, sur des cases aussi étroites qu'un jour, arrive
+      // en un instant. En posant les écouteurs sur `document` (qui reste
+      // un ancêtre de PARTOUT), le geste continue d'être suivi quel que
+      // soit l'endroit où le doigt se trouve physiquement, avec ou sans
+      // capture — d'où le garde-fou pointerId ci-dessus, pour ignorer un
+      // second doigt éventuel.
+      document.addEventListener("pointermove", onMove);
+      document.addEventListener("pointerup", onUp);
+      document.addEventListener("pointercancel", onCancel);
     });
   }
 
@@ -8017,6 +8053,7 @@
     if (kind === "personne") surlignerPlagePersonnes(personnesListe, pIndexDebut, pIndexDebut, halfDebut, halfDebut);
     else surlignerPlageJalonNote(kind, halfDebut, halfDebut);
     function onMove(e2) {
+      if (e2.pointerId !== pointerId) return;
       var sous = document.elementFromPoint(e2.clientX, e2.clientY);
       var c2 = sous && sous.closest(".cell");
       if (c2 && c2.dataset.kind === kind) {
@@ -8040,12 +8077,13 @@
     function detacher() {
       document.body.classList.remove("en-glissement");
       autoDefil.arreter();
-      celluleDebut.removeEventListener("pointermove", onMove);
-      celluleDebut.removeEventListener("pointerup", onUp);
-      celluleDebut.removeEventListener("pointercancel", onCancel);
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      document.removeEventListener("pointercancel", onCancel);
       try { celluleDebut.releasePointerCapture(pointerId); } catch (ex) {}
     }
-    function onUp() {
+    function onUp(e2) {
+      if (e2.pointerId !== pointerId) return;
       var bornes = bornesDepuisDemiSlots(Math.min(halfDebut, halfCourant), Math.max(halfDebut, halfCourant));
       detacher(); effacerSurlignage();
       var cells = [];
@@ -8061,11 +8099,12 @@
       }
       selectionnerDepuisCellules(cells);
     }
-    function onCancel() { detacher(); effacerSurlignage(); }
+    function onCancel(e2) { if (e2.pointerId !== pointerId) return; detacher(); effacerSurlignage(); }
     try { celluleDebut.setPointerCapture(pointerId); } catch (ex) {}
-    celluleDebut.addEventListener("pointermove", onMove);
-    celluleDebut.addEventListener("pointerup", onUp);
-    celluleDebut.addEventListener("pointercancel", onCancel);
+    // document (pas celluleDebut) — même correctif qu'au-dessus, cf. §79.
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+    document.addEventListener("pointercancel", onCancel);
   }
 
   function selectionnerDepuisCellules(cells) {
@@ -8119,37 +8158,42 @@
     var scroller = trouverScroller(cell);
     var bouge = false;
     function onMove(e2) {
+      if (e2.pointerId !== pointerId) return;
       if (Math.abs(e2.clientX - sx) + Math.abs(e2.clientY - sy) > 4) bouge = true;
       if (scroller) scroller.scrollLeft -= (e2.clientX - dernierX); window.scrollBy(0, -(e2.clientY - dernierY));
       dernierX = e2.clientX; dernierY = e2.clientY;
     }
-    function onUp() { detacher(); if (!bouge) { quitterModeSelection(); render(false); } }
+    function onUp(e2) { if (e2.pointerId !== pointerId) return; detacher(); if (!bouge) { quitterModeSelection(); render(false); } }
+    function onCancel(e2) { if (e2.pointerId !== pointerId) return; detacher(); }
     function detacher() {
-      cell.removeEventListener("pointermove", onMove);
-      cell.removeEventListener("pointerup", onUp);
-      cell.removeEventListener("pointercancel", detacher);
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      document.removeEventListener("pointercancel", onCancel);
       try { cell.releasePointerCapture(pointerId); } catch (ex) {}
     }
     try { cell.setPointerCapture(pointerId); } catch (ex) {}
-    cell.addEventListener("pointermove", onMove);
-    cell.addEventListener("pointerup", onUp);
-    cell.addEventListener("pointercancel", detacher);
+    // document (pas cell) — cf. §79.
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+    document.addEventListener("pointercancel", onCancel);
   }
   function demarrerDefilementSimple(e, cell) {
     var pointerId = e.pointerId;
     var dernierX = e.clientX, dernierY = e.clientY;
     var scroller = trouverScroller(cell);
-    function onMove(e2) { if (scroller) scroller.scrollLeft -= (e2.clientX - dernierX); window.scrollBy(0, -(e2.clientY - dernierY)); dernierX = e2.clientX; dernierY = e2.clientY; }
+    function onMove(e2) { if (e2.pointerId !== pointerId) return; if (scroller) scroller.scrollLeft -= (e2.clientX - dernierX); window.scrollBy(0, -(e2.clientY - dernierY)); dernierX = e2.clientX; dernierY = e2.clientY; }
+    function onEnd(e2) { if (e2.pointerId !== pointerId) return; detacher(); }
     function detacher() {
-      cell.removeEventListener("pointermove", onMove);
-      cell.removeEventListener("pointerup", detacher);
-      cell.removeEventListener("pointercancel", detacher);
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onEnd);
+      document.removeEventListener("pointercancel", onEnd);
       try { cell.releasePointerCapture(pointerId); } catch (ex) {}
     }
     try { cell.setPointerCapture(pointerId); } catch (ex) {}
-    cell.addEventListener("pointermove", onMove);
-    cell.addEventListener("pointerup", detacher);
-    cell.addEventListener("pointercancel", detacher);
+    // document (pas cell) — cf. §79.
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onEnd);
+    document.addEventListener("pointercancel", onEnd);
   }
 
   /* ============ UNDO/REDO — session courante uniquement (cf. §8 du spec) ============

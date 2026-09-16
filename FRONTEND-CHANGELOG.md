@@ -5227,3 +5227,74 @@ régression sur ce round.
 isole fidèlement le mécanisme en cause, mais la cause exacte du déclenchement de l'exception sur l'appareil
 de Lionel spécifiquement (navigateur, geste concurrent du système, etc.) n'a pas pu être identifiée avec
 certitude depuis cet environnement (aucun accès à un vrai téléphone). À revalider une fois synchronisé.
+
+## 79. Round du 16.09.2026 (encore un autre, suite) — le glisser tactile ne fonctionnait TOUJOURS que sur la colonne des noms
+
+Retour de Lionel après synchronisation du §78 : « Cela fonctionne uniquement en appuyant sur la colonne
+des noms. » Autrement dit : le §78 (try/catch autour de `setPointerCapture`) n'a pas suffi — le geste
+tactile ne fonctionne encore nulle part ailleurs que sur la 1ère colonne (noms des personnes/« Jalons »/
+« Notes »).
+
+### 79.1. Pourquoi la colonne des noms, précisément
+
+Indice décisif : `.lbl` (les cellules de cette colonne, cf. CSS `.th.coin, .lbl, .lbl-speciale`) est la
+SEULE classe de cellule de la grille qui n'a **jamais** eu `touch-action: none` — contrairement à `.cell`,
+`.bulle` et `.poignee`, qui l'ont toutes les trois. Résultat : un glissé démarré sur `.lbl` est pris en
+charge par le défilement **natif** du navigateur (jamais concerné par le moindre bug JS), alors qu'un
+glissé démarré sur `.cell`/`.bulle` dépend à 100 % du code JS maison (`cablerAjoutCellule`,
+`onPointerDownGroupeSelection`, `cablerPoigneeRedim`, etc.) puisque `touch-action: none` empêche
+justement le navigateur de faire quoi que ce soit lui-même. Le rapport de Lionel isole donc exactement la
+frontière du bug : tout ce qui est nativement scrollable fonctionne, tout ce qui dépend du JS maison ne
+fonctionne pas — le correctif du §78 (qui empêchait seulement un *plantage*) n'a manifestement pas suffi à
+réparer le fond du problème sur son appareil réel.
+
+### 79.2. Le vrai problème architectural
+
+Les 7 sites identifiés au §78 posent tous le même schéma : au `pointerdown`, on appelle
+`elementCible.setPointerCapture(pointerId)` PUIS on attache `pointermove`/`pointerup`/`pointercancel`
+directement sur `elementCible` (la case, la bulle, ou la poignée touchée). Ce schéma ne fonctionne
+correctement QUE si `setPointerCapture` réussit VRAIMENT (pas seulement « ne plante pas ») : c'est elle
+qui redirige tous les événements suivants vers `elementCible`, quel que soit l'endroit où le doigt se
+trouve ensuite à l'écran. Si la capture échoue silencieusement (le `try/catch` du §78 masque l'échec sans
+le corriger), ou si, pour toute autre raison propre au navigateur/appareil de Lionel, les événements
+`pointermove` ne sont pas redirigés vers `elementCible` comme prévu, alors les écouteurs posés dessus ne
+reçoivent plus rien après le tout premier instant du geste — d'où un glisser qui ne « prend » jamais,
+exactement le symptôme rapporté. Le try/catch du §78 était nécessaire (il a corrigé un vrai plantage) mais
+ne s'attaquait qu'à UNE cause possible de l'échec, pas à la fragilité de fond : toute cette mécanique
+tactile reposait entièrement sur la réussite d'un mécanisme qu'on ne contrôle pas complètement selon les
+navigateurs/appareils.
+
+### 79.3. Correctif : écouter sur `document`, plus sur l'élément touché
+
+Sur les 7 mêmes sites (poignée de redimensionnement, groupe de bulles sélectionnées, reprise d'un groupe
+déposé, bulle seule, case vide « ajout », case vide « sélection rapide » double-tap/clic-droit, et les 2
+variantes de simple défilement), les écouteurs `pointermove`/`pointerup`/`pointercancel` sont désormais
+posés sur `document` plutôt que sur l'élément spécifiquement touché. `document` est un ancêtre de
+n'importe quel élément de la page : les événements lui parviennent donc TOUJOURS par la remontée normale
+(bubbling), que la capture ait réussi ou non, quel que soit l'endroit où le doigt se déplace à l'écran, et
+même si l'élément de départ venait à être retiré/reconstruit par un `render()` en cours de geste. Comme
+plusieurs gestes peuvent en théorie être actifs en même temps (2 doigts), chaque fonction interne
+(`onMove`, `onUp`, `onCancel`, etc.) vérifie désormais `e2.pointerId !== pointerId` en tout premier et
+ignore l'événement si ce n'est pas le sien — sans ce garde-fou, un second doigt aurait pu perturber un
+geste déjà en cours ailleurs sur l'écran. L'appel à `setPointerCapture` (protégé par try/catch depuis le
+§78) est conservé : inoffensif, et toujours utile en pratique pour la souris/le stylet, où il fonctionne
+de façon fiable.
+
+### 79.4. Vérifications
+
+`node --check` du `<script>` extrait toujours vert. Suite `test_*.js` relancée intégralement : même
+résultat qu'au §78 (tout vert sauf `test_edge_functions.js`, échec préexistant et sans rapport). Reproduit
+dans une page de test séparée un glissé qui traverse volontairement PLUSIEURS cases voisines (40px chacune,
+comme des jours dans l'appli réelle) via des `PointerEvent` synthétiques Playwright : avec les écouteurs
+posés sur `document` et sans jamais faire réussir `setPointerCapture`, le défilement progresse correctement
+sur tout le geste (`scrollLeft` avance jusqu'à la valeur attendue), confirmant que le nouveau code ne
+dépend plus du tout de la réussite de la capture pour fonctionner.
+
+**Toujours pas 100 % confirmable depuis cet environnement** (aucun accès à un vrai téléphone tactile) :
+cette restructuration élimine une catégorie entière de fragilité (dépendance à la réussite de
+`setPointerCapture`, et au fait que l'élément d'origine reste exactement le même nœud DOM pendant tout le
+geste) plutôt que de cibler un seul mécanisme d'échec précis — c'est le schéma robuste standard pour ce
+genre de glisser tactile personnalisé. Si le problème persistait malgré tout après cette mise à jour, il
+faudrait le modèle du téléphone et le navigateur utilisé (Chrome, Safari, Samsung Internet…) pour
+diagnostiquer plus loin, faute de pouvoir reproduire un vrai geste tactile matériel depuis cet
+environnement.
