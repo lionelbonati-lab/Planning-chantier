@@ -1073,31 +1073,53 @@
     padding-top: 10px;
     position: sticky; top: 0; z-index: 40; background: var(--bg);
   }
+  /* §81 (round du 16.09.2026, encore un autre, suite, suite, encore) —
+     Lionel, mockup mockup-barre-onglets-pro.html à l'appui, option 2 retenue
+     (« le 2 me plait plus ») : un repère de marque à gauche, l'icône PWA
+     existante (icons/icon-32.png, motif "mur de briques", cf. §76 — pas de
+     nouveau logo à inventer) SANS le nom "Planning Chantiers" à côté
+     (Lionel : « l'icône suffit »). */
+  .marque-nav {
+    display: flex; align-items: center; flex-shrink: 0;
+    padding-right: 10px; border-right: 1px solid var(--border);
+  }
+  .marque-nav img { width: 28px; height: 28px; border-radius: 7px; display: block; }
   .onglets-liste {
-    display: flex; gap: 2px; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    display: flex; gap: 3px; overflow-x: auto; -webkit-overflow-scrolling: touch;
     flex: 1 1 auto; min-width: 0;
   }
-  .lien-deconnexion-nav {
-    flex-shrink: 0; font-size: 11.5px; font-weight: 600; color: var(--ink-faint);
-    background: var(--surface); border: 1px solid var(--border); border-radius: 7px;
-    padding: 5px 10px; margin-right: 12px; cursor: pointer; font-family: inherit;
+  /* Avatar rond (initiale) à la place de l'ancien bouton texte "Se
+     déconnecter" — même mockup, option 2. Un seul compte pour toute
+     l'équipe (pas de gestion multi-utilisateur côté auth) : l'initiale "L"
+     reste donc fixe plutôt que dérivée d'une session dont l'e-mail
+     n'apporterait rien de plus ici. Le clic déconnecte directement, comme
+     l'ancien bouton — un menu (déconnexion + réglages de compte) pourra
+     s'ajouter plus tard si le besoin s'en fait sentir, cf. l'annotation du
+     mockup. */
+  .avatar-nav {
+    flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%;
+    background: var(--accent-soft); color: var(--accent); border: 1px solid var(--border);
+    display: grid; place-items: center; font-size: 12px; font-weight: 800;
+    font-family: 'IBM Plex Mono', monospace; cursor: pointer; margin-right: 12px;
     transition: background .12s, border-color .12s, color .12s;
   }
-  .lien-deconnexion-nav:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--ink); }
+  .avatar-nav:hover { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  /* Onglets en pilules (au lieu du trait sous le texte) — même mockup,
+     langage visuel du bandeau Nolio pris en référence par Lionel. */
   .onglet {
-    padding: 11px 16px; font-size: 12.5px; font-weight: 700; color: var(--ink-muted);
-    border: none; border-bottom: 2.5px solid transparent; background: none; cursor: pointer;
-    white-space: nowrap; flex-shrink: 0; font-family: inherit; transition: color .12s, border-color .12s;
+    padding: 7px 14px; font-size: 12.5px; font-weight: 700; color: var(--ink-muted);
+    border: none; border-radius: 8px; background: none; cursor: pointer;
+    white-space: nowrap; flex-shrink: 0; font-family: inherit; transition: background .12s, color .12s;
   }
-  .onglet:hover { color: var(--ink); }
-  .onglet.actif { color: var(--accent); border-bottom-color: var(--accent); }
+  .onglet:hover { background: var(--surface-2); color: var(--ink); }
+  .onglet.actif { background: var(--accent-soft); color: var(--accent); }
   /* Pages de réglages (Général/Chantiers/Statuts/Fériés/Entrée rapide) : en
      retrait visuel plutôt que regroupées sous un sous-menu, comme validé sur
      le mockup — mais toujours accent quand actives, comme n'importe quel
      onglet (spécificité 3 classes, l'emporte sur .onglet.secondaire seul). */
   .onglet.secondaire { color: var(--ink-faint); font-weight: 600; }
-  .onglet.secondaire:hover { color: var(--ink-muted); }
-  .onglet.secondaire.actif { color: var(--accent); border-bottom-color: var(--accent); font-weight: 700; }
+  .onglet.secondaire:hover { background: var(--surface-2); color: var(--ink-muted); }
+  .onglet.secondaire.actif { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
   .app-main { min-width: 0; }
   .page { display: none; }
   .page.actif { display: block; }
@@ -2315,6 +2337,7 @@
     app.innerHTML =
       '<div class="app-shell">' +
         '<nav class="onglets-nav" id="ongletsNav">' +
+          '<div class="marque-nav"><img src="icons/icon-32.png" width="28" height="28" alt="Planning Chantiers"></div>' +
           '<div class="onglets-liste">' +
             '<button type="button" class="onglet actif" data-page="planning">Planning</button>' +
             '<button type="button" class="onglet" data-page="jalons">Jalons</button>' +
@@ -2326,7 +2349,7 @@
             '<button type="button" class="onglet secondaire" data-page="feries">Fériés</button>' +
             '<button type="button" class="onglet secondaire" data-page="entree-rapide">Entrée rapide</button>' +
           '</div>' +
-          '<button type="button" class="lien-deconnexion-nav" id="lienDeconnexionNav">Se déconnecter</button>' +
+          '<button type="button" class="avatar-nav" id="lienDeconnexionNav" title="Se déconnecter" aria-label="Se déconnecter">L</button>' +
         '</nav>' +
         '<div class="app-main">' +
           htmlPagePlanning() + htmlPageJalons() + htmlPageGeneral() + htmlPagePersonnel() + htmlPageIntervenants() +

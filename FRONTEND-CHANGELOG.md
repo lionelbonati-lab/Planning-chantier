@@ -5408,3 +5408,45 @@ signalé identiquement aux §74.6 et §79.4).
 **Pas encore confirmé par Lionel en conditions réelles** — les captures d'écran et mesures ci-dessus
 reproduisent fidèlement la semaine de son croquis avec les vraies données, mais restent depuis cet
 environnement plutôt que sur son PWA Windows installé. À revalider une fois synchronisé.
+
+## 81. Round du 16.09.2026 (encore un autre, suite, suite, encore) — barre du haut « plus pro » : mockup validé, option 2
+
+Suite au retour de Lionel « on pourrai retravailler un peu le visuel de l'application pour qu'elle fasse
+plus "pro" », captures du bandeau Nolio à l'appui : envoyé un mockup dédié
+(`mockup-barre-onglets-pro.html`) limité à la barre du haut (périmètre choisi par Lionel, plutôt qu'une
+refonte visuelle complète), avec 2 options — un simple redessin des éléments existants (onglets en
+pilules), ou la même chose plus une identité (repère de marque à gauche, avatar à droite). Réponse de
+Lionel : « le 2 me plait plus, on peut mettre le petit logo que tu as fait pour l'icone au lieu de la
+maison. Pas besoin de "planning chantier" dans la barre. l'icone suffit. »
+
+Porté dans l'appli réelle (le mockup illustrait une maison générique en attendant la décision — jamais
+question de l'utiliser telle quelle) :
+
+- **Repère de marque** : l'icône PWA existante (`icons/icon-32.png`, motif "mur de briques", cf. §76 — pas
+  de nouveau logo à créer), sans le nom "Planning Chantiers" à côté comme demandé. Nouveau
+  `<div class="marque-nav">` en tout premier enfant de `.onglets-nav`, séparé des onglets par un filet
+  vertical (`border-right`).
+- **Onglets en pilules** : `.onglet` passe d'un trait sous le texte actif (`border-bottom`) à un fond plein
+  arrondi (`background: var(--accent-soft)` + `color: var(--accent)` quand actif, `background:
+  var(--surface-2)` au survol) — langage visuel du bandeau Nolio pris en référence. Padding réduit
+  (11px/16px → 7px/14px) : accessoirement, la barre elle-même gagne encore en hauteur (49px → 39px sur la
+  mesure de vérification), dans la continuité des §80.1/80.2.
+- **Avatar au lieu du bouton texte** : `.lien-deconnexion-nav` (bouton rectangulaire "Se déconnecter")
+  remplacé par `.avatar-nav`, un rond avec l'initiale "L" (un seul compte pour toute l'équipe, pas de
+  gestion multi-utilisateur côté auth — l'initiale reste donc fixe plutôt que dérivée d'une session).
+  Même `id="lienDeconnexionNav"` conservé : le clic déconnecte directement, exactement comme avant, aucun
+  changement de logique JS, seul le gabarit HTML et le CSS de `construireCoquille()` changent. `title`/
+  `aria-label="Se déconnecter"` ajoutés puisque le libellé textuel a disparu visuellement.
+
+### 81.1. Vérifications
+
+`node --check` du `<script>` extrait : vert. Suite `test_*.js` relancée intégralement : même résultat
+qu'aux rounds précédents (tout vert sauf `test_edge_functions.js`, préexistant et sans rapport, cf.
+§74.6/§79.4/§80.6). Playwright (mêmes vraies données Supabase que le §80) : icône bien affichée dans la
+barre, onglet actif bien en pilule pleine, avatar "L" bien à droite à la place de l'ancien bouton, aucune
+erreur JS, et le figé haut/gauche (§74, reconfirmé au §80.5) tient toujours après ce changement de gabarit.
+
+**Pas encore confirmé par Lionel en conditions réelles** — à revalider une fois synchronisé, en particulier
+que `icons/icon-32.png` se charge bien (chemin relatif identique à celui déjà utilisé par les balises
+`<link rel="icon">` du `<head>`, donc sans raison de se comporter différemment, mais jamais vérifié tel
+quel dans la barre avant ce round).
