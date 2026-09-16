@@ -9,7 +9,7 @@
  * une demi journée, l'autre tâche prend le chantier de la nouvelle créée »).
  *
  * Comme test_grille_compacte.js / test_formulaires_assignation.js, ce
- * fichier extrait les fonctions RÉELLES de `Index.html` plutôt que d'en
+ * fichier extrait les fonctions RÉELLES de `index.html` plutôt que d'en
  * tester une copie.
  *
  * Lancer : node test_chantier_defaut.js
@@ -19,12 +19,12 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const SRC = fs.readFileSync(path.join(__dirname, 'Index.html'), 'utf8');
+const SRC = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
 
 function extraireFonction(nom) {
   const re = new RegExp('\\n(\\s*)function ' + nom + '\\s*\\(');
   const m = re.exec(SRC);
-  if (!m) throw new Error('fonction introuvable dans Index.html : ' + nom);
+  if (!m) throw new Error('fonction introuvable dans index.html : ' + nom);
   let i = SRC.indexOf('{', m.index + m[0].length - 1);
   let profondeur = 0;
   for (let j = i; j < SRC.length; j++) {

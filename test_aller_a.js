@@ -5,7 +5,7 @@
  * suisse/français "dd.mm.aaaa" ("01.09.2026").
  *
  * Comme les autres test_*.js, ce fichier extrait la fonction RÉELLE
- * d'`Index.html` plutôt que d'en tester une copie.
+ * d'`index.html` plutôt que d'en tester une copie.
  *
  * Lancer : node test_aller_a.js
  */
@@ -14,12 +14,12 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const SRC = fs.readFileSync(path.join(__dirname, 'Index.html'), 'utf8');
+const SRC = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
 
 function extraireFonction(nom) {
   const re = new RegExp('\\n(\\s*)function ' + nom + '\\s*\\(');
   const m = re.exec(SRC);
-  if (!m) throw new Error('fonction introuvable dans Index.html : ' + nom);
+  if (!m) throw new Error('fonction introuvable dans index.html : ' + nom);
   let i = SRC.indexOf('{', m.index + m[0].length - 1);
   let profondeur = 0;
   for (let j = i; j < SRC.length; j++) {

@@ -739,7 +739,7 @@ console.log("\n--- coût en appels Sheets (garde-fous de performance) ---");
 // verrouille désormais l'absence totale de peinture : si un setFontColors ou
 // un setBackgrounds réapparaît sur ce chemin, c'est une régression de
 // performance à attraper ici. Les couleurs restent calculées côté client
-// (Index.html) et côté impression (preparerLignesImpression_ /
+// (index.html) et côté impression (preparerLignesImpression_ /
 // fondImpressionJourOuvre_, Planning_Format.gs — cf. test dédié plus bas).
 console.log("\n--- enregistrer une case : plus AUCUNE couleur écrite sur la feuille (28.08.2026) ---");
 {
@@ -843,7 +843,7 @@ console.log("\n--- notes : plusieurs entrées et tag Important (apiEnregistrerPl
   eq("le mardi reçoit la note déplacée, toujours importante (le tag suit la valeur)", sh.getRange(5, 11).getValue(), "[Important] Retard livraison");
 
   // Piège corrigé ce round : SUPPRIMER une note (bouton de la liste, cf.
-  // Index.html #notesListWrap) ne doit retirer QU'ELLE — avant la correction,
+  // index.html #notesListWrap) ne doit retirer QU'ELLE — avant la correction,
   // le code comparait la cellule ENTIÈRE à l'ancien texte et effaçait tout,
   // y compris une note sans rapport partageant le même jour.
   const r3 = ctx.apiEnregistrerPlage("note", "2026-09-08", "", "", labG,
@@ -871,7 +871,7 @@ console.log("\n--- notes : plusieurs entrées et tag Important (apiEnregistrerPl
 // demi-journée envoyée pour un jalon doit être ignorée SILENCIEUSEMENT — pas
 // d'erreur, mais aucune étiquette [M]/[A] écrite dans la feuille et aucun
 // champ demi remonté au client. Sans ça, un client resté sur une ancienne
-// version d'Index.html pourrait continuer à poser des jalons de demi-journée.
+// version d'index.html pourrait continuer à poser des jalons de demi-journée.
 console.log("\n--- demi-journée : notes oui, jalons non (apiEnregistrerPlage / apiEnregistrerJalonNote réels) ---");
 {
   const sh = planningDeDepart();

@@ -29,15 +29,15 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const HTML = fs.readFileSync(path.join(__dirname, 'Index.html'), 'utf8');
+const HTML = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
 const blocs = [...HTML.matchAll(/<script(?:\s+[^>]*)?>([\s\S]*?)<\/script>/g)];
-if (blocs.length === 0) throw new Error('aucun <script> trouvé dans Index.html');
+if (blocs.length === 0) throw new Error('aucun <script> trouvé dans index.html');
 const SRC = blocs[blocs.length - 1][1];
 
 function extraireFonction(nom) {
   const re = new RegExp('\\n(\\s*)function ' + nom + '\\s*\\(');
   const m = re.exec(SRC);
-  if (!m) throw new Error('fonction introuvable dans le <script> d\'Index.html : ' + nom);
+  if (!m) throw new Error('fonction introuvable dans le <script> d\'index.html : ' + nom);
   let i = SRC.indexOf('{', m.index + m[0].length - 1);
   let profondeur = 0;
   for (let j = i; j < SRC.length; j++) {
@@ -49,7 +49,7 @@ function extraireFonction(nom) {
 function extraireVar(nom) {
   const re = new RegExp('\\n\\s*var ' + nom + '\\s*=\\s*(\\[[\\s\\S]*?\\]);');
   const m = re.exec(SRC);
-  if (!m) throw new Error('variable introuvable dans le <script> d\'Index.html : ' + nom);
+  if (!m) throw new Error('variable introuvable dans le <script> d\'index.html : ' + nom);
   return 'var ' + nom + ' = ' + m[1] + ';';
 }
 

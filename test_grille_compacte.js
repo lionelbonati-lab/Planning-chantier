@@ -6,11 +6,11 @@
  * compact qui devient la standard ») le mode classique a été entièrement
  * supprimé : il n'y a plus qu'UN SEUL affichage, celui qui s'appelait
  * "compact" — `modeCompact` reste une constante fixée à `true` dans
- * Index.html (cf. son commentaire) plutôt qu'un vrai réglage, donc plus
+ * index.html (cf. son commentaire) plutôt qu'un vrai réglage, donc plus
  * besoin ici de tester 2 modes ni de basculer entre eux.
  *
  * PARTICULARITÉ : ce fichier ne teste pas une COPIE de la logique, il extrait
- * les fonctions RÉELLES du `Index.html` livré (par leur nom, depuis la source)
+ * les fonctions RÉELLES du `index.html` livré (par leur nom, depuis la source)
  * et les exécute. Une divergence entre ce qui est testé et ce qui est envoyé à
  * Lionel est donc impossible — c'est tout l'intérêt, ce projet n'ayant aucun
  * test d'écran (cf. FRONTEND-CHANGELOG.md §3).
@@ -22,13 +22,13 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const SRC = fs.readFileSync(path.join(__dirname, 'Index.html'), 'utf8');
+const SRC = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
 
-// ---- Extraction des fonctions réelles depuis Index.html -----------------
+// ---- Extraction des fonctions réelles depuis index.html -----------------
 function extraireFonction(nom) {
   const re = new RegExp('\\n(\\s*)function ' + nom + '\\s*\\(');
   const m = re.exec(SRC);
-  if (!m) throw new Error('fonction introuvable dans Index.html : ' + nom);
+  if (!m) throw new Error('fonction introuvable dans index.html : ' + nom);
   // Découpe par équilibrage des accolades à partir du corps de la fonction.
   let i = SRC.indexOf('{', m.index + m[0].length - 1);
   let profondeur = 0;
@@ -148,7 +148,7 @@ assertEqual(sandbox.colonneDemi(sandbox.giWeekend(0, 0), 'aprem'), 12,
 //    jour strictement ENTRE les 2 bords reste une journée entière). Fonction
 //    PARTAGÉE entre le rendu statique et l'aperçu en direct du
 //    redimensionnement (cablerPoigneeRedim / appliquerPrevisu, dans
-//    Index.html) : la tester ici couvre les deux à la fois, et une
+//    index.html) : la tester ici couvre les deux à la fois, et une
 //    régression future y serait détectée immédiatement.
 // =======================================================================
 assertEqual(sandbox.colonneEtSpanDemi(0, 1, 'matin', 'matin'), [sandbox.colonneDemi(0, 'matin'), 1],

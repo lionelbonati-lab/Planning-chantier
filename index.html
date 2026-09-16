@@ -7108,7 +7108,7 @@
       var immediat = e.pointerType !== "touch";
       var minuteur = immediat ? null : setTimeout(armer, DELAI_SELECTION);
       if (immediat) armer();
-      handleEl.setPointerCapture(pointerId);
+      try { handleEl.setPointerCapture(pointerId); } catch (ex) {}
       handleEl.addEventListener("pointermove", onMove);
       handleEl.addEventListener("pointerup", onUp);
       handleEl.addEventListener("pointercancel", onCancel);
@@ -7690,7 +7690,7 @@
         resoudreCibleGroupe(celluleCible2, e2.clientX);
       }
       function onCancel2() { detacher2(); reposer(); }
-      elementCapte.setPointerCapture(pointerId2);
+      try { elementCapte.setPointerCapture(pointerId2); } catch (ex) {}
       elementCapte.addEventListener("pointermove", onMove2);
       elementCapte.addEventListener("pointerup", onUp2);
       elementCapte.addEventListener("pointercancel", onCancel2);
@@ -7708,7 +7708,7 @@
     var immediat = !tactile;
     var minuteur = immediat ? null : setTimeout(armer, DELAI_SELECTION);
     if (immediat) armer();
-    bulleDom.setPointerCapture(pointerId);
+    try { bulleDom.setPointerCapture(pointerId); } catch (ex) {}
     bulleDom.addEventListener("pointermove", onMove);
     bulleDom.addEventListener("pointerup", onUp);
     bulleDom.addEventListener("pointercancel", onCancel);
@@ -7993,7 +7993,7 @@
       var immediat = e.pointerType !== "touch";
       var minuteur = immediat ? null : setTimeout(armerSelection, DELAI_SELECTION);
       if (immediat) armerSelection();
-      cell.setPointerCapture(pointerId);
+      try { cell.setPointerCapture(pointerId); } catch (ex) {}
       cell.addEventListener("pointermove", onMove);
       cell.addEventListener("pointerup", onUp);
       cell.addEventListener("pointercancel", onCancel);
@@ -8062,7 +8062,7 @@
       selectionnerDepuisCellules(cells);
     }
     function onCancel() { detacher(); effacerSurlignage(); }
-    celluleDebut.setPointerCapture(pointerId);
+    try { celluleDebut.setPointerCapture(pointerId); } catch (ex) {}
     celluleDebut.addEventListener("pointermove", onMove);
     celluleDebut.addEventListener("pointerup", onUp);
     celluleDebut.addEventListener("pointercancel", onCancel);
@@ -8130,7 +8130,7 @@
       cell.removeEventListener("pointercancel", detacher);
       try { cell.releasePointerCapture(pointerId); } catch (ex) {}
     }
-    cell.setPointerCapture(pointerId);
+    try { cell.setPointerCapture(pointerId); } catch (ex) {}
     cell.addEventListener("pointermove", onMove);
     cell.addEventListener("pointerup", onUp);
     cell.addEventListener("pointercancel", detacher);
@@ -8146,7 +8146,7 @@
       cell.removeEventListener("pointercancel", detacher);
       try { cell.releasePointerCapture(pointerId); } catch (ex) {}
     }
-    cell.setPointerCapture(pointerId);
+    try { cell.setPointerCapture(pointerId); } catch (ex) {}
     cell.addEventListener("pointermove", onMove);
     cell.addEventListener("pointerup", detacher);
     cell.addEventListener("pointercancel", detacher);
