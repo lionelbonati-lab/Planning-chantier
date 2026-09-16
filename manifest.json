@@ -3,7 +3,7 @@
   "short_name": "Planning",
   "description": "Planning des chantiers, du personnel et des sous-traitants.",
   "lang": "fr",
-  "start_url": ".",
+  "start_url": "Index.html",
   "scope": ".",
   "display": "standalone",
   "orientation": "any",
