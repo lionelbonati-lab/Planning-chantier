@@ -17,6 +17,30 @@
      utiliser la largeur RÉELLE de l'écran comme référence CSS (donc <600px
      sur un téléphone), ce qui active enfin ces règles. -->
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Planning Chantiers</title>
+<!-- Round du 16.09.2026 — suggestion de Lionel : transformer le site en PWA
+     pour que les collègues puissent l'« Ajouter à l'écran d'accueil » sur
+     leur téléphone (icône propre, ouverture en plein écran, sans passer par
+     un store). Portée volontairement limitée à manifest.json + icônes +
+     ces balises meta (pas de service worker à ce stade — pas d'installation
+     automatique Android ni de résilience hors-ligne, mais rien à maintenir
+     de plus et "Ajouter à l'écran d'accueil" fonctionne déjà très bien sur
+     iOS ET Android via le menu du navigateur). Fonctionne quel que soit
+     l'hébergeur HTTPS réel (Netlify aujourd'hui, GitHub Pages plus tard si
+     ça change un jour) : aucune de ces balises ne dépend d'un domaine en
+     particulier. Icône générée (motif "mur de briques", cf. icons/), pas
+     encore un vrai logo d'entreprise — à remplacer facilement plus tard si
+     Lionel en obtient un (cf. FRONTEND-CHANGELOG.md §76). -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1f4d8f">
+<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Planning">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   /* ============================================================
@@ -57,6 +81,21 @@
     --weekend-bg: #cdcfc9;
     color-scheme: light;
   }
+  /* Round du 16.09.2026 (suite, suite, suite, encore) — nettoyage suite à
+     une relecture externe du fichier signalant une "duplication" des
+     variables sombres entre ce bloc et un second sélecteur
+     :root[data-theme="dark"] (supprimé ici). Ce n'était pas une simple
+     duplication à fusionner : les 2 sélecteurs couvrent normalement 2 cas
+     différents d'un système de thème à 3 états (auto/clair/sombre) —
+     :not([data-theme="light"]) suit la préférence système sauf choix
+     explicite clair, [data-theme="dark"] force le sombre quel que soit le
+     système. Mais cette appli n'a JAMAIS posé l'attribut data-theme nulle
+     part (aucun bouton de bascule thème, confirmé par recherche dans tout
+     le fichier) : seul le bloc @media ci-dessous s'applique un jour, l'autre
+     était du code mort depuis l'origine. Gardé uniquement celui qui sert
+     réellement (thème sombre = préférence système, sans bascule manuelle).
+     Si une bascule manuelle est ajoutée un jour, il faudra réintroduire le
+     2e bloc ET le JS qui pose data-theme. */
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
       --bg: #10161d; --surface: #171f28; --surface-2: #1c2530;
@@ -73,21 +112,6 @@
       --weekend-bg: #232b34;
       color-scheme: dark;
     }
-  }
-  :root[data-theme="dark"] {
-    --bg: #10161d; --surface: #171f28; --surface-2: #1c2530;
-    --ink: #eef1f4; --ink-muted: #9aa7b3; --ink-faint: #66717c;
-    --border: #2b3540; --border-strong: #4a5661;
-    --accent: #6fa6e8; --accent-ink: #0b1622; --accent-soft: #223247;
-    --important-ink: #f2a89c;
-    --status-confirme-bg: #123f38; --status-confirme-ink: #7ee0cf;
-    --danger: #e0685f; --danger-ink: #2a0e0c;
-    --shadow: rgba(0, 0, 0, 0.4); --shadow-lg: rgba(0, 0, 0, 0.6);
-    --interdit-bg: #4a2620;
-    --avertissement-bg: #5a3110; --avertissement-ink: #f2a565;
-    --succes-bg: #1c3a20; --succes-ink: #7fd88c;
-    --weekend-bg: #232b34;
-    color-scheme: dark;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   /* Apps Script sert cette page dans une iframe : le document ne défile
@@ -167,7 +191,15 @@
 
   /* ---------- page (#app défile, seul) ---------- */
   #app { position: fixed; inset: 0; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
-  .page-scroll { padding: 14px 18px 40px; }
+  /* padding-top réduit de 14 à 6 (round du 16.09.2026, suite, encore —
+     Lionel, croquis annoté : « réduire les espaces roses ») : cette marge
+     haute, entre le bas de .onglets-nav (fixe) et le 1er élément de chaque
+     page, faisait partie des 3 espaces jugés trop généreux une fois
+     l'en-tête de la page Planning fixé (cf. .legende-barre plus bas) — la
+     réduire ici (classe partagée par TOUTES les pages, cf. htmlPageJalons
+     etc.) resserre l'ensemble de l'appli de façon cohérente plutôt que de
+     n'agir que sur Planning en isolant un cas particulier. */
+  .page-scroll { padding: 6px 18px 40px; }
 
   /* ---------- bandeau de statut serveur, tout en haut ---------- */
   .topbar {
@@ -260,21 +292,63 @@
   .barre-action .ovale-bleu { border: 1.5px solid var(--accent); background: var(--accent); color: var(--accent-ink); }
   .barre-action .ovale-bleu:hover { opacity: .88; }
 
+  /* .barre-undo — round du 16.09.2026 (suite, encore) : Lionel, croquis
+     annoté, « les boutons annuler/refaire passent dans la case vide à
+     gauche des jours ». Elle n'est plus une barre FLOTTANTE en survol
+     (position:sticky + height:0 + translateY, cf. l'historique de ce
+     fichier) : les 2 boutons sont désormais déplacés (JS, cf.
+     construireGrille — coin.appendChild(barreUndoEl)) DANS la cellule
+     .th.coin de la ligne des jours (celle, vide, à gauche de "LUN 14…" que
+     montre la flèche rouge du croquis) — donc un simple rangement flex
+     normal à l'intérieur d'une case de la grille, plus aucun besoin de
+     sticky/z-index/translateY qui compensaient son ancien survol flottant. */
   .barre-undo {
-    position: sticky; top: 22px; height: 0; z-index: 97;
-    display: flex; gap: 6px; pointer-events: none; transform: translateY(-14px);
+    display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%;
   }
   .barre-undo button {
-    pointer-events: auto;
-    width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-    font-size: 15px; line-height: 1; font-weight: 700; cursor: pointer;
+    width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 13px; line-height: 1; font-weight: 700; cursor: pointer;
     border: 1.5px solid var(--border); background: var(--surface); color: var(--ink);
-    box-shadow: 0 8px 18px var(--shadow-lg); transition: opacity .12s, background .12s, border-color .12s, transform .12s;
+    transition: opacity .12s, background .12s, border-color .12s;
   }
   .barre-undo button:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent); }
-  .barre-undo button:disabled { opacity: .32; cursor: default; box-shadow: none; }
+  .barre-undo button:disabled { opacity: .32; cursor: default; }
 
-  .legende { display: flex; gap: 12px; flex-wrap: wrap; margin: 14px 0 16px; }
+  /* .legende-barre — round du 16.09.2026 (suite, encore). Remplace .legende
+     comme conteneur FIXÉ en haut d'écran (même principe que .onglets-nav
+     ci-dessus : sticky + fond opaque) : Lionel a en effet demandé, sur le
+     même croquis, que « les chantiers se placent sur la même ligne que le
+     bouton imprimer » — les 2 rejoignent donc une seule ligne flex
+     (.legende à gauche, qui garde son rôle de simple liste ; le bouton
+     Imprimer à droite, cf. htmlPagePlanning), et c'est cette ligne commune
+     qui porte maintenant toute la mécanique de fixation (auparavant sur
+     .legende seule). top est posé dynamiquement en JS (cf.
+     ajusterEnteteFixe()) plutôt qu'en dur : Round A avait calculé top:83px
+     à la main pour .legende, une valeur qui a déjà dû être recalculée une
+     fois (cf. l'historique de .barre-undo ci-dessus) — la mesurer en JS à
+     chaque rendu évite de refaire ce calcul à la main à chaque futur
+     changement de hauteur de .onglets-nav. padding-top:14 (au lieu de
+     l'ancien 46 de .legende) : la réduction des espaces roses ci-dessus
+     (margin-bottom .onglets-nav 18→8, padding-top .page-scroll 14→6) laisse
+     un espace résiduel de 8+6=14px entre le bas de .onglets-nav et cette
+     ligne — toujours absorbé en padding (couvert par le fond opaque),
+     jamais en marge (transparente), pour la même raison que Round A avait
+     déjà dû corriger deux fois (cf. FRONTEND-CHANGELOG §73.2) : une marge
+     ici laisserait le même genre de fuite de contenu défilé réapparaître
+     dans cette bande. margin:0 (son rôle de séparation avec la grille en
+     dessous est repris par .entete-planning-figee, cf. plus bas). */
+  .legende-barre {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    margin: 0; padding-top: 14px;
+    position: sticky; z-index: 39; background: var(--bg);
+  }
+  /* spécificité (3 classes) volontairement plus élevée que .semaine-titre.
+     barre-imprimer plus bas (2 classes, définie APRÈS dans la feuille) : sans
+     ça, son margin:0 0 8px (pensé pour l'ancienne barre pleine largeur,
+     au-dessus de la grille) l'emporterait à égalité de spécificité et
+     décalerait légèrement le bouton dans sa nouvelle ligne flex. */
+  .legende-barre .semaine-titre.barre-imprimer { margin: 0; flex-shrink: 0; }
+  .legende { display: flex; gap: 12px; flex-wrap: wrap; flex: 1 1 auto; }
   .legende .item { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink-muted); font-family: 'IBM Plex Mono', monospace; }
   .legende .swatch { width: 11px; height: 11px; border-radius: 3px; flex-shrink: 0; }
   /* Chantier par défaut des formulaires (round du 03.09.2026) : un item de
@@ -283,6 +357,47 @@
   .legende .item.chantier:hover { background: var(--surface-2); color: var(--ink); }
   .legende .item.chantier.actif { color: var(--ink); font-weight: 700; background: var(--accent-soft); }
   .legende .item.chantier.actif .swatch { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--accent); }
+
+  /* .entete-planning-figee / .entete-planning-scroll — round du 16.09.2026
+     (suite, encore) : Lionel, même croquis, « faire défiler la page après
+     les notes ». Étend le principe de .onglets-nav/.legende-barre (sticky)
+     à TOUTE la partie haute de la grille (nav de semaine, en-têtes de jour,
+     ligne M/A compacte, Jalons, Notes) — seules les lignes Personnel/
+     Intervenants (.grille-corps, cf. .grille-cadre plus bas) défilent
+     encore réellement. Techniquement CE N'ÉTAIT PAS FAISABLE en rendant
+     sticky chaque cellule concernée à l'intérieur de la grille unique
+     d'origine : .scroller (ci-dessous) porte overflow-x:auto, et la règle
+     CSS qui force le calcul de overflow-y à "auto" dès que overflow-x ne
+     vaut pas "visible" aurait fait de .scroller — qui ne défile jamais
+     verticalement lui-même — le référentiel de position:sticky de ses
+     enfants, où un sticky top n'a alors plus aucun effet (rien à quoi se
+     fixer). D'où la scission en DEUX grilles séparées (grille-entete et
+     grille-corps, mêmes gridTemplateColumns/minWidth calculés une seule
+     fois en JS pour rester pixel-identiques) : .entete-planning-figee
+     (aucun overflow propre) est CE qui est sticky, fixé contre #app comme
+     .onglets-nav/.legende-barre — top posé dynamiquement (ajusterEnteteFixe)
+     = hauteur de .onglets-nav + hauteur de .legende-barre. Son enfant
+     .entete-planning-scroll porte overflow:hidden (jamais de barre de
+     défilement visible ni d'interaction directe) et voit son scrollLeft
+     recopié en JS depuis le VRAI défilement horizontal, celui de .scroller
+     (cf. construireGrille) — un enfant sticky de .entete-planning-figee,
+     lui, n'a donc plus besoin d'être individuellement sticky : c'est le
+     bloc entier qui reste fixe pendant que son contenu glisse
+     horizontalement en phase avec le tableau du dessous. padding-top:6
+     (même logique de fuite qu'au-dessus) absorbe le résidu d'espace rose
+     entre .legende-barre et la grille. border-radius/border : coins hauts
+     arrondis + bordure sans bord bas, pour former un seul panneau visuel
+     avec .grille-cadre juste en dessous (coins bas arrondis, bord sans bord
+     haut) — les deux se touchent désormais sans espace (3e espace rose du
+     croquis, entre Notes et Personnel, supprimé par construction plutôt que
+     par un réglage de marge). */
+  .entete-planning-figee {
+    position: sticky; z-index: 38; background: var(--bg); margin: 0; padding-top: 6px;
+  }
+  .entete-planning-scroll {
+    overflow: hidden; width: 100%;
+    border: 1px solid var(--border); border-bottom: none; border-radius: 12px 12px 0 0;
+  }
 
   /* Round du 14.09.2026 — Lionel, mockup mockup-selecteur-semaine.html à
      l'appui, validé : « les boutons Aujourd'hui et Imprimer doivent rester
@@ -350,7 +465,12 @@
   .semaine-titre .btn-titre.actif:hover { background: var(--accent-soft); }
   .semaine-titre.barre-imprimer .btn-titre { margin-left: 0; }
   .sem-entete-dates { display: block; font-size: 9px; font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--ink-faint); margin-top: 1px; }
-  .grille-cadre { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  /* border-top:none/border-radius bas seulement (round du 16.09.2026, suite,
+     encore) : .grille-cadre ne porte plus que le CORPS (Personnel/
+     Intervenants, cf. .entete-planning-scroll ci-dessus pour l'en-tête
+     désormais séparé et fixe) — les deux panneaux se touchent pile, sans
+     espace, pour ne former qu'un seul cadre visuel continu. */
+  .grille-cadre { border: 1px solid var(--border); border-top: none; border-radius: 0 0 12px 12px; overflow: hidden; }
   .scroller { overflow-x: auto; padding-bottom: 4px; }
   .grille { display: grid; gap: 1px; background: var(--border); }
   .th, .lbl, .cell { background: var(--surface-2); }
@@ -359,6 +479,11 @@
     text-transform: uppercase; letter-spacing: .06em; color: var(--ink-muted); text-align: center;
   }
   .th.coin { background: var(--surface); }
+  /* .th.coin-undo — round du 16.09.2026 (suite, encore) : la cellule coin de
+     la ligne des jours (vide jusqu'ici) héberge maintenant les boutons
+     annuler/refaire (cf. .barre-undo ci-dessus et construireGrille), donc un
+     agencement flex plutôt que le padding/texte centré par défaut de .th. */
+  .th.coin-undo { display: flex; align-items: center; justify-content: center; padding: 4px; }
   .th.sem-entete { background: var(--surface); color: var(--ink); font-size: 10.5px; }
   .th-ferie-label {
     display: block; font-size: 8.5px; font-weight: 700; margin-top: 3px;
@@ -492,17 +617,26 @@
      par colonneEtSpanDemi() (comme la bulle réelle), pas une .cell entière —
      voir cibleNotePreciseCompacte()/survolerCible() dans le script. */
   /* align-self: start (round du 07.09.2026, suite — bug signalé par Lionel,
-     2 vidéos à l'appui : « les notes sont vraiment bugée ») : sans lui, cet
-     élément (une simple div sans le reste des classes de .bulle-plage)
-     s'étire par défaut sur TOUTE la hauteur de sa ligne de grille (52px de
-     mesuré ici, contre 26px pour une vraie bulle) — au lieu de rester
-     calée en haut comme les bulles elles-mêmes (cf. .bulle-plage un peu plus
-     bas, qui a le même align-self). Ce débordement vers le bas est
-     exactement ce qui donnait l'impression d'un 2e rectangle qui dépasse
-     sous la bulle glissée dans les vidéos de Lionel. La hauteur exacte est
-     posée en JS (survolerCible()), calquée sur la bulle réelle en cours de
-     glissement — voir son commentaire. */
-  .survol-precis { box-shadow: inset 0 0 0 2px var(--accent); background: var(--accent-soft); border-radius: 8px; z-index: 5; align-self: start; }
+     2 vidéos à l'appui : « les notes sont vraiment bugée ») : posé À
+     L'ÉPOQUE parce que, sans lui, cet élément (une simple div sans le reste
+     des classes de .bulle-plage) s'étirait par défaut sur TOUTE la hauteur
+     de sa ligne de grille (52px mesuré alors, contre 26px pour une vraie
+     bulle) — au lieu de rester calé en haut comme les bulles elles-mêmes
+     (cf. .bulle-plage un peu plus bas, qui a le même align-self). Ce
+     débordement vers le bas donnait l'impression d'un 2e rectangle qui
+     dépasse sous la bulle glissée dans les vidéos de Lionel de l'époque.
+     RETIRÉ le 16.09.2026 (round suivant) — nouveau retour de Lionel, capture
+     à l'appui : « la sur-brillance bleue... se perd d'une ligne à l'autre.
+     elle est aussi trop petite, actuellement elle fait la taille de la
+     bulle, je préfèrerai que la(les) case cible soient entièrement
+     sur-brillée. » Le "bug" de 07.09 et la demande de 16.09 sont exactement
+     la même chose vue sous deux angles différents : Lionel veut maintenant
+     précisément ce débordement plein-hauteur, déjà éprouvé sans souci par
+     .selection-precis (juste en dessous) depuis le 12.09.2026 — stretch
+     redevient donc le comportement (défaut de .grille, cf. son
+     display:grid sans align-items), comme pour .selection-precis. La
+     hauteur n'est plus fixée en JS non plus, cf. survolerCible(). */
+  .survol-precis { box-shadow: inset 0 0 0 2px var(--accent); background: var(--accent-soft); border-radius: 8px; z-index: 5; }
   /* .selection-precis (round du 12.09.2026 — refonte "case par case" de la
      sélection au glissé, demandée par Lionel) : jalon/note n'ont qu'UNE
      cellule DOM par jour (cf. creerCelluleFond, jamais scindée matin/aprem),
@@ -851,24 +985,39 @@
      (Personnel, Chantiers, Statuts…) ne sont pas affectées dans leur lisibilité
      : leur propre liste/formulaire garde sa limite de largeur dédiée
      (.liste-intervenants, .reglage-ligne, etc.), indépendante de ce cadre. */
-  /* padding-top : réserve la bande où vit #lienDeconnexion ("Se déconnecter",
-     position:fixed, top:10, hauteur ~22px, cf. .lien-deconnexion). Avant ce
-     round, rien ne s'approchait de cette bande à gauche (sidebar) ni sur la
-     page Planning (bouton ☰ posé à gauche aussi) : la barre d'onglets étant
-     désormais pleine largeur, sans cette marge elle passerait SOUS le
-     bouton sur un écran étroit dès qu'un onglet se retrouve sous lui (le
-     bouton reste fixe, quel que soit le défilement horizontal des onglets). */
-  .app-shell { display: flex; flex-direction: column; max-width: 2200px; margin: 0 auto; padding-top: 44px; }
+  .app-shell { display: flex; flex-direction: column; max-width: 2200px; margin: 0 auto; }
   /* Round du 12.09.2026 — Lionel (mockup validé, « Option 2 — onglets ») :
      remplace l'ancienne sidebar (200px, à repli automatique sur Planning,
      cf. l'historique de ce fichier) par une barre d'onglets horizontale,
      identique sur les 9 pages — plus de panneau qui s'ouvre par-dessus le
      contenu, ni de largeur réservée en permanence sur les pages autres que
      Planning. overflow-x:auto fait défiler la barre au doigt plutôt que de
-     tasser les onglets sur un écran étroit (vérifié mobile, cf. changelog). */
+     tasser les onglets sur un écran étroit (vérifié mobile, cf. changelog).
+     Round du 16.09.2026 (suite) — Lionel : « fixer la partie supérieure au
+     tableau de tâches afin que les onglets et la légende des chantiers
+     restent toujours à l'écran. » position:sticky top:0 + fond opaque : la
+     barre reste désormais visible en permanence pendant le défilement de
+     #app (seule zone qui défile réellement, cf. son commentaire plus haut),
+     au lieu de disparaître avec le reste de la page. padding-top:44 (au lieu
+     du padding-top sur .app-shell ci-dessus, retiré) : le fond opaque de la
+     barre doit lui-même couvrir toute la bande réservée à #lienDeconnexion
+     ("Se déconnecter", position:fixed, top:10, cf. .lien-deconnexion un peu
+     plus haut) — sans ça, cette bande (0 à 44px) restait un simple espace
+     vide, à travers lequel le contenu de la grille (lui NON fixe) redevenait
+     visible dès qu'on faisait défiler suffisamment, un comportement confus,
+     repéré lors de la vérification de ce correctif (Playwright, capture
+     d'écran). z-index:40 : au-dessus de la grille (bulles/cases, z-index
+     ≤ 6) mais SOUS #lienDeconnexion (z-index:50, doit rester cliquable) et
+     très en dessous des popups/modales (.voile-confirm z-index:95 et plus).
+     margin-bottom réduit de 18 à 8 (round du 16.09.2026, suite, encore —
+     Lionel : « réduire les espaces roses ») : cf. le commentaire de
+     .page-scroll, même logique — resserre la barre d'onglets et le début de
+     chaque page, absorbé plus bas par .legende-barre. */
   .onglets-nav {
     display: flex; gap: 2px; overflow-x: auto; -webkit-overflow-scrolling: touch;
-    border-bottom: 1px solid var(--border); margin-bottom: 18px; flex-shrink: 0; padding-right: 12px;
+    border-bottom: 1px solid var(--border); margin-bottom: 8px; flex-shrink: 0; padding-right: 12px;
+    padding-top: 44px;
+    position: sticky; top: 0; z-index: 40; background: var(--bg);
   }
   .onglet {
     padding: 11px 16px; font-size: 12.5px; font-weight: 700; color: var(--ink-muted);
@@ -1107,6 +1256,25 @@
   .print-doc { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px; font-size: 12px; }
   table.print-table { width: 100%; border-collapse: collapse; }
   table.print-table th, table.print-table td { border: 1px solid var(--border-strong); padding: 5px 7px; font-size: 11px; vertical-align: top; }
+  /* Option A — bande de couleur par tâche (round du 16.09.2026, choisie par
+     Lionel via AskUserQuestion pour représenter plusieurs chantiers sur la
+     même case à l'impression, cf. infoCase/celluleTache dans openPrintSheet) :
+     td.td-tache garde son fond (posé en style inline = couleur de la
+     DERNIÈRE tâche de la case, cf. le commentaire détaillé sur celluleTache
+     — un <td> est la seule chose qui remplit fiablement toute la hauteur de
+     SA LIGNE dans un tableau à hauteur "auto" ; un enfant en % ne le peut
+     pas, cf. ce même commentaire) mais devient un simple conteneur pour le
+     PADDING (padding:0 ici, reporté sur .print-bande) : chaque tâche
+     empilée dessine sa PROPRE bande pleine largeur, opaque, PAR-DESSUS ce
+     fond. Une case à une seule tâche (l'immense majorité des cas) est donc
+     visuellement identique à avant ce round : une seule bande, de la même
+     couleur que le <td> lui-même, occupe toute la cellule. Plusieurs bandes
+     dans la même case sont séparées par un mince trait (border-top plutôt
+     que la bordure de grille normale, pour rester visible même quand 2
+     bandes partagent la même couleur de chantier). */
+  table.print-table td.td-tache { padding: 0; }
+  table.print-table .print-bande { padding: 5px 7px; }
+  table.print-table .print-bande + .print-bande { border-top: 1px solid var(--border-strong); }
   /* Portage du mockup d'affinage des bordures (mockup-impression-bordures.html,
      rounds 1 à 13, validés par Lionel le 15.09.2026 — "super, passe à la
      mise en place sur l'appli") : cadre extérieur du tableau à 2px, contre
@@ -1328,17 +1496,52 @@
      sur la règle de base de la grille, plus haut) : même correctif que le
      reste du fichier, pour la même raison — 1.4px n'étant pas un nombre
      entier de pixels d'impression, ces largeurs subissaient la même dérive
-     d'arrondi (2px/3px selon la ligne) que la grille elle-même. */
+     d'arrondi (2px/3px selon la ligne) que la grille elle-même.
+     Flou du pointillé (round du 16.09.2026, suite) — Lionel, après le
+     correctif ci-dessus : "L'impression est bonne mais les pointillés
+     paraissent floues". Cause : le dégradé linear-gradient utilisé ci-dessous
+     pour dessiner les points est, par construction, un contenu interpolé en
+     douceur (un dégradé de couleur, pas un tracé) — à l'échelle minuscule de
+     ce motif (1px/2px), le moteur de rendu PDF (Skia/PDF) anti-aliase
+     fortement chaque transition couleur→transparent, ce qui donne un halo
+     gris/brunâtre flou autour de chaque point au lieu d'un point net.
+     Confirmé par une comparaison contrôlée (3 techniques rendues en PDF réel
+     à 400dpi puis zoomées au pixel près) : le dégradé est nettement flou/
+     auréolé, alors que border-style: dotted et dashed — des traits vectoriels
+     de première classe, que le navigateur rend nets par nature — ne le sont
+     pas ; confirmé aussi directement sur un PDF réel envoyé par Lionel (zoom
+     pixel sur la frontière Rhabillages/Maçonnerie de la ligne Mathis) : les
+     mêmes taches grises floues apparaissent entre les points.
+     Remplacé le dégradé par un vrai border-left: dotted (width: 0 sur
+     l'élément lui-même, la largeur du trait étant portée par border-left) :
+     le point reste aussi discret et fin qu'avant (1px, cohérent avec la
+     grille elle-même passée à 1px ci-dessus) mais net, sans flou, quelle que
+     soit la résolution d'impression.
+
+     Round du 16.09.2026 (Option A, bande de couleur par tâche) — .demi-aprem
+     reste posée sur le <td> lui-même, comme avant ce round (essayé un temps
+     sur chaque .print-bande individuellement pour un masquage parfait
+     bande-par-bande, abandonné : ça dépendait du même correctif de hauteur
+     par % qui s'est avéré ne pas marcher dans un tableau à hauteur "auto",
+     cf. le commentaire détaillé sur celluleTache). `background-color:
+     inherit` (::before, juste en dessous) reprend donc le fond du <td>
+     — désormais la couleur de la DERNIÈRE tâche de la case (cf. même
+     commentaire) plutôt qu'un unique chantier de case comme avant ce round.
+     Sur une case à une seule tâche (l'immense majorité des cas), c'est
+     exactement la même couleur qu'avant : aucun changement visible. Sur une
+     case à PLUSIEURS bandes de couleurs différentes côté aprem (rare), le
+     masquage/pointillé reprend la couleur de la dernière bande sur toute la
+     hauteur plutôt que celle d'une bande du dessus — imperfection mineure
+     déjà actée dans ce même commentaire, à l'endroit exact où elle se
+     produit (un pixel de large, au bord partagé avec la case voisine). */
   table.print-table .demi-aprem { position: relative; }
   table.print-table .demi-aprem::before {
     content: ""; position: absolute; left: -1px; top: 2px; bottom: 2px; width: 1px;
     background-color: inherit;
   }
   table.print-table .demi-aprem::after {
-    content: ""; position: absolute; left: -1px; top: 3px; bottom: 3px; width: 1px;
-    background-image: linear-gradient(var(--border-strong) 50%, transparent 50%);
-    background-size: 1px 2px;
-    background-repeat: repeat-y;
+    content: ""; position: absolute; left: -1px; top: 3px; bottom: 3px; width: 0;
+    border-left: 1px dotted var(--border-strong);
   }
   /* Portage mockup (round 5) — même piège de spécificité que .print-spacer
      documenté plus haut : ".print-notes td" (1 classe + 1 type) était battu
@@ -1955,20 +2158,27 @@
   // Chantier déjà présent dans la case ciblée (round du 03.09.2026, signalé
   // par Lionel : "lorsque je pose une tache sur une demi journée, l'autre
   // tâche prend le chantier de la nouvelle créée. il doit etre possible de
-  // rentrer des tache sans changer le chantier de l'autre tâche"). Une case
-  // (personne + demi-journée + jour) ne peut porter qu'UN SEUL chantier —
-  // c'est une cellule à part sur la feuille, partagée par toutes les tâches
-  // empilées dessous (cf. WebApp.gs, apiEnregistrerCellulePersonne :
-  // "Chantier" et "détail" sont 2 lignes distinctes, jamais une par tâche).
-  // Si une tâche occupe déjà une des cases ciblées, la NOUVELLE tâche doit
-  // être PRÉ-COCHÉE sur CE chantier-là — sinon valider le formulaire sans
-  // toucher au champ change silencieusement le chantier de la tâche déjà en
-  // place dès la synchronisation (calculerEtatLocal ne retient qu'UN
-  // chantier par case, cf. plus bas : la dernière tâche du tableau à en
-  // porter un l'emporte). Priorité sur le chantier par défaut de la légende
-  // (round du 03.09.2026, §22) : la case déjà occupée est un signal plus
-  // fort que le choix global. null si aucune case ciblée n'a de tâche —
-  // repli inchangé sur le chantier de la légende puis le 1er de la liste.
+  // rentrer des tache sans changer le chantier de l'autre tâche"). À
+  // L'ÉPOQUE, une case (personne + demi-journée + jour) ne pouvait porter
+  // qu'UN SEUL chantier — cellule à part sur la feuille, partagée de force
+  // par toutes les tâches empilées dessous — et ce pré-remplissage était un
+  // correctif OBLIGATOIRE : sans lui, valider le formulaire sans toucher au
+  // champ changeait silencieusement le chantier de la tâche déjà en place
+  // dès la synchronisation. Round du 16.09.2026
+  // (sql/0010_taches_chantier_id.sql — Lionel : "plusieurs chantier sur la
+  // même case ... actuellement si une tâche est affecté à un chantier, la
+  // tâche déjà en place change de chantier") : chantier_id est désormais
+  // une colonne DE LA TÂCHE, cette limite structurelle a disparu — poser un
+  // chantier différent sur une nouvelle tâche ne touche plus jamais aux
+  // tâches déjà en place. Cette fonction reste néanmoins utile comme simple
+  // DÉFAUT ergonomique (plutôt que correctif nécessaire) : proposer le même
+  // chantier qu'une tâche déjà présente reste un choix probable pour la
+  // suivante, avant de retomber sur le chantier de la légende puis le 1er de
+  // la liste — mais ce n'est plus qu'une suggestion pré-cochée, jamais
+  // modifiable sans risque comme avant ce round. Priorité sur le chantier
+  // par défaut de la légende (round du 03.09.2026, §22) : la case déjà
+  // occupée reste un signal plus fort que le choix global. null si aucune
+  // case ciblée n'a de tâche.
   function chantierExistantDansCase(cibles, giDebut, duree) {
     if (!cibles || !cibles.length) return null;
     var d = Math.max(1, duree || 1);
@@ -2063,7 +2273,27 @@
       // passe en onglets, toujours visibles, cf. construireCoquille(). Plus
       // rien à mettre dans un <header> propre à cette page — la légende
       // devient directement le 1er élément de .wrap.
-      '<div class="legende" id="legende"></div>' +
+      //
+      // Round du 16.09.2026 (suite, encore) — Lionel, nouveau retour sur
+      // croquis annoté : « les chantiers se placent sur la même ligne que le
+      // bouton imprimer ». .legende-barre est le nouveau conteneur flex qui
+      // porte les deux : la légende des chantiers (#legende, toujours
+      // reconstruite par construireLegende) à gauche, le bouton Imprimer à
+      // droite — ce dernier n'a plus besoin d'être reconstruit à chaque
+      // rendu de la grille (cf. construireGrille : il ne dépendait d'aucune
+      // donnée, juste d'un clic vers openPrintSheet), il devient donc un
+      // bouton STATIQUE câblé une seule fois (cf. cablerPagePlanning) au
+      // lieu d'un <div> recréé à chaque construireGrille(). C'est
+      // .legende-barre (et non plus .legende) qui porte désormais la
+      // fixation en haut d'écran (cf. son commentaire CSS et
+      // ajusterEnteteFixe()) puisque c'est elle, maintenant, toute la
+      // ligne fixe.
+      '<div class="legende-barre" id="legendeBarre">' +
+        '<div class="legende" id="legende"></div>' +
+        '<div class="semaine-titre barre-imprimer">' +
+          '<button type="button" class="btn-titre btn-imprimer-titre" id="btnImprimerTitre" title="Aperçu et export PDF de la semaine affichée">' + ICONS.print + ' Imprimer</button>' +
+        '</div>' +
+      '</div>' +
       '<div class="zone-planning">' +
         '<div class="barre-undo" id="barreUndo"><button type="button" id="btnDefaire" title="Annuler (Ctrl+Z)" aria-label="Annuler">↶</button><button type="button" id="btnRefaire" title="Refaire (Ctrl+Y)" aria-label="Refaire">↷</button></div>' +
         '<div id="racine"></div>' +
@@ -2192,7 +2422,16 @@
     var RENDU_PAR_PAGE = {
       jalons: renderJalons, personnel: renderPersonnel, intervenants: renderIntervenants,
       chantiers: renderChantiers, statuts: renderStatuts,
-      "entree-rapide": renderFormulaires, feries: renderFeries
+      "entree-rapide": renderFormulaires, feries: renderFeries,
+      // Round du 16.09.2026 (suite, encore) : la page Planning elle-même
+      // n'a pas besoin d'un re-rendu complet à chaque activation (ses
+      // données restent à jour en tâche de fond, cf. synchroniser()) — mais
+      // #legendeBarre/.entete-planning-figee ont pu être mesurés (top sticky,
+      // cf. ajusterEnteteFixe) pendant qu'elle était display:none (sur un
+      // autre onglet), ce qui donne des hauteurs nulles et donc un top faux.
+      // Remesurer juste au moment où elle redevient visible corrige ça sans
+      // reconstruire toute la grille.
+      planning: ajusterEnteteFixe
     };
     ongletsBtns.forEach(function (btn) {
       btn.addEventListener("click", function () {
@@ -2218,13 +2457,21 @@
     if (btnDefaire) btnDefaire.addEventListener("click", defaire);
     var btnRefaire = document.getElementById("btnRefaire");
     if (btnRefaire) btnRefaire.addEventListener("click", refaire);
-    // Round D — le bouton "2 semaines" (ex-paire .toggle-sem) et "Imprimer"
-    // sont désormais câblés dans construireGrille (avec Aujourd'hui/les
-    // flèches semaine, qu'ils rejoignent visuellement) puisqu'ils vivent
-    // maintenant dans .semaine-titre, reconstruite à chaque rendu — cf.
-    // basculerDeuxSemaines juste plus bas, appelée depuis là-bas. "Ajout
-    // lointain" a disparu (Lionel : "on peut maintenant le faire via les
-    // nouveaux formulaires").
+    // Round D — le bouton "2 semaines" (ex-paire .toggle-sem) est câblé dans
+    // construireGrille (avec Aujourd'hui/les flèches semaine, qu'il rejoint
+    // visuellement) puisqu'il vit dans .semaine-titre, reconstruite à chaque
+    // rendu — cf. basculerDeuxSemaines juste plus bas, appelée depuis
+    // là-bas. "Ajout lointain" a disparu (Lionel : "on peut maintenant le
+    // faire via les nouveaux formulaires").
+    // "Imprimer" (round du 16.09.2026, suite, encore) : rejoint désormais
+    // #legendeBarre (Lionel : « les chantiers se placent sur la même ligne
+    // que le bouton imprimer ») en tant que bouton STATIQUE du gabarit HTML
+    // (cf. htmlPagePlanning) — il ne dépend d'aucune donnée de la grille,
+    // donc plus besoin de le recréer à chaque construireGrille() comme
+    // avant (l'ancien <div class="barre-imprimer"> jetable). Câblé ici, une
+    // seule fois.
+    var btnImprimerTitre = document.getElementById("btnImprimerTitre");
+    if (btnImprimerTitre) btnImprimerTitre.addEventListener("click", openPrintSheet);
     // Round suivant (11.09.2026) — Lionel : « le bouton recharger doit
     // disparaitre. » Le bouton #btnReset et son câblage (oublierCache() +
     // assurerFenetreChargee(...) pour relire la fenêtre depuis le serveur)
@@ -4105,6 +4352,17 @@
         statut: t.statut_id != null ? (statutsParId[t.statut_id] || null) : null,
         important: !!t.important,
         serieId: t.serie_id || null,
+        // chantier (round du 16.09.2026, sql/0010_taches_chantier_id.sql —
+        // Lionel : "plusieurs chantier sur la même case ... actuellement si
+        // une tâche est affecté à un chantier, la tâche déjà en place change
+        // de chantier") : AVANT ce round, le chantier était un attribut de LA
+        // CASE (via `assignations`, cf. celluleVue_ ci-dessous), partagé de
+        // force par toutes les tâches empilées dessus — poser un chantier sur
+        // une nouvelle tâche recolorait donc TOUTES les autres. `chantier_id`
+        // est désormais une vraie colonne de `taches` (comme statut_id) :
+        // chaque tâche porte son propre chantier, indépendamment des autres
+        // tâches de la même case.
+        chantier: t.chantier_id != null ? (chantiersParId[t.chantier_id] || null) : null,
         // Round du 14.09.2026 (bug signalé par Lionel, vidéo à l'appui : « une
         // absence sur plusieurs jours est attribuée à un chantier et prend la
         // couleur grise ») : `taches` gagne une vraie colonne est_absence
@@ -4126,12 +4384,19 @@
         absence: !!t.est_absence
       };
     }
-    // Une case = un chantier (via assignations) + une liste de tâches (via
-    // taches), toutes deux indexées par (personne, demi, date).
+    // Une case = une liste de tâches (via taches, chacune avec son PROPRE
+    // chantier désormais, cf. tacheVue_ ci-dessus), indexée par
+    // (personne, demi, date). `chantier` au niveau de la case redevient un
+    // simple REPLI : `assignations` (round du 16.09.2026 — plus jamais écrite
+    // par aucun chemin du code, cf. sql/0010_taches_chantier_id.sql) ne peut
+    // plus, en pratique, décrire qu'une case sans aucune tâche ; gardé
+    // uniquement pour lire d'éventuelles vieilles lignes orphelines encore en
+    // base (jamais produites par l'UI actuelle : champChantierHTML n'offre
+    // jamais une case vide).
     function celluleVue_(personneId, demi, date) {
       var a = assignationParCle[cle_(personneId, demi, date)];
       var taches = (tachesParCle[cle_(personneId, demi, date)] || []).map(tacheVue_);
-      return { chantier: a ? (chantiersParId[a.chantier_id] || null) : null, taches: taches };
+      return { chantier: (!taches.length && a) ? (chantiersParId[a.chantier_id] || null) : null, taches: taches };
     }
 
     var jalons = infos.isoDates.map(function (iso) {
@@ -4463,13 +4728,14 @@
     do { d.setUTCDate(d.getUTCDate() + 1); } while (d.getUTCDay() === 0 || d.getUTCDay() === 6);
     return d.toISOString().slice(0, 10);
   }
-  // taches/assignations = lignes brutes déjà filtrées "depuisIso <= date"
-  // (cf. compterTachesPersonnesServeur ci-dessous) ; renvoie {personne_id:
-  // nombre de tâches "visuelles"}, même forme que l'ancien
-  // apiCompterTachesPersonnes.
-  function compterTachesParPersonne_(taches, assignations, depuisIso) {
-    var chantierParCle = {};
-    (assignations || []).forEach(function (a) { chantierParCle[a.personne_id + "|" + a.demi + "|" + a.date] = a.chantier_id || null; });
+  // taches = lignes brutes déjà filtrées "depuisIso <= date" (cf.
+  // compterTachesPersonnesServeur ci-dessous) ; renvoie {personne_id: nombre
+  // de tâches "visuelles"}, même forme que l'ancien apiCompterTachesPersonnes.
+  // Round du 16.09.2026 (sql/0010_taches_chantier_id.sql) : le chantier de
+  // chaque ligne se lit directement sur t.chantier_id — plus besoin de
+  // croiser avec `assignations` (paramètre disparu), qui n'est plus la
+  // source de vérité du chantier d'une tâche.
+  function compterTachesParPersonne_(taches, depuisIso) {
     var parGroupe = {};
     (taches || []).forEach(function (t) {
       if (t.date < depuisIso) return;
@@ -4484,7 +4750,7 @@
       var actif = null; // {jourSuivant, texte, important, statut_id, chantier} ou null
       lignes.forEach(function (t) {
         var weekend = estIsoWeekend_(t.date);
-        var chantier = chantierParCle[t.personne_id + "|" + t.demi + "|" + t.date] || null;
+        var chantier = t.chantier_id || null;
         var suite = !weekend && actif && actif.jourSuivant === t.date && actif.texte === t.texte &&
           !!actif.important === !!t.important && (actif.statut_id || null) === (t.statut_id || null) && actif.chantier === chantier;
         if (!suite) out[personneId]++;
@@ -4497,11 +4763,9 @@
     var idsPersonnes = (etat.personnesActives || []).map(function (p) { return p.id; });
     if (!idsPersonnes.length) return Promise.resolve({});
     var depuis = etat.aujourdhui;
-    var qTaches = sbClient.from("taches").select("personne_id, date, demi, texte, statut_id, important").in("personne_id", idsPersonnes).gte("date", depuis);
-    var qAssignations = sbClient.from("assignations").select("personne_id, date, demi, chantier_id").in("personne_id", idsPersonnes).gte("date", depuis);
-    return Promise.all([qTaches, qAssignations]).then(function (r) {
-      r.forEach(function (res) { if (res.error) throw res.error; });
-      return compterTachesParPersonne_(r[0].data || [], r[1].data || [], depuis);
+    return sbClient.from("taches").select("personne_id, date, demi, texte, statut_id, important, chantier_id").in("personne_id", idsPersonnes).gte("date", depuis).then(function (res) {
+      if (res.error) throw res.error;
+      return compterTachesParPersonne_(res.data || [], depuis);
     });
   }
 
@@ -4580,18 +4844,22 @@
       if (res.error) throw res.error;
     });
   }
-  // Compte TOUTES les assignations qui utilisent ce chantier, passées
-  // comprises — déviation assumée par rapport à l'ancien
-  // compterUtilisationsChantier_ (semaine affichée + suivantes seulement) :
-  // assignations.chantier_id est une clé étrangère NOT NULL (sql/0001), la
-  // suppression doit de toute façon vider TOUTES les lignes qui y renvoient
-  // pour pouvoir retirer le chantier sans violer la contrainte — compter
-  // uniquement l'avenir donnerait un chiffre plus petit que ce qui sera
-  // réellement touché, trompeur pour la confirmation demandée à Lionel.
+  // Compte TOUTES les utilisations de ce chantier, passées comprises —
+  // déviation assumée par rapport à l'ancien compterUtilisationsChantier_
+  // (semaine affichée + suivantes seulement) : la suppression doit de toute
+  // façon vider TOUTES les lignes qui y renvoient, compter uniquement
+  // l'avenir donnerait un chiffre plus petit que ce qui sera réellement
+  // touché, trompeur pour la confirmation demandée à Lionel. Round du
+  // 16.09.2026 (sql/0010_taches_chantier_id.sql) : `taches.chantier_id` est
+  // désormais la vraie source de vérité (une par TÂCHE) — additionnée ici à
+  // `assignations` (table historique, plus jamais écrite mais pouvant encore
+  // contenir de vieilles lignes) pour ne rien sous-compter.
   function compterUtilisationsChantierServeur(id) {
-    return sbClient.from("assignations").select("id", { count: "exact", head: true }).eq("chantier_id", id).then(function (res) {
-      if (res.error) throw res.error;
-      return res.count || 0;
+    var qAssignations = sbClient.from("assignations").select("id", { count: "exact", head: true }).eq("chantier_id", id);
+    var qTaches = sbClient.from("taches").select("id", { count: "exact", head: true }).eq("chantier_id", id);
+    return Promise.all([qAssignations, qTaches]).then(function (r) {
+      r.forEach(function (res) { if (res.error) throw res.error; });
+      return (r[0].count || 0) + (r[1].count || 0);
     });
   }
   // Vide d'abord les cases qui l'utilisent (delete assignations — jamais les
@@ -4607,6 +4875,12 @@
   // explicite côté UI (cf. renderChantiers, ".lien-supprimer-def" —
   // uniquement proposé sur un chantier déjà désactivé), donc pas de
   // paramètre "forcer" à porter ici (contrairement à apiSupprimerChantier).
+  // taches.chantier_id (round du 16.09.2026) n'a PAS besoin d'un DELETE/
+  // UPDATE explicite ici : sa contrainte est `on delete set null`
+  // (sql/0010_taches_chantier_id.sql) — Postgres met lui-même chaque tâche
+  // concernée à chantier_id=null au moment du DELETE final sur `chantiers`,
+  // exactement comme le fait déjà "à la main" ce code pour jalons/series
+  // (dont la contrainte, elle, ne le fait pas automatiquement).
   function retirerChantierServeur(id) {
     return sbClient.from("assignations").delete().eq("chantier_id", id).then(function (res) {
       if (res.error) throw res.error;
@@ -5016,10 +5290,13 @@
     // "aprem" (2 passes indépendantes, jamais de pont entre les deux) : une
     // tâche à cheval matin/aprem ne pouvait donc JAMAIS être un seul item —
     // exactement la limite que Lionel signalait ("1 tâche ne peut pas être
-    // mise sur 2 case, elle s'étend de 1 jour"). Le chantier d'une case (cf.
-    // FRONTEND-CHANGELOG, limite structurelle : 1 seul chantier par case
-    // réelle) est répliqué sur chaque tâche de cette case-là, exactement
-    // comme avant.
+    // mise sur 2 case, elle s'étend de 1 jour"). Le chantier vient désormais
+    // de CHAQUE tâche directement (t.chantier, cf. tacheVue_ — round du
+    // 16.09.2026, sql/0010_taches_chantier_id.sql) : deux tâches empilées sur
+    // la même case peuvent donc avoir chacune leur propre chantier, sans que
+    // poser la seconde ne change la couleur de la première (l'ancienne
+    // limite structurelle "1 seul chantier par case", documentée dans
+    // FRONTEND-CHANGELOG, est résolue par ce round).
     //
     // Un "demi-slot" numérote consécutivement les demi-journées OUVRÉES
     // d'une personne : hi=2*gi est le matin du jour gi, hi=2*gi+1 son
@@ -5036,35 +5313,28 @@
         var cell = pd ? pd[demi][gi % 5] : null;
         return (cell && cell.taches) || [];
       }
-      function chantierAuHalfSlot_(hi) {
-        var gi = Math.floor(hi / 2), demi = (hi % 2 === 0) ? "matin" : "aprem";
-        return chantierCelluleAuGi(donnees, p.id, demi, gi);
-      }
       var consommesT = {}; // hi -> Set(index déjà utilisé par un item déjà construit)
       // ignorerChantier (round du 15.09.2026 — bug signalé par Lionel,
       // capture d'écran à l'appui : une absence en série, posée sur matin ET
       // aprem d'un même jour, se rendait en 2 bulles séparées au lieu d'une
-      // seule) : le chantier d'une case n'est comparé que pour une VRAIE
+      // seule) : le chantier d'une tâche n'est comparé que pour une VRAIE
       // tâche — une absence l'ignore déjà totalement à l'affichage
       // (`chantier: typT === "absence" ? null : chantierT` juste en dessous,
-      // inchangé), mais AVANT ce correctif la fusion matin/aprem (ou
-      // jour-à-jour) l'exigeait quand même égal pour prolonger un run. Une
-      // absence ne pose jamais elle-même d'assignation (champs.chantier_id
-      // est toujours null pour ce type, cf. champsSerie/enregistrer-serie),
-      // donc le chantier resté sur une case n'est qu'un résidu d'une
-      // assignation PRÉEXISTANTE et non écrasée (règle "jamais recouverte",
-      // cf. BACKEND-CHANGELOG.md §27.2/§28.2) — rien à voir avec l'absence
-      // elle-même, et ce résidu peut très bien différer entre matin et aprem
-      // (ou d'un jour à l'autre) sans que ça doive jamais empêcher de
-      // fusionner 2 demi-journées de la MÊME absence en une seule bulle.
+      // inchangé), mais sans ce paramètre la fusion matin/aprem (ou
+      // jour-à-jour) l'exigerait quand même égal pour prolonger un run. Round
+      // du 16.09.2026 (sql/0010_taches_chantier_id.sql) : chantier est
+      // maintenant lu directement sur CHAQUE tâche (arr[i].chantier, cf.
+      // tacheVue_) plutôt que sur la case entière — une absence ne porte de
+      // toute façon jamais de chantier (champsSerie ne le pose jamais pour ce
+      // type), donc ignorerChantier reste utile pour les mêmes raisons
+      // qu'avant, seule la SOURCE de la comparaison a changé.
       function indexNonConsommeCorrespondantT_(hi, texte, important, statut, chantier, ignorerChantier) {
         var arr = tableauAuHalfSlot_(hi);
         var used = consommesT[hi];
-        var chIci = chantierAuHalfSlot_(hi) || null;
         for (var i = 0; i < arr.length; i++) {
           if (used && used[i]) continue;
           if (arr[i].texte === texte && !!arr[i].important === !!important && (arr[i].statut || null) === (statut || null) &&
-            (ignorerChantier || chIci === (chantier || null))) return i;
+            (ignorerChantier || (arr[i].chantier || null) === (chantier || null))) return i;
         }
         return -1;
       }
@@ -5077,7 +5347,7 @@
         for (var idxStart = 0; idxStart < arrStart.length; idxStart++) {
           if (consommesT[hiStart] && consommesT[hiStart][idxStart]) continue;
           var entreeT = arrStart[idxStart];
-          var chantierT = chantierAuHalfSlot_(hiStart) || null;
+          var chantierT = entreeT.chantier || null;
           // Round du 14.09.2026 : entreeT.absence (colonne réelle
           // taches.est_absence, cf. tacheVue_) prime désormais sur
           // estAbsence(texte) — gardée en OR seulement comme filet de
@@ -5126,7 +5396,10 @@
           (vueJour.taches || []).forEach(function (t) {
             var typ = (t.absence || estAbsence(t.texte)) ? "absence" : "tache"; // round du 14.09.2026, cf. commentaire de tacheVue_
             var itwe = itemPlageTache(typ, t.texte, p.id, giWE, 1, {
-              chantier: typ === "absence" ? null : (vueJour.chantier || null), important: t.important, statut: t.statut || null,
+              // chantier de la TÂCHE elle-même (round du 16.09.2026, cf.
+              // tacheVue_) — vueJour.chantier n'est plus qu'un repli pour une
+              // case sans aucune tâche, jamais pertinent ici.
+              chantier: typ === "absence" ? null : (t.chantier || null), important: t.important, statut: t.statut || null,
               demiDebut: "matin", demiFin: "matin"
             });
             itwe.serieId = t.serieId || null;
@@ -5159,12 +5432,6 @@
     var cell = pd ? pd[demi][gi % 5] : null;
     return (cell && cell.taches && cell.taches[slot]) ? cell.taches[slot] : null;
   }
-  function chantierCelluleAuGi(donnees, ancre, demi, gi) {
-    var data = donnees[Math.floor(gi / 5)];
-    var pd = data && trouverPersonneDonnees(data, ancre);
-    var cell = pd ? pd[demi][gi % 5] : null;
-    return cell ? (cell.chantier || null) : null;
-  }
   function isoDeGiFenetre(donnees, gi) {
     var data = donnees[Math.floor(gi / 5)];
     return data ? data.isoDates[gi % 5] : null;
@@ -5190,7 +5457,7 @@
   var syncEnCours = false, syncRelance = false;
 
   function calculerEtatLocal() {
-    var cellules = {};   // "ancre|demi|labG|jourIdx" -> {chantier, taches:[{texte,statut,important,serieId}]}
+    var cellules = {};   // "ancre|demi|labG|jourIdx" -> {taches:[{texte,statut,important,serieId,chantier}]}
     var n = nbJoursAffiches();
     // demiDebut/demiFin par BORD (round du 08.09.2026, suite, encore — §49) :
     // une tâche/absence n'a plus un seul `demi` fixe pour toute sa durée —
@@ -5236,14 +5503,16 @@
           var demisAAppliquer = demisOccupeesTache(t, gi);
           demisAAppliquer.forEach(function (demi) {
             var cle = p.id + "|" + demi + "|" + lab + "|" + ji;
-            if (!cellules[cle]) cellules[cle] = { chantier: null, taches: [] };
+            if (!cellules[cle]) cellules[cle] = { taches: [] };
             // absence (round du 14.09.2026, cf. tacheVue_) : portée jusqu'au
             // payload serveur (enregistrerCellulePersonneServeur) pour écrire
             // la vraie colonne taches.est_absence, plutôt que de laisser le
             // serveur/la reconstruction suivante redéduire le type depuis le
-            // seul texte.
-            cellules[cle].taches.push({ texte: t.texte, statut: t.statut || null, important: !!t.important, serieId: t.serieId || null, absence: t.type === "absence" });
-            if (t.chantier) cellules[cle].chantier = t.chantier;
+            // seul texte. chantier (round du 16.09.2026,
+            // sql/0010_taches_chantier_id.sql) : porté PAR TÂCHE désormais,
+            // plus au niveau de la cellule — chaque tâche empilée garde son
+            // propre chantier jusqu'à l'écriture serveur.
+            cellules[cle].taches.push({ texte: t.texte, statut: t.statut || null, important: !!t.important, serieId: t.serieId || null, absence: t.type === "absence", chantier: t.chantier || null });
           });
         }
       });
@@ -5284,17 +5553,21 @@
   // Diffs des cellules "personne" (tâches/absences) : comparaison intégrale
   // cellule par cellule (simple et robuste — cf. FRONTEND-CHANGELOG pour le
   // choix "diff plein" plutôt qu'un suivi fin par item).
+  // chantier (round du 16.09.2026, sql/0010_taches_chantier_id.sql) : plus de
+  // clé "chantier" au niveau de la cellule — chaque entrée de a.taches porte
+  // déjà la sienne (cf. calculerEtatLocal), le payload la transmet telle
+  // quelle à enregistrerCellulePersonneServeur.
   function diffsCellulesPersonne(local, base) {
     var cles = {};
     Object.keys(local.cellules).forEach(function (k) { cles[k] = true; });
     Object.keys(base.cellules).forEach(function (k) { cles[k] = true; });
     var out = [];
     Object.keys(cles).forEach(function (cle) {
-      var a = local.cellules[cle] || { chantier: null, taches: [] };
-      var b = base.cellules[cle] || { chantier: null, taches: [] };
+      var a = local.cellules[cle] || { taches: [] };
+      var b = base.cellules[cle] || { taches: [] };
       if (JSON.stringify(a) === JSON.stringify(b)) return;
       var parts = cle.split("|");
-      out.push({ ancre: +parts[0], demi: parts[1], labG: +parts[2], jourIdx: +parts[3], payload: { chantier: a.chantier || null, taches: a.taches } });
+      out.push({ ancre: +parts[0], demi: parts[1], labG: +parts[2], jourIdx: +parts[3], payload: { taches: a.taches } });
     });
     return out;
   }
@@ -5385,16 +5658,25 @@
   // colonne physique pour les 2 jours) — chaque jour a sa propre date, donc
   // sa propre ligne, exactement comme un jour de semaine ; jourIdx 6 et 7
   // s'écrivent donc chacun indépendamment, avec la même fonction.
+  // chantier (round du 16.09.2026, sql/0010_taches_chantier_id.sql — Lionel :
+  // "plusieurs chantier sur la même case ... actuellement si une tâche est
+  // affecté à un chantier, la tâche déjà en place change de chantier") :
+  // chaque ligne `taches` porte désormais SON PROPRE chantier_id (résolu
+  // depuis t.chantier, le nom, via etat.chantierParNom — même table de
+  // correspondance qu'avant), au lieu d'une seule ligne `assignations`
+  // partagée par toute la case. Plus aucune écriture dans `assignations` :
+  // la case n'a plus qu'UNE seule source de vérité pour le chantier. La
+  // ligne `assignations` existante pour cette case est quand même supprimée
+  // (nettoyage best-effort d'un résidu qu'aucun code n'écrit plus depuis ce
+  // round, mais qui peut encore exister pour une case jamais réécrite depuis).
   function enregistrerCellulePersonneServeur(labG, ancre, demi, jourIdx, payload) {
     if (demi !== "matin" && demi !== "aprem") return Promise.reject(new Error("Demi-journée invalide."));
     var personneId = parseInt(ancre, 10);
     var iso = isoDeLabGJourIdxCase_(labG, jourIdx);
-    var chantierNom = payload && payload.chantier;
-    var chantier = chantierNom ? etat.chantierParNom[chantierNom] : null;
-    var chantierId = chantier ? chantier.ligne : null;
     var taches = (payload && payload.taches) || [];
     var lignesTaches = taches.map(function (t, i) {
-      return {
+      var chantier = t.chantier ? etat.chantierParNom[t.chantier] : null;
+      var ligne = {
         personne_id: personneId, date: iso, demi: demi, ordre: i,
         texte: t.texte, statut_id: t.statut ? (etat.statutIdParCle[t.statut] || null) : null,
         important: !!t.important, serie_id: t.serieId || null,
@@ -5405,6 +5687,8 @@
         // commentaire détaillé sur tacheVue_).
         est_absence: !!t.absence
       };
+      if (chantier) ligne.chantier_id = chantier.ligne;
+      return ligne;
     });
     return sbClient.from("taches").delete().eq("personne_id", personneId).eq("date", iso).eq("demi", demi).then(function (res) {
       if (res.error) throw res.error;
@@ -5412,9 +5696,6 @@
     }).then(function (res) {
       if (res.error) throw res.error;
       return lignesTaches.length ? sbClient.from("taches").insert(lignesTaches) : { error: null };
-    }).then(function (res) {
-      if (res.error) throw res.error;
-      return chantierId ? sbClient.from("assignations").insert({ personne_id: personneId, date: iso, demi: demi, chantier_id: chantierId }) : { error: null };
     }).then(function (res) {
       if (res.error) throw res.error;
     });
@@ -5631,7 +5912,39 @@
     // Absence à même la colonne d'une personne) — contrairement aux chantiers
     // ci-dessus, qui restent seuls dans .legende (et toujours cliquables pour
     // choisir le chantier par défaut des formulaires).
+    ajusterEnteteFixe();
   }
+
+  // ajusterEnteteFixe() — round du 16.09.2026 (suite, encore). Calcule et
+  // pose dynamiquement (plutôt qu'en dur, cf. l'historique de .barre-undo/
+  // .legende dans FRONTEND-CHANGELOG §73.2/73.4, recalculé À LA MAIN 2 fois
+  // de suite) le "top" sticky de #legendeBarre puis de .entete-planning-figee,
+  // empilés sous .onglets-nav (cf. leurs commentaires CSS) : mesuré en JS à
+  // chaque rendu, ça reste juste même si la hauteur de la légende change
+  // (plus ou moins de chantiers, retour à la ligne sur écran étroit) sans
+  // jamais avoir à refaire ce calcul à la main. Sans effet si la page
+  // Planning n'est pas l'onglet actif (#page-planning est alors
+  // display:none, donc les rects mesurés seraient nuls) — cf. les points
+  // d'appel (fin de construireGrille/construireLegende, bascule vers
+  // l'onglet Planning via RENDU_PAR_PAGE, redimensionnement de fenêtre)
+  // qui couvrent tous les cas où cette mesure doit être refaite pendant que
+  // la page est effectivement visible.
+  function ajusterEnteteFixe() {
+    var pagePlanning = document.getElementById("page-planning");
+    if (!pagePlanning || !pagePlanning.classList.contains("actif")) return;
+    var nav = document.querySelector(".onglets-nav");
+    var legendeBarre = document.getElementById("legendeBarre");
+    if (!nav || !legendeBarre) return;
+    var hNav = nav.getBoundingClientRect().height;
+    legendeBarre.style.top = hNav + "px";
+    var entete = document.querySelector(".entete-planning-figee");
+    if (entete) entete.style.top = (hNav + legendeBarre.getBoundingClientRect().height) + "px";
+  }
+  var minuteurAjustEntete = null;
+  window.addEventListener("resize", function () {
+    clearTimeout(minuteurAjustEntete);
+    minuteurAjustEntete = setTimeout(ajusterEnteteFixe, 120);
+  });
 
   function secteurPersonne(personneId) {
     var p = personneParAncre(personneId);
@@ -6172,6 +6485,18 @@
     if (!racineEl || !fenetrePrete()) return;
     var scrollerPrecedent = racineEl.querySelector(".scroller");
     var scrollLeftPrecedent = scrollerPrecedent ? scrollerPrecedent.scrollLeft : 0;
+    var enteteScrollPrecedent = racineEl.querySelector(".entete-planning-scroll");
+    // barreUndo (round du 16.09.2026, suite, encore) : vit maintenant DANS
+    // la grille (cf. plus bas, cellule .coin-undo, dans la case vide à
+    // gauche des jours) au lieu de flotter au-dessus. Un élément déplacé À
+    // L'INTÉRIEUR de #racine serait détruit par le racineEl.innerHTML = ""
+    // juste en dessous (il réinitialise tout #racine à chaque rendu) : on le
+    // sort donc d'abord — avant de vider #racine — pour le replacer ensuite
+    // dans la grille fraîchement reconstruite sans jamais le perdre, ni
+    // perdre les écouteurs de clic câblés une fois pour toutes sur
+    // #btnDefaire/#btnRefaire (cf. cablerPagePlanning).
+    var barreUndoEl = document.getElementById("barreUndo");
+    if (barreUndoEl && racineEl.contains(barreUndoEl)) document.body.appendChild(barreUndoEl);
     racineEl.innerHTML = "";
     var n = nbJoursAffiches();
     var nbSemainesAffichees = deuxSemaines ? 2 : 1;
@@ -6193,20 +6518,32 @@
     // boutons 2 semaines et Aujourd'hui dans la cellule à gauche des
     // semaines, vide actuellement. » La grande barre .semaine-titre pleine
     // largeur (flèches + Semaine N + dates + les 3 boutons) disparaît :
-    // Imprimer reste seul ci-dessous, dans une fine barre au-dessus de la
-    // grille ; Aujourd'hui/2 semaines rejoignent la cellule coin de la
-    // grille (cf. coinNav plus bas) ; les flèches + Semaine N + dates
-    // rejoignent une cellule d'en-tête dédiée de la grille (cf. navSemaine
-    // plus bas), fusionnée sur toute la largeur affichée (1 ou 2 semaines).
-    var barreImprimer = document.createElement("div");
-    barreImprimer.className = "semaine-titre barre-imprimer";
-    barreImprimer.innerHTML = '<button type="button" class="btn-titre btn-imprimer-titre" title="Aperçu et export PDF de la semaine affichée">' + ICONS.print + ' Imprimer</button>';
-    racineEl.appendChild(barreImprimer);
-    barreImprimer.querySelector(".btn-imprimer-titre").addEventListener("click", openPrintSheet);
-
+    // Aujourd'hui/2 semaines rejoignent la cellule coin de la grille (cf.
+    // coinNav plus bas) ; les flèches + Semaine N + dates rejoignent une
+    // cellule d'en-tête dédiée de la grille (cf. navSemaine plus bas),
+    // fusionnée sur toute la largeur affichée (1 ou 2 semaines). Imprimer
+    // (round du 16.09.2026, suite, encore) a depuis rejoint #legendeBarre —
+    // cf. htmlPagePlanning/cablerPagePlanning, il n'est plus reconstruit ici.
+    //
+    // grilleEntete / grilleCorps (round du 16.09.2026, suite, encore) —
+    // Lionel : « faire défiler la page après les notes ». La grille CSS
+    // unique d'origine est scindée en DEUX grilles séparées, mêmes colonnes
+    // (gabarit/largeurMiniTotale ci-dessous, calculées une seule fois et
+    // appliquées aux deux pour rester pixel-alignées) : grilleEntete porte
+    // tout ce qui doit rester FIXE à l'écran (nav de semaine, jours, M/A,
+    // Jalons, Notes) et grilleCorps porte Personnel/Intervenants, qui
+    // continue de défiler normalement. Cf. le commentaire CSS de
+    // .entete-planning-figee pour le pourquoi (position:sticky ne peut pas
+    // s'appliquer cellule par cellule ici, à cause de l'overflow-x:auto de
+    // .scroller). enteteScroll.scrollLeft est recopié sur le défilement réel
+    // de .scroller (seul à porter la barre de défilement visible) pour que
+    // les deux grilles restent visuellement synchronisées horizontalement.
     var cadre = document.createElement("div"); cadre.className = "grille-cadre";
     var scroller = document.createElement("div"); scroller.className = "scroller";
-    var grille = document.createElement("div"); grille.className = "grille" + (modeCompact ? " grille-compacte" : "");
+    var grilleCorps = document.createElement("div"); grilleCorps.className = "grille" + (modeCompact ? " grille-compacte" : "");
+    var enteteFigee = document.createElement("div"); enteteFigee.className = "entete-planning-figee";
+    var enteteScroll = document.createElement("div"); enteteScroll.className = "entete-planning-scroll";
+    var grilleEntete = document.createElement("div"); grilleEntete.className = "grille" + (modeCompact ? " grille-compacte" : "");
     // En compact, chaque jour est scindé en 2 colonnes : la largeur minimale
     // par demi-journée est donc réduite (58px au lieu de 108px), pour que la
     // semaine tienne dans la même largeur qu'avant plutôt que d'obliger à
@@ -6218,22 +6555,41 @@
       gabarit += " repeat(" + (5 * colsParJour()) + ", minmax(" + largeurMin + "px, 1fr))";
       if (afficherWeekends) gabarit += " repeat(2, 46px)";
     }
-    grille.style.gridTemplateColumns = gabarit;
-    grille.style.minWidth = (116 + nbSemainesAffichees * (5 * colsParJour() * largeurMin + (afficherWeekends ? 2 * 46 : 0))) + "px";
-    scroller.appendChild(grille);
+    var largeurMiniTotale = (116 + nbSemainesAffichees * (5 * colsParJour() * largeurMin + (afficherWeekends ? 2 * 46 : 0))) + "px";
+    grilleEntete.style.gridTemplateColumns = gabarit;
+    grilleEntete.style.minWidth = largeurMiniTotale;
+    grilleCorps.style.gridTemplateColumns = gabarit;
+    grilleCorps.style.minWidth = largeurMiniTotale;
+
+    enteteScroll.appendChild(grilleEntete);
+    enteteFigee.appendChild(enteteScroll);
+    racineEl.appendChild(enteteFigee);
+    scroller.appendChild(grilleCorps);
     cadre.appendChild(scroller);
     racineEl.appendChild(cadre);
+    scroller.addEventListener("scroll", function () { enteteScroll.scrollLeft = scroller.scrollLeft; });
 
-    function poser(el, col, row, colSpan, rowSpan) {
-      el.style.gridColumn = colSpan ? (col + " / span " + colSpan) : String(col);
-      el.style.gridRow = rowSpan ? (row + " / span " + rowSpan) : String(row);
-      grille.appendChild(el);
+    function poserDans(cibleGrille) {
+      return function (el, col, row, colSpan, rowSpan) {
+        el.style.gridColumn = colSpan ? (col + " / span " + colSpan) : String(col);
+        el.style.gridRow = rowSpan ? (row + " / span " + rowSpan) : String(row);
+        cibleGrille.appendChild(el);
+      };
     }
-    function poserPleineLargeur(el, ligne) {
-      el.style.gridColumn = "1 / -1";
-      el.style.gridRow = String(ligne);
-      grille.appendChild(el);
+    function poserPleineLargeurDans(cibleGrille) {
+      return function (el, ligne) {
+        el.style.gridColumn = "1 / -1";
+        el.style.gridRow = String(ligne);
+        cibleGrille.appendChild(el);
+      };
     }
+    // poser()/poserPleineLargeur() ci-dessous visent grilleEntete jusqu'à la
+    // ligne Notes ; ils sont ensuite RÉASSIGNÉS sur grilleCorps (cf. plus
+    // bas, juste avant ligneSection) — ligneSection/ligneGroupePersonnesCompact
+    // les référencent par fermeture (closure) et voient donc bien la valeur
+    // en vigueur au moment de leur APPEL, pas de leur définition.
+    var poser = poserDans(grilleEntete);
+    var poserPleineLargeur = poserPleineLargeurDans(grilleEntete);
 
     // Round du 14.09.2026 (suite, cf. commentaire plus haut) — cette ligne
     // d'en-tête existe désormais TOUJOURS (avant : seulement en mode 2
@@ -6270,7 +6626,13 @@
     row++;
 
     var aujIso = etat.aujourdhui;
-    var coin = document.createElement("div"); coin.className = "th coin"; poser(coin, 1, row);
+    // .coin-undo (round du 16.09.2026, suite, encore) — Lionel, croquis
+    // annoté : « les boutons annuler/refaire passent dans la case vide à
+    // gauche des jours ». C'est exactement cette cellule coin, restée vide
+    // jusqu'ici sur la ligne des jours, qui les accueille désormais (cf.
+    // barreUndoEl, extrait plus haut avant le vidage de #racine).
+    var coin = document.createElement("div"); coin.className = "th coin coin-undo"; poser(coin, 1, row);
+    if (barreUndoEl) coin.appendChild(barreUndoEl);
     for (var gi = 0; gi < n; gi++) {
       var th = document.createElement("div");
       var estAuj = isoDeGi(gi) === aujIso;
@@ -6406,6 +6768,15 @@
       row += nbPistes;
     });
 
+    // ---- Bascule vers le CORPS de la grille (Personnel/Intervenants) : à
+    // partir d'ici, poser()/poserPleineLargeur() visent grilleCorps — une
+    // grille CSS séparée qui, elle, défile normalement sous l'en-tête figé
+    // ci-dessus (cf. son commentaire plus haut) — row repart à 1, propre à
+    // cette grille.
+    poser = poserDans(grilleCorps);
+    poserPleineLargeur = poserPleineLargeurDans(grilleCorps);
+    row = 1;
+
     function ligneSection(cle, texte) {
       var repliee = cle === "personnel" ? replierSectionPersonnel : replierSectionIntervenants;
       var lg = document.createElement("div");
@@ -6505,8 +6876,15 @@
     if (!replierSectionIntervenants) ligneGroupePersonnes(groupeIntervenants);
 
     if (scrollerPrecedent) scroller.scrollLeft = scrollLeftPrecedent;
+    // enteteScroll doit refléter le même défilement horizontal dès ce même
+    // rendu (sans attendre l'événement "scroll" ci-dessus, asynchrone dans
+    // certains navigateurs) — sans quoi l'en-tête figé afficherait un bref
+    // instant les mauvaises colonnes après un changement de semaine/mode qui
+    // conserve le défilement horizontal.
+    enteteScroll.scrollLeft = enteteScrollPrecedent ? enteteScrollPrecedent.scrollLeft : scroller.scrollLeft;
     majBoutonsUndo();
     majBarreSelection();
+    ajusterEnteteFixe();
   }
 
   // render(sync=true) : reconstruit la grille, puis lance la synchronisation
@@ -6566,6 +6944,25 @@
     return cel.dataset.kind === it.type;
   }
 
+  // trouverScroller() — round du 16.09.2026 (suite, encore). Depuis la
+  // scission grilleEntete/grilleCorps (cf. commentaire CSS de
+  // .entete-planning-figee), une bulle/case de la ligne Jalons ou Notes vit
+  // dans .entete-planning-scroll, PAS dans .scroller — un simple
+  // el.closest(".scroller") n'y trouve donc plus rien pour ces 2 lignes
+  // (panoramique tactile et défilement auto en bord d'écran pendant un
+  // glissé restaient sans effet, sans planter grâce aux `if (scroller)` déjà
+  // présents partout, cf. leurs sites d'appel). .entete-planning-scroll
+  // n'ayant pas sa propre barre de défilement (son scrollLeft n'est qu'un
+  // MIROIR, cf. l'écouteur "scroll" de .scroller dans construireGrille), lui
+  // appliquer un défilement directement désynchroniserait l'en-tête du
+  // corps ; on redirige donc systématiquement vers le VRAI .scroller (le
+  // mirroring se charge ensuite de répercuter le mouvement sur l'en-tête).
+  function trouverScroller(el) {
+    var s = el.closest(".scroller, .entete-planning-scroll");
+    if (s && s.classList.contains("entete-planning-scroll")) return document.querySelector(".scroller") || s;
+    return s;
+  }
+
   var BORD_ZONE = 46, BORD_VITESSE_MAX = 16;
   function creerAutoDefilement(scroller) {
     var raf = null, dx = 0;
@@ -6604,7 +7001,7 @@
       e.preventDefault(); e.stopPropagation();
       var sx = e.clientX, sy = e.clientY, dernierX = sx, dernierY = sy;
       var pointerId = e.pointerId;
-      var scroller = bulleDom.closest(".scroller");
+      var scroller = trouverScroller(bulleDom);
       var nTotal = nbJoursAffiches();
       var giDebutOrig = it.giDebut, dureeOrig = it.duree;
       var giFinExclusifFixe = giDebutOrig + dureeOrig;
@@ -6783,7 +7180,7 @@
     var copieActuelle = copie;
     var sx = e.clientX, sy = e.clientY, dernierX = sx, dernierY = sy;
     var pointerId = e.pointerId;
-    var scroller = bulleDom.closest(".scroller");
+    var scroller = trouverScroller(bulleDom);
     var autoDefil = creerAutoDefilement(scroller);
     var arme = false, enDefilement = false, bouge = false, badge = null;
     var fantomes = [];
@@ -6863,14 +7260,25 @@
         surlignagePrecisEl.style.pointerEvents = "none";
         var cs = colonneEtSpanDemi(precis.giDebut, precis.duree, precis.demiDebut, precis.demiFin);
         surlignagePrecisEl.style.gridColumn = cs[0] + " / span " + cs[1];
-        surlignagePrecisEl.style.gridRow = bulleDom.style.gridRow;
-        // Hauteur explicite (round du 07.09.2026, suite) : calquée sur la
-        // bulle RÉELLEMENT en train d'être glissée (bulleDom), pas sur la
-        // hauteur de toute la ligne de grille (cf. commentaire CSS de
-        // .survol-precis — sans ça, cet élément débordait vers le bas,
-        // donnant l'impression d'un 2e rectangle superposé à la bulle
-        // glissée dans les vidéos de Lionel).
-        surlignagePrecisEl.style.height = bulleDom.getBoundingClientRect().height + "px";
+        // gridRow = cible.style.gridRow (round du 16.09.2026 ; auparavant
+        // bulleDom.style.gridRow, cf. FRONTEND-CHANGELOG) : bulleDom reste
+        // affiché (juste estompé, cf. armer()/"glisse-groupe") À SA LIGNE
+        // D'ORIGINE pendant tout le glissement — un vrai déplacement fait
+        // passer le pointeur sur une AUTRE ligne (une autre personne) que
+        // celle-ci, donc bulleDom.style.gridRow ne correspondait plus du
+        // tout à la ligne survolée. C'est exactement le bug signalé par
+        // Lionel (« la sur-brillance... se perd d'une ligne à l'autre ») :
+        // posée sur la ligne de départ, elle semblait disparaître dès qu'on
+        // visait une AUTRE personne. `cible` est la vraie `.cell` survolée
+        // (poser() lui a déjà donné le bon gridRow), donc la source correcte.
+        surlignagePrecisEl.style.gridRow = cible.style.gridRow;
+        // Hauteur : plus fixée en JS (cf. le commentaire CSS de
+        // .survol-precis, retiré le 16.09.2026) — stretch par défaut de
+        // .grille étire maintenant cet élément sur toute la hauteur
+        // réellement dessinée de la ligne, comme .selection-precis. C'est
+        // précisément ce que Lionel demande (« je préfèrerai que la(les)
+        // case cible soient entièrement sur-brillée » plutôt que la taille
+        // de la bulle).
         bulleDom.parentElement.appendChild(surlignagePrecisEl);
         return;
       }
@@ -7518,7 +7926,7 @@
       var pIndexCourant = pIndexDebut;
       var etendu = false, arme = false, enDefilement = false;
       var pointerId = e.pointerId;
-      var scroller = cell.closest(".scroller");
+      var scroller = trouverScroller(cell);
 
       function armerSelection() { arme = true; cell.classList.add("armement-selection"); document.body.classList.add("en-glissement"); }
       function detacher() {
@@ -7594,7 +8002,7 @@
 
   function demarrerSelectionRapide(e, celluleDebut) {
     var pointerId = e.pointerId;
-    var scroller = celluleDebut.closest(".scroller");
+    var scroller = trouverScroller(celluleDebut);
     var autoDefil = creerAutoDefilement(scroller);
     var kind = celluleDebut.dataset.kind;
     // Même modèle "case par case" que cablerAjoutCellule (round du
@@ -7708,7 +8116,7 @@
   function demarrerDefilementOuSortieSelection(e, cell) {
     var pointerId = e.pointerId;
     var sx = e.clientX, sy = e.clientY, dernierX = sx, dernierY = sy;
-    var scroller = cell.closest(".scroller");
+    var scroller = trouverScroller(cell);
     var bouge = false;
     function onMove(e2) {
       if (Math.abs(e2.clientX - sx) + Math.abs(e2.clientY - sy) > 4) bouge = true;
@@ -7730,7 +8138,7 @@
   function demarrerDefilementSimple(e, cell) {
     var pointerId = e.pointerId;
     var dernierX = e.clientX, dernierY = e.clientY;
-    var scroller = cell.closest(".scroller");
+    var scroller = trouverScroller(cell);
     function onMove(e2) { if (scroller) scroller.scrollLeft -= (e2.clientX - dernierX); window.scrollBy(0, -(e2.clientY - dernierY)); dernierX = e2.clientX; dernierY = e2.clientY; }
     function detacher() {
       cell.removeEventListener("pointermove", onMove);
@@ -9555,24 +9963,12 @@
     }
     return true;
   }
-  // Texte joint de toutes les tâches d'une case brute — sert uniquement à
-  // détecter une absence (estAbsence) pour la couleur de fond d'impression,
-  // même principe que côté V2.
-  function detailJoint(cell) {
-    return (cell && cell.taches && cell.taches.length) ? cell.taches.map(function (t) { return t.texte; }).join("\n") : "";
-  }
-  // Couleur de fond d'une case brute pour l'impression : absence > chantier
-  // > transparent. Repris tel quel de V2 (etat.chantierParNom déjà tenu à
-  // jour ici, cf. demarrer()/apiEnregistrerChantiers).
-  function fondCase(cell) {
-    if (!cell) return "transparent";
-    if (estAbsence(detailJoint(cell))) return "var(--absence-bg)";
-    if (cell.chantier) {
-      var ch = etat.chantierParNom[cell.chantier];
-      return ch ? ch.couleur : "#e5e5e5";
-    }
-    return "transparent";
-  }
+  // detailJoint/fondCase (couleur de fond UNIQUE par case, absence > chantier
+  // > transparent) ont existé jusqu'au round du 16.09.2026 — retirées avec
+  // le passage à Option A (bande de couleur par tâche, cf. infoCase plus
+  // bas) : la couleur ne se décide plus au niveau de LA CASE mais de CHAQUE
+  // tâche individuellement, `detailJoint` (texte joint de toutes les tâches,
+  // pour une détection d'absence globale à la case) n'a donc plus de sens.
 
   /* ============ DÉCALER LE PLANNING EN MASSE — RETIRÉ ============
      Fonctionnalité retirée à la demande de Lionel (cf. commentaire en tête
@@ -9639,10 +10035,25 @@
     // "print-spacer-section" dans le CSS), seulement quand les 2 groupes
     // sont représentés cette semaine-là.
     var indexFrontiereSection = (imprPersonnel.length > 0 && imprIntervenants.length > 0) ? (imprPersonnel.length - 1) : -1;
+    // Round du 16.09.2026 (sql/0010_taches_chantier_id.sql — Option A,
+    // choisie par Lionel via AskUserQuestion : "bande de couleur par
+    // tâche") : chaque tâche de la case a désormais son PROPRE chantier
+    // (cell.chantier lui-même n'est plus qu'un repli pour une case sans
+    // aucune tâche, cf. celluleVue_) — la légende doit donc parcourir
+    // cell.taches, pas seulement cell.chantier, pour ne manquer aucun
+    // chantier utilisé quelque part sur la semaine.
     var chantiersUtilises = {};
     imprimes.forEach(function (p) {
       (p.matin || []).concat(p.aprem || []).forEach(function (cell) {
-        if (cell.chantier && !estAbsence(detailJoint(cell))) chantiersUtilises[cell.chantier] = true;
+        var taches = (cell && cell.taches) || [];
+        if (taches.length) {
+          taches.forEach(function (t) {
+            var estAbs = !!t.absence || estAbsence(t.texte);
+            if (t.chantier && !estAbs) chantiersUtilises[t.chantier] = true;
+          });
+        } else if (cell && cell.chantier) {
+          chantiersUtilises[cell.chantier] = true;
+        }
       });
     });
     var notesRemplies = (data.notes || []).some(function (n) { return n && n.length > 0; });
@@ -9669,7 +10080,7 @@
     // personne tient sur UNE SEULE ligne. Jalons/notes restent au niveau
     // du JOUR (data.jalons[i]/data.notes[i] n'ont pas de granularité demi
     // côté forme serveur brute, contrairement aux cases personne — cf.
-    // personneVide/fondCase juste au-dessus) : leur cellule s'étale sur
+    // personneVide juste au-dessus) : leur cellule s'étale sur
     // les 2 sous-colonnes de son jour (colspan=2), comme une plage en
     // "journée entière" dans la grille à l'écran.
     h += '<tr class="print-mois"><th class="coin-annee">' + esc(anneesSemaine.join(" / ")) + '</th>';
@@ -9695,11 +10106,42 @@
     // l'écran — cf. construireGrille, "Titre de ligne" — pour la même
     // raison : sans repère textuel, la colonne de gauche ne dit plus quelle
     // ligne est quoi une fois qu'on ne voit plus la légende de couleurs).
+    // Round du 16.09.2026 (suite) — Lionel : "il reste le mot 'note' dans
+    // l'imprimé. le supprimer." Revient uniquement sur "Notes" (cf. plus bas,
+    // print-notes) : "Jalons" reste, lui, toujours demandé et donc affiché.
     h += '<tr class="print-jalons"><td style="font-weight:700;white-space:nowrap">Jalons</td>';
-    (data.jalons || []).forEach(function (t) {
-      var txt = t ? t.texte : "";
-      h += '<td colspan="2" class="' + (txt ? "filled" : "") + '">' + esc(txt || "") + '</td>';
-    });
+    // round du 16.09.2026 — Lionel : "tout jalons identique doit être lié".
+    // Jusqu'ici chaque JOUR avait sa propre cellule (colspan=2, un jalon
+    // n'ayant qu'un texte par jour, pas de granularité demi comme les cases
+    // personne) — 2 jours consécutifs portant le même texte de jalon (ex:
+    // "Maçonnerie" 3 jours de suite) s'affichaient donc comme des cases
+    // identiques mais séparées par une bordure de jour banale, comme si
+    // c'étaient 2 jalons différents qui coïncidaient par hasard. Même
+    // principe de fusion que celui déjà utilisé pour matin/aprem d'une case
+    // personne (infoCase/celluleTache un peu plus bas, portage mockup round
+    // 12) mais appliqué ici ENTRE PLUSIEURS JOURS consécutifs plutôt
+    // qu'entre les 2 demis d'un même jour : une seule cellule fusionnée
+    // (colspan = 2 × nombre de jours du groupe) recouvre toute la série,
+    // sans bordure interne — un seul jalon continu plutôt que des jalons
+    // identiques mais visuellement découpés jour par jour. Comme pour la
+    // fusion matin/aprem, seuls les jalons NON VIDES se fusionnent : 2 jours
+    // sans jalon ne "partagent" rien, donc restent des cases distinctes
+    // (mêmes choix, même raisonnement que le commentaire de infoCase plus
+    // bas).
+    var jalonsImpr = data.jalons || [];
+    for (var ij = 0; ij < jalonsImpr.length; ij++) {
+      var txtJ = jalonsImpr[ij] ? jalonsImpr[ij].texte : "";
+      if (!txtJ) {
+        h += '<td colspan="2"></td>';
+        continue;
+      }
+      var runLen = 1;
+      while (ij + runLen < jalonsImpr.length && jalonsImpr[ij + runLen] && jalonsImpr[ij + runLen].texte === txtJ) {
+        runLen++;
+      }
+      h += '<td colspan="' + (runLen * 2) + '" class="filled">' + esc(txtJ) + '</td>';
+      ij += runLen - 1;
+    }
     h += '</tr>';
 
     // Portage mockup (rounds 7-9) — classes print-spacer-jalons/personne
@@ -9710,7 +10152,7 @@
     // survenir en même temps, donc jamais posée 2 fois.
     if (notesRemplies) {
       h += '<tr class="print-spacer print-spacer-jalons"><td colspan="' + NB_COLS + '"></td></tr>';
-      h += '<tr class="print-notes"><td style="font-weight:700;white-space:nowrap">Notes</td>';
+      h += '<tr class="print-notes"><td style="font-weight:700;white-space:nowrap"></td>';
       (data.notes || []).forEach(function (entries) {
         var rempli = entries && entries.length > 0;
         var txt = (entries || []).map(function (n) {
@@ -9733,30 +10175,94 @@
     // matin") : posée uniquement côté aprem, pour que le CSS (.demi-aprem)
     // ne mette en traitillé QUE la frontière interne matin→aprem, jamais
     // la frontière entre 2 jours (bordure gauche de la case matin du jour
-    // suivant, qui elle n'a pas cette classe et reste pleine).
+    // suivant, qui elle n'a pas cette classe et reste pleine). Round du
+    // 16.09.2026 : portée maintenant sur chaque `.print-bande` plutôt que
+    // sur le `<td>` lui-même (cf. commentaire détaillé sur celluleTache
+    // ci-dessous) — le sélecteur CSS `.demi-aprem` (générique, sans égard
+    // au type d'élément) continue de matcher sans le moindre changement.
+    //
     // infoCase/celluleTache (portage mockup round 12 — Lionel : "fait de
     // même entre les matins et après-midi. Fusionner les cases qui
-    // comportent la même tâche") : séparé en 2 étapes — infoCase calcule
-    // fond + texte d'UNE case (logique inchangée, reprise telle quelle de
-    // l'ancien celluleTache), celluleTache se contente maintenant de
-    // sérialiser un <td> à partir de ce résultat déjà calculé, pour pouvoir
-    // comparer matin et aprem AVANT de décider s'il faut 1 cellule fusionnée
-    // (colspan=2, sans .demi-aprem — plus de frontière matin/aprem à
-    // marquer puisqu'il n'y a plus qu'une case) ou 2 cellules distinctes
-    // comme avant (matin plein, aprem avec .demi-aprem et son pointillé).
+    // comportent la même tâche" — réécrit round du 16.09.2026 pour Option A,
+    // "bande de couleur par tâche", choisie par Lionel via AskUserQuestion
+    // pour représenter plusieurs chantiers sur une même case à
+    // l'impression) : infoCase calcule maintenant un FRAGMENT (bg + texte)
+    // par TÂCHE de la case plutôt qu'un seul fond+texte pour toute la case
+    // — chaque tâche empilée garde sa propre couleur de chantier, exactement
+    // comme sur la grille à l'écran (bulleEl). celluleTache sérialise un
+    // <td> unique contenant UN <div class="print-bande"> par fragment
+    // (padding déplacé du <td> vers chaque bande, cf. CSS table.print-table
+    // td.td-tache/.print-bande) ; la comparaison matin/aprem qui décide de
+    // la fusion (fusionnee) porte donc sur le tableau COMPLET des fragments
+    // (JSON.stringify), plus seulement sur un texte+fond uniques.
     function infoCase(p, cell) {
-      var bg = fondCase(cell);
       var taches = (cell && cell.taches) || [];
-      var txt = taches.map(function (t) {
+      if (!taches.length) {
+        // Case sans aucune tâche : au mieux un chantier de repli (vieille
+        // ligne `assignations` jamais réécrite, cf. celluleVue_), sinon
+        // fond neutre — toujours UN SEUL fragment, comme n'importe quelle
+        // case avant Option A.
+        var bg0 = "transparent";
+        if (cell && cell.chantier) {
+          var ch0 = etat.chantierParNom[cell.chantier];
+          bg0 = ch0 ? ch0.couleur : "#e5e5e5";
+        }
+        return { fragments: [{ bg: bg0 === "transparent" ? "var(--surface-2)" : bg0, txt: "" }], empty: true };
+      }
+      var fragments = taches.map(function (t) {
+        // Absence (round du 16.09.2026) : désormais détectée PAR TÂCHE
+        // (t.absence, la vraie colonne — cf. tacheVue_), avec le même filet
+        // de sécurité estAbsence(texte) qu'ailleurs dans ce fichier, plutôt
+        // que sur le texte JOINT de toute la case (l'ancien fondCase/
+        // detailJoint, qui ne regardait d'ailleurs jamais la vraie colonne) —
+        // cohérent avec la fusion écran (construireVueDepuisCache) et
+        // correct puisque chaque tâche a maintenant sa PROPRE bande.
+        var estAbs = !!t.absence || estAbsence(t.texte);
+        var bg = "transparent";
+        if (estAbs) {
+          bg = "var(--absence-bg)";
+        } else if (t.chantier) {
+          var ch = etat.chantierParNom[t.chantier];
+          bg = ch ? ch.couleur : "#e5e5e5";
+        }
         var badge = (p.sousTraitant && t.statut && STATUTS[t.statut]) ? ' <span class="print-statut" style="background:' + STATUTS[t.statut].couleur + '">' + esc(STATUTS[t.statut].nom) + '</span>' : "";
         var ouvre = t.important ? '<span class="print-important">' : "";
         var ferme = t.important ? '</span>' : "";
-        return ouvre + esc(t.texte) + ferme + badge;
-      }).join("<br>");
-      return { bg: (bg === "transparent" ? "var(--surface-2)" : bg), txt: txt };
+        return { bg: bg === "transparent" ? "var(--surface-2)" : bg, txt: ouvre + esc(t.texte) + ferme + badge };
+      });
+      return { fragments: fragments, empty: false };
     }
+    // Fond du <td> = couleur de la DERNIÈRE bande (round du 16.09.2026,
+    // 2e essai — un premier essai avec un wrapper flex height:100% s'est
+    // avéré ne PAS marcher : dans un tableau à hauteur de ligne "auto",
+    // aucun descendant statique ne peut se dimensionner en % contre la
+    // hauteur d'une cellule, celle-ci n'étant définitive qu'une fois le
+    // contenu de TOUTES les cellules de la ligne connu — confirmé par un
+    // test isolé où même un simple <div style="height:100%"> restait
+    // cantonné à sa propre hauteur de contenu). Un <td>, lui, REMPLIT
+    // toujours la hauteur de sa ligne — propriété native de n'importe
+    // quelle cellule de tableau, jamais soumise à ce problème. Poser la
+    // couleur de la dernière bande directement sur le <td> fait donc
+    // "déborder" cette couleur sur tout espace restant sous les bandes
+    // (les bandes, opaques, restent dessus et gardent leur propre couleur
+    // pour leur propre hauteur) — sans ça, une case à peu de bandes (voire
+    // une seule, ex. "Pose parpaings") laissait un bloc blanc parasite sous
+    // sa bande dès qu'une AUTRE case du même jour empilait plusieurs tâches
+    // et étirait la ligne entière (bug constaté au premier rendu réel de ce
+    // round, cf. FRONTEND-CHANGELOG.md). Imperfection mineure acceptée :
+    // sur une case à PLUSIEURS bandes de couleurs différentes ET côté aprem
+    // (classeDemi), le pointillé .demi-aprem (cf. son commentaire CSS,
+    // background-color:inherit) peut reprendre cette couleur de dernière
+    // bande sur toute la hauteur plutôt que celle, différente, d'une bande
+    // du dessus — un artefact d'1px de large, au bord partagé avec la case
+    // voisine, jugé négligeable face à la complexité d'un vrai découpage
+    // par bande.
     function celluleTache(info, classeDemi, fusionnee) {
-      return '<td' + (classeDemi ? ' class="' + classeDemi + '"' : '') + (fusionnee ? ' colspan="2"' : '') + ' style="background:' + info.bg + '">' + info.txt + '</td>';
+      var bandes = info.fragments.map(function (f) {
+        return '<div class="print-bande" style="background:' + f.bg + '">' + f.txt + '</div>';
+      }).join("");
+      var lastBg = info.fragments[info.fragments.length - 1].bg;
+      return '<td class="td-tache' + (classeDemi ? ' ' + classeDemi : '') + '"' + (fusionnee ? ' colspan="2"' : '') + ' style="background:' + lastBg + '">' + bandes + '</td>';
     }
 
     imprimes.forEach(function (p, idx) {
@@ -9765,11 +10271,13 @@
       for (var i = 0; i < jl.length; i++) {
         var infoMatin = infoCase(p, (p.matin || [])[i]);
         var infoAprem = infoCase(p, (p.aprem || [])[i]);
-        // Fusion (round 12) seulement si la tâche est RÉELLEMENT la même
-        // des 2 côtés (texte ET fond identiques) ET non vide — 2 cases
-        // vides ne "comportent" aucune tâche, donc pas de fusion entre
-        // elles (choix de Lionel dans le mockup, jamais amendé depuis).
-        if (infoMatin.txt && infoMatin.txt === infoAprem.txt && infoMatin.bg === infoAprem.bg) {
+        // Fusion (round 12 ; étendue au tableau COMPLET de fragments round
+        // du 16.09.2026, Option A) seulement si le contenu est RÉELLEMENT
+        // identique des 2 côtés (mêmes tâches, mêmes chantiers, même ordre)
+        // ET non vide — 2 cases vides ne "comportent" aucune tâche, donc pas
+        // de fusion entre elles (choix de Lionel dans le mockup, jamais
+        // amendé depuis).
+        if (!infoMatin.empty && JSON.stringify(infoMatin.fragments) === JSON.stringify(infoAprem.fragments)) {
           h += celluleTache(infoMatin, null, true);
         } else {
           h += celluleTache(infoMatin, null, false);
