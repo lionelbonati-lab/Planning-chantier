@@ -443,9 +443,10 @@
   /* Case de zoom façon Sheets, en bout de groupe entre Imprimer et le
      chantier par défaut (Lionel, retour sur le mockup : « place le zoom
      entre impression et chantier »). .zoom-pill reprend l'habillage des
-     autres "pilules" cliquables du fichier (.semaine-titre .btn-titre) plutôt
-     que celui, plus discret, du mockup — mieux assorti au reste de CETTE
-     barre précise, dont le fond (var(--bg)) diffère de celui du mockup. */
+     autres "pilules" cliquables du fichier plutôt que celui, plus discret,
+     du mockup — mieux assorti au reste de CETTE barre précise, dont le fond
+     (var(--bg)) diffère de celui du mockup. Réutilisée telle quelle au §87
+     (round du 17.09.2026, suite×2) pour #btnSemainePill, juste à côté. */
   .zoom-ctrl { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
   .zoom-btn {
     width: 24px; height: 24px; display: grid; place-items: center; border-radius: 6px; border: none;
@@ -459,6 +460,34 @@
   }
   .zoom-pill:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
   .zoom-panneau { min-width: 90px; }
+
+  /* Bouton "pressé"/actif générique (§87, round du 17.09.2026, suite×2) —
+     pour un bouton à 2 états qui ne sont PAS "visible/masqué" (auquel cas
+     .toolbar-toggle.desactive, atténué à 50%, est le bon choix) mais 2 modes
+     également valides (ici : 1 semaine / 2 semaines) — donc jamais atténué,
+     seulement teinté quand actif. Utilisé par #btnDeuxSemaines. */
+  .toolbar-btn.actif { background: var(--accent-soft); color: var(--accent); }
+  .toolbar-btn.actif:hover { background: var(--accent-soft); }
+
+  /* Case "Sem. N" (§87, round du 17.09.2026, suite×2) — #btnSemainePill
+     réutilise .zoom-pill telle quelle (Lionel : « dans le style visuel du
+     zoom »). #panneauSemaine réutilise .outil-menu-panneau/.outil-menu-item
+     comme zoom/ligne+/+, avec un habillage dédié pour afficher le numéro ET
+     les dates sur chaque ligne (Lionel : « quand menu déroulant ouvert on
+     doit voir le numéro de semaine et les dates correspondantes ») — même
+     finalité que l'ancienne popup centrée "Aller à…" (ouvrirAllerSemaine,
+     supprimée ce round), amenée au langage visuel de cette barre. Hauteur
+     plafonnée + défilement : etat.semaines contient jusqu'à 521 semaines
+     (FENETRE_SEMAINES=260 avant/après aujourd'hui), jamais toutes affichées
+     d'un coup (cf. cablerPagePlanning, fenêtre de 17 autour de la semaine
+     choisie), mais le plafond reste une sécurité. */
+  .semaine-panneau { min-width: 220px; max-height: 280px; overflow-y: auto; }
+  .semaine-panneau .outil-menu-item { justify-content: space-between; gap: 14px; }
+  .semaine-panneau .outil-menu-item.actif { font-weight: 700; color: var(--accent); background: var(--accent-soft); }
+  .semaine-item-droite { display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
+  .semaine-dates-item { color: var(--ink-faint); font-weight: 500; font-size: 11px; }
+  .semaine-panneau .outil-menu-item.actif .semaine-dates-item { color: var(--accent); }
+  .semaine-panneau .coche { color: var(--accent); font-size: 12px; }
 
   /* .entete-planning-figee / .entete-planning-scroll — round du 16.09.2026
      (suite, encore) : Lionel, même croquis, « faire défiler la page après
@@ -501,74 +530,15 @@
     border: 1px solid var(--border); border-bottom: none; border-radius: 12px 12px 0 0;
   }
 
-  /* Round du 14.09.2026 — Lionel, mockup mockup-selecteur-semaine.html à
-     l'appui, validé : « les boutons Aujourd'hui et Imprimer doivent rester
-     au-dessus — on pourrait afficher les boutons 2 semaines et Aujourd'hui
-     dans la cellule à gauche des semaines, vide actuellement. » .semaine-titre
-     n'est plus la grande barre pleine largeur d'avant : c'est maintenant un
-     simple contexte flex/typo (mono, majuscules) réutilisé à 2 endroits
-     différents, chacun via un modificateur dédié plus bas — .coin-nav (la
-     cellule coin de la grille, Aujourd'hui + 2 semaines empilés) et
-     .cellule-semaine-nav (la cellule d'en-tête fusionnée de la grille,
-     flèches + Semaine N + dates). D'où l'absence ici de margin/padding
-     propres à un layout particulier — posés par le modificateur concerné.
-     Le 3e endroit, .barre-imprimer (Imprimer seul, fine barre au-dessus de
-     la grille), a disparu au §83 (round du 16.09.2026, encore un autre,
-     suite×7) : Imprimer est redevenu un simple .toolbar-btn de la nouvelle
-     barre d'outils façon Sheets (cf. son historique plus haut), il n'a plus
-     besoin de ce contexte .semaine-titre. */
-  .semaine-titre {
-    display: flex; align-items: center; gap: 8px;
-    font-family: 'IBM Plex Mono', monospace; font-weight: 700; font-size: 12px;
-    letter-spacing: .04em; text-transform: uppercase; color: var(--ink-muted);
-  }
-  /* .th (plus bas) a la même spécificité que .semaine-titre seule et vient
-     après elle dans la feuille de style : sans le 3e sélecteur .th ici,
-     .th regagnerait font-size/letter-spacing/font-weight sur ces 2 cellules
-     (coin-nav, cellule-semaine-nav) qui sont aussi des .th. */
-  .th.semaine-titre.coin-nav {
-    flex-direction: column; align-items: stretch; justify-content: center; gap: 4px; padding: 6px 8px;
-    font-size: 12px; font-weight: 700; letter-spacing: .04em;
-  }
-  .semaine-titre.coin-nav .btn-titre { margin-left: 0; justify-content: center; font-size: 10.5px; padding: 4px 6px; white-space: nowrap; }
-  .th.semaine-titre.cellule-semaine-nav { justify-content: center; font-size: 12px; font-weight: 700; letter-spacing: .04em; }
-  .semaine-titre .fleche-semaine {
-    width: 22px; height: 22px; border-radius: 7px; border: 1px solid var(--border);
-    background: var(--surface-2); color: var(--ink-muted); cursor: pointer; font-family: inherit;
-    display: grid; place-items: center; font-size: 13px; line-height: 1; flex-shrink: 0;
-    transition: background .12s, border-color .12s, color .12s;
-  }
-  .semaine-titre .fleche-semaine:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
-  .semaine-titre .semaine-dates { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--ink-faint); }
-  .semaine-titre .lien-aller {
-    background: none; border: none; color: inherit; font: inherit; text-transform: inherit; letter-spacing: inherit;
-    cursor: pointer; padding: 2px 4px; border-radius: 6px;
-  }
-  .semaine-titre .lien-aller:hover { background: var(--accent-soft); color: var(--accent); }
-  /* Round D (11.09.2026) — Lionel : « bouton 2 semaines à côté de
-     aujourd'hui [...] placer le bouton imprimer à droite du bouton 2 [...]
-     le design de bouton doit être cohérent avec le bouton aujourd'hui ».
-     .btn-titre remplace .btn-aujourdhui comme classe de base commune aux 3
-     boutons — .btn-aujourdhui/.btn-deux-semaines/.btn-imprimer-titre restent
-     posées EN PLUS pour ne pas casser leurs sélecteurs JS respectifs. .actif
-     (2 semaines, quand deuxSemaines est vrai) reprend les mêmes teintes
-     --accent/--accent-soft que les autres états "actif" du fichier (cf.
-     .select-chantier-item.actif) plutôt qu'une nouvelle couleur. Round du
-     14.09.2026 : les 3 boutons ne sont plus côte à côte au même endroit
-     (cf. .semaine-titre plus haut) — margin-left:4px reste le bon espacement
-     par défaut pour .cellule-semaine-nav (plusieurs éléments en ligne),
-     .coin-nav le neutralise (un seul bouton, ou un empilement vertical, où
-     cette marge n'a pas de sens). */
-  .semaine-titre .btn-titre {
-    margin-left: 4px; padding: 4px 10px; border-radius: 7px; border: 1px solid var(--border);
-    background: var(--surface-2); color: var(--ink-muted); cursor: pointer; font: inherit;
-    text-transform: inherit; letter-spacing: inherit; transition: background .12s, border-color .12s, color .12s;
-    display: inline-flex; align-items: center; gap: 5px;
-  }
-  .semaine-titre .btn-titre:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
-  .semaine-titre .btn-titre.actif { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 700; }
-  .semaine-titre .btn-titre.actif:hover { background: var(--accent-soft); }
-  .sem-entete-dates { display: block; font-size: 9px; font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--ink-faint); margin-top: 1px; }
+  /* .semaine-titre/.coin-nav/.cellule-semaine-nav/.btn-titre/.btn-aujourdhui/
+     .btn-deux-semaines/.fleche-semaine/.lien-aller/.semaine-dates/
+     .sem-entete-dates (Aujourd'hui/2 semaines/‹ Semaine N › dans le coin de
+     la grille, cf. leur historique dans une version antérieure du fichier)
+     ont disparu au §87 (round du 17.09.2026, suite×2) avec la ligne
+     coinNav/navSemaine de construireGrille (Lionel : « on enlève la première
+     ligne du tableau qui ne sert plus ») — cette navigation vit désormais
+     dans #legendeBarre (cf. .toolbar-btn.actif/.semaine-panneau plus haut,
+     et htmlPagePlanning/cablerPagePlanning pour le HTML/câblage). */
   /* border-top:none/border-radius bas seulement (round du 16.09.2026, suite,
      encore) : .grille-cadre ne porte plus que le CORPS (Personnel/
      Intervenants, cf. .entete-planning-scroll ci-dessus pour l'en-tête
@@ -583,7 +553,6 @@
     text-transform: uppercase; letter-spacing: .06em; color: var(--ink-muted); text-align: center;
   }
   .th.coin { background: var(--surface); }
-  .th.sem-entete { background: var(--surface); color: var(--ink); font-size: 10.5px; }
   .th-ferie-label {
     display: block; font-size: 8.5px; font-weight: 700; margin-top: 3px;
     color: var(--ink); opacity: .78; text-transform: none; letter-spacing: 0;
@@ -1987,7 +1956,22 @@
     ajoutLigne: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="2.3" y="4.2" width="10.4" height="3.2" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="2.3" y="9.6" width="10.4" height="3.2" rx="1" stroke="currentColor" stroke-width="1.4" stroke-dasharray="2.2 1.8"/><path d="M15.6 10.4v5.2M13 13h5.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
     plus: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M10 3.3v13.4M3.3 10h13.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
     tache: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" rx="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M6.3 10.2l2.1 2.1 4.3-4.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-    absence: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><rect x="2.5" y="4" width="15" height="13" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 8h15" stroke="currentColor" stroke-width="1.5"/><path d="M6 2.5v3M14 2.5v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M7.3 11.3l5.4 4.4M12.7 11.3l-5.4 4.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>'
+    absence: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><rect x="2.5" y="4" width="15" height="13" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 8h15" stroke="currentColor" stroke-width="1.5"/><path d="M6 2.5v3M14 2.5v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M7.3 11.3l5.4 4.4M12.7 11.3l-5.4 4.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+    // §87 (round du 17.09.2026, suite×2) — Lionel, mockup mockup-sous-menu-
+    // outils.html à l'appui : « ajouter aujourd'hui/2 semaines/la navigation
+    // dans la toolbar [...] les boutons toujours sous forme d'icone ».
+    // chevronGauche/chevronDroite : remplacent les "‹"/"›" texte de l'ancien
+    // .fleche-semaine, en cohérence avec le reste d'icônes SVG de cette
+    // barre. aujourdhui : calendrier + un point (jour marqué), distinct
+    // d'ICONS.calendar (utilisé ailleurs sans marquage) et d'ICONS.absence
+    // (croix, pas un point). deuxSemaines : 2 colonnes côte à côte, façon
+    // "vue partagée" — teinté par .toolbar-btn.actif quand deuxSemaines est
+    // vrai (jamais atténué comme .toolbar-toggle.desactive : ce n'est pas un
+    // masquage, juste un autre mode d'affichage, toujours valide).
+    chevronGauche: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M12.5 4.5 7 10l5.5 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    chevronDroite: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M7.5 4.5 13 10l-5.5 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    aujourdhui: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="2.5" y="3.5" width="15" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 7.5h15" stroke="currentColor" stroke-width="1.5"/><path d="M6 2v3M14 2v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="10" cy="12.6" r="2" fill="currentColor"/></svg>',
+    deuxSemaines: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="2" y="4" width="7" height="12" rx="1.3" stroke="currentColor" stroke-width="1.5"/><rect x="11" y="4" width="7" height="12" rx="1.3" stroke="currentColor" stroke-width="1.5"/></svg>'
   };
 
   var app = document.getElementById("app");
@@ -2547,6 +2531,32 @@
           '</div>' +
         '</div>' +
         '<div class="toolbar-separateur"></div>' +
+        // §87 (round du 17.09.2026, suite×2) — Lionel : « l'insertion via le
+        // "+" doit pouvoir se faire aussi en dehors de la vue visible,
+        // actuellement limité à la semaine en cours [...] on pourrait
+        // ajouter aujourd'hui/2 semaines/la navigation dans la toolbar »,
+        // mockup mockup-sous-menu-outils.html à l'appui, puis ajusté :
+        // « il manque un rectangle avec un numéro de semaine, type "Sem. 38"
+        // cliquable [...] dans le style visuel du zoom, mais avec le même
+        // comportement que l'actuel [ouvrirAllerSemaine] ». #btnSemainePill
+        // réutilise .zoom-pill tel quel ; son panneau (#panneauSemaine) est
+        // reconstruit à l'ouverture par cablerPagePlanning, comme
+        // #pageAjoutPersonne plus bas — jamais rempli ici. Remplace
+        // entièrement l'ancienne ligne coinNav/navSemaine du coin de la
+        // grille (cf. son historique dans construireGrille), supprimée ce
+        // round (Lionel : « on enlève la première ligne du tableau qui ne
+        // sert plus »).
+        '<div class="toolbar-groupe">' +
+          '<button type="button" class="toolbar-btn" id="btnSemainePrec" title="Semaine précédente" aria-label="Semaine précédente">' + ICONS.chevronGauche + '</button>' +
+          '<div class="outil-menu" id="menuSemaine">' +
+            '<button type="button" class="zoom-pill" id="btnSemainePill" title="Aller à une semaine">Sem. ▾</button>' +
+            '<div class="outil-menu-panneau semaine-panneau" id="panneauSemaine"></div>' +
+          '</div>' +
+          '<button type="button" class="toolbar-btn" id="btnSemaineSuiv" title="Semaine suivante" aria-label="Semaine suivante">' + ICONS.chevronDroite + '</button>' +
+          '<button type="button" class="toolbar-btn" id="btnAujourdhui" title="Aller à aujourd’hui" aria-label="Aller à aujourd’hui">' + ICONS.aujourdhui + '</button>' +
+          '<button type="button" class="toolbar-btn" id="btnDeuxSemaines" title="Afficher 2 semaines à la fois" aria-label="Afficher 2 semaines à la fois">' + ICONS.deuxSemaines + '</button>' +
+        '</div>' +
+        '<div class="toolbar-separateur"></div>' +
         '<div class="toolbar-groupe">' +
           '<div class="select-chantier" id="selectChantier">' +
             '<button type="button" class="select-chantier-btn" id="btnSelectChantier"><span class="swatch"></span><span class="nom-chantier">Chantier</span><span class="caret">▾</span></button>' +
@@ -2916,6 +2926,90 @@
           document.getElementById("menuZoom").classList.remove("ouvert");
           render(false);
         });
+      });
+    }
+
+    // §87 (round du 17.09.2026, suite×2) — navigation de semaine dupliquée
+    // dans la barre (Lionel : « l'insertion via le "+" doit pouvoir se faire
+    // aussi en dehors de la vue visible, actuellement limité à la semaine en
+    // cours ; on pourrait ajouter aujourd'hui/2 semaines/la navigation dans
+    // la toolbar », mockup mockup-sous-menu-outils.html à l'appui, puis
+    // ajusté : « il manque un rectangle avec un numéro de semaine, type
+    // "Sem. 38" cliquable [...] dans le style visuel du zoom, mais avec le
+    // même comportement que l'actuel [ouvrirAllerSemaine] »). ‹/›/Aujourd'hui/
+    // 2 semaines réutilisent TELLES QUELLES naviguerSemaine/allerAujourdhui/
+    // basculerDeuxSemaines, déjà éprouvées par la ligne coinNav/navSemaine
+    // qu'elles remplacent (retirée de construireGrille ce round, Lionel :
+    // « on enlève la première ligne du tableau qui ne sert plus »).
+    var btnSemainePrec = document.getElementById("btnSemainePrec");
+    var btnSemaineSuiv = document.getElementById("btnSemaineSuiv");
+    var btnAujourdhuiBarre = document.getElementById("btnAujourdhui");
+    var btnDeuxSemainesBarre = document.getElementById("btnDeuxSemaines");
+    if (btnSemainePrec) btnSemainePrec.addEventListener("click", function () { naviguerSemaine(-1); });
+    if (btnSemaineSuiv) btnSemaineSuiv.addEventListener("click", function () { naviguerSemaine(1); });
+    if (btnAujourdhuiBarre) btnAujourdhuiBarre.addEventListener("click", allerAujourdhui);
+    if (btnDeuxSemainesBarre) btnDeuxSemainesBarre.addEventListener("click", basculerDeuxSemaines);
+    // #menuSemaine/#btnSemainePill remplacent ouvrirAllerSemaine() (popup
+    // centrée avec un <select>, supprimée avec son unique déclencheur
+    // .lien-aller) par un dropdown façon Sheets, cohérent avec zoom/ligne+/+
+    // juste à côté — reconstruit à l'OUVERTURE seulement (comme
+    // #pageAjoutPersonne plus haut), jamais à chaque rendu : etat.semaines
+    // ne change jamais en cours de session, et peut compter jusqu'à 521
+    // semaines (FENETRE_SEMAINES=260 avant/après aujourd'hui) — tout afficher
+    // d'un coup produirait un dropdown interminable, d'où une fenêtre de 8
+    // avant / 8 après la semaine choisie (17 lignes, scrollable via
+    // .semaine-panneau) : largement suffisant pour un saut rapide, ‹/› ou
+    // rouvrir le dropdown depuis la nouvelle position couvrant le reste.
+    // S'appuie sur l'ORDRE D'ATTACHEMENT des écouteurs sur #btnSemainePill :
+    // la boucle générique ".outil-menu" plus haut bascule déjà .ouvert avant
+    // que ce second écouteur (attaché après, donc exécuté après) ne
+    // (re)construise le contenu — la lecture de .ouvert ci-dessous reflète
+    // donc le nouvel état, pas l'ancien, sans avoir à dupliquer la logique
+    // de bascule.
+    var menuSemaine = document.getElementById("menuSemaine");
+    var btnSemainePill = document.getElementById("btnSemainePill");
+    var panneauSemaine = document.getElementById("panneauSemaine");
+    if (menuSemaine && btnSemainePill && panneauSemaine) {
+      btnSemainePill.addEventListener("click", function () {
+        if (!menuSemaine.classList.contains("ouvert")) return;
+        panneauSemaine.innerHTML = "";
+        var titre = document.createElement("div");
+        titre.className = "outil-menu-titre";
+        titre.textContent = "Aller à…";
+        panneauSemaine.appendChild(titre);
+        var debut = Math.max(0, etat.indexSemaine - 8), fin = Math.min(etat.semaines.length - 1, etat.indexSemaine + 8);
+        var _boucleSemaine = function (idx) {
+          var s = etat.semaines[idx];
+          var it = document.createElement("button");
+          it.type = "button";
+          it.className = "outil-menu-item" + (idx === etat.indexSemaine ? " actif" : "");
+          var nom = document.createElement("span");
+          nom.className = "semaine-item-nom";
+          nom.textContent = "Semaine " + s.num;
+          var droite = document.createElement("span");
+          droite.className = "semaine-item-droite";
+          var dates = document.createElement("span");
+          dates.className = "semaine-dates-item";
+          dates.textContent = isoAffiche(s.debut) + " – " + isoAffiche(s.fin);
+          droite.appendChild(dates);
+          if (idx === etat.indexSemaine) {
+            var coche = document.createElement("span");
+            coche.className = "coche";
+            coche.textContent = "✓";
+            droite.appendChild(coche);
+          }
+          it.appendChild(nom);
+          it.appendChild(droite);
+          it.addEventListener("click", function () {
+            menuSemaine.classList.remove("ouvert");
+            if (idx === etat.indexSemaine) return;
+            etat.indexSemaine = idx;
+            bullesSelectionnees = {};
+            assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); majBarreSelection(); });
+          });
+          panneauSemaine.appendChild(it);
+        };
+        for (var iSem = debut; iSem <= fin; iSem++) _boucleSemaine(iSem);
       });
     }
     // §82 — les 4 contrôles masquer/afficher (Jalons/Notes/Personnel/
@@ -6925,9 +7019,6 @@
     deuxSemaines = !deuxSemaines;
     assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); });
   }
-  // Clic sur le titre "Semaine N" : choisir directement une semaine dans la
-  // liste (plutôt que de cliquer ‹ › plusieurs fois) — même liste que
-  // celle renvoyée par apiDemarrer (etat.semaines).
   // Round D (11.09.2026) — « Ajout lointain » (poser une tâche/absence/
   // note/jalon à une date éloignée sans faire défiler le calendrier,
   // ex-round du 02.09.2026) a été RETIRÉ à la demande de Lionel : « ajout
@@ -6938,30 +7029,14 @@
   // était seul à offrir avant cette refonte. Fonctions supprimées avec le
   // bouton (cf. FRONTEND-CHANGELOG.md) : joursOuvresDepuis,
   // construireLignesAjoutLointain, ajoutLointainTache, ouvrirAjoutLointain.
-
-  function ouvrirAllerSemaine() {
-    var pop = document.createElement("div");
-    pop.className = "pop form-pop";
-    var options = etat.semaines.map(function (s, i) {
-      return '<option value="' + i + '"' + (i === etat.indexSemaine ? " selected" : "") + '>Semaine ' + esc(s.num) + " (" + esc(isoAffiche(s.debut)) + " – " + esc(isoAffiche(s.fin)) + ")</option>";
-    }).join("");
-    pop.innerHTML =
-      '<div class="cp-titre">Aller à…</div>' +
-      '<select class="f-semaine">' + options + '</select>' +
-      '<div class="form-actions"><button type="button" class="f-annuler">Annuler</button><button type="button" class="f-ok">Aller</button></div>';
-    var px = Math.round(window.innerWidth / 2 - 110), py = Math.round(window.innerHeight / 2 - 90);
-    positionnerPop(pop, px, py);
-    var fermer = fermerAuClicExterieur(pop, null, function () { pop.querySelector(".f-ok").click(); });
-    pop.querySelector(".f-annuler").addEventListener("click", fermer);
-    pop.querySelector(".f-ok").addEventListener("click", function () {
-      var idx = +pop.querySelector(".f-semaine").value;
-      fermer();
-      if (idx === etat.indexSemaine) return;
-      etat.indexSemaine = idx;
-      bullesSelectionnees = {};
-      assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); majBarreSelection(); });
-    });
-  }
+  //
+  // ouvrirAllerSemaine() (choisir une semaine dans la liste plutôt que de
+  // cliquer ‹ › plusieurs fois — popup centrée avec un <select>, ouverte par
+  // le "Semaine N" du coin de la grille) a été supprimée au §87 (round du
+  // 17.09.2026, suite×2) avec son unique déclencheur .lien-aller — la même
+  // liste (etat.semaines) est désormais proposée par #menuSemaine/
+  // #btnSemainePill dans #legendeBarre, en dropdown façon Sheets plutôt
+  // qu'en popup centrée (cf. cablerPagePlanning).
 
   function construireGrille() {
     if (!racineEl) racineEl = document.getElementById("racine");
@@ -6978,30 +7053,16 @@
     racineEl.innerHTML = "";
     var n = nbJoursAffiches();
     var nbSemainesAffichees = deuxSemaines ? 2 : 1;
-    var donnees = fenetreDonnees();
-
-    var num0 = donnees[0].numero, num1 = donnees[1] ? donnees[1].numero : null;
-    var texteSemaines = (deuxSemaines && num1) ? ("Semaine " + num0 + " → Semaine " + num1) : ("Semaine " + num0);
-    var deb0 = libelleJourGi(0), fin0 = libelleJourGi(deuxSemaines && num1 ? 9 : 4);
-    // Round D — Lionel : « bouton 2 semaines à côté de aujourd'hui, en
-    // surbrillance quand planning affiché sur 2 semaines. placer le bouton
-    // imprimer à droite du bouton 2 [...] le design de bouton doit être
-    // cohérent avec le bouton aujourd'hui. » Remplace l'ancienne paire de
-    // boutons .toggle-sem ("1 semaine"/"2 semaines", dans .header-actions,
-    // câblée une fois pour toutes) par un bouton UNIQUE .btn-deux-semaines,
-    // câblé ici à chaque rendu, donc son état .actif reflète toujours
-    // deuxSemaines sans câblage séparé à maintenir en phase.
-    // Round du 14.09.2026 — Lionel, mockup validé : « les boutons Aujourd'hui
-    // et Imprimer doivent rester au-dessus — on pourrait afficher les
-    // boutons 2 semaines et Aujourd'hui dans la cellule à gauche des
-    // semaines, vide actuellement. » La grande barre .semaine-titre pleine
-    // largeur (flèches + Semaine N + dates + les 3 boutons) disparaît :
-    // Aujourd'hui/2 semaines rejoignent la cellule coin de la grille (cf.
-    // coinNav plus bas) ; les flèches + Semaine N + dates rejoignent une
-    // cellule d'en-tête dédiée de la grille (cf. navSemaine plus bas),
-    // fusionnée sur toute la largeur affichée (1 ou 2 semaines). Imprimer
-    // (round du 16.09.2026, suite, encore) a depuis rejoint #legendeBarre —
-    // cf. htmlPagePlanning/cablerPagePlanning, il n'est plus reconstruit ici.
+    // La ligne "Aujourd'hui/2 semaines/‹ Semaine N ›" qui vivait ici (coinNav/
+    // navSemaine, cf. leur historique avant suppression au §87, round du
+    // 17.09.2026, suite×2) portait ses propres textes calculés à partir de
+    // fenetreDonnees()/libelleJourGi() — donnees/num0/num1/texteSemaines/
+    // deb0/fin0, plus utilisés nulle part ailleurs, disparaissent avec elle.
+    // Lionel, à propos de la même navigation désormais dans #legendeBarre
+    // (cf. htmlPagePlanning/cablerPagePlanning) : « on enlève la première
+    // ligne du tableau qui ne sert plus » — entièrement redondante une fois
+    // dupliquée dans la barre, cette cellule ne portait plus d'information
+    // qu'on ne retrouve pas déjà là-haut.
     //
     // grilleEntete / grilleCorps (round du 16.09.2026, suite, encore) —
     // Lionel : « faire défiler la page après les notes ». La grille CSS
@@ -7081,39 +7142,16 @@
     var poser = poserDans(grilleEntete);
     var poserPleineLargeur = poserPleineLargeurDans(grilleEntete);
 
-    // Round du 14.09.2026 (suite, cf. commentaire plus haut) — cette ligne
-    // d'en-tête existe désormais TOUJOURS (avant : seulement en mode 2
-    // semaines, pour porter "Semaine 37"/"Semaine 38"). coinNav réutilise la
-    // cellule coin, vide jusqu'ici sur cette ligne, pour Aujourd'hui/2
-    // semaines. navSemaine remplace les anciennes cellules s0/s1 (un texte
-    // par semaine) par UNE SEULE cellule portant la navigation complète,
-    // fusionnée sur toute la largeur affichée (1 semaine : largeurSemaine ;
-    // 2 semaines : largeurSemaine × 2, comme l'ancien couple s0+s1 mis bout
-    // à bout) — le texte "Semaine 37 → Semaine 38" y existait déjà tel quel
-    // (texteSemaines, cf. plus haut), seul son emplacement change.
+    // §87 (round du 17.09.2026, suite×2) — la ligne d'en-tête "Aujourd'hui/
+    // 2 semaines/‹ Semaine N ›" qui vivait ici (coinNav + navSemaine, cf.
+    // leur historique dans une version antérieure du fichier) disparaît :
+    // Lionel, une fois cette navigation dupliquée dans #legendeBarre (cf.
+    // htmlPagePlanning/cablerPagePlanning — ‹, la case "Sem. N", ›,
+    // Aujourd'hui, 2 semaines, entre le zoom et le chantier) : « on enlève
+    // la première ligne du tableau qui ne sert plus ». row démarre donc
+    // directement sur la ligne des jours (avant : row 2, décalée d'une ligne
+    // par coinNav/navSemaine).
     var row = 1;
-    var coinNav = document.createElement("div");
-    coinNav.className = "th coin coin-nav semaine-titre";
-    coinNav.innerHTML =
-      '<button type="button" class="btn-titre btn-aujourdhui">Aujourd’hui</button>' +
-      '<button type="button" class="btn-titre btn-deux-semaines' + (deuxSemaines ? " actif" : "") + '" title="Afficher 2 semaines à la fois">2 semaines</button>';
-    poser(coinNav, 1, row);
-    coinNav.querySelector(".btn-aujourdhui").addEventListener("click", allerAujourdhui);
-    coinNav.querySelector(".btn-deux-semaines").addEventListener("click", basculerDeuxSemaines);
-
-    var navSemaine = document.createElement("div");
-    navSemaine.className = "th sem-entete cellule-semaine-nav semaine-titre";
-    navSemaine.innerHTML =
-      '<button type="button" class="fleche-semaine" data-dir="-1" aria-label="Semaine précédente">‹</button>' +
-      '<button type="button" class="lien-aller">' + esc(texteSemaines) + '<span class="semaine-dates"> · ' + deb0.jour + " " + deb0.mois + " – " + fin0.jour + " " + fin0.mois + '</span></button>' +
-      '<button type="button" class="fleche-semaine" data-dir="1" aria-label="Semaine suivante">›</button>';
-    var largeurSemaine = 5 * colsParJour() + (afficherWeekends ? 2 : 0);
-    poser(navSemaine, colonneGrille(0), row, largeurSemaine * nbSemainesAffichees);
-    navSemaine.querySelectorAll(".fleche-semaine").forEach(function (btn) {
-      btn.addEventListener("click", function () { naviguerSemaine(parseInt(btn.dataset.dir, 10)); });
-    });
-    navSemaine.querySelector(".lien-aller").addEventListener("click", ouvrirAllerSemaine);
-    row++;
 
     var aujIso = etat.aujourdhui;
     // Cellule coin de la ligne des jours : redevenue simplement vide au §83
@@ -7408,6 +7446,7 @@
     majBarreSelection();
     majControlesAffichage();
     majZoomAffichage();
+    majSemaineAffichage();
     ajusterEnteteFixe();
   }
 
@@ -8788,6 +8827,20 @@
   function majZoomAffichage() {
     var btn = document.getElementById("btnZoom");
     if (btn) btn.textContent = niveauZoomPlanning + "% ▾";
+  }
+
+  // §87 (round du 17.09.2026, suite×2) — synchronise la case "Sem. N" et
+  // l'icône "2 semaines" de la barre sur etat.indexSemaine/deuxSemaines, à
+  // chaque rendu — même idée que majZoomAffichage() juste au-dessus (boutons
+  // statiques, câblés une seule fois dans cablerPagePlanning). Remplace
+  // l'ancien affichage "Semaine N" de coinNav/navSemaine, reconstruit à
+  // chaque rendu DANS construireGrille (retiré ce round) ; la case étant
+  // désormais hors de la grille, un aller-retour séparé est nécessaire.
+  function majSemaineAffichage() {
+    var pill = document.getElementById("btnSemainePill");
+    if (pill && etat.semaines[etat.indexSemaine]) pill.textContent = "Sem. " + etat.semaines[etat.indexSemaine].num + " ▾";
+    var btn2s = document.getElementById("btnDeuxSemaines");
+    if (btn2s) btn2s.classList.toggle("actif", deuxSemaines);
   }
 
   /* ============================================================
