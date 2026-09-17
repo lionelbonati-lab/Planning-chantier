@@ -7378,10 +7378,24 @@
     var groupePersonnel = PERSONNES.filter(function (p) { return !p.sousTraitant; });
     var groupeIntervenants = PERSONNES.filter(function (p) { return p.sousTraitant; });
 
-    ligneSection("personnel", "Personnel");
-    if (!replierSectionPersonnel) ligneGroupePersonnes(groupePersonnel);
-    ligneSection("intervenants", "Intervenants");
-    if (!replierSectionIntervenants) ligneGroupePersonnes(groupeIntervenants);
+    // §86 (round du 17.09.2026, suite) — Lionel : « les lignes de séparation
+    // "personnel" et "intervenant" doivent aussi être masquées quand le
+    // groupe correspondant est masqué ». Jusqu'ici seule ligneGroupePersonnes
+    // (les personnes elles-mêmes) était sautée quand repliée — ligneSection
+    // (le libellé "PERSONNEL"/"INTERVENANTS", avec son .section-row et le
+    // trait `border-bottom` qui le souligne) restait posée dans tous les cas,
+    // comme un en-tête. Même principe que le §84 (Jalons/Notes) : la ligne
+    // repliée ne doit plus exister DU TOUT dans la grille, libellé compris —
+    // ligneSection() rejoint donc la même condition que le groupe qu'elle
+    // annonce, au lieu d'être appelée inconditionnellement juste avant.
+    if (!replierSectionPersonnel) {
+      ligneSection("personnel", "Personnel");
+      ligneGroupePersonnes(groupePersonnel);
+    }
+    if (!replierSectionIntervenants) {
+      ligneSection("intervenants", "Intervenants");
+      ligneGroupePersonnes(groupeIntervenants);
+    }
 
     if (scrollerPrecedent) scroller.scrollLeft = scrollLeftPrecedent;
     // enteteScroll doit refléter le même défilement horizontal dès ce même
