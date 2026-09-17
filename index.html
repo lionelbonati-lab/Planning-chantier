@@ -405,6 +405,61 @@
   .toolbar-toggle.actif[data-affichage-cible="personnel"], .toolbar-toggle.actif[data-affichage-cible="intervenants"] { background: var(--accent-soft); color: var(--accent); }
   .toolbar-toggle.desactive { opacity: .5; background: none; color: var(--ink-faint); }
 
+  /* .outil-menu/.outil-menu-panneau/.outil-menu-item — §85 (round du
+     17.09.2026), Lionel : « enlever le "+" des lignes personnel et
+     intervenant [...] ajouter une icone "ligne +" [...] ainsi qu'une icone
+     "+" pour rajouter un élément au planning ». Même habillage que
+     .select-chantier/.select-chantier-panneau/.select-chantier-item
+     ci-dessus (mêmes tokens, panneau posé sur var(--surface-2) quel que soit
+     le fond du conteneur qui l'ouvre) — généralisé plutôt que dupliqué, pour
+     les 2 nouveaux menus "ligne+" (#menuAjoutLigne) et "+" (#menuAjoutElement,
+     qui a en plus une 2e "page" .outil-menu-page pour l'étape "pour qui ?"
+     d'une Tâche/Absence, cf. cablerPagePlanning) — et pour le menu de la case
+     de zoom juste plus bas. */
+  .outil-menu { position: relative; flex-shrink: 0; }
+  .outil-menu-panneau {
+    position: absolute; top: calc(100% + 4px); left: 0; z-index: 10; min-width: 190px;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: 0 6px 20px var(--shadow-lg); padding: 5px; display: none;
+  }
+  .outil-menu.ouvert .outil-menu-panneau { display: block; }
+  .outil-menu-titre {
+    font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--ink-faint); padding: 6px 8px 4px;
+  }
+  .outil-menu-item {
+    display: flex; align-items: center; gap: 9px; width: 100%; padding: 7px 8px; border-radius: 7px;
+    border: none; background: none; cursor: pointer; font: inherit; font-size: 12.5px; color: var(--ink); text-align: left;
+  }
+  .outil-menu-item:hover { background: var(--accent-soft); color: var(--accent); }
+  .outil-menu-item svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--ink-muted); }
+  .outil-menu-item:hover svg { color: var(--accent); }
+  .outil-menu-retour {
+    display: flex; align-items: center; gap: 6px; width: 100%; padding: 6px 8px; margin-bottom: 2px; border-radius: 7px;
+    border: none; background: none; cursor: pointer; font: inherit; font-size: 11.5px; font-weight: 700; color: var(--ink-muted); text-align: left;
+  }
+  .outil-menu-retour:hover { background: var(--surface); color: var(--ink); }
+
+  /* Case de zoom façon Sheets, en bout de groupe entre Imprimer et le
+     chantier par défaut (Lionel, retour sur le mockup : « place le zoom
+     entre impression et chantier »). .zoom-pill reprend l'habillage des
+     autres "pilules" cliquables du fichier (.semaine-titre .btn-titre) plutôt
+     que celui, plus discret, du mockup — mieux assorti au reste de CETTE
+     barre précise, dont le fond (var(--bg)) diffère de celui du mockup. */
+  .zoom-ctrl { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+  .zoom-btn {
+    width: 24px; height: 24px; display: grid; place-items: center; border-radius: 6px; border: none;
+    background: none; color: var(--ink-muted); cursor: pointer; font-size: 15px; font-weight: 700; font-family: inherit; line-height: 1;
+  }
+  .zoom-btn:hover { background: var(--surface-2); color: var(--ink); }
+  .zoom-pill {
+    min-width: 58px; padding: 5px 8px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface-2);
+    font: inherit; font-size: 12px; font-weight: 700; color: var(--ink); cursor: pointer; text-align: center;
+    font-family: 'IBM Plex Mono', monospace; transition: background .12s, border-color .12s, color .12s;
+  }
+  .zoom-pill:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .zoom-panneau { min-width: 90px; }
+
   /* .entete-planning-figee / .entete-planning-scroll — round du 16.09.2026
      (suite, encore) : Lionel, même croquis, « faire défiler la page après
      les notes ». Étend le principe de .onglets-nav/.legende-barre (sticky)
@@ -609,12 +664,11 @@
   .section-row { background: var(--bg); border-bottom: 1px solid var(--border); }
   .section-row-sticky { position: sticky; left: 0; display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px; }
   .section-label { font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-muted); }
-  .btn-plage-ligne {
-    margin-left: auto; flex-shrink: 0; width: 18px; height: 18px; border-radius: 5px;
-    border: 1.5px dashed var(--border-strong); background: none; color: var(--ink-muted);
-    display: grid; place-items: center; cursor: pointer; padding: 0; font-size: 11px;
-  }
-  .btn-plage-ligne:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  /* .btn-plage-ligne (le "+" de fin de ligne section) a vécu : §85 (round du
+     17.09.2026) — Lionel, mockup mockup-sous-menu-outils.html à l'appui,
+     « on peut aussi enlever le "+" des lignes personnel et intervenant » —
+     remplacé par l'icône "ligne+" de la barre d'outils, cf. #btnAjoutLigne
+     dans htmlPagePlanning/cablerPagePlanning. */
 
   .cell {
     position: relative;
@@ -1918,7 +1972,22 @@
     building: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M3 17V5.5L9 3v14M9 6h5.5a1 1 0 0 1 1 1v10" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M5.5 7h1.5M5.5 10h1.5M5.5 13h1.5M11.5 9.5h2M11.5 12.5h2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
     tag: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M9.4 2.5H4a1 1 0 0 0-1 1v5.4c0 .27.1.52.3.7l7.6 7.6c.4.4 1 .4 1.4 0l5.4-5.4c.4-.4.4-1 0-1.4L10.1 2.8a1 1 0 0 0-.7-.3z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="6.3" cy="6.3" r="1.1" fill="currentColor"/></svg>',
     star: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M10 2.5l2.2 4.6 5 .7-3.6 3.6.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.6 5-.7L10 2.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>',
-    bolt: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M11 2 4 11.5h5L8.5 18 16 8h-5.5L11 2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"/></svg>'
+    bolt: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M11 2 4 11.5h5L8.5 18 16 8h-5.5L11 2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"/></svg>',
+    // §85 (round du 17.09.2026) — Lionel, mockup mockup-sous-menu-outils.html
+    // à l'appui : « enlever le "+" des lignes personnel et intervenant [...]
+    // ajouter une icone "ligne +" [...] ainsi qu'une icone "+" pour rajouter
+    // un élément au planning ». ajoutLigne : deux "rangées" (une pleine, une
+    // en pointillés = la nouvelle à venir) + un badge "+" — pour rester
+    // reconnaissable et différent du "+" générique ci-dessous. plus : simple
+    // croix, réservée à l'ajout d'élément (tache/absence/note/jalon).
+    // tache/absence : mêmes pictos que le menu "Ajouter" existant sur une
+    // case (cf. boutonsMenuAjout) n'a jamais eu d'icône dédiée — nouvelles
+    // ici, cohérentes avec le reste (checklist = tâche, calendrier barré =
+    // absence).
+    ajoutLigne: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="2.3" y="4.2" width="10.4" height="3.2" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="2.3" y="9.6" width="10.4" height="3.2" rx="1" stroke="currentColor" stroke-width="1.4" stroke-dasharray="2.2 1.8"/><path d="M15.6 10.4v5.2M13 13h5.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
+    plus: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M10 3.3v13.4M3.3 10h13.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+    tache: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" rx="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M6.3 10.2l2.1 2.1 4.3-4.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    absence: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><rect x="2.5" y="4" width="15" height="13" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 8h15" stroke="currentColor" stroke-width="1.5"/><path d="M6 2.5v3M14 2.5v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M7.3 11.3l5.4 4.4M12.7 11.3l-5.4 4.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>'
   };
 
   var app = document.getElementById("app");
@@ -2333,6 +2402,14 @@
   // partagée, comme les 2 autres : repart à false (déplié) à chaque
   // rechargement de page, jamais persisté.
   var replierJalons = false, replierNotes = false;
+  // §85 (round du 17.09.2026) — Lionel, mockup mockup-sous-menu-outils.html à
+  // l'appui : « proposer une case de zoom comme sur sheet ». Même repli que
+  // les 4 variables juste au-dessus : jamais persisté, repart à 100 à chaque
+  // rechargement de page. Cf. cablerPagePlanning (câblage des boutons -/+/
+  // paliers) et construireGrille (application réelle via CSS zoom, sur
+  // grilleEntete/grilleCorps — jamais sur .entete-planning-figee elle-même,
+  // qui reste l'élément sticky non zoomé, cf. son commentaire).
+  var niveauZoomPlanning = 100;
   var bullesSelectionnees = {};
   var pressePapier = [];
   var pileUndo = [], pileRedo = [];
@@ -2430,6 +2507,18 @@
       // (cf. cablerPagePlanning), seul son apparence (chantier choisi,
       // icônes actives/désactivées) est resynchronisée à chaque rendu (cf.
       // construireSelectChantier/majControlesAffichage).
+      //
+      // §85 (round du 17.09.2026) — Lionel, mockup mockup-sous-menu-outils.html
+      // à l'appui : « on peut aussi enlever le "+" des lignes personnel et
+      // intervenant. Ajouter une icone "ligne +" dans la tool bar [...] ainsi
+      // qu'une icone "+" pour rajouter un élément au planning [...] Proposer
+      // une case de zoom comme sur sheet », puis « place le zoom entre
+      // impression et chantier ». 3 ajouts à cette même barre STATIQUE :
+      // #zoomCtrl (entre Imprimer et le chantier), #menuAjoutLigne
+      // (Personnel/Intervenant, remplace le "+" retiré de ligneSection) et
+      // #menuAjoutElement (Tâche/Absence/Note/Jalon, avec une 2e page "pour
+      // qui ?" pour Tâche/Absence) — cf. cablerPagePlanning pour tout le
+      // câblage (générique aux 3 .outil-menu) et ouvrirAjoutElementBarre.
       '<div class="toolbar-sheets" id="legendeBarre">' +
         '<div class="toolbar-groupe">' +
           '<button type="button" class="toolbar-btn" id="btnDefaire" title="Annuler (Ctrl+Z)" aria-label="Annuler">' + ICONS.undo + '</button>' +
@@ -2441,9 +2530,51 @@
         '</div>' +
         '<div class="toolbar-separateur"></div>' +
         '<div class="toolbar-groupe">' +
+          '<div class="zoom-ctrl" id="zoomCtrl">' +
+            '<button type="button" class="zoom-btn" id="zoomMoins" title="Zoom arrière" aria-label="Zoom arrière">−</button>' +
+            '<div class="outil-menu" id="menuZoom">' +
+              '<button type="button" class="zoom-pill" id="btnZoom">100% ▾</button>' +
+              '<div class="outil-menu-panneau zoom-panneau" id="panneauZoom">' +
+                '<button type="button" class="outil-menu-item" data-zoom="75">75%</button>' +
+                '<button type="button" class="outil-menu-item" data-zoom="90">90%</button>' +
+                '<button type="button" class="outil-menu-item" data-zoom="100">100%</button>' +
+                '<button type="button" class="outil-menu-item" data-zoom="110">110%</button>' +
+                '<button type="button" class="outil-menu-item" data-zoom="125">125%</button>' +
+                '<button type="button" class="outil-menu-item" data-zoom="150">150%</button>' +
+              '</div>' +
+            '</div>' +
+            '<button type="button" class="zoom-btn" id="zoomPlus" title="Zoom avant" aria-label="Zoom avant">+</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="toolbar-separateur"></div>' +
+        '<div class="toolbar-groupe">' +
           '<div class="select-chantier" id="selectChantier">' +
             '<button type="button" class="select-chantier-btn" id="btnSelectChantier"><span class="swatch"></span><span class="nom-chantier">Chantier</span><span class="caret">▾</span></button>' +
             '<div class="select-chantier-panneau" id="panneauChantier"></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="toolbar-separateur"></div>' +
+        '<div class="toolbar-groupe">' +
+          '<div class="outil-menu" id="menuAjoutLigne">' +
+            '<button type="button" class="toolbar-btn" id="btnAjoutLigne" title="Ajouter une ligne — Personnel ou Intervenant">' + ICONS.ajoutLigne + '</button>' +
+            '<div class="outil-menu-panneau">' +
+              '<div class="outil-menu-titre">Ajouter une ligne</div>' +
+              '<button type="button" class="outil-menu-item" data-ligne="personnel">' + ICONS.people + 'Personnel</button>' +
+              '<button type="button" class="outil-menu-item" data-ligne="intervenant">' + ICONS.hardhat + 'Intervenant</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="outil-menu" id="menuAjoutElement">' +
+            '<button type="button" class="toolbar-btn" id="btnAjoutElement" title="Ajouter un élément au planning">' + ICONS.plus + '</button>' +
+            '<div class="outil-menu-panneau">' +
+              '<div class="outil-menu-page" data-page="choix">' +
+                '<div class="outil-menu-titre">Ajouter au planning</div>' +
+                '<button type="button" class="outil-menu-item" data-type="tache">' + ICONS.tache + 'Tâche</button>' +
+                '<button type="button" class="outil-menu-item" data-type="absence">' + ICONS.absence + 'Absence</button>' +
+                '<button type="button" class="outil-menu-item" data-type="note">' + ICONS.note + 'Note</button>' +
+                '<button type="button" class="outil-menu-item" data-type="jalon">' + ICONS.flag + 'Jalon</button>' +
+              '</div>' +
+              '<div class="outil-menu-page" data-page="personne" id="pageAjoutPersonne" hidden></div>' +
+            '</div>' +
           '</div>' +
         '</div>' +
         '<div class="toolbar-separateur"></div>' +
@@ -2636,12 +2767,156 @@
     // construireSelectChantier() à chaque rendu — cf. plus bas.
     var selectChantier = document.getElementById("selectChantier");
     var btnSelectChantier = document.getElementById("btnSelectChantier");
+    // §85 (round du 17.09.2026) — menuAjoutElement/reinitialiserMenuAjoutElement/
+    // fermerAutresMenusOutils sont déclarées ici (var/function, "hoistées"
+    // dans toute cablerPagePlanning) mais réellement remplies un peu plus
+    // bas, avec le reste du câblage de #menuAjoutElement — utilisables dès
+    // ici (fermeture du sélecteur de chantier) comme depuis là-bas, pour que
+    // #selectChantier et les 3 nouveaux .outil-menu (zoom, ligne+, +) restent
+    // mutuellement exclusifs : un seul panneau ouvert à la fois dans cette
+    // barre.
+    var menuAjoutElement = document.getElementById("menuAjoutElement");
+    var pageAjoutPersonne = document.getElementById("pageAjoutPersonne");
+    var typeAjoutBarreEnCours = null;
+    function reinitialiserMenuAjoutElement() {
+      if (!menuAjoutElement) return;
+      var pageChoix = menuAjoutElement.querySelector('[data-page="choix"]');
+      if (pageChoix) pageChoix.hidden = false;
+      if (pageAjoutPersonne) pageAjoutPersonne.hidden = true;
+      typeAjoutBarreEnCours = null;
+    }
+    // Ferme tout ce qui peut être ouvert dans cette barre SAUF `sauf` (un des
+    // .outil-menu, ou null pour tout fermer) — réinitialise au passage
+    // #menuAjoutElement sur sa page "choix" dès qu'il fait partie de ce qui
+    // se ferme, pour ne jamais le rouvrir plus tard sur l'étape "pour qui ?"
+    // d'un ajout précédent abandonné en cours de route.
+    function fermerAutresMenusOutils(sauf) {
+      document.querySelectorAll(".outil-menu.ouvert").forEach(function (m) {
+        if (m === sauf) return;
+        m.classList.remove("ouvert");
+        if (m === menuAjoutElement) reinitialiserMenuAjoutElement();
+      });
+      if (selectChantier) selectChantier.classList.remove("ouvert");
+    }
     if (selectChantier && btnSelectChantier) {
       btnSelectChantier.addEventListener("click", function (e) {
         e.stopPropagation();
-        selectChantier.classList.toggle("ouvert");
+        var etaitOuvert = selectChantier.classList.contains("ouvert");
+        fermerAutresMenusOutils(null);
+        selectChantier.classList.toggle("ouvert", !etaitOuvert);
       });
-      document.addEventListener("click", function () { selectChantier.classList.remove("ouvert"); });
+    }
+    // Ouverture/fermeture des 3 .outil-menu (zoom, ligne+, +) — générique
+    // plutôt que triplée, même idée que #selectChantier ci-dessus (bouton
+    // statique qui ouvre son propre panneau).
+    document.querySelectorAll(".outil-menu").forEach(function (menu) {
+      var btnMenu = menu.querySelector(":scope > button");
+      if (!btnMenu) return;
+      btnMenu.addEventListener("click", function (e) {
+        e.stopPropagation();
+        var etaitOuvert = menu.classList.contains("ouvert");
+        fermerAutresMenusOutils(menu);
+        var maintenantOuvert = !etaitOuvert;
+        menu.classList.toggle("ouvert", maintenantOuvert);
+        if (menu === menuAjoutElement && !maintenantOuvert) reinitialiserMenuAjoutElement();
+      });
+    });
+    // Un clic À L'INTÉRIEUR d'un panneau ne doit pas remonter jusqu'au
+    // document (qui fermerait tout avant même que le bouton cliqué — Retour,
+    // une personne, un palier de zoom — ait pu agir) — même filet que
+    // .select-chantier-panneau n'a jamais eu besoin d'avoir, ses boutons
+    // fermant déjà le panneau explicitement à chaque clic.
+    document.querySelectorAll(".outil-menu-panneau").forEach(function (p) {
+      p.addEventListener("click", function (e) { e.stopPropagation(); });
+    });
+    // Clic extérieur : ferme absolument tout (#selectChantier ET les 3
+    // .outil-menu), remplace l'ancien listener dédié à #selectChantier seul
+    // (§83) — fermerAutresMenusOutils(null) couvre maintenant les deux.
+    document.addEventListener("click", function () { fermerAutresMenusOutils(null); });
+
+    // ---- "ligne+" : Personnel ou Intervenant — réutilise TEL QUEL
+    // ouvrirAjoutPersonne(sousTraitant), le même popup qu'ouvrait le "+" du
+    // bout de ligneSection avant sa suppression ce round.
+    var menuAjoutLigne = document.getElementById("menuAjoutLigne");
+    if (menuAjoutLigne) {
+      menuAjoutLigne.querySelectorAll("[data-ligne]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          menuAjoutLigne.classList.remove("ouvert");
+          ouvrirAjoutPersonne(btn.dataset.ligne === "intervenant");
+        });
+      });
+    }
+
+    // ---- "+" (ajout d'élément) : Tâche/Absence/Note/Jalon. Note/Jalon
+    // s'ouvrent directement (ouvrirAjoutElementBarre plus bas, cf. son
+    // commentaire). Tâche/Absence affichent d'abord la 2e page "pour qui ?"
+    // — liste reconstruite à l'ouverture (pas à chaque rendu de la grille,
+    // ce menu n'étant consulté qu'à la demande) depuis PERSONNES, déjà la
+    // liste "actif=true" triée (cf. demarrer()) — Absence exclut les
+    // intervenants, même règle que boutonsMenuAjout()/le clic sur une case.
+    if (menuAjoutElement && pageAjoutPersonne) {
+      var pageChoixAjout = menuAjoutElement.querySelector('[data-page="choix"]');
+      pageChoixAjout.querySelectorAll("[data-type]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var type = btn.dataset.type;
+          if (type !== "tache" && type !== "absence") {
+            menuAjoutElement.classList.remove("ouvert");
+            ouvrirAjoutElementBarre(type, null);
+            reinitialiserMenuAjoutElement();
+            return;
+          }
+          typeAjoutBarreEnCours = type;
+          pageAjoutPersonne.innerHTML =
+            '<button type="button" class="outil-menu-retour">‹ Retour</button>' +
+            '<div class="outil-menu-titre">Pour qui — ' + (type === "tache" ? "Tâche" : "Absence") + '</div>';
+          var liste = type === "absence" ? PERSONNES.filter(function (p) { return !p.sousTraitant; }) : PERSONNES;
+          liste.forEach(function (p) {
+            var it = document.createElement("button");
+            it.type = "button";
+            it.className = "outil-menu-item";
+            it.dataset.personne = p.id;
+            it.textContent = p.nom;
+            it.addEventListener("click", function () {
+              menuAjoutElement.classList.remove("ouvert");
+              ouvrirAjoutElementBarre(typeAjoutBarreEnCours, p.id);
+              reinitialiserMenuAjoutElement();
+            });
+            pageAjoutPersonne.appendChild(it);
+          });
+          pageAjoutPersonne.querySelector(".outil-menu-retour").addEventListener("click", reinitialiserMenuAjoutElement);
+          pageChoixAjout.hidden = true;
+          pageAjoutPersonne.hidden = false;
+        });
+      });
+    }
+
+    // ---- Case de zoom façon Sheets. niveauZoomPlanning est appliqué (CSS
+    // zoom, sur grilleEntete/grilleCorps — jamais sur .entete-planning-figee
+    // elle-même) à chaque construireGrille(), donc render(false) suffit ici
+    // pour que le changement soit immédiatement visible — même trajet que
+    // les 4 icônes masquer/afficher ci-dessus.
+    var NIVEAUX_ZOOM_PLANNING = [75, 90, 100, 110, 125, 150];
+    var btnZoomMoins = document.getElementById("zoomMoins");
+    var btnZoomPlus = document.getElementById("zoomPlus");
+    if (btnZoomMoins) btnZoomMoins.addEventListener("click", function () {
+      var i = NIVEAUX_ZOOM_PLANNING.indexOf(niveauZoomPlanning);
+      niveauZoomPlanning = NIVEAUX_ZOOM_PLANNING[Math.max(0, i - 1)];
+      render(false);
+    });
+    if (btnZoomPlus) btnZoomPlus.addEventListener("click", function () {
+      var i = NIVEAUX_ZOOM_PLANNING.indexOf(niveauZoomPlanning);
+      niveauZoomPlanning = NIVEAUX_ZOOM_PLANNING[Math.min(NIVEAUX_ZOOM_PLANNING.length - 1, i + 1)];
+      render(false);
+    });
+    var panneauZoom = document.getElementById("panneauZoom");
+    if (panneauZoom) {
+      panneauZoom.querySelectorAll("[data-zoom]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          niveauZoomPlanning = parseInt(btn.dataset.zoom, 10);
+          document.getElementById("menuZoom").classList.remove("ouvert");
+          render(false);
+        });
+      });
     }
     // §82 — les 4 contrôles masquer/afficher (Jalons/Notes/Personnel/
     // Intervenants, cf. .controles-affichage dans htmlPagePlanning ; devenus
@@ -6763,6 +7038,18 @@
     grilleEntete.style.minWidth = largeurMiniTotale;
     grilleCorps.style.gridTemplateColumns = gabarit;
     grilleCorps.style.minWidth = largeurMiniTotale;
+    // Case de zoom façon Sheets (§85, round du 17.09.2026) — CSS zoom (pas
+    // transform:scale, qui ne changerait que le RENDU sans jamais toucher la
+    // taille réelle occupée : largeur de scroll, hauteur de page) posé
+    // directement sur les 2 grilles, JAMAIS sur enteteFigee (l'élément
+    // sticky lui-même, cf. son historique CSS plus haut) — enteteFigee et
+    // son "top" calculé par ajusterEnteteFixe() restent donc totalement
+    // étrangers au niveau de zoom choisi, quel qu'il soit. Les 2 grilles
+    // gardent le même gabarit/largeurMiniTotale ci-dessus (calculés une
+    // seule fois, en px "réels") : le zoom s'applique ensuite identiquement
+    // aux deux, donc enteteScroll et scroller restent pixel-alignés à
+    // n'importe quel niveau (cf. la synchronisation de scrollLeft plus bas).
+    grilleEntete.style.zoom = grilleCorps.style.zoom = (niveauZoomPlanning / 100);
 
     enteteScroll.appendChild(grilleEntete);
     enteteFigee.appendChild(enteteScroll);
@@ -7001,16 +7288,20 @@
       // §82 : le masquage/affichage de cette section ne se pilote plus
       // depuis une flèche posée ici (cf. .controles-affichage, regroupé dans
       // la barre légende/imprimer) — cette ligne ne garde donc plus que son
-      // libellé et le bouton d'ajout.
+      // libellé. §85 (round du 17.09.2026) — Lionel : « on peut aussi enlever
+      // le "+" des lignes personnel et intervenant » : le bouton .btn-plage-
+      // ligne disparaît d'ici, remplacé par l'icône "ligne+" de la barre
+      // d'outils (cf. #btnAjoutLigne dans htmlPagePlanning/cablerPagePlanning),
+      // qui ouvre le même ouvrirAjoutPersonne(sousTraitant) — ex-.btn-plage-
+      // ligne/.section-row-sticky gap conservés tels quels pour ne pas avoir à
+      // toucher leur CSS, simplement plus jamais peuplés d'un bouton ici.
       var lg = document.createElement("div");
       lg.className = "section-row";
       lg.innerHTML =
         '<div class="section-row-sticky">' +
         '<span class="section-label">' + esc(texte) + '</span>' +
-        '<button type="button" class="btn-plage-ligne" data-add-personne="' + cle + '" title="Ajouter">+</button>' +
         '</div>';
       poserPleineLargeur(lg, row);
-      lg.querySelector(".btn-plage-ligne").addEventListener("click", function () { ouvrirAjoutPersonne(cle === "intervenants"); });
       row++;
     }
 
@@ -7102,6 +7393,7 @@
     majBoutonsUndo();
     majBarreSelection();
     majControlesAffichage();
+    majZoomAffichage();
     ajusterEnteteFixe();
   }
 
@@ -8473,6 +8765,17 @@
     });
   }
 
+  // §85 (round du 17.09.2026) — synchronise le texte de la case de zoom
+  // ("100% ▾") sur niveauZoomPlanning, à chaque rendu — même idée que
+  // majControlesAffichage() juste au-dessus (bouton statique, câblé une
+  // seule fois dans cablerPagePlanning ; le niveau réel est déjà appliqué
+  // par construireGrille sur grilleEntete/grilleCorps, ceci ne touche que
+  // l'étiquette affichée).
+  function majZoomAffichage() {
+    var btn = document.getElementById("btnZoom");
+    if (btn) btn.textContent = niveauZoomPlanning + "% ▾";
+  }
+
   /* ============================================================
      SÉLECTION MULTIPLE / BARRE D'ACTION — repris du prototype (§3.3 de
      v3-inventory.md) : ces fonctions étaient déjà APPELÉES un peu partout
@@ -9452,6 +9755,41 @@
     positionnerPop(pop, px, py);
     var fermer = fermerAuClicExterieur(pop);
     cablerBoutonsMenuAjout(pop, fermer, cell, null, null, cibles, giDebut, duree, plageInit, demiDebut, demiFin);
+  }
+
+  // §85 (round du 17.09.2026) — Lionel, mockup mockup-sous-menu-outils.html à
+  // l'appui : icône "+" de la barre d'outils, pour ajouter un Jalon/Note/
+  // Tâche/Absence SANS être obligé de cliquer une case de la grille au
+  // préalable (contrairement à ouvrirAjout/ouvrirAjoutPlage ci-dessus, qui
+  // partent toujours d'une case ou d'une plage réellement cliquée).
+  // giPourAjoutBarre() vise aujourd'hui s'il est dans la semaine affichée (10
+  // jours en mode 2 semaines), sinon le premier jour affiché — pas d'autre
+  // choix raisonnable sans case cliquée pour deviner "quel jour".
+  function giPourAjoutBarre() {
+    var n = nbJoursAffiches();
+    for (var gi = 0; gi < n; gi++) { if (isoDeGi(gi) === etat.aujourdhui) return gi; }
+    return 0;
+  }
+  function ouvrirAjoutElementBarre(type, personneId) {
+    var gi = giPourAjoutBarre();
+    // Jalon/Note : même formulaire qu'un clic sur leur ligne (ouvrirAjout,
+    // branche kind !== "personne"), journée ENTIÈRE par défaut (demiDebut/
+    // demiFin null — pas de case cliquée pour deviner matin/après-midi,
+    // ajustable ensuite via les boutons M/A de la fiche qui s'ouvre).
+    if (type === "jalon" || type === "note") {
+      ouvrirEditionPlage(type, null, gi, 1, null, null, null, null, null);
+      return;
+    }
+    // Tâche/Absence : même formulaire qu'un clic sur la case du jour de
+    // cette personne (ouvrirEdition), via un plageInit "fabriqué" à la main
+    // (aucune case réelle) plutôt qu'un cell DOM — cf. le commentaire de
+    // ouvrirEdition, qui ignore totalement `cell` dès qu'un plageInit est
+    // fourni. px/py : même repli "centre de l'écran" que ouvrirAjoutPersonne
+    // ci-dessus (pas de case/position de clic à partir de laquelle positionner
+    // la fiche).
+    var px = Math.round(window.innerWidth / 2 - 110), py = Math.round(window.innerHeight / 2 - 90);
+    var plageInit = { cibles: [{ personne: personneId, demi: "matin" }], giDebut: gi, duree: 1, demiDebut: null, demiFin: null, px: px, py: py };
+    ouvrirEdition(null, null, type, null, null, plageInit, null, null);
   }
 
   function positionFormulaire(x, y, plageInit) {
