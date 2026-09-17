@@ -926,6 +926,11 @@
      calendrier natif (.showPicker()) doit apparaître, jamais son propre
      encart texte qui doublonnerait .date-val en dessous. */
   .carte-item .date-nav .date-val-cliquable:hover { background: var(--accent-soft); color: var(--accent); }
+  /* §88 — bord de plage (jalon/note) dont la vraie date est hors de la
+     semaine actuellement affichée à l'écran (cf. appliquerDateChoisieFormulaire) :
+     italique + soulignage pointillé, pour rester lisible que ce jour-là n'est
+     pas dans la grille en ce moment, sans pour autant ressembler à une erreur. */
+  .carte-item .date-nav .date-val-hors-fenetre { font-style: italic; text-decoration: underline dotted var(--ink-faint); text-underline-offset: 2px; }
   .date-picker-natif { position: fixed; opacity: 0; z-index: 60; border: none; padding: 0; margin: 0; }
   .carte-item .demi-toggle { display: flex; gap: 5px; flex-shrink: 0; }
   .carte-item .demi-toggle .demi-btn {
@@ -6076,27 +6081,25 @@
         }
       });
     });
-    // "labG|jourIdx" -> "demi\u0000texte". La demi-journée fait partie de la
-    // VALEUR comparée (round du 02.09.2026) : sans ça, faire passer un jalon
-    // du matin à l'après-midi laisserait le texte identique et ne
-    // déclencherait aucune écriture — la modification serait perdue au
-    // rechargement, sans le moindre message.
-    var jalonsMap = {};
-    JALONS.filter(function (j) { return giVisibleFenetre(j.giDebut, n); }).forEach(function (j) {
-      for (var d = 0; d < j.duree; d++) {
-        var gi = j.giDebut + d; if (!giVisibleFenetre(gi, n) || estGiWeekend(gi)) continue;
-        var lab = labGDeGi(gi); if (lab == null) continue;
-        // demiIci (round du 08.09.2026, suite — un jalon porte désormais
-        // lui aussi une demi-journée par bord, cf. FRONTEND-CHANGELOG §47) :
-        // `d === 0`/`d === j.duree - 1` retrouvent le bord concerné, même
-        // règle que demiPourJourDePlage_ côté serveur (seuls les 2 bords
-        // d'une plage fusionnée peuvent porter une demi-journée, tout jour
-        // du milieu reste toujours une journée entière).
-        var demiIciJalon = d === 0 ? (j.demiDebut || null) : (d === j.duree - 1 ? (j.demiFin || null) : null);
-        jalonsMap[lab + "|" + jourIdxDeGi(gi)] = (demiIciJalon || "") + "\u0000" + j.texte;
-      }
-    });
-    return { cellules: cellules, jalonsMap: jalonsMap, notesById: notesParId(), tachesSeriePayload: null };
+    // §88 (round du 17.09.2026, suite×3) — jalonsMap ("labG|jourIdx" ->
+    // "demi\u0000texte", décomposé JOUR PAR JOUR dans la fenêtre visible) a
+    // été remplacé par jalonsParId (par identité d'item JS, MÊME principe
+    // que notesParId juste en dessous — un jalon a exactement la même forme
+    // {id,texte,giDebut,duree,demiDebut,demiFin,dateDebutIso}, cf. itemPlage,
+    // partagée avec les notes). Raison : la décomposition jour par jour ne
+    // pouvait représenter que ce qui est VISIBLE dans la fenêtre chargée
+    // (giVisibleFenetre) — un jalon dont la plage dépasse la fenêtre (permis
+    // depuis §88, cf. appliquerDateChoisieFormulaire) y perdait silencieusement
+    // ses jours en trop. Suivre l'id comme les notes permet à synchroniser()
+    // d'envoyer une VRAIE plage (dateDebut/dateFin ISO, cf. isoDeApres) à
+    // enregistrer-plage, qui sait déjà l'écrire sans dépendre de ce qui est
+    // chargé côté client (cf. planPlage, functions/enregistrer-plage/logic.js).
+    return { cellules: cellules, jalonsById: jalonsParId(), notesById: notesParId(), tachesSeriePayload: null };
+  }
+  function jalonsParId() {
+    var out = {};
+    JALONS.forEach(function (j) { out[j.id] = { texte: j.texte, giDebut: j.giDebut, duree: j.duree, dateDebutIso: j.dateDebutIso, demiDebut: j.demiDebut || null, demiFin: j.demiFin || null }; });
+    return out;
   }
   function notesParId() {
     var out = {};
@@ -6130,22 +6133,22 @@
     });
     return out;
   }
-  // Diff des jalons : par (labG,jourIdx), un texte simple.
+  // §88 — diff des jalons, par identité d'item JS : MÊME principe que
+  // diffsNotes juste en dessous (jalonsById plutôt que jalonsMap, cf. son
+  // commentaire dans calculerEtatLocal). Pas de champ `important`/`chantierId`
+  // comparé ici : la grille n'édite/n'envoie jamais ces 2 champs pour un
+  // jalon (cf. commentaire de synchroniser() plus bas) — les comparer ici
+  // déclencherait une écriture fantôme dès que la page « Jalons » les change
+  // en dehors de la grille.
   function diffsJalons(local, base) {
-    var cles = {};
-    Object.keys(local.jalonsMap).forEach(function (k) { cles[k] = true; });
-    Object.keys(base.jalonsMap).forEach(function (k) { cles[k] = true; });
     var out = [];
-    Object.keys(cles).forEach(function (cle) {
-      var a = local.jalonsMap[cle] || "", b = base.jalonsMap[cle] || "";
-      if (a === b) return;
-      var parts = cle.split("|");
-      var sep = a.indexOf("\u0000");
-      out.push({
-        labG: +parts[0], jourIdx: +parts[1],
-        texte: sep === -1 ? a : a.slice(sep + 1),
-        demi: sep === -1 ? null : (a.slice(0, sep) || null)
-      });
+    Object.keys(local.jalonsById).forEach(function (id) {
+      var a = local.jalonsById[id], b = base.jalonsById[id];
+      if (b && a.texte === b.texte && a.giDebut === b.giDebut && a.duree === b.duree && (a.demiDebut || null) === (b.demiDebut || null) && (a.demiFin || null) === (b.demiFin || null)) return;
+      out.push({ action: b ? "modifier" : "creer", id: id, avant: b || null, apres: a });
+    });
+    Object.keys(base.jalonsById).forEach(function (id) {
+      if (!local.jalonsById[id]) out.push({ action: "supprimer", id: id, avant: base.jalonsById[id], apres: null });
     });
     return out;
   }
@@ -6164,12 +6167,12 @@
     return out;
   }
 
-  // (labG, jourIdx) -> date ISO, pour les jalons du moteur de diff : jourIdx
-  // y est TOUJOURS 0..4 (lundi..vendredi, cf. diffsJalons — un jalon week-end
-  // n'existe pas, cf. estGiWeekend plus haut dans calculerEtatLocal), donc
-  // infosSemaineDepuisLabG() (pure, réutilisée telle quelle depuis le
-  // chargement — cf. étape 2 du §6bis) suffit sans passer par le cache.
-  function isoDeLabGJourIdx(labG, jourIdx) { return infosSemaineDepuisLabG(labG).isoDates[jourIdx]; }
+  // isoDeLabGJourIdx((labG, jourIdx) -> date ISO) a été retirée au §88
+  // (round du 17.09.2026, suite×3) : c'était la conversion utilisée par
+  // l'ancien dJal.forEach de synchroniser() pour diffuser un jalon JOUR PAR
+  // JOUR — remplacée par un envoi en vraie plage (dateDebut/dateFin ISO),
+  // cf. son commentaire ; le seul appelant de cette fonction a disparu avec
+  // ce changement.
   // Variante "case personnel" : jourIdx y va de 0 à 7 (0..4 = lundi..vendredi,
   // 6/7 = Samedi/Dimanche — cf. commentaire de tête d'apiEnregistrerCellulePersonne,
   // WebApp.gs ; jourIdx 5 n'existe jamais, hérité de l'ancien classeur où les
@@ -6307,15 +6310,17 @@
         return enregistrerCellulePersonneServeur(d.labG, d.ancre, d.demi, d.jourIdx, d.payload);
       });
     });
-    // Étape 4 du §6bis (migration hors Google) : chaque jalon diffé est TOUJOURS
-    // un seul jour (dateDebut === dateFin), en mode "remplacement" — un
-    // enregistrement diffé représente l'état COMPLET du jour, jamais un ajout
-    // (cf. l'ancien apiEnregistrerJalonNote, qui écrasait sans condition la
-    // cellule entière). Pas de notion de "déplacement" ici (une seule case à
-    // la fois) : origine reste toujours null. `d.demi` (round du 08.09.2026,
-    // suite — cf. diffsJalons/calculerEtatLocal ci-dessus) : demiDebut et
-    // demiFin valent la même chose puisque dateDebut === dateFin (un seul
-    // jour, exactement comme pour une note d'un seul jour).
+    // §88 (round du 17.09.2026, suite×3) — dJal envoie désormais une VRAIE
+    // plage (dateDebut/dateFin ISO, comme dNot juste en dessous) plutôt
+    // qu'un jour isolé : cf. le commentaire de jalonsParId/diffsJalons plus
+    // haut pour la raison (un jalon peut maintenant dépasser la fenêtre
+    // chargée, cf. appliquerDateChoisieFormulaire). `mode` reste
+    // INCONDITIONNELLEMENT "remplacement" (jamais "ajout" comme pour une
+    // note qui vient d'être créée) : un enregistrement de jalon représente
+    // toujours l'état COMPLET du jour (cf. l'ancien apiEnregistrerJalonNote,
+    // qui écrasait sans condition la cellule entière — une seule ligne
+    // possible par jour, contrairement aux notes qui peuvent être plusieurs
+    // sur le même jour).
     // Ni `important` ni `chantierId` ne sont envoyés ici (round du 12.09.2026
     // — page « Jalons », sql/0007_jalons_chantier.sql) : la grille ne
     // connaît/n'édite ni l'un ni l'autre pour un jalon (seul le texte l'est
@@ -6325,10 +6330,19 @@
     // page Jalons survit donc à une simple modif de texte faite ici.
     dJal.forEach(function (d) {
       chaine = chaine.then(function () {
-        var iso = isoDeLabGJourIdx(d.labG, d.jourIdx);
+        var dateDeb, dateFin, texte, origine;
+        var demiDebJalon = d.apres ? (d.apres.demiDebut || null) : null;
+        var demiFinJalon = d.apres ? (d.apres.demiFin || null) : null;
+        if (d.action === "supprimer") {
+          dateDeb = d.avant.dateDebutIso; dateFin = isoDeApres(d.avant); texte = "";
+          origine = { dateDebut: dateDeb, dateFin: dateFin, texte: d.avant.texte, demiDebut: d.avant.demiDebut || null, demiFin: d.avant.demiFin || null };
+        } else {
+          dateDeb = d.apres.dateDebutIso || isoDeGi(d.apres.giDebut); dateFin = isoDeApres(d.apres); texte = d.apres.texte;
+          origine = d.avant ? { dateDebut: d.avant.dateDebutIso, dateFin: isoDeApres(d.avant), texte: d.avant.texte, demiDebut: d.avant.demiDebut || null, demiFin: d.avant.demiFin || null } : null;
+        }
         return invoquerFonctionServeur("enregistrer-plage", {
-          kind: "jalon", dateDebut: iso, dateFin: iso, demiDebut: d.demi, demiFin: d.demi,
-          texte: d.texte, mode: "remplacement", origine: null
+          kind: "jalon", dateDebut: dateDeb, dateFin: dateFin, demiDebut: demiDebJalon, demiFin: demiFinJalon,
+          texte: texte, mode: "remplacement", origine: origine
         });
       });
     });
@@ -6386,9 +6400,41 @@
   }
   function isoDeApres(item) {
     if (!item.dateDebutIso) return isoDeGi(item.giDebut + item.duree - 1);
+    // §88 (round du 17.09.2026, suite×3) — item.duree compte des jours
+    // OUVRÉS (jamais un week-end : le moteur de fusion des bulles,
+    // construireVueDepuisCache, n'avance jamais gi à travers un week-end
+    // réel), donc avancer de `duree-1` jours CALENDAIRES bruts comme le
+    // faisait ce calcul avant ce round était juste tant qu'aucune bulle ne
+    // traversait un week-end réel (possible seulement en mode "2 semaines",
+    // rare en pratique) — et devient franchement faux dès qu'une plage peut
+    // dépasser la fenêtre chargée (cf. appliquerDateChoisieFormulaire) : une
+    // absence de 2 semaines saute alors 2 week-ends, pas 0. Corrigé en
+    // avançant jour par jour en sautant sam/dim, comme joursOuvresDeLaPlage
+    // côté serveur (functions/enregistrer-plage/logic.js).
     var d = new Date(item.dateDebutIso + "T00:00:00");
-    d.setDate(d.getDate() + item.duree - 1);
+    var restant = item.duree - 1;
+    while (restant > 0) {
+      d.setDate(d.getDate() + 1);
+      if (d.getDay() !== 0 && d.getDay() !== 6) restant--;
+    }
     return isoDeDate(d);
+  }
+  // §88 — compte de jours OUVRÉS entre 2 dates ISO incluses (mêmes règles
+  // que joursOuvresDeLaPlage côté serveur, ici on ne veut que le COMPTE, pas
+  // la liste) : sert à calculer `duree` quand une borne de plage est hors de
+  // la fenêtre chargée (state.debutHorsFenetreIso/finHorsFenetreIso, cf.
+  // appliquerDateChoisieFormulaire) — giFin-giDebut+1 ne veut alors plus rien
+  // dire, ces gi étant calés (clampés) sur le bord visible, pas la vraie
+  // date.
+  function nbJoursOuvresEntre(isoDebut, isoFin) {
+    var d = new Date(isoDebut + "T00:00:00"), fin = new Date(isoFin + "T00:00:00");
+    var n = 0;
+    while (d.getTime() <= fin.getTime()) {
+      var js = d.getDay();
+      if (js !== 0 && js !== 6) n++;
+      d.setDate(d.getDate() + 1);
+    }
+    return Math.max(1, n);
   }
 
   /* ============================================================
@@ -9164,6 +9210,16 @@
     var d = new Date(iso + "T00:00:00");
     return JOURS_ABBR[d.getDay()] + ". " + l.jour + " " + l.mois;
   }
+  // §88 — même libellé que libelleDateCourte, mais depuis une vraie date ISO
+  // plutôt qu'un gi (donc valable pour une date HORS de la fenêtre chargée,
+  // qui n'a par définition aucun gi — cf. libelleJourGi/isoDeGi, qui lisent
+  // etat.cache et renvoient vide dans ce cas). Calcule jour/mois directement
+  // par l'objet Date plutôt que via le cache serveur.
+  function libelleDateCourteIso(iso) {
+    if (!iso) return "";
+    var d = new Date(iso + "T00:00:00");
+    return JOURS_ABBR[d.getDay()] + ". " + d.getDate() + " " + MOIS_ABBR[d.getMonth() + 1];
+  }
   var ICONE_FERMER = '<svg class="icon" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>';
   var ICONE_DRAPEAU = '<svg class="icon" viewBox="0 0 24 24"><path d="M6 3v18M6 4h12l-3 4 3 4H6"/></svg>';
   var ICONE_CHEVRON_G = '<svg class="icon" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg>';
@@ -9187,13 +9243,21 @@
   // "jeudi A, vendredi P... voudrait dire 2 jours complets, il n'y a pas de
   // trou" — correct, cf. commentaire de datesPlageHTML plus bas) : aucune
   // combinaison n'est désactivée ici.
-  function dateLigneHTML(label, gi, bord, demi) {
+  // isoHorsFenetre (§88) : quand non-null, cette borne est hors de la
+  // fenêtre actuellement chargée (uniquement possible pour un jalon/note,
+  // cf. appliquerDateChoisieFormulaire) — le libellé vient alors directement
+  // de la vraie date ISO (libelleDateCourteIso) plutôt que du gi (calé/
+  // clampé sur le bord visible, cf. commentaire de appliquerDateChoisieFormulaire),
+  // avec une classe CSS dédiée pour rester lisible que ce jour n'est pas
+  // affiché à l'écran en ce moment.
+  function dateLigneHTML(label, gi, bord, demi, isoHorsFenetre) {
+    var texteDate = isoHorsFenetre ? libelleDateCourteIso(isoHorsFenetre) : libelleDateCourte(gi);
     return '<div class="date-ligne" data-bord="' + bord + '">' +
       '<div class="date-ligne-gauche">' +
       '<span class="label-date">' + label + '</span>' +
       '<div class="date-nav">' +
       '<button type="button" class="fleche f-fleche" data-sens="-1" title="Jour précédent">' + ICONE_CHEVRON_G + '</button>' +
-      '<span class="date-val">' + esc(libelleDateCourte(gi)) + '</span>' +
+      '<span class="date-val' + (isoHorsFenetre ? ' date-val-hors-fenetre' : '') + '"' + (isoHorsFenetre ? ' title="Hors de la semaine affichée actuellement à l’écran"' : '') + '>' + esc(texteDate) + '</span>' +
       '<button type="button" class="fleche f-fleche" data-sens="1" title="Jour suivant">' + ICONE_CHEVRON_D + '</button>' +
       '</div></div>' +
       '<div class="demi-toggle" title="Moment de la journée">' +
@@ -9216,10 +9280,10 @@
   // d'une nouvelle tâche et la sélection au glissé) devait être corrigée en
   // conséquence pour ne jamais compter cette combinaison-là comme "à
   // moitié libre" alors qu'elle s'affiche pleine — cf. demisOccupeesTache.
-  function datesPlageHTML(giDebut, giFin, demiDebut, demiFin) {
+  function datesPlageHTML(giDebut, giFin, demiDebut, demiFin, isoDebutHorsFenetre, isoFinHorsFenetre) {
     return '<div class="dates-plage">' +
-      dateLigneHTML("Début", giDebut, "debut", demiDebut) +
-      dateLigneHTML("Fin", giFin, "fin", demiFin) +
+      dateLigneHTML("Début", giDebut, "debut", demiDebut, isoDebutHorsFenetre) +
+      dateLigneHTML("Fin", giFin, "fin", demiFin, isoFinHorsFenetre) +
       '</div>';
   }
   function piedPrincipalHTML(avecSuppr) {
@@ -9242,6 +9306,15 @@
       lien.classList.toggle("ferme", bloc.hidden);
       lien.innerHTML = bloc.hidden ? ("Plus d’options " + ICONE_CHEVRON_BAS) : ("Moins d’options " + ICONE_CHEVRON_HAUT);
     });
+  }
+  // §88 — vraie date ISO d'une borne du state, qu'elle soit dans la fenêtre
+  // (dérivée du gi) ou hors fenêtre (override debutHorsFenetreIso/
+  // finHorsFenetreIso, jalon/note uniquement — cf. appliquerDateChoisieFormulaire).
+  // Utilisée partout où le code avait besoin jusqu'ici de `isoDeGi(state.giXxx)`
+  // pour connaître "la date actuellement affichée pour cette borne".
+  function isoBorneEtat(state, bord) {
+    if (bord === "debut") return state.debutHorsFenetreIso || isoDeGi(state.giDebut);
+    return state.finHorsFenetreIso || isoDeGi(state.giFin);
   }
   // state : { giDebut, giFin, demiDebut, demiFin, ... } muté en place ;
   // rafraichir() est rappelée après chaque changement pour re-rendre le bloc
@@ -9279,8 +9352,12 @@
         // nouvelle fenêtre], il ne doit pas y avoir de limite ». cf. le
         // commentaire de appliquerDateChoisieFormulaire pour l'explication
         // complète (la fenêtre chargée n'est pas qu'une limite d'affichage :
-        // c'est aussi la limite réelle du moteur de synchronisation).
-        var isoActuel = isoDeGi(bord === "debut" ? state.giDebut : state.giFin);
+        // c'est aussi la limite réelle du moteur de synchronisation — vrai
+        // pour tâche/absence, plus pour jalon/note depuis §88, cf. son
+        // commentaire). isoBorneEtat (§88) plutôt que isoDeGi direct : sinon
+        // "Fin suivant" repartirait du bord VISIBLE (clampé) au lieu de la
+        // vraie date déjà choisie, dès qu'une borne est hors fenêtre.
+        var isoActuel = isoBorneEtat(state, bord);
         if (!isoActuel) return;
         appliquerDateChoisieFormulaire(state, bord, isoJourOuvreVoisin(isoActuel, sens), rafraichir);
       });
@@ -9350,15 +9427,23 @@
   // main, il faudra soit ramener une variante d'"Ajout lointain", soit
   // construire le vrai enregistrement en plage évoqué dans le commentaire de
   // appliquerDateChoisieFormulaire.
+  //
+  // §88 : le paragraphe ci-dessus ("une date hors fenêtre est refusée") ne
+  // vaut plus que pour tâche/absence — cf. appliquerDateChoisieFormulaire.
+  // Pour jalon/note, ce calendrier peut donc de nouveau viser une date
+  // lointaine, comme le pouvait l'ancien "Ajout lointain".
   function cablerCalendrierDate(conteneur, state, rafraichir) {
     conteneur.querySelectorAll(".date-val").forEach(function (span) {
       span.classList.add("date-val-cliquable");
-      span.title = "Cliquer pour choisir une date dans le calendrier";
+      // Ne pas écraser le title "hors de la semaine affichée" déjà posé par
+      // dateLigneHTML (§88) sur une borne hors fenêtre — on le complète
+      // plutôt que de le remplacer.
+      span.title = (span.classList.contains("date-val-hors-fenetre") ? "Hors de la semaine affichée actuellement à l’écran. " : "") + "Cliquer pour choisir une date dans le calendrier";
       span.addEventListener("click", function () {
         if (conteneur.querySelector(".date-picker-natif")) return; // déjà ouvert (ex. double-clic)
         var ligne = span.closest(".date-ligne");
         var bord = ligne.dataset.bord;
-        var isoActuel = isoDeGi(bord === "debut" ? state.giDebut : state.giFin);
+        var isoActuel = isoBorneEtat(state, bord);
         if (!isoActuel) return;
         var input = document.createElement("input");
         input.type = "date";
@@ -9410,39 +9495,67 @@
   // n'aurait fait que déplacer le problème (et perdre le fil visuel de
   // Lionel avec la grille, cf. retour 1) sans jamais lever la vraie limite.
   //
-  // Cette fonction ne touche donc plus jamais à etat.indexSemaine : une date
-  // choisie hors de la fenêtre actuellement affichée est refusée (toast
-  // explicatif) plutôt que de déclencher une navigation qui de toute façon ne
-  // pourrait pas être enregistrée correctement. Lever la limite pour de bon
-  // demanderait un vrai enregistrement en plage côté serveur pour les
-  // tâches/absences/jalons (comme enregistrer-plage le fait déjà pour les
-  // notes, cf. diffsNotes) — un chantier séparé, pas fait ici (même logique
-  // que la limite documentée sur la modification d'une série, cf. §53.3 du
-  // FRONTEND-CHANGELOG). En attendant, un élément qui doit vraiment durer
-  // sans limite (une longue absence/vacances) reste réalisable dès
-  // aujourd'hui via la case "Série (se répète)" à la création : chaque
-  // occurrence est créée directement par le serveur à sa date, sans jamais
-  // dépendre de ce qui est chargé côté client.
+  // §88 (round du 17.09.2026, suite×3) — MISE À JOUR IMPORTANTE du
+  // raisonnement ci-dessus, suite au retour de Lionel : « L'ajout hors
+  // semaine active est bloqué par les formulaires de saisie » (après avoir
+  // testé §87 en conditions réelles). Le blocage décrit plus haut reste
+  // ENTIÈREMENT réel pour une Tâche/Absence (aucun enregistrement en plage
+  // côté serveur pour elles — cf. le paragraphe ci-dessus, toujours valable
+  // pour ces 2 types, un chantier séparé à faire). Pour un Jalon ou une
+  // Note en revanche, ce "chantier séparé" n'en est plus un : le serveur
+  // (planPlage, functions/enregistrer-plage/logic.js) sait DÉJÀ écrire une
+  // plage entière à partir de vraies dates ISO, sans jamais dépendre de ce
+  // qui est chargé côté client — cf. diffsNotes, qui l'utilise déjà ainsi.
+  // Le vrai blocage pour ces 2 types n'était donc QUE dans cette fonction
+  // (et le moteur de diff associé, cf. jalonsParId/diffsJalons plus bas) —
+  // purement un choix d'implémentation, pas une limite du serveur.
+  //
+  // state.kind ("jalon"|"note"|"tache"|"absence", posé par
+  // ouvrirEditionPlage/ouvrirEdition) distingue donc maintenant les 2 cas :
+  // - jalon/note : une date hors fenêtre n'est plus refusée. La borne
+  //   choisie est gardée comme une vraie date ISO à part
+  //   (state.debutHorsFenetreIso/finHorsFenetreIso), le gi correspondant
+  //   étant calé ("clampé") sur le bord VISIBLE le plus proche pour que le
+  //   reste du code qui a besoin d'une position d'affichage (surbrillance de
+  //   la grille essentiellement — cf. surbrillancePreciseJalonNote) garde
+  //   quelque chose de valide à lire. La comparaison Début/Fin ci-dessous se
+  //   fait donc sur de VRAIES dates ISO (jamais des gi, qui n'existent que
+  //   DANS la fenêtre) pour rester juste même quand l'une des 2 bornes est
+  //   hors fenêtre.
+  // - tâche/absence : comportement INCHANGÉ, la date est toujours refusée
+  //   (toast) — cf. le paragraphe précédent, toujours vrai pour ces 2 types.
   //
   // La borne éditée (`bord`) garde TOUJOURS exactement la date choisie —
   // l'AUTRE borne n'est recollée dessus que si la garder créerait un
   // intervalle invalide (Début > Fin) ; sinon elle reste inchangée (cf.
   // cablerDatesPlage pour le détail de cette asymétrie).
   function appliquerDateChoisieFormulaire(state, bord, isoChoisi, rafraichir) {
+    var supportePlageServeur = state.kind === "jalon" || state.kind === "note";
     var giChoisi = giDepuisIso(isoChoisi);
-    if (giChoisi == null) {
+    if (giChoisi == null && !supportePlageServeur) {
       toast("Cette date sort de la semaine affichée : la durée d’un élément ne peut pas dépasser la fenêtre actuellement chargée.");
       return;
     }
-    var giAutre = bord === "debut" ? state.giFin : state.giDebut;
+    var autreEstFin = bord === "debut";
+    var isoAutre = autreEstFin
+      ? (state.finHorsFenetreIso || isoDeGi(state.giFin))
+      : (state.debutHorsFenetreIso || isoDeGi(state.giDebut));
+    var isoDebutFinal, isoFinFinal;
     if (bord === "debut") {
-      state.giDebut = giChoisi;
-      state.giFin = (giAutre >= giChoisi) ? giAutre : giChoisi;
+      isoDebutFinal = isoChoisi;
+      isoFinFinal = (isoAutre >= isoChoisi) ? isoAutre : isoChoisi;
     } else {
-      state.giFin = giChoisi;
-      state.giDebut = (giAutre <= giChoisi) ? giAutre : giChoisi;
+      isoFinFinal = isoChoisi;
+      isoDebutFinal = (isoAutre <= isoChoisi) ? isoAutre : isoChoisi;
     }
-    if (state.giDebut === state.giFin) state.demiFin = state.demiDebut;
+    var giD = giDepuisIso(isoDebutFinal), giF = giDepuisIso(isoFinFinal);
+    var n = nbJoursAffiches();
+    state.giDebut = giD != null ? giD : 0;
+    state.giFin = giF != null ? giF : (n - 1);
+    if (state.giDebut > state.giFin) { var tmp = state.giDebut; state.giDebut = state.giFin; state.giFin = tmp; }
+    state.debutHorsFenetreIso = giD != null ? null : isoDebutFinal;
+    state.finHorsFenetreIso = giF != null ? null : isoFinFinal;
+    if (state.giDebut === state.giFin && !state.debutHorsFenetreIso && !state.finHorsFenetreIso) state.demiFin = state.demiDebut;
     rafraichir();
   }
   // Descriptif affiché en texte simple, cliquable pour ouvrir un petit
@@ -10228,7 +10341,9 @@
     // unique, sans plage précise transmise).
     var demiInit = (!itemExisting && extraCell && (extraCell.demi === "matin" || extraCell.demi === "aprem")) ? extraCell.demi : null;
     var state = {
+      kind: typeAffiche, // §88 — "tache"|"absence" : appliquerDateChoisieFormulaire continue donc à refuser toute date hors fenêtre ici, aucun changement de comportement pour ces 2 types (cf. son commentaire — pas encore de vrai enregistrement en plage côté serveur pour eux).
       giDebut: giDebut0, giFin: giDebut0 + duree0 - 1,
+      debutHorsFenetreIso: null, finHorsFenetreIso: null,
       demiDebut: itemExisting ? (itemExisting.demiDebut || null) : (demiDebutArg !== undefined ? demiDebutArg : demiInit),
       demiFin: itemExisting ? (itemExisting.demiFin || null) : (demiFinArg !== undefined ? demiFinArg : demiInit),
       important: itemExisting ? itemExisting.important : false
@@ -10474,7 +10589,9 @@
     // ce round (Lionel : « les surbrillance sont fausse aussi sur les notes
     // et jalons, je les veux case par case »).
     var state = {
+      kind: kind, // §88 — lu par appliquerDateChoisieFormulaire pour savoir si une date hors fenêtre est permise (jalon/note) ou refusée (tâche/absence, cf. ouvrirEdition)
       giDebut: giDebutReel, giFin: giDebutReel + dureeInit - 1,
+      debutHorsFenetreIso: null, finHorsFenetreIso: null,
       demiDebut: itemExisting ? (itemExisting.demiDebut || null) : (demiDebutArg !== undefined ? demiDebutArg : null),
       demiFin: itemExisting ? (itemExisting.demiFin || null) : (demiFinArg !== undefined ? demiFinArg : null),
       important: itemExisting ? itemExisting.important : false
@@ -10497,7 +10614,7 @@
 
     pop.innerHTML =
       bandeauHTML({ clair: true, fondStyle: "background:var(--" + kind + "-bg)", important: state.important, chantierHTML: "", nomGrand: libelles[kind] }) +
-      datesPlageHTML(state.giDebut, state.giFin, state.demiDebut, state.demiFin) +
+      datesPlageHTML(state.giDebut, state.giFin, state.demiDebut, state.demiFin, state.debutHorsFenetreIso, state.finHorsFenetreIso) +
       '<div class="contenu-carte">' +
       '<div class="corps"><div class="label-champ" style="margin:0 0 6px">Descriptif</div>' +
       '<div class="descriptif-texte" tabindex="0"></div></div>' +
@@ -10522,14 +10639,14 @@
       this.classList.toggle("actif", state.important);
     });
     function rafraichirDates() {
-      pop.querySelector(".dates-plage").outerHTML = datesPlageHTML(state.giDebut, state.giFin, state.demiDebut, state.demiFin);
+      pop.querySelector(".dates-plage").outerHTML = datesPlageHTML(state.giDebut, state.giFin, state.demiDebut, state.demiFin, state.debutHorsFenetreIso, state.finHorsFenetreIso);
       cablerDatesPlage(pop, state, rafraichirDates);
     }
     cablerDatesPlage(pop, state, rafraichirDates);
     var texteActuel = texteInit;
     cablerDescriptifEdit(pop, function () { return texteActuel; }, function (v) { texteActuel = v; }, "Cliquer pour ajouter un descriptif…");
 
-    var lireChoixSerie = cablerSerieChamps(pop, itemExisting ? itemExisting.dateDebutIso : isoDeGi(state.giDebut));
+    var lireChoixSerie = cablerSerieChamps(pop, itemExisting ? itemExisting.dateDebutIso : isoBorneEtat(state, "debut"));
     cablerLienPlus(pop);
 
     var suppr = pop.querySelector(".f-suppr");
@@ -10557,22 +10674,32 @@
       var texte = texteActuel.trim();
       if (!texte) { fermer(); return; }
       var important = state.important;
-      var giDebutFinal = state.giDebut, dureeFinal = state.giFin - state.giDebut + 1;
+      // §88 — isoDebutVrai/isoFinVrai (jamais isoDeGi(giDebutFinal) seul,
+      // qui donnerait la date du bord VISIBLE clampé, pas la vraie date,
+      // dès que l'une des 2 bornes est hors fenêtre) + dureeFinal en jours
+      // ouvrés RÉELS entre ces 2 dates (giFin-giDebut+1 ne veut plus rien
+      // dire dans ce cas, ces gi n'étant que des positions d'affichage).
+      var isoDebutVrai = isoBorneEtat(state, "debut"), isoFinVrai = isoBorneEtat(state, "fin");
+      var giDebutFinal = state.giDebut, dureeFinal = nbJoursOuvresEntre(isoDebutVrai, isoFinVrai);
       var demiDebutFinal = state.demiDebut, demiFinFinal = state.demiFin;
       // Sur 1 seul jour, Début=matin + Fin=aprem est une combinaison valide
       // côté fiche (cf. cablerDatesPlage) mais équivaut à une journée
       // entière — ramenée ici à la forme canonique (null/null) qu'attend
       // tout le reste du fichier (demisOccupeesTache, rendu des bulles,
       // glissé/redimensionnement...), qui suppose encore demiDebut ===
-      // demiFin dès que la durée vaut 1.
-      if (state.giDebut === state.giFin && demiDebutFinal === "matin" && demiFinFinal === "aprem") { demiDebutFinal = null; demiFinFinal = null; }
+      // demiFin dès que la durée vaut 1. Le garde-fou "hors fenêtre" (§88)
+      // évite de déclencher ça à tort quand giDebut === giFin uniquement
+      // parce que les 2 bornes sont clampées sur le même jour visible tout
+      // en restant réellement différentes (ex. début un vendredi, fin des
+      // semaines plus tard).
+      if (state.giDebut === state.giFin && !state.debutHorsFenetreIso && !state.finHorsFenetreIso && demiDebutFinal === "matin" && demiFinFinal === "aprem") { demiDebutFinal = null; demiFinFinal = null; }
       if (itemExisting) {
         function appliquerModifUnique() {
           sauvegarderUndo();
           itemExisting.texte = texte; itemExisting.important = important;
           itemExisting.giDebut = giDebutFinal; itemExisting.duree = dureeFinal;
           itemExisting.demiDebut = demiDebutFinal; itemExisting.demiFin = demiFinFinal;
-          itemExisting.dateDebutIso = isoDeGi(giDebutFinal);
+          itemExisting.dateDebutIso = isoDebutVrai;
           fermer(); render(); toast("Modifié.");
         }
         if (itemExisting.serieId) {
@@ -10610,7 +10737,7 @@
         } else {
           sauvegarderUndo();
           liste.push(itemPlage(kind, texte, giDebutFinal, dureeFinal, { important: important, demiDebut: demiDebutFinal, demiFin: demiFinFinal }));
-          liste[liste.length - 1].dateDebutIso = isoDeGi(giDebutFinal);
+          liste[liste.length - 1].dateDebutIso = isoDebutVrai;
           fermer(); render(); toast("Ajouté.");
         }
       }
