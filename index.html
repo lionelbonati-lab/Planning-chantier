@@ -2247,6 +2247,34 @@
     return { jour: data.dates[gi % 5], mois: data.mois[gi % 5] };
   }
   var MOIS_ABBR = ["", "jan.", "fév.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
+  // §89 (round du 17.09.2026, suite×4) — Lionel : « Il manquerait encore
+  // l'affichage du mois quelle part, je pense à la case vide à gauche des
+  // jours. » Le mois n'était visible NULLE PART dans la grille depuis le
+  // §87 : il ne vivait que dans l'ancienne ligne "Semaine N · 14 sept. – 20
+  // sept." (coinNav/navSemaine), supprimée ce round-là car redondante avec
+  // la nouvelle navigation de la barre d'outils — sauf que cette dernière
+  // (la pill "Sem. N ▾") n'affiche PAS les dates/mois tant que son menu
+  // déroulant n'est pas ouvert. Les en-têtes de jour, eux, n'ont jamais
+  // affiché que jour de semaine + numéro (LUN 09), jamais le mois — sans
+  // ambigüité tant qu'une semaine ne chevauche pas un changement de mois,
+  // ambigu sinon. Le ou les mois couverts par la fenêtre AFFICHÉE (jours
+  // ouvrés + week-ends si affichés) sont donc listés ici, dans l'ordre
+  // chronologique, sans doublon ("sept." ou "août – sept." si la fenêtre
+  // chevauche un changement de mois) — posés dans la case coin (cf.
+  // construireGrille) qui ne portait plus rien depuis le §83.
+  function moisAffichesCoin(n) {
+    var mois = [];
+    function ajouter(gi) {
+      var info = libelleJourGi(gi);
+      if (info.mois && mois.indexOf(info.mois) === -1) mois.push(info.mois);
+    }
+    for (var gi = 0; gi < n; gi++) ajouter(gi);
+    if (afficherWeekends) {
+      var nbSem = n / 5;
+      for (var s = 0; s < nbSem; s++) { ajouter(giWeekend(s, 0)); ajouter(giWeekend(s, 1)); }
+    }
+    return mois.join(" – ");
+  }
 
   // ---- espace "week-end" (conservé tel quel du prototype, cf. §1.6/§4.1
   // du prototype et §8 du spec) : gi >= 1000 = case Samedi/Dimanche, pure
@@ -7200,11 +7228,14 @@
     var row = 1;
 
     var aujIso = etat.aujourdhui;
-    // Cellule coin de la ligne des jours : redevenue simplement vide au §83
-    // (round du 16.09.2026, encore un autre, suite×7) — Annuler/Refaire, qui
+    // Cellule coin de la ligne des jours : vide depuis le §83 (round du
+    // 16.09.2026, encore un autre, suite×7) — Annuler/Refaire, qui
     // l'occupaient depuis le round précédent, ont rejoint la nouvelle barre
-    // d'outils fixe sous les onglets (cf. son historique plus haut).
-    var coin = document.createElement("div"); coin.className = "th coin"; poser(coin, 1, row);
+    // d'outils fixe sous les onglets (cf. son historique plus haut). §89
+    // (round du 17.09.2026, suite×4) — Lionel : le mois n'est plus affiché
+    // nulle part depuis le §87 (cf. le commentaire de moisAffichesCoin) ;
+    // posé ici, dans cette case restée vide depuis le §83.
+    var coin = document.createElement("div"); coin.className = "th coin"; coin.textContent = moisAffichesCoin(n); poser(coin, 1, row);
     for (var gi = 0; gi < n; gi++) {
       var th = document.createElement("div");
       var estAuj = isoDeGi(gi) === aujIso;
