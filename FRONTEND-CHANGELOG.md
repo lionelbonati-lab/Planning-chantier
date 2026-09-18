@@ -5653,3 +5653,362 @@ qu'aux rounds précédents (tout vert sauf `test_edge_functions.js`, préexistan
 - Aucune erreur JS.
 
 **Pas encore confirmé par Lionel en conditions réelles** — à revalider une fois synchronisé.
+
+## 85. Round du 17.09.2026 — suppression du "+" Personnel/Intervenants, icônes "ligne+"/"+" dans la barre d'outils, zoom façon Sheets
+
+Lionel : « on peut aussi enlever le '+' des lignes personnel et intervenant. Ajouter une icone "ligne +"
+dans la tool bar [...] ainsi qu'une icone "+" pour rajouter un élément au planning [...] Prososer une case
+de zoom comme sur sheet. » Maquette proposée dans `mockup-sous-menu-outils.html`, ajustée sur son retour
+(« place le zoom entre impression et chantier »), puis approuvée (« ok implémente ca à l'application ») —
+ce round porte la maquette approuvée dans le vrai `Index.html`.
+
+### 85.1. Suppression du "+" sur les lignes Personnel/Intervenants
+
+Le bouton `.btn-plage-ligne` (le "+" affiché au bout des en-têtes "PERSONNEL"/"INTERVENANTS", qui ouvrait
+`ouvrirAjoutPersonne`) est retiré de `ligneSection(cle, texte)`, ainsi que son CSS (`.btn-plage-ligne`/
+`.btn-plage-ligne:hover`, remplacés par un commentaire d'historique). La fonctionnalité elle-même
+(`ouvrirAjoutPersonne`) n'est pas supprimée : elle reste accessible via le nouveau menu "ligne+" décrit
+ci-dessous.
+
+### 85.2. Nouveau menu "ligne+" (icône `#menuAjoutLigne` dans la barre d'outils)
+
+Nouvelle icône `ajoutLigne` (ligne pleine + ligne pointillée + badge "+") ajoutée à l'objet `ICONS`. Clic →
+ouvre un petit menu (`.outil-menu-panneau`) proposant "Personnel" / "Intervenant" ; chaque choix appelle
+directement `ouvrirAjoutPersonne(estIntervenant)`, exactement la même popup qu'avant (aucun changement de
+logique métier, seul le point d'entrée change).
+
+### 85.3. Nouveau menu "+" (icône `#menuAjoutElement` dans la barre d'outils)
+
+Nouvelle icône `plus` (simple croix) ajoutée à l'objet `ICONS`, avec `tache` et `absence` pour les deux
+choix de type. Clic → premier écran du menu : Tâche / Absence / Note / Jalon.
+
+- **Note / Jalon** : ouverture directe de la fiche d'édition pour aujourd'hui (ou, si aujourd'hui n'est pas
+  dans la semaine affichée, le premier jour affiché — cf. `giPourAjoutBarre()` ci-dessous), journée entière
+  (aucun bord en demi-journée), sans personne associée — via `ouvrirEditionPlage(type, null, gi, 1, null,
+  null, null, null, null)`, le même chemin que la sélection multi-cellules à la souris
+  (`ouvrirAjoutPlage`), réutilisé tel quel.
+- **Tâche / Absence** : le menu passe à un second écran "pour qui ?" listant les personnes actives
+  (`PERSONNES`, déjà filtré côté serveur sur `actif = true`) — Tâche liste tout le monde (Personnel +
+  Intervenants), Absence exclut les intervenants (`PERSONNES.filter(p => !p.sousTraitant)`), même règle
+  métier que le menu d'ajout existant `boutonsMenuAjout()`. Les boutons personne sont créés avec
+  `document.createElement` + `.textContent` (jamais de `innerHTML` concaténé), même convention de rendu
+  sûr que `construireSelectChantier()`. Choisir une personne appelle
+  `ouvrirEdition(null, null, type, null, null, plageInit, null, null)` avec `plageInit = {cibles: [{personne:
+  id, demi: "matin"}], giDebut: gi, duree: 1, demiDebut: null, demiFin: null, px, py}` — `cell=null` est
+  supporté nativement par `ouvrirEdition`/`positionFormulaire` du moment qu'un `plageInit` complet est
+  fourni (mécanisme déjà utilisé par le glisser-sélection, jamais modifié).
+- **`giPourAjoutBarre()`** (nouvelle fonction) : retrouve l'indice de colonne (`gi`) du jour "aujourd'hui"
+  dans la semaine actuellement affichée en reparcourant `isoDeGi(gi)` pour chaque jour affiché ; si
+  aujourd'hui n'est pas dans la semaine affichée, retombe sur `gi = 0` (premier jour affiché).
+
+Le menu se referme (et revient à son premier écran) en cas de clic ailleurs, de clic sur "Retour", ou
+d'ouverture d'un autre menu (`fermerAutresMenusOutils`, généralisé ce round pour couvrir aussi
+`#menuZoom`/`#menuAjoutLigne`/`#menuAjoutElement`, en plus de l'existant `#selectChantier`).
+
+### 85.4. Zoom façon Google Sheets
+
+Case `#zoomCtrl` positionnée entre Imprimer et le sélecteur de chantier (suite au retour de Lionel sur la
+maquette) : boutons "−"/"+" et une pastille centrale affichant le niveau courant ("100% ▾"), cliquable pour
+ouvrir un panneau de paliers prédéfinis. Nouvelle variable `niveauZoomPlanning` (jamais persistée, remise à
+100 au rechargement — même traitement que `replierJalons`/etc.). Appliqué via la propriété CSS `zoom`
+(non-standard mais supportée par Chromium, retenue plutôt que `transform:scale` car elle déclenche un vrai
+reflux de mise en page — `scrollWidth`/`scrollHeight` suivent le zoom, comme dans Google Sheets) sur
+`grilleEntete` ET `grilleCorps` uniquement — ces deux éléments sont des DESCENDANTS de l'en-tête figé
+(`.entete-planning-figee`), jamais l'élément sticky lui-même, donc `ajusterEnteteFixe()` (qui ne lit que des
+ancêtres non zoomés, `.onglets-nav`/`#legendeBarre`) n'est pas perturbée par le zoom — vérifié
+empiriquement (voir 85.5). `majZoomAffichage()` (nouvelle fonction) met à jour le texte de la pastille à
+chaque rendu.
+
+### 85.5. Vérifications
+
+`node --check` du `<script>` extrait : vert. Suite `test_*.js` relancée intégralement (19 fichiers) : même
+résultat qu'à chaque round précédent — tout vert sauf `test_edge_functions.js`, préexistant et sans rapport
+(cf. §74.6/§79.4/§80.6/81.1). Playwright (mêmes vraies données Supabase que les rounds précédents, session
+factice + bundle supabase-js vendored) :
+
+- Le "+" a bien disparu des en-têtes "PERSONNEL"/"INTERVENANTS" dans le DOM.
+- Ordre des groupes dans la barre d'outils conforme à la maquette approuvée : annuler/refaire → imprimer →
+  zoom → chantier → ligne+ / + → replis.
+- "ligne+" → "Personnel" (et séparément "Intervenant") → ouvre bien la vraie popup `ouvrirAjoutPersonne`
+  existante.
+- "+" → "Tâche" → "pour qui ?" liste Personnel ET Intervenants → choisir une personne ouvre la vraie fiche
+  d'édition de tâche pour cette personne, aujourd'hui, journée entière (les 4 boutons demi-journée Début/Fin
+  A/P vérifiés non-`.actif` un par un, pas seulement par lecture de texte — un premier essai basé sur
+  `textContent` était ambigu, corrigé par une vérification ciblée sur les classes CSS).
+- "+" → "Absence" → "pour qui ?" liste seulement Personnel (Intervenants absents de la liste) → choisir une
+  personne ouvre la vraie fiche avec bandeau "Absence".
+- "+" → "Note" et "+" → "Jalon" → ouvrent directement la fiche pour aujourd'hui, journée entière, sans passer
+  par "pour qui ?".
+- Fermeture mutuelle des menus (ouvrir "+" ferme "ligne+"/zoom/chantier s'ils étaient ouverts, et
+  inversement) et fermeture au clic en dehors, vérifiées.
+- Zoom : boutons "−"/"+" et paliers du panneau modifient bien `niveauZoomPlanning`, la pastille affiche la
+  bonne valeur, et la grille change réellement de taille (CSS `zoom` appliqué, `scrollWidth` suit).
+- En-tête figé (`.entete-planning-figee`) : `top` reste rigoureusement identique (79px) à 100% et à 150% de
+  zoom, avec défilement testé aux deux niveaux — confirme que le mécanisme de figeage du §74 n'est pas
+  perturbé par le zoom.
+- Aucune erreur JS au chargement ni après interactions, à aucune étape du scénario.
+
+**Pas encore confirmé par Lionel en conditions réelles** — à revalider une fois synchronisé.
+
+## 86. Round du 17.09.2026 (suite) — les libellés "Personnel"/"Intervenants" disparaissent aussi quand le groupe est masqué
+
+Retour de Lionel après synchronisation du §85 : « Le lignes de séparation "personnel" et "intervenant"
+doivent aussi être masquée quand le groupe correspondant est masquée. »
+
+### 86.1. Ce qui se passait
+
+Le §84 avait déjà résolu ce problème pour Jalons/Notes (masquer devait faire disparaître la ligne
+entière, pas la griser). Personnel/Intervenants avaient le même souci mais dans sa forme "à moitié
+corrigée" : masquer le groupe (`replierSectionPersonnel`/`replierSectionIntervenants`) empêchait déjà
+`ligneGroupePersonnes()` de poser les personnes elles-mêmes (cf. §83.1), mais `ligneSection("personnel",
+"Personnel")` — le libellé "PERSONNEL"/"INTERVENANTS" avec son `.section-row` et son trait
+`border-bottom` — restait, lui, posé INCONDITIONNELLEMENT juste avant, quelle que soit la valeur de
+`replierSectionPersonnel`/`replierSectionIntervenants`. Résultat : masquer "Personnel" faisait bien
+disparaître les 4 lignes de personnes, mais laissait un en-tête "PERSONNEL" orphelin avec sa ligne de
+séparation, exactement le résidu visuel que Lionel signale.
+
+### 86.2. Correctif
+
+Dans `construireGrille()`, `ligneSection(...)` rejoint désormais la même condition que le groupe qu'elle
+annonce, au lieu d'être appelée juste avant sans condition :
+
+```js
+if (!replierSectionPersonnel) {
+  ligneSection("personnel", "Personnel");
+  ligneGroupePersonnes(groupePersonnel);
+}
+if (!replierSectionIntervenants) {
+  ligneSection("intervenants", "Intervenants");
+  ligneGroupePersonnes(groupeIntervenants);
+}
+```
+
+Même principe que le §84 : la section repliée n'existe plus DU TOUT dans la grille, libellé compris, au
+lieu de ne masquer que son contenu. Les boutons de bascule (`.toolbar-toggle[data-affichage-cible=...]`,
+gérés par `majControlesAffichage()`) ne sont pas affectés — ils restent câblés une seule fois et pilotés
+uniquement par les variables `replierSectionPersonnel`/`replierSectionIntervenants`, indépendamment du
+contenu réellement posé dans la grille.
+
+### 86.3. Vérifications
+
+`node --check` du `<script>` extrait : vert. Suite `test_*.js` relancée intégralement : même résultat
+qu'à chaque round précédent (tout vert sauf `test_edge_functions.js`, préexistant et sans rapport).
+Playwright (mêmes vraies données Supabase que les rounds précédents) :
+
+- État initial : libellés "Personnel" et "Intervenants" tous deux présents, hauteur du corps de grille
+  (`grilleCorps`) à 575px.
+- Masquer Personnel : le libellé "Personnel" disparaît du DOM (`.section-label`), seul "Intervenants"
+  reste ; hauteur du corps de grille 575px → 128px (confirmé par capture d'écran : plus aucune trace de
+  l'en-tête "PERSONNEL" ni de sa ligne de séparation).
+- Masquer Intervenants en plus : plus aucun `.section-label` ne subsiste, `.section-row` absent du DOM
+  (0 trouvé), hauteur du corps de grille → 0px (Jalons/Notes, dans l'en-tête figé séparé, restent bien
+  visibles — capture d'écran à l'appui).
+- Boutons de la barre d'outils toujours corrects après coup (`.desactive` posé sur les deux, comme
+  attendu).
+- Réafficher les deux : "Personnel" et "Intervenants" reviennent, dans le bon ordre.
+- En-tête figé (`.entete-planning-figee`) : `top` reste stable à 79px après défilement vertical, section
+  Personnel masquée — confirme que ce correctif (qui ne touche que le corps `grilleCorps`, jamais
+  l'en-tête figé) ne perturbe pas le mécanisme de figeage du §74.
+- Aucune erreur JS.
+
+**Pas encore confirmé par Lionel en conditions réelles** — à revalider une fois synchronisé.
+
+## 87. Round du 17.09.2026 (suite×2) — navigation de semaine dans la barre d'outils, "+" utilisable sur n'importe quelle semaine
+
+Lionel : « J'aimerai que l'insertion via le bouton "+" puisse se faire aussi en dehors de la vue
+visible, actuellement limité à la semaine en cours. on pourrai ajouter les boutons "aujourd'hui" et
+"2 semaine" ainsi que la navigation des semaines dans la toolbar. Place les entre le zoom et la
+sélection du chantier, dans la même section. les boutons toujours sous forme d'icone. » Mockup proposé
+dans `mockup-sous-menu-outils.html`, ajusté sur son retour (« il manque un rectangle avec un numéro de
+semaine, type "Sem. 38" cliquable [...] dans le style visuel du zoom, mais avec le même comportement
+que l'actuel. quand menu déroulant ouvert on doit voir le numéro de semaine et les dates
+correspondantes. » puis « et bien sûr on enlève la première ligne du tableau qui ne sert plus »), puis
+approuvé (« c'est ok pour implémentation »).
+
+### 87.1. Nouveau groupe dans la barre, entre le zoom et le chantier
+
+5 éléments, tous en icônes (aucun texte) : ‹ (semaine précédente), une case **"Sem. N ▾"** (réutilise
+`.zoom-pill` telle quelle — Lionel : « dans le style visuel du zoom »), › (semaine suivante), une icône
+"aujourd'hui" (calendrier + un point), une icône "2 semaines" (2 colonnes côte à côte, teintée par la
+nouvelle classe générique `.toolbar-btn.actif` tant que ce mode est actif — jamais atténuée comme
+`.toolbar-toggle.desactive`, réservée au masquage : ce n'est pas la même chose, 1 semaine et 2 semaines
+sont 2 modes également valides). ‹/›/Aujourd'hui/2 semaines réutilisent telles quelles
+`naviguerSemaine`/`allerAujourdhui`/`basculerDeuxSemaines`, déjà éprouvées par l'ancien coin de la
+grille. `majSemaineAffichage()` (nouvelle fonction, même principe que `majZoomAffichage()`) synchronise
+le texte de la pill et l'état `.actif` du bouton "2 semaines" à chaque rendu.
+
+### 87.2. La case "Sem. N" remplace la popup "Aller à…"
+
+Cliquer la case ouvre un dropdown (même système générique `.outil-menu` que zoom/ligne+/+, cf. §85) au
+lieu de l'ancienne popup centrée `ouvrirAllerSemaine()` (avec un `<select>`) — supprimée ce round avec
+son unique déclencheur `.lien-aller`. Chaque ligne du dropdown affiche le numéro de semaine ET ses
+dates (Lionel : « quand menu déroulant ouvert on doit voir le numéro de semaine et les dates
+correspondantes »), la semaine courante cochée et mise en évidence. Le contenu est reconstruit à
+l'OUVERTURE seulement (comme la page "pour qui ?" du menu "+", jamais à chaque rendu de la grille) :
+`etat.semaines` peut contenir jusqu'à 521 semaines (`FENETRE_SEMAINES=260` avant/après aujourd'hui),
+les afficher toutes d'un coup produirait un dropdown interminable — une fenêtre de 8 avant / 8 après la
+semaine choisie (17 lignes, `.semaine-panneau` scrollable par sécurité) reste largement suffisante pour
+un saut rapide ; au-delà, ‹/› ou rouvrir le dropdown depuis la nouvelle position couvrent le reste.
+Choix assumé, à ajuster si Lionel le juge trop court à l'usage.
+
+### 87.3. La ligne "Aujourd'hui/2 semaines/‹ Semaine N ›" du coin de la grille disparaît
+
+Lionel : « et bien sûr on enlève la première ligne du tableau qui ne sert plus » — entièrement
+redondante une fois dupliquée dans la barre. `coinNav`/`navSemaine` (et les variables qui ne servaient
+qu'à eux : `donnees`, `num0`, `num1`, `texteSemaines`, `deb0`, `fin0`, `largeurSemaine`) disparaissent de
+`construireGrille()` ; `row` démarre directement sur la ligne des jours (avant : décalée d'une ligne).
+CSS mort retiré en conséquence : `.semaine-titre`, `.coin-nav`, `.cellule-semaine-nav`, `.btn-titre`,
+`.btn-aujourdhui`, `.btn-deux-semaines`, `.fleche-semaine`, `.lien-aller`, `.semaine-dates` (l'ancienne),
+`.sem-entete-dates`, `.th.sem-entete`.
+
+### 87.4. Le "+" cible désormais n'importe quelle semaine affichée
+
+Aucun changement dans `giPourAjoutBarre()`/`ouvrirAjoutElementBarre()` : ces fonctions ciblaient déjà la
+semaine COURAMMENT AFFICHÉE (today si elle y est visible, sinon son premier jour) — jamais figées sur
+"la semaine du jour" comme le message de Lionel aurait pu le laisser penser isolément. Le vrai verrou
+était l'ACCÈS à la navigation, auparavant seulement dans le coin de la grille (repéré comme "la vue
+visible"). Avec ‹/›/la case "Sem. N"/Aujourd'hui/2 semaines maintenant à côté du "+" dans la même barre,
+naviguer puis ajouter se fait sans quitter la barre — le "+" ajoute donc bien, dans les faits, "en
+dehors de la semaine en cours", sur n'importe quelle semaine choisie au préalable.
+
+### 87.5. Vérifications
+
+`node --check` du `<script>` extrait : vert. Suite `test_*.js` relancée intégralement (18 fichiers) :
+même résultat qu'à chaque round précédent — tout vert sauf `test_edge_functions.js`, préexistant et
+sans rapport (cf. §74.6/§79.4/§80.6/81.1). Playwright (mêmes vraies données Supabase que les rounds
+précédents, session factice + bundle supabase-js vendored) :
+
+- Ancienne ligne coinNav/navSemaine : absente du DOM (`.coin-nav`/`.cellule-semaine-nav`/`.lien-aller`
+  introuvables), la grille commence directement sur la ligne des jours.
+- Case "Sem. 38 ▾" : affiche la vraie semaine courante au chargement (correspond à la date réelle de
+  l'environnement de test).
+- › puis ‹ : passe à "Sem. 39", puis revient exactement à "Sem. 38".
+- Dropdown "Sem. N" : 17 lignes (semaines 30 à 46 autour de la semaine 38), chacune avec son numéro ET
+  ses dates, une seule marquée active/cochée.
+- Choisir "Semaine 32" dans le dropdown : met à jour la pill ("Sem. 32 ▾") ET navigue réellement le
+  planning à cette semaine.
+- **Vérification du cœur de la demande** : après avoir navigué sur la Semaine 32 (loin de la semaine
+  courante), cliquer "+" → "Jalon" ouvre la fiche pour un jour DE LA SEMAINE 32 ("Lun. 03 août"), pas
+  pour la semaine de départ — confirme que le "+" ajoute bien sur la semaine maintenant affichée,
+  quelle qu'elle soit.
+- "Aujourd'hui" : ramène la pill à "Sem. 38 ▾" (la vraie semaine du jour).
+- "2 semaines" : bascule l'icône en état teinté (`.actif`), le nombre de colonnes de jours affichées
+  augmente en conséquence ; un second clic revient à l'état initial.
+- En-tête figé (`.entete-planning-figee`) : `top` reste stable (79px) après défilement vertical, y
+  compris en mode 2 semaines — confirme que la suppression de la ligne coinNav/navSemaine ne perturbe
+  pas `ajusterEnteteFixe()`.
+- Aucune erreur JS à aucune étape du scénario.
+
+**Pas encore confirmé par Lionel en conditions réelles** — à revalider une fois synchronisé.
+
+## 88. Round du 17.09.2026 (suite×3) — un Jalon/Note peut désormais dépasser la semaine affichée ; Tâche/Absence encore limitées (chantier à part)
+
+Lionel, après avoir testé §87 en conditions réelles : « L'ajout hors semaine active est bloqué par les
+formulaires de saisie. » Investigation : le blocage ne vient pas du "+" (qui cible déjà correctement la
+semaine affichée, cf. §87.4) mais du formulaire d'édition lui-même — dès qu'on essaie d'étendre la date
+de Fin (ou de Début) au-delà de la semaine (ou des 2 semaines) actuellement chargée à l'écran, un toast
+refuse ("Cette date sort de la semaine affichée..."). Reproduit avec Playwright : navigation vers une
+semaine lointaine puis tentative d'étendre la durée d'une Absence — blocage confirmé, exactement comme
+décrit.
+
+Ce blocage est une limite VOLONTAIRE et déjà ancienne (round du 12.09.2026, cf. le commentaire de
+`appliquerDateChoisieFormulaire`) : `giDebut`/`giFin` ne sont que des coordonnées d'affichage, valables
+uniquement DANS la fenêtre chargée — au-delà, le moteur de synchronisation n'avait aucun moyen d'écrire
+le jour correspondant. Avant §87, on tombait rarement dessus puisqu'on ne pouvait de toute façon ajouter
+que dans la semaine en cours ; §87 rend la navigation vers une semaine lointaine si facile que la limite
+devient gênante en pratique.
+
+Question posée à Lionel : contournement existant ("Série (se répète)", déjà capable de poser une
+absence longue sans dépendre de la fenêtre chargée) vs. vraie correction (plus gros chantier) vs. pas
+prioritaire. Réponse : **vraie correction**.
+
+### 88.1. Ce qui a changé, concrètement
+
+Le formulaire (bloc Début/Fin, flèches et calendrier) permet maintenant de choisir une date en dehors de
+la semaine affichée pour un **Jalon** ou une **Note** — la date choisie s'affiche en italique souligné
+(nouvelle classe `.date-val-hors-fenetre`, avec un titre explicite au survol) pour rester lisible que ce
+jour-là n'est pas dans la grille en ce moment, sans ressembler à une erreur. Aucun blocage, aucun toast.
+
+Pour **Tâche** et **Absence**, rien ne change : la date hors fenêtre reste refusée exactement comme
+avant. Raison développée en 88.4.
+
+### 88.2. Pourquoi Jalon/Note pouvaient être corrigés sans gros chantier serveur
+
+Le serveur (`planPlage`, `functions/enregistrer-plage/logic.js`) sait déjà écrire une plage de jours
+entière à partir de 2 vraies dates ISO, sans jamais dépendre de ce qui est chargé côté client — les
+Notes l'utilisaient déjà ainsi (`diffsNotes`/`synchroniser()`). Le seul blocage restant pour Jalon/Note
+était donc dans le CLIENT : `appliquerDateChoisieFormulaire` refusait toute date sans `gi` valide, et le
+moteur de diff des jalons (`jalonsMap`, cf. ci-dessous) ne pouvait de toute façon diffuser que ce qui
+était VISIBLE dans la fenêtre chargée. Un pur choix d'implémentation, pas une vraie limite serveur — ce
+qui a permis de livrer cette partie sans toucher au schéma ni aux Edge Functions.
+
+### 88.3. Détail technique
+
+- `appliquerDateChoisieFormulaire` : `state.kind` ("jalon"/"note"/"tache"/"absence", posé par
+  `ouvrirEditionPlage`/`ouvrirEdition`) décide si une date hors fenêtre est acceptée. Acceptée : la
+  vraie date ISO est gardée à part (`state.debutHorsFenetreIso`/`finHorsFenetreIso`), le `gi`
+  correspondant étant calé sur le bord VISIBLE le plus proche (pour que la surbrillance de grille garde
+  une position valide — rien à surligner au-delà de l'écran de toute façon). Comparaisons Début/Fin
+  refaites sur de vraies dates ISO plutôt que des `gi` (`isoBorneEtat`), pour rester justes même quand
+  une borne est hors fenêtre.
+- `datesPlageHTML`/`dateLigneHTML` : 2 paramètres optionnels (ISO "hors fenêtre" par borne) pour afficher
+  la vraie date via la nouvelle `libelleDateCourteIso` plutôt que `libelleDateCourte(gi)` (qui renvoie
+  vide hors fenêtre, faute de cache pour ce jour-là).
+- `isoDeApres` : corrigée au passage — comptait `duree - 1` jours CALENDAIRES bruts, juste tant qu'aucune
+  plage ne traversait un vrai week-end (rare, seulement en mode "2 semaines" avant ce round) ; devient
+  franchement faux dès qu'une plage dépasse la fenêtre (le nouveau cas courant : une absence de 2
+  semaines doit sauter 2 week-ends, pas 0). Compte désormais en jours OUVRÉS réels, comme
+  `joursOuvresDeLaPlage` côté serveur. Nouvelle `nbJoursOuvresEntre` (compte, sans la liste) pour calculer
+  `duree` à l'enregistrement quand une borne est hors fenêtre (`giFin - giDebut + 1` ne veut alors plus
+  rien dire).
+- Moteur de diff des jalons : `jalonsMap` ("labG|jourIdx" → texte, décomposé JOUR PAR JOUR dans la
+  fenêtre visible — ne pouvait donc représenter que ce qui y est visible) remplacé par `jalonsParId` +
+  `diffsJalons` par identité d'item JS, MÊME principe déjà utilisé pour les notes (`notesParId`/
+  `diffsNotes`) — un jalon a exactement la même forme `{id,texte,giDebut,duree,demiDebut,demiFin,
+  dateDebutIso}` (`itemPlage`, partagée avec les notes). `synchroniser()` envoie donc maintenant une
+  VRAIE plage (`dateDebut`/`dateFin` ISO, `origine` sur modification pour libérer côté serveur les jours
+  sortis de la plage) à `enregistrer-plage`, au lieu de la décomposer jour par jour. `mode` reste
+  INCONDITIONNELLEMENT "remplacement" pour un jalon (jamais "ajout" comme une note) : un enregistrement
+  de jalon représente toujours l'état complet du jour (comportement déjà en place, préservé). Aucun champ
+  `important`/`chantierId` envoyé depuis la grille, comme avant (réservés à la page « Jalons »).
+  `isoDeLabGJourIdx`, devenue sans appelant, retirée.
+- Nettoyage : `test_edge_functions.js` supprimé — il ne testait plus que 3 fonctions entièrement
+  disparues (`isoDeLabGJourIdx`, retirée ce round ; `joursOuvresDepuis`/`construireLignesAjoutLointain`,
+  retirées dès le round du 11.09.2026 avec l'ancien "Ajout lointain") ; cassé depuis des dizaines de
+  rounds pour cette raison déjà documentée (cf. §74.6 et suivants), il ne restait plus rien à en
+  sauver.
+
+### 88.4. Pourquoi Tâche/Absence ne sont PAS corrigées ce round
+
+Contrairement aux jalons/notes, une tâche/absence n'a **aucun** mécanisme serveur de type "planPlage" —
+chaque jour est toujours écrit individuellement depuis ce qui est affiché à l'écran
+(`enregistrerCellulePersonneServeur`, une case à la fois). Construire l'équivalent est un vrai chantier,
+plus délicat que pour jalon/note à cause de l'empilement (plusieurs tâches possibles sur une même case,
+chacune avec son propre chantier depuis le round du 16.09.2026) — une zone du programme qui a déjà
+produit plusieurs bugs délicats par le passé (fusion des bulles, redimensionnement, séries...). Prévu
+comme suite de ce round, une fois celui-ci validé par Lionel en conditions réelles.
+
+### 88.5. Vérifications
+
+`node --check` du `<script>` extrait : vert. Suite `test_*.js` relancée intégralement (17 fichiers
+restants après le retrait de `test_edge_functions.js`) : tout vert, aucune régression. Playwright (vraies
+données Supabase, session factice + bundle supabase-js vendored, appels réseau interceptés y compris
+`enregistrer-plage` pour inspecter exactement ce qui est envoyé au serveur) :
+
+- Navigation vers une semaine lointaine (Sem. 46) puis "+" → Jalon → extension de la Fin par les
+  flèches : AUCUN toast de blocage (contre un blocage systématique avant ce round). Libellé "Fin" affiché
+  en italique souligné dès qu'il sort de la fenêtre, avec le bon texte (date réelle, pas tronquée).
+- Enregistrement : payload `enregistrer-plage` capturé avec `kind: "jalon"`, `dateDebut`/`dateFin` sur 2
+  semaines d'écart (une vraie plage, pas un jour isolé), `mode: "remplacement"`, `origine: null` (création).
+- Même vérification pour une **Note** : extension de la Fin sans blocage, payload avec `mode: "ajout"`
+  (création) et la bonne plage.
+- **Régression volontaire vérifiée** : la même manipulation sur une **Absence** redonne bien le toast de
+  blocage inchangé — confirme que Tâche/Absence n'ont subi aucun changement de comportement.
+- Création d'un jalon de 3 jours DANS la fenêtre courante (cas courant, non affecté par ce round) :
+  payload correct (`dateDebut`/`dateFin` sur 3 jours ouvrés), comme avant.
+- Re-vérification complète du scénario §87 (navigation de semaine, dropdown, "+", Aujourd'hui, 2
+  semaines, en-tête figé) : même résultat qu'au round précédent, aucune régression.
+- Aucune erreur JS à aucune étape des scénarios.
+
+**Pas encore confirmé par Lionel en conditions réelles** — à revalider une fois synchronisé. La partie
+Tâche/Absence (88.4) reste à faire dans un prochain round.

@@ -405,6 +405,90 @@
   .toolbar-toggle.actif[data-affichage-cible="personnel"], .toolbar-toggle.actif[data-affichage-cible="intervenants"] { background: var(--accent-soft); color: var(--accent); }
   .toolbar-toggle.desactive { opacity: .5; background: none; color: var(--ink-faint); }
 
+  /* .outil-menu/.outil-menu-panneau/.outil-menu-item — §85 (round du
+     17.09.2026), Lionel : « enlever le "+" des lignes personnel et
+     intervenant [...] ajouter une icone "ligne +" [...] ainsi qu'une icone
+     "+" pour rajouter un élément au planning ». Même habillage que
+     .select-chantier/.select-chantier-panneau/.select-chantier-item
+     ci-dessus (mêmes tokens, panneau posé sur var(--surface-2) quel que soit
+     le fond du conteneur qui l'ouvre) — généralisé plutôt que dupliqué, pour
+     les 2 nouveaux menus "ligne+" (#menuAjoutLigne) et "+" (#menuAjoutElement,
+     qui a en plus une 2e "page" .outil-menu-page pour l'étape "pour qui ?"
+     d'une Tâche/Absence, cf. cablerPagePlanning) — et pour le menu de la case
+     de zoom juste plus bas. */
+  .outil-menu { position: relative; flex-shrink: 0; }
+  .outil-menu-panneau {
+    position: absolute; top: calc(100% + 4px); left: 0; z-index: 10; min-width: 190px;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: 0 6px 20px var(--shadow-lg); padding: 5px; display: none;
+  }
+  .outil-menu.ouvert .outil-menu-panneau { display: block; }
+  .outil-menu-titre {
+    font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--ink-faint); padding: 6px 8px 4px;
+  }
+  .outil-menu-item {
+    display: flex; align-items: center; gap: 9px; width: 100%; padding: 7px 8px; border-radius: 7px;
+    border: none; background: none; cursor: pointer; font: inherit; font-size: 12.5px; color: var(--ink); text-align: left;
+  }
+  .outil-menu-item:hover { background: var(--accent-soft); color: var(--accent); }
+  .outil-menu-item svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--ink-muted); }
+  .outil-menu-item:hover svg { color: var(--accent); }
+  .outil-menu-retour {
+    display: flex; align-items: center; gap: 6px; width: 100%; padding: 6px 8px; margin-bottom: 2px; border-radius: 7px;
+    border: none; background: none; cursor: pointer; font: inherit; font-size: 11.5px; font-weight: 700; color: var(--ink-muted); text-align: left;
+  }
+  .outil-menu-retour:hover { background: var(--surface); color: var(--ink); }
+
+  /* Case de zoom façon Sheets, en bout de groupe entre Imprimer et le
+     chantier par défaut (Lionel, retour sur le mockup : « place le zoom
+     entre impression et chantier »). .zoom-pill reprend l'habillage des
+     autres "pilules" cliquables du fichier plutôt que celui, plus discret,
+     du mockup — mieux assorti au reste de CETTE barre précise, dont le fond
+     (var(--bg)) diffère de celui du mockup. Réutilisée telle quelle au §87
+     (round du 17.09.2026, suite×2) pour #btnSemainePill, juste à côté. */
+  .zoom-ctrl { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+  .zoom-btn {
+    width: 24px; height: 24px; display: grid; place-items: center; border-radius: 6px; border: none;
+    background: none; color: var(--ink-muted); cursor: pointer; font-size: 15px; font-weight: 700; font-family: inherit; line-height: 1;
+  }
+  .zoom-btn:hover { background: var(--surface-2); color: var(--ink); }
+  .zoom-pill {
+    min-width: 58px; padding: 5px 8px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface-2);
+    font: inherit; font-size: 12px; font-weight: 700; color: var(--ink); cursor: pointer; text-align: center;
+    font-family: 'IBM Plex Mono', monospace; transition: background .12s, border-color .12s, color .12s;
+  }
+  .zoom-pill:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .zoom-panneau { min-width: 90px; }
+
+  /* Bouton "pressé"/actif générique (§87, round du 17.09.2026, suite×2) —
+     pour un bouton à 2 états qui ne sont PAS "visible/masqué" (auquel cas
+     .toolbar-toggle.desactive, atténué à 50%, est le bon choix) mais 2 modes
+     également valides (ici : 1 semaine / 2 semaines) — donc jamais atténué,
+     seulement teinté quand actif. Utilisé par #btnDeuxSemaines. */
+  .toolbar-btn.actif { background: var(--accent-soft); color: var(--accent); }
+  .toolbar-btn.actif:hover { background: var(--accent-soft); }
+
+  /* Case "Sem. N" (§87, round du 17.09.2026, suite×2) — #btnSemainePill
+     réutilise .zoom-pill telle quelle (Lionel : « dans le style visuel du
+     zoom »). #panneauSemaine réutilise .outil-menu-panneau/.outil-menu-item
+     comme zoom/ligne+/+, avec un habillage dédié pour afficher le numéro ET
+     les dates sur chaque ligne (Lionel : « quand menu déroulant ouvert on
+     doit voir le numéro de semaine et les dates correspondantes ») — même
+     finalité que l'ancienne popup centrée "Aller à…" (ouvrirAllerSemaine,
+     supprimée ce round), amenée au langage visuel de cette barre. Hauteur
+     plafonnée + défilement : etat.semaines contient jusqu'à 521 semaines
+     (FENETRE_SEMAINES=260 avant/après aujourd'hui), jamais toutes affichées
+     d'un coup (cf. cablerPagePlanning, fenêtre de 17 autour de la semaine
+     choisie), mais le plafond reste une sécurité. */
+  .semaine-panneau { min-width: 220px; max-height: 280px; overflow-y: auto; }
+  .semaine-panneau .outil-menu-item { justify-content: space-between; gap: 14px; }
+  .semaine-panneau .outil-menu-item.actif { font-weight: 700; color: var(--accent); background: var(--accent-soft); }
+  .semaine-item-droite { display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
+  .semaine-dates-item { color: var(--ink-faint); font-weight: 500; font-size: 11px; }
+  .semaine-panneau .outil-menu-item.actif .semaine-dates-item { color: var(--accent); }
+  .semaine-panneau .coche { color: var(--accent); font-size: 12px; }
+
   /* .entete-planning-figee / .entete-planning-scroll — round du 16.09.2026
      (suite, encore) : Lionel, même croquis, « faire défiler la page après
      les notes ». Étend le principe de .onglets-nav/.legende-barre (sticky)
@@ -446,74 +530,15 @@
     border: 1px solid var(--border); border-bottom: none; border-radius: 12px 12px 0 0;
   }
 
-  /* Round du 14.09.2026 — Lionel, mockup mockup-selecteur-semaine.html à
-     l'appui, validé : « les boutons Aujourd'hui et Imprimer doivent rester
-     au-dessus — on pourrait afficher les boutons 2 semaines et Aujourd'hui
-     dans la cellule à gauche des semaines, vide actuellement. » .semaine-titre
-     n'est plus la grande barre pleine largeur d'avant : c'est maintenant un
-     simple contexte flex/typo (mono, majuscules) réutilisé à 2 endroits
-     différents, chacun via un modificateur dédié plus bas — .coin-nav (la
-     cellule coin de la grille, Aujourd'hui + 2 semaines empilés) et
-     .cellule-semaine-nav (la cellule d'en-tête fusionnée de la grille,
-     flèches + Semaine N + dates). D'où l'absence ici de margin/padding
-     propres à un layout particulier — posés par le modificateur concerné.
-     Le 3e endroit, .barre-imprimer (Imprimer seul, fine barre au-dessus de
-     la grille), a disparu au §83 (round du 16.09.2026, encore un autre,
-     suite×7) : Imprimer est redevenu un simple .toolbar-btn de la nouvelle
-     barre d'outils façon Sheets (cf. son historique plus haut), il n'a plus
-     besoin de ce contexte .semaine-titre. */
-  .semaine-titre {
-    display: flex; align-items: center; gap: 8px;
-    font-family: 'IBM Plex Mono', monospace; font-weight: 700; font-size: 12px;
-    letter-spacing: .04em; text-transform: uppercase; color: var(--ink-muted);
-  }
-  /* .th (plus bas) a la même spécificité que .semaine-titre seule et vient
-     après elle dans la feuille de style : sans le 3e sélecteur .th ici,
-     .th regagnerait font-size/letter-spacing/font-weight sur ces 2 cellules
-     (coin-nav, cellule-semaine-nav) qui sont aussi des .th. */
-  .th.semaine-titre.coin-nav {
-    flex-direction: column; align-items: stretch; justify-content: center; gap: 4px; padding: 6px 8px;
-    font-size: 12px; font-weight: 700; letter-spacing: .04em;
-  }
-  .semaine-titre.coin-nav .btn-titre { margin-left: 0; justify-content: center; font-size: 10.5px; padding: 4px 6px; white-space: nowrap; }
-  .th.semaine-titre.cellule-semaine-nav { justify-content: center; font-size: 12px; font-weight: 700; letter-spacing: .04em; }
-  .semaine-titre .fleche-semaine {
-    width: 22px; height: 22px; border-radius: 7px; border: 1px solid var(--border);
-    background: var(--surface-2); color: var(--ink-muted); cursor: pointer; font-family: inherit;
-    display: grid; place-items: center; font-size: 13px; line-height: 1; flex-shrink: 0;
-    transition: background .12s, border-color .12s, color .12s;
-  }
-  .semaine-titre .fleche-semaine:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
-  .semaine-titre .semaine-dates { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--ink-faint); }
-  .semaine-titre .lien-aller {
-    background: none; border: none; color: inherit; font: inherit; text-transform: inherit; letter-spacing: inherit;
-    cursor: pointer; padding: 2px 4px; border-radius: 6px;
-  }
-  .semaine-titre .lien-aller:hover { background: var(--accent-soft); color: var(--accent); }
-  /* Round D (11.09.2026) — Lionel : « bouton 2 semaines à côté de
-     aujourd'hui [...] placer le bouton imprimer à droite du bouton 2 [...]
-     le design de bouton doit être cohérent avec le bouton aujourd'hui ».
-     .btn-titre remplace .btn-aujourdhui comme classe de base commune aux 3
-     boutons — .btn-aujourdhui/.btn-deux-semaines/.btn-imprimer-titre restent
-     posées EN PLUS pour ne pas casser leurs sélecteurs JS respectifs. .actif
-     (2 semaines, quand deuxSemaines est vrai) reprend les mêmes teintes
-     --accent/--accent-soft que les autres états "actif" du fichier (cf.
-     .select-chantier-item.actif) plutôt qu'une nouvelle couleur. Round du
-     14.09.2026 : les 3 boutons ne sont plus côte à côte au même endroit
-     (cf. .semaine-titre plus haut) — margin-left:4px reste le bon espacement
-     par défaut pour .cellule-semaine-nav (plusieurs éléments en ligne),
-     .coin-nav le neutralise (un seul bouton, ou un empilement vertical, où
-     cette marge n'a pas de sens). */
-  .semaine-titre .btn-titre {
-    margin-left: 4px; padding: 4px 10px; border-radius: 7px; border: 1px solid var(--border);
-    background: var(--surface-2); color: var(--ink-muted); cursor: pointer; font: inherit;
-    text-transform: inherit; letter-spacing: inherit; transition: background .12s, border-color .12s, color .12s;
-    display: inline-flex; align-items: center; gap: 5px;
-  }
-  .semaine-titre .btn-titre:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
-  .semaine-titre .btn-titre.actif { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 700; }
-  .semaine-titre .btn-titre.actif:hover { background: var(--accent-soft); }
-  .sem-entete-dates { display: block; font-size: 9px; font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--ink-faint); margin-top: 1px; }
+  /* .semaine-titre/.coin-nav/.cellule-semaine-nav/.btn-titre/.btn-aujourdhui/
+     .btn-deux-semaines/.fleche-semaine/.lien-aller/.semaine-dates/
+     .sem-entete-dates (Aujourd'hui/2 semaines/‹ Semaine N › dans le coin de
+     la grille, cf. leur historique dans une version antérieure du fichier)
+     ont disparu au §87 (round du 17.09.2026, suite×2) avec la ligne
+     coinNav/navSemaine de construireGrille (Lionel : « on enlève la première
+     ligne du tableau qui ne sert plus ») — cette navigation vit désormais
+     dans #legendeBarre (cf. .toolbar-btn.actif/.semaine-panneau plus haut,
+     et htmlPagePlanning/cablerPagePlanning pour le HTML/câblage). */
   /* border-top:none/border-radius bas seulement (round du 16.09.2026, suite,
      encore) : .grille-cadre ne porte plus que le CORPS (Personnel/
      Intervenants, cf. .entete-planning-scroll ci-dessus pour l'en-tête
@@ -528,7 +553,6 @@
     text-transform: uppercase; letter-spacing: .06em; color: var(--ink-muted); text-align: center;
   }
   .th.coin { background: var(--surface); }
-  .th.sem-entete { background: var(--surface); color: var(--ink); font-size: 10.5px; }
   .th-ferie-label {
     display: block; font-size: 8.5px; font-weight: 700; margin-top: 3px;
     color: var(--ink); opacity: .78; text-transform: none; letter-spacing: 0;
@@ -609,12 +633,11 @@
   .section-row { background: var(--bg); border-bottom: 1px solid var(--border); }
   .section-row-sticky { position: sticky; left: 0; display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px; }
   .section-label { font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-muted); }
-  .btn-plage-ligne {
-    margin-left: auto; flex-shrink: 0; width: 18px; height: 18px; border-radius: 5px;
-    border: 1.5px dashed var(--border-strong); background: none; color: var(--ink-muted);
-    display: grid; place-items: center; cursor: pointer; padding: 0; font-size: 11px;
-  }
-  .btn-plage-ligne:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  /* .btn-plage-ligne (le "+" de fin de ligne section) a vécu : §85 (round du
+     17.09.2026) — Lionel, mockup mockup-sous-menu-outils.html à l'appui,
+     « on peut aussi enlever le "+" des lignes personnel et intervenant » —
+     remplacé par l'icône "ligne+" de la barre d'outils, cf. #btnAjoutLigne
+     dans htmlPagePlanning/cablerPagePlanning. */
 
   .cell {
     position: relative;
@@ -903,6 +926,11 @@
      calendrier natif (.showPicker()) doit apparaître, jamais son propre
      encart texte qui doublonnerait .date-val en dessous. */
   .carte-item .date-nav .date-val-cliquable:hover { background: var(--accent-soft); color: var(--accent); }
+  /* §88 — bord de plage (jalon/note) dont la vraie date est hors de la
+     semaine actuellement affichée à l'écran (cf. appliquerDateChoisieFormulaire) :
+     italique + soulignage pointillé, pour rester lisible que ce jour-là n'est
+     pas dans la grille en ce moment, sans pour autant ressembler à une erreur. */
+  .carte-item .date-nav .date-val-hors-fenetre { font-style: italic; text-decoration: underline dotted var(--ink-faint); text-underline-offset: 2px; }
   .date-picker-natif { position: fixed; opacity: 0; z-index: 60; border: none; padding: 0; margin: 0; }
   .carte-item .demi-toggle { display: flex; gap: 5px; flex-shrink: 0; }
   .carte-item .demi-toggle .demi-btn {
@@ -1918,7 +1946,37 @@
     building: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M3 17V5.5L9 3v14M9 6h5.5a1 1 0 0 1 1 1v10" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M5.5 7h1.5M5.5 10h1.5M5.5 13h1.5M11.5 9.5h2M11.5 12.5h2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
     tag: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M9.4 2.5H4a1 1 0 0 0-1 1v5.4c0 .27.1.52.3.7l7.6 7.6c.4.4 1 .4 1.4 0l5.4-5.4c.4-.4.4-1 0-1.4L10.1 2.8a1 1 0 0 0-.7-.3z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="6.3" cy="6.3" r="1.1" fill="currentColor"/></svg>',
     star: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M10 2.5l2.2 4.6 5 .7-3.6 3.6.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.6 5-.7L10 2.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>',
-    bolt: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M11 2 4 11.5h5L8.5 18 16 8h-5.5L11 2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"/></svg>'
+    bolt: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M11 2 4 11.5h5L8.5 18 16 8h-5.5L11 2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"/></svg>',
+    // §85 (round du 17.09.2026) — Lionel, mockup mockup-sous-menu-outils.html
+    // à l'appui : « enlever le "+" des lignes personnel et intervenant [...]
+    // ajouter une icone "ligne +" [...] ainsi qu'une icone "+" pour rajouter
+    // un élément au planning ». ajoutLigne : deux "rangées" (une pleine, une
+    // en pointillés = la nouvelle à venir) + un badge "+" — pour rester
+    // reconnaissable et différent du "+" générique ci-dessous. plus : simple
+    // croix, réservée à l'ajout d'élément (tache/absence/note/jalon).
+    // tache/absence : mêmes pictos que le menu "Ajouter" existant sur une
+    // case (cf. boutonsMenuAjout) n'a jamais eu d'icône dédiée — nouvelles
+    // ici, cohérentes avec le reste (checklist = tâche, calendrier barré =
+    // absence).
+    ajoutLigne: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="2.3" y="4.2" width="10.4" height="3.2" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="2.3" y="9.6" width="10.4" height="3.2" rx="1" stroke="currentColor" stroke-width="1.4" stroke-dasharray="2.2 1.8"/><path d="M15.6 10.4v5.2M13 13h5.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
+    plus: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M10 3.3v13.4M3.3 10h13.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+    tache: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" rx="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M6.3 10.2l2.1 2.1 4.3-4.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    absence: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><rect x="2.5" y="4" width="15" height="13" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 8h15" stroke="currentColor" stroke-width="1.5"/><path d="M6 2.5v3M14 2.5v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M7.3 11.3l5.4 4.4M12.7 11.3l-5.4 4.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+    // §87 (round du 17.09.2026, suite×2) — Lionel, mockup mockup-sous-menu-
+    // outils.html à l'appui : « ajouter aujourd'hui/2 semaines/la navigation
+    // dans la toolbar [...] les boutons toujours sous forme d'icone ».
+    // chevronGauche/chevronDroite : remplacent les "‹"/"›" texte de l'ancien
+    // .fleche-semaine, en cohérence avec le reste d'icônes SVG de cette
+    // barre. aujourdhui : calendrier + un point (jour marqué), distinct
+    // d'ICONS.calendar (utilisé ailleurs sans marquage) et d'ICONS.absence
+    // (croix, pas un point). deuxSemaines : 2 colonnes côte à côte, façon
+    // "vue partagée" — teinté par .toolbar-btn.actif quand deuxSemaines est
+    // vrai (jamais atténué comme .toolbar-toggle.desactive : ce n'est pas un
+    // masquage, juste un autre mode d'affichage, toujours valide).
+    chevronGauche: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M12.5 4.5 7 10l5.5 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    chevronDroite: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M7.5 4.5 13 10l-5.5 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    aujourdhui: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="2.5" y="3.5" width="15" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 7.5h15" stroke="currentColor" stroke-width="1.5"/><path d="M6 2v3M14 2v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="10" cy="12.6" r="2" fill="currentColor"/></svg>',
+    deuxSemaines: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="2" y="4" width="7" height="12" rx="1.3" stroke="currentColor" stroke-width="1.5"/><rect x="11" y="4" width="7" height="12" rx="1.3" stroke="currentColor" stroke-width="1.5"/></svg>'
   };
 
   var app = document.getElementById("app");
@@ -2333,6 +2391,14 @@
   // partagée, comme les 2 autres : repart à false (déplié) à chaque
   // rechargement de page, jamais persisté.
   var replierJalons = false, replierNotes = false;
+  // §85 (round du 17.09.2026) — Lionel, mockup mockup-sous-menu-outils.html à
+  // l'appui : « proposer une case de zoom comme sur sheet ». Même repli que
+  // les 4 variables juste au-dessus : jamais persisté, repart à 100 à chaque
+  // rechargement de page. Cf. cablerPagePlanning (câblage des boutons -/+/
+  // paliers) et construireGrille (application réelle via CSS zoom, sur
+  // grilleEntete/grilleCorps — jamais sur .entete-planning-figee elle-même,
+  // qui reste l'élément sticky non zoomé, cf. son commentaire).
+  var niveauZoomPlanning = 100;
   var bullesSelectionnees = {};
   var pressePapier = [];
   var pileUndo = [], pileRedo = [];
@@ -2430,6 +2496,18 @@
       // (cf. cablerPagePlanning), seul son apparence (chantier choisi,
       // icônes actives/désactivées) est resynchronisée à chaque rendu (cf.
       // construireSelectChantier/majControlesAffichage).
+      //
+      // §85 (round du 17.09.2026) — Lionel, mockup mockup-sous-menu-outils.html
+      // à l'appui : « on peut aussi enlever le "+" des lignes personnel et
+      // intervenant. Ajouter une icone "ligne +" dans la tool bar [...] ainsi
+      // qu'une icone "+" pour rajouter un élément au planning [...] Proposer
+      // une case de zoom comme sur sheet », puis « place le zoom entre
+      // impression et chantier ». 3 ajouts à cette même barre STATIQUE :
+      // #zoomCtrl (entre Imprimer et le chantier), #menuAjoutLigne
+      // (Personnel/Intervenant, remplace le "+" retiré de ligneSection) et
+      // #menuAjoutElement (Tâche/Absence/Note/Jalon, avec une 2e page "pour
+      // qui ?" pour Tâche/Absence) — cf. cablerPagePlanning pour tout le
+      // câblage (générique aux 3 .outil-menu) et ouvrirAjoutElementBarre.
       '<div class="toolbar-sheets" id="legendeBarre">' +
         '<div class="toolbar-groupe">' +
           '<button type="button" class="toolbar-btn" id="btnDefaire" title="Annuler (Ctrl+Z)" aria-label="Annuler">' + ICONS.undo + '</button>' +
@@ -2441,9 +2519,77 @@
         '</div>' +
         '<div class="toolbar-separateur"></div>' +
         '<div class="toolbar-groupe">' +
+          '<div class="zoom-ctrl" id="zoomCtrl">' +
+            '<button type="button" class="zoom-btn" id="zoomMoins" title="Zoom arrière" aria-label="Zoom arrière">−</button>' +
+            '<div class="outil-menu" id="menuZoom">' +
+              '<button type="button" class="zoom-pill" id="btnZoom">100% ▾</button>' +
+              '<div class="outil-menu-panneau zoom-panneau" id="panneauZoom">' +
+                '<button type="button" class="outil-menu-item" data-zoom="75">75%</button>' +
+                '<button type="button" class="outil-menu-item" data-zoom="90">90%</button>' +
+                '<button type="button" class="outil-menu-item" data-zoom="100">100%</button>' +
+                '<button type="button" class="outil-menu-item" data-zoom="110">110%</button>' +
+                '<button type="button" class="outil-menu-item" data-zoom="125">125%</button>' +
+                '<button type="button" class="outil-menu-item" data-zoom="150">150%</button>' +
+              '</div>' +
+            '</div>' +
+            '<button type="button" class="zoom-btn" id="zoomPlus" title="Zoom avant" aria-label="Zoom avant">+</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="toolbar-separateur"></div>' +
+        // §87 (round du 17.09.2026, suite×2) — Lionel : « l'insertion via le
+        // "+" doit pouvoir se faire aussi en dehors de la vue visible,
+        // actuellement limité à la semaine en cours [...] on pourrait
+        // ajouter aujourd'hui/2 semaines/la navigation dans la toolbar »,
+        // mockup mockup-sous-menu-outils.html à l'appui, puis ajusté :
+        // « il manque un rectangle avec un numéro de semaine, type "Sem. 38"
+        // cliquable [...] dans le style visuel du zoom, mais avec le même
+        // comportement que l'actuel [ouvrirAllerSemaine] ». #btnSemainePill
+        // réutilise .zoom-pill tel quel ; son panneau (#panneauSemaine) est
+        // reconstruit à l'ouverture par cablerPagePlanning, comme
+        // #pageAjoutPersonne plus bas — jamais rempli ici. Remplace
+        // entièrement l'ancienne ligne coinNav/navSemaine du coin de la
+        // grille (cf. son historique dans construireGrille), supprimée ce
+        // round (Lionel : « on enlève la première ligne du tableau qui ne
+        // sert plus »).
+        '<div class="toolbar-groupe">' +
+          '<button type="button" class="toolbar-btn" id="btnSemainePrec" title="Semaine précédente" aria-label="Semaine précédente">' + ICONS.chevronGauche + '</button>' +
+          '<div class="outil-menu" id="menuSemaine">' +
+            '<button type="button" class="zoom-pill" id="btnSemainePill" title="Aller à une semaine">Sem. ▾</button>' +
+            '<div class="outil-menu-panneau semaine-panneau" id="panneauSemaine"></div>' +
+          '</div>' +
+          '<button type="button" class="toolbar-btn" id="btnSemaineSuiv" title="Semaine suivante" aria-label="Semaine suivante">' + ICONS.chevronDroite + '</button>' +
+          '<button type="button" class="toolbar-btn" id="btnAujourdhui" title="Aller à aujourd’hui" aria-label="Aller à aujourd’hui">' + ICONS.aujourdhui + '</button>' +
+          '<button type="button" class="toolbar-btn" id="btnDeuxSemaines" title="Afficher 2 semaines à la fois" aria-label="Afficher 2 semaines à la fois">' + ICONS.deuxSemaines + '</button>' +
+        '</div>' +
+        '<div class="toolbar-separateur"></div>' +
+        '<div class="toolbar-groupe">' +
           '<div class="select-chantier" id="selectChantier">' +
             '<button type="button" class="select-chantier-btn" id="btnSelectChantier"><span class="swatch"></span><span class="nom-chantier">Chantier</span><span class="caret">▾</span></button>' +
             '<div class="select-chantier-panneau" id="panneauChantier"></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="toolbar-separateur"></div>' +
+        '<div class="toolbar-groupe">' +
+          '<div class="outil-menu" id="menuAjoutLigne">' +
+            '<button type="button" class="toolbar-btn" id="btnAjoutLigne" title="Ajouter une ligne — Personnel ou Intervenant">' + ICONS.ajoutLigne + '</button>' +
+            '<div class="outil-menu-panneau">' +
+              '<div class="outil-menu-titre">Ajouter une ligne</div>' +
+              '<button type="button" class="outil-menu-item" data-ligne="personnel">' + ICONS.people + 'Personnel</button>' +
+              '<button type="button" class="outil-menu-item" data-ligne="intervenant">' + ICONS.hardhat + 'Intervenant</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="outil-menu" id="menuAjoutElement">' +
+            '<button type="button" class="toolbar-btn" id="btnAjoutElement" title="Ajouter un élément au planning">' + ICONS.plus + '</button>' +
+            '<div class="outil-menu-panneau">' +
+              '<div class="outil-menu-page" data-page="choix">' +
+                '<div class="outil-menu-titre">Ajouter au planning</div>' +
+                '<button type="button" class="outil-menu-item" data-type="tache">' + ICONS.tache + 'Tâche</button>' +
+                '<button type="button" class="outil-menu-item" data-type="absence">' + ICONS.absence + 'Absence</button>' +
+                '<button type="button" class="outil-menu-item" data-type="note">' + ICONS.note + 'Note</button>' +
+                '<button type="button" class="outil-menu-item" data-type="jalon">' + ICONS.flag + 'Jalon</button>' +
+              '</div>' +
+              '<div class="outil-menu-page" data-page="personne" id="pageAjoutPersonne" hidden></div>' +
+            '</div>' +
           '</div>' +
         '</div>' +
         '<div class="toolbar-separateur"></div>' +
@@ -2636,12 +2782,240 @@
     // construireSelectChantier() à chaque rendu — cf. plus bas.
     var selectChantier = document.getElementById("selectChantier");
     var btnSelectChantier = document.getElementById("btnSelectChantier");
+    // §85 (round du 17.09.2026) — menuAjoutElement/reinitialiserMenuAjoutElement/
+    // fermerAutresMenusOutils sont déclarées ici (var/function, "hoistées"
+    // dans toute cablerPagePlanning) mais réellement remplies un peu plus
+    // bas, avec le reste du câblage de #menuAjoutElement — utilisables dès
+    // ici (fermeture du sélecteur de chantier) comme depuis là-bas, pour que
+    // #selectChantier et les 3 nouveaux .outil-menu (zoom, ligne+, +) restent
+    // mutuellement exclusifs : un seul panneau ouvert à la fois dans cette
+    // barre.
+    var menuAjoutElement = document.getElementById("menuAjoutElement");
+    var pageAjoutPersonne = document.getElementById("pageAjoutPersonne");
+    var typeAjoutBarreEnCours = null;
+    function reinitialiserMenuAjoutElement() {
+      if (!menuAjoutElement) return;
+      var pageChoix = menuAjoutElement.querySelector('[data-page="choix"]');
+      if (pageChoix) pageChoix.hidden = false;
+      if (pageAjoutPersonne) pageAjoutPersonne.hidden = true;
+      typeAjoutBarreEnCours = null;
+    }
+    // Ferme tout ce qui peut être ouvert dans cette barre SAUF `sauf` (un des
+    // .outil-menu, ou null pour tout fermer) — réinitialise au passage
+    // #menuAjoutElement sur sa page "choix" dès qu'il fait partie de ce qui
+    // se ferme, pour ne jamais le rouvrir plus tard sur l'étape "pour qui ?"
+    // d'un ajout précédent abandonné en cours de route.
+    function fermerAutresMenusOutils(sauf) {
+      document.querySelectorAll(".outil-menu.ouvert").forEach(function (m) {
+        if (m === sauf) return;
+        m.classList.remove("ouvert");
+        if (m === menuAjoutElement) reinitialiserMenuAjoutElement();
+      });
+      if (selectChantier) selectChantier.classList.remove("ouvert");
+    }
     if (selectChantier && btnSelectChantier) {
       btnSelectChantier.addEventListener("click", function (e) {
         e.stopPropagation();
-        selectChantier.classList.toggle("ouvert");
+        var etaitOuvert = selectChantier.classList.contains("ouvert");
+        fermerAutresMenusOutils(null);
+        selectChantier.classList.toggle("ouvert", !etaitOuvert);
       });
-      document.addEventListener("click", function () { selectChantier.classList.remove("ouvert"); });
+    }
+    // Ouverture/fermeture des 3 .outil-menu (zoom, ligne+, +) — générique
+    // plutôt que triplée, même idée que #selectChantier ci-dessus (bouton
+    // statique qui ouvre son propre panneau).
+    document.querySelectorAll(".outil-menu").forEach(function (menu) {
+      var btnMenu = menu.querySelector(":scope > button");
+      if (!btnMenu) return;
+      btnMenu.addEventListener("click", function (e) {
+        e.stopPropagation();
+        var etaitOuvert = menu.classList.contains("ouvert");
+        fermerAutresMenusOutils(menu);
+        var maintenantOuvert = !etaitOuvert;
+        menu.classList.toggle("ouvert", maintenantOuvert);
+        if (menu === menuAjoutElement && !maintenantOuvert) reinitialiserMenuAjoutElement();
+      });
+    });
+    // Un clic À L'INTÉRIEUR d'un panneau ne doit pas remonter jusqu'au
+    // document (qui fermerait tout avant même que le bouton cliqué — Retour,
+    // une personne, un palier de zoom — ait pu agir) — même filet que
+    // .select-chantier-panneau n'a jamais eu besoin d'avoir, ses boutons
+    // fermant déjà le panneau explicitement à chaque clic.
+    document.querySelectorAll(".outil-menu-panneau").forEach(function (p) {
+      p.addEventListener("click", function (e) { e.stopPropagation(); });
+    });
+    // Clic extérieur : ferme absolument tout (#selectChantier ET les 3
+    // .outil-menu), remplace l'ancien listener dédié à #selectChantier seul
+    // (§83) — fermerAutresMenusOutils(null) couvre maintenant les deux.
+    document.addEventListener("click", function () { fermerAutresMenusOutils(null); });
+
+    // ---- "ligne+" : Personnel ou Intervenant — réutilise TEL QUEL
+    // ouvrirAjoutPersonne(sousTraitant), le même popup qu'ouvrait le "+" du
+    // bout de ligneSection avant sa suppression ce round.
+    var menuAjoutLigne = document.getElementById("menuAjoutLigne");
+    if (menuAjoutLigne) {
+      menuAjoutLigne.querySelectorAll("[data-ligne]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          menuAjoutLigne.classList.remove("ouvert");
+          ouvrirAjoutPersonne(btn.dataset.ligne === "intervenant");
+        });
+      });
+    }
+
+    // ---- "+" (ajout d'élément) : Tâche/Absence/Note/Jalon. Note/Jalon
+    // s'ouvrent directement (ouvrirAjoutElementBarre plus bas, cf. son
+    // commentaire). Tâche/Absence affichent d'abord la 2e page "pour qui ?"
+    // — liste reconstruite à l'ouverture (pas à chaque rendu de la grille,
+    // ce menu n'étant consulté qu'à la demande) depuis PERSONNES, déjà la
+    // liste "actif=true" triée (cf. demarrer()) — Absence exclut les
+    // intervenants, même règle que boutonsMenuAjout()/le clic sur une case.
+    if (menuAjoutElement && pageAjoutPersonne) {
+      var pageChoixAjout = menuAjoutElement.querySelector('[data-page="choix"]');
+      pageChoixAjout.querySelectorAll("[data-type]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var type = btn.dataset.type;
+          if (type !== "tache" && type !== "absence") {
+            menuAjoutElement.classList.remove("ouvert");
+            ouvrirAjoutElementBarre(type, null);
+            reinitialiserMenuAjoutElement();
+            return;
+          }
+          typeAjoutBarreEnCours = type;
+          pageAjoutPersonne.innerHTML =
+            '<button type="button" class="outil-menu-retour">‹ Retour</button>' +
+            '<div class="outil-menu-titre">Pour qui — ' + (type === "tache" ? "Tâche" : "Absence") + '</div>';
+          var liste = type === "absence" ? PERSONNES.filter(function (p) { return !p.sousTraitant; }) : PERSONNES;
+          liste.forEach(function (p) {
+            var it = document.createElement("button");
+            it.type = "button";
+            it.className = "outil-menu-item";
+            it.dataset.personne = p.id;
+            it.textContent = p.nom;
+            it.addEventListener("click", function () {
+              menuAjoutElement.classList.remove("ouvert");
+              ouvrirAjoutElementBarre(typeAjoutBarreEnCours, p.id);
+              reinitialiserMenuAjoutElement();
+            });
+            pageAjoutPersonne.appendChild(it);
+          });
+          pageAjoutPersonne.querySelector(".outil-menu-retour").addEventListener("click", reinitialiserMenuAjoutElement);
+          pageChoixAjout.hidden = true;
+          pageAjoutPersonne.hidden = false;
+        });
+      });
+    }
+
+    // ---- Case de zoom façon Sheets. niveauZoomPlanning est appliqué (CSS
+    // zoom, sur grilleEntete/grilleCorps — jamais sur .entete-planning-figee
+    // elle-même) à chaque construireGrille(), donc render(false) suffit ici
+    // pour que le changement soit immédiatement visible — même trajet que
+    // les 4 icônes masquer/afficher ci-dessus.
+    var NIVEAUX_ZOOM_PLANNING = [75, 90, 100, 110, 125, 150];
+    var btnZoomMoins = document.getElementById("zoomMoins");
+    var btnZoomPlus = document.getElementById("zoomPlus");
+    if (btnZoomMoins) btnZoomMoins.addEventListener("click", function () {
+      var i = NIVEAUX_ZOOM_PLANNING.indexOf(niveauZoomPlanning);
+      niveauZoomPlanning = NIVEAUX_ZOOM_PLANNING[Math.max(0, i - 1)];
+      render(false);
+    });
+    if (btnZoomPlus) btnZoomPlus.addEventListener("click", function () {
+      var i = NIVEAUX_ZOOM_PLANNING.indexOf(niveauZoomPlanning);
+      niveauZoomPlanning = NIVEAUX_ZOOM_PLANNING[Math.min(NIVEAUX_ZOOM_PLANNING.length - 1, i + 1)];
+      render(false);
+    });
+    var panneauZoom = document.getElementById("panneauZoom");
+    if (panneauZoom) {
+      panneauZoom.querySelectorAll("[data-zoom]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          niveauZoomPlanning = parseInt(btn.dataset.zoom, 10);
+          document.getElementById("menuZoom").classList.remove("ouvert");
+          render(false);
+        });
+      });
+    }
+
+    // §87 (round du 17.09.2026, suite×2) — navigation de semaine dupliquée
+    // dans la barre (Lionel : « l'insertion via le "+" doit pouvoir se faire
+    // aussi en dehors de la vue visible, actuellement limité à la semaine en
+    // cours ; on pourrait ajouter aujourd'hui/2 semaines/la navigation dans
+    // la toolbar », mockup mockup-sous-menu-outils.html à l'appui, puis
+    // ajusté : « il manque un rectangle avec un numéro de semaine, type
+    // "Sem. 38" cliquable [...] dans le style visuel du zoom, mais avec le
+    // même comportement que l'actuel [ouvrirAllerSemaine] »). ‹/›/Aujourd'hui/
+    // 2 semaines réutilisent TELLES QUELLES naviguerSemaine/allerAujourdhui/
+    // basculerDeuxSemaines, déjà éprouvées par la ligne coinNav/navSemaine
+    // qu'elles remplacent (retirée de construireGrille ce round, Lionel :
+    // « on enlève la première ligne du tableau qui ne sert plus »).
+    var btnSemainePrec = document.getElementById("btnSemainePrec");
+    var btnSemaineSuiv = document.getElementById("btnSemaineSuiv");
+    var btnAujourdhuiBarre = document.getElementById("btnAujourdhui");
+    var btnDeuxSemainesBarre = document.getElementById("btnDeuxSemaines");
+    if (btnSemainePrec) btnSemainePrec.addEventListener("click", function () { naviguerSemaine(-1); });
+    if (btnSemaineSuiv) btnSemaineSuiv.addEventListener("click", function () { naviguerSemaine(1); });
+    if (btnAujourdhuiBarre) btnAujourdhuiBarre.addEventListener("click", allerAujourdhui);
+    if (btnDeuxSemainesBarre) btnDeuxSemainesBarre.addEventListener("click", basculerDeuxSemaines);
+    // #menuSemaine/#btnSemainePill remplacent ouvrirAllerSemaine() (popup
+    // centrée avec un <select>, supprimée avec son unique déclencheur
+    // .lien-aller) par un dropdown façon Sheets, cohérent avec zoom/ligne+/+
+    // juste à côté — reconstruit à l'OUVERTURE seulement (comme
+    // #pageAjoutPersonne plus haut), jamais à chaque rendu : etat.semaines
+    // ne change jamais en cours de session, et peut compter jusqu'à 521
+    // semaines (FENETRE_SEMAINES=260 avant/après aujourd'hui) — tout afficher
+    // d'un coup produirait un dropdown interminable, d'où une fenêtre de 8
+    // avant / 8 après la semaine choisie (17 lignes, scrollable via
+    // .semaine-panneau) : largement suffisant pour un saut rapide, ‹/› ou
+    // rouvrir le dropdown depuis la nouvelle position couvrant le reste.
+    // S'appuie sur l'ORDRE D'ATTACHEMENT des écouteurs sur #btnSemainePill :
+    // la boucle générique ".outil-menu" plus haut bascule déjà .ouvert avant
+    // que ce second écouteur (attaché après, donc exécuté après) ne
+    // (re)construise le contenu — la lecture de .ouvert ci-dessous reflète
+    // donc le nouvel état, pas l'ancien, sans avoir à dupliquer la logique
+    // de bascule.
+    var menuSemaine = document.getElementById("menuSemaine");
+    var btnSemainePill = document.getElementById("btnSemainePill");
+    var panneauSemaine = document.getElementById("panneauSemaine");
+    if (menuSemaine && btnSemainePill && panneauSemaine) {
+      btnSemainePill.addEventListener("click", function () {
+        if (!menuSemaine.classList.contains("ouvert")) return;
+        panneauSemaine.innerHTML = "";
+        var titre = document.createElement("div");
+        titre.className = "outil-menu-titre";
+        titre.textContent = "Aller à…";
+        panneauSemaine.appendChild(titre);
+        var debut = Math.max(0, etat.indexSemaine - 8), fin = Math.min(etat.semaines.length - 1, etat.indexSemaine + 8);
+        var _boucleSemaine = function (idx) {
+          var s = etat.semaines[idx];
+          var it = document.createElement("button");
+          it.type = "button";
+          it.className = "outil-menu-item" + (idx === etat.indexSemaine ? " actif" : "");
+          var nom = document.createElement("span");
+          nom.className = "semaine-item-nom";
+          nom.textContent = "Semaine " + s.num;
+          var droite = document.createElement("span");
+          droite.className = "semaine-item-droite";
+          var dates = document.createElement("span");
+          dates.className = "semaine-dates-item";
+          dates.textContent = isoAffiche(s.debut) + " – " + isoAffiche(s.fin);
+          droite.appendChild(dates);
+          if (idx === etat.indexSemaine) {
+            var coche = document.createElement("span");
+            coche.className = "coche";
+            coche.textContent = "✓";
+            droite.appendChild(coche);
+          }
+          it.appendChild(nom);
+          it.appendChild(droite);
+          it.addEventListener("click", function () {
+            menuSemaine.classList.remove("ouvert");
+            if (idx === etat.indexSemaine) return;
+            etat.indexSemaine = idx;
+            bullesSelectionnees = {};
+            assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); majBarreSelection(); });
+          });
+          panneauSemaine.appendChild(it);
+        };
+        for (var iSem = debut; iSem <= fin; iSem++) _boucleSemaine(iSem);
+      });
     }
     // §82 — les 4 contrôles masquer/afficher (Jalons/Notes/Personnel/
     // Intervenants, cf. .controles-affichage dans htmlPagePlanning ; devenus
@@ -5707,27 +6081,25 @@
         }
       });
     });
-    // "labG|jourIdx" -> "demi\u0000texte". La demi-journée fait partie de la
-    // VALEUR comparée (round du 02.09.2026) : sans ça, faire passer un jalon
-    // du matin à l'après-midi laisserait le texte identique et ne
-    // déclencherait aucune écriture — la modification serait perdue au
-    // rechargement, sans le moindre message.
-    var jalonsMap = {};
-    JALONS.filter(function (j) { return giVisibleFenetre(j.giDebut, n); }).forEach(function (j) {
-      for (var d = 0; d < j.duree; d++) {
-        var gi = j.giDebut + d; if (!giVisibleFenetre(gi, n) || estGiWeekend(gi)) continue;
-        var lab = labGDeGi(gi); if (lab == null) continue;
-        // demiIci (round du 08.09.2026, suite — un jalon porte désormais
-        // lui aussi une demi-journée par bord, cf. FRONTEND-CHANGELOG §47) :
-        // `d === 0`/`d === j.duree - 1` retrouvent le bord concerné, même
-        // règle que demiPourJourDePlage_ côté serveur (seuls les 2 bords
-        // d'une plage fusionnée peuvent porter une demi-journée, tout jour
-        // du milieu reste toujours une journée entière).
-        var demiIciJalon = d === 0 ? (j.demiDebut || null) : (d === j.duree - 1 ? (j.demiFin || null) : null);
-        jalonsMap[lab + "|" + jourIdxDeGi(gi)] = (demiIciJalon || "") + "\u0000" + j.texte;
-      }
-    });
-    return { cellules: cellules, jalonsMap: jalonsMap, notesById: notesParId(), tachesSeriePayload: null };
+    // §88 (round du 17.09.2026, suite×3) — jalonsMap ("labG|jourIdx" ->
+    // "demi\u0000texte", décomposé JOUR PAR JOUR dans la fenêtre visible) a
+    // été remplacé par jalonsParId (par identité d'item JS, MÊME principe
+    // que notesParId juste en dessous — un jalon a exactement la même forme
+    // {id,texte,giDebut,duree,demiDebut,demiFin,dateDebutIso}, cf. itemPlage,
+    // partagée avec les notes). Raison : la décomposition jour par jour ne
+    // pouvait représenter que ce qui est VISIBLE dans la fenêtre chargée
+    // (giVisibleFenetre) — un jalon dont la plage dépasse la fenêtre (permis
+    // depuis §88, cf. appliquerDateChoisieFormulaire) y perdait silencieusement
+    // ses jours en trop. Suivre l'id comme les notes permet à synchroniser()
+    // d'envoyer une VRAIE plage (dateDebut/dateFin ISO, cf. isoDeApres) à
+    // enregistrer-plage, qui sait déjà l'écrire sans dépendre de ce qui est
+    // chargé côté client (cf. planPlage, functions/enregistrer-plage/logic.js).
+    return { cellules: cellules, jalonsById: jalonsParId(), notesById: notesParId(), tachesSeriePayload: null };
+  }
+  function jalonsParId() {
+    var out = {};
+    JALONS.forEach(function (j) { out[j.id] = { texte: j.texte, giDebut: j.giDebut, duree: j.duree, dateDebutIso: j.dateDebutIso, demiDebut: j.demiDebut || null, demiFin: j.demiFin || null }; });
+    return out;
   }
   function notesParId() {
     var out = {};
@@ -5761,22 +6133,22 @@
     });
     return out;
   }
-  // Diff des jalons : par (labG,jourIdx), un texte simple.
+  // §88 — diff des jalons, par identité d'item JS : MÊME principe que
+  // diffsNotes juste en dessous (jalonsById plutôt que jalonsMap, cf. son
+  // commentaire dans calculerEtatLocal). Pas de champ `important`/`chantierId`
+  // comparé ici : la grille n'édite/n'envoie jamais ces 2 champs pour un
+  // jalon (cf. commentaire de synchroniser() plus bas) — les comparer ici
+  // déclencherait une écriture fantôme dès que la page « Jalons » les change
+  // en dehors de la grille.
   function diffsJalons(local, base) {
-    var cles = {};
-    Object.keys(local.jalonsMap).forEach(function (k) { cles[k] = true; });
-    Object.keys(base.jalonsMap).forEach(function (k) { cles[k] = true; });
     var out = [];
-    Object.keys(cles).forEach(function (cle) {
-      var a = local.jalonsMap[cle] || "", b = base.jalonsMap[cle] || "";
-      if (a === b) return;
-      var parts = cle.split("|");
-      var sep = a.indexOf("\u0000");
-      out.push({
-        labG: +parts[0], jourIdx: +parts[1],
-        texte: sep === -1 ? a : a.slice(sep + 1),
-        demi: sep === -1 ? null : (a.slice(0, sep) || null)
-      });
+    Object.keys(local.jalonsById).forEach(function (id) {
+      var a = local.jalonsById[id], b = base.jalonsById[id];
+      if (b && a.texte === b.texte && a.giDebut === b.giDebut && a.duree === b.duree && (a.demiDebut || null) === (b.demiDebut || null) && (a.demiFin || null) === (b.demiFin || null)) return;
+      out.push({ action: b ? "modifier" : "creer", id: id, avant: b || null, apres: a });
+    });
+    Object.keys(base.jalonsById).forEach(function (id) {
+      if (!local.jalonsById[id]) out.push({ action: "supprimer", id: id, avant: base.jalonsById[id], apres: null });
     });
     return out;
   }
@@ -5795,12 +6167,12 @@
     return out;
   }
 
-  // (labG, jourIdx) -> date ISO, pour les jalons du moteur de diff : jourIdx
-  // y est TOUJOURS 0..4 (lundi..vendredi, cf. diffsJalons — un jalon week-end
-  // n'existe pas, cf. estGiWeekend plus haut dans calculerEtatLocal), donc
-  // infosSemaineDepuisLabG() (pure, réutilisée telle quelle depuis le
-  // chargement — cf. étape 2 du §6bis) suffit sans passer par le cache.
-  function isoDeLabGJourIdx(labG, jourIdx) { return infosSemaineDepuisLabG(labG).isoDates[jourIdx]; }
+  // isoDeLabGJourIdx((labG, jourIdx) -> date ISO) a été retirée au §88
+  // (round du 17.09.2026, suite×3) : c'était la conversion utilisée par
+  // l'ancien dJal.forEach de synchroniser() pour diffuser un jalon JOUR PAR
+  // JOUR — remplacée par un envoi en vraie plage (dateDebut/dateFin ISO),
+  // cf. son commentaire ; le seul appelant de cette fonction a disparu avec
+  // ce changement.
   // Variante "case personnel" : jourIdx y va de 0 à 7 (0..4 = lundi..vendredi,
   // 6/7 = Samedi/Dimanche — cf. commentaire de tête d'apiEnregistrerCellulePersonne,
   // WebApp.gs ; jourIdx 5 n'existe jamais, hérité de l'ancien classeur où les
@@ -5938,15 +6310,17 @@
         return enregistrerCellulePersonneServeur(d.labG, d.ancre, d.demi, d.jourIdx, d.payload);
       });
     });
-    // Étape 4 du §6bis (migration hors Google) : chaque jalon diffé est TOUJOURS
-    // un seul jour (dateDebut === dateFin), en mode "remplacement" — un
-    // enregistrement diffé représente l'état COMPLET du jour, jamais un ajout
-    // (cf. l'ancien apiEnregistrerJalonNote, qui écrasait sans condition la
-    // cellule entière). Pas de notion de "déplacement" ici (une seule case à
-    // la fois) : origine reste toujours null. `d.demi` (round du 08.09.2026,
-    // suite — cf. diffsJalons/calculerEtatLocal ci-dessus) : demiDebut et
-    // demiFin valent la même chose puisque dateDebut === dateFin (un seul
-    // jour, exactement comme pour une note d'un seul jour).
+    // §88 (round du 17.09.2026, suite×3) — dJal envoie désormais une VRAIE
+    // plage (dateDebut/dateFin ISO, comme dNot juste en dessous) plutôt
+    // qu'un jour isolé : cf. le commentaire de jalonsParId/diffsJalons plus
+    // haut pour la raison (un jalon peut maintenant dépasser la fenêtre
+    // chargée, cf. appliquerDateChoisieFormulaire). `mode` reste
+    // INCONDITIONNELLEMENT "remplacement" (jamais "ajout" comme pour une
+    // note qui vient d'être créée) : un enregistrement de jalon représente
+    // toujours l'état COMPLET du jour (cf. l'ancien apiEnregistrerJalonNote,
+    // qui écrasait sans condition la cellule entière — une seule ligne
+    // possible par jour, contrairement aux notes qui peuvent être plusieurs
+    // sur le même jour).
     // Ni `important` ni `chantierId` ne sont envoyés ici (round du 12.09.2026
     // — page « Jalons », sql/0007_jalons_chantier.sql) : la grille ne
     // connaît/n'édite ni l'un ni l'autre pour un jalon (seul le texte l'est
@@ -5956,10 +6330,19 @@
     // page Jalons survit donc à une simple modif de texte faite ici.
     dJal.forEach(function (d) {
       chaine = chaine.then(function () {
-        var iso = isoDeLabGJourIdx(d.labG, d.jourIdx);
+        var dateDeb, dateFin, texte, origine;
+        var demiDebJalon = d.apres ? (d.apres.demiDebut || null) : null;
+        var demiFinJalon = d.apres ? (d.apres.demiFin || null) : null;
+        if (d.action === "supprimer") {
+          dateDeb = d.avant.dateDebutIso; dateFin = isoDeApres(d.avant); texte = "";
+          origine = { dateDebut: dateDeb, dateFin: dateFin, texte: d.avant.texte, demiDebut: d.avant.demiDebut || null, demiFin: d.avant.demiFin || null };
+        } else {
+          dateDeb = d.apres.dateDebutIso || isoDeGi(d.apres.giDebut); dateFin = isoDeApres(d.apres); texte = d.apres.texte;
+          origine = d.avant ? { dateDebut: d.avant.dateDebutIso, dateFin: isoDeApres(d.avant), texte: d.avant.texte, demiDebut: d.avant.demiDebut || null, demiFin: d.avant.demiFin || null } : null;
+        }
         return invoquerFonctionServeur("enregistrer-plage", {
-          kind: "jalon", dateDebut: iso, dateFin: iso, demiDebut: d.demi, demiFin: d.demi,
-          texte: d.texte, mode: "remplacement", origine: null
+          kind: "jalon", dateDebut: dateDeb, dateFin: dateFin, demiDebut: demiDebJalon, demiFin: demiFinJalon,
+          texte: texte, mode: "remplacement", origine: origine
         });
       });
     });
@@ -6017,9 +6400,41 @@
   }
   function isoDeApres(item) {
     if (!item.dateDebutIso) return isoDeGi(item.giDebut + item.duree - 1);
+    // §88 (round du 17.09.2026, suite×3) — item.duree compte des jours
+    // OUVRÉS (jamais un week-end : le moteur de fusion des bulles,
+    // construireVueDepuisCache, n'avance jamais gi à travers un week-end
+    // réel), donc avancer de `duree-1` jours CALENDAIRES bruts comme le
+    // faisait ce calcul avant ce round était juste tant qu'aucune bulle ne
+    // traversait un week-end réel (possible seulement en mode "2 semaines",
+    // rare en pratique) — et devient franchement faux dès qu'une plage peut
+    // dépasser la fenêtre chargée (cf. appliquerDateChoisieFormulaire) : une
+    // absence de 2 semaines saute alors 2 week-ends, pas 0. Corrigé en
+    // avançant jour par jour en sautant sam/dim, comme joursOuvresDeLaPlage
+    // côté serveur (functions/enregistrer-plage/logic.js).
     var d = new Date(item.dateDebutIso + "T00:00:00");
-    d.setDate(d.getDate() + item.duree - 1);
+    var restant = item.duree - 1;
+    while (restant > 0) {
+      d.setDate(d.getDate() + 1);
+      if (d.getDay() !== 0 && d.getDay() !== 6) restant--;
+    }
     return isoDeDate(d);
+  }
+  // §88 — compte de jours OUVRÉS entre 2 dates ISO incluses (mêmes règles
+  // que joursOuvresDeLaPlage côté serveur, ici on ne veut que le COMPTE, pas
+  // la liste) : sert à calculer `duree` quand une borne de plage est hors de
+  // la fenêtre chargée (state.debutHorsFenetreIso/finHorsFenetreIso, cf.
+  // appliquerDateChoisieFormulaire) — giFin-giDebut+1 ne veut alors plus rien
+  // dire, ces gi étant calés (clampés) sur le bord visible, pas la vraie
+  // date.
+  function nbJoursOuvresEntre(isoDebut, isoFin) {
+    var d = new Date(isoDebut + "T00:00:00"), fin = new Date(isoFin + "T00:00:00");
+    var n = 0;
+    while (d.getTime() <= fin.getTime()) {
+      var js = d.getDay();
+      if (js !== 0 && js !== 6) n++;
+      d.setDate(d.getDate() + 1);
+    }
+    return Math.max(1, n);
   }
 
   /* ============================================================
@@ -6650,9 +7065,6 @@
     deuxSemaines = !deuxSemaines;
     assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); });
   }
-  // Clic sur le titre "Semaine N" : choisir directement une semaine dans la
-  // liste (plutôt que de cliquer ‹ › plusieurs fois) — même liste que
-  // celle renvoyée par apiDemarrer (etat.semaines).
   // Round D (11.09.2026) — « Ajout lointain » (poser une tâche/absence/
   // note/jalon à une date éloignée sans faire défiler le calendrier,
   // ex-round du 02.09.2026) a été RETIRÉ à la demande de Lionel : « ajout
@@ -6663,30 +7075,14 @@
   // était seul à offrir avant cette refonte. Fonctions supprimées avec le
   // bouton (cf. FRONTEND-CHANGELOG.md) : joursOuvresDepuis,
   // construireLignesAjoutLointain, ajoutLointainTache, ouvrirAjoutLointain.
-
-  function ouvrirAllerSemaine() {
-    var pop = document.createElement("div");
-    pop.className = "pop form-pop";
-    var options = etat.semaines.map(function (s, i) {
-      return '<option value="' + i + '"' + (i === etat.indexSemaine ? " selected" : "") + '>Semaine ' + esc(s.num) + " (" + esc(isoAffiche(s.debut)) + " – " + esc(isoAffiche(s.fin)) + ")</option>";
-    }).join("");
-    pop.innerHTML =
-      '<div class="cp-titre">Aller à…</div>' +
-      '<select class="f-semaine">' + options + '</select>' +
-      '<div class="form-actions"><button type="button" class="f-annuler">Annuler</button><button type="button" class="f-ok">Aller</button></div>';
-    var px = Math.round(window.innerWidth / 2 - 110), py = Math.round(window.innerHeight / 2 - 90);
-    positionnerPop(pop, px, py);
-    var fermer = fermerAuClicExterieur(pop, null, function () { pop.querySelector(".f-ok").click(); });
-    pop.querySelector(".f-annuler").addEventListener("click", fermer);
-    pop.querySelector(".f-ok").addEventListener("click", function () {
-      var idx = +pop.querySelector(".f-semaine").value;
-      fermer();
-      if (idx === etat.indexSemaine) return;
-      etat.indexSemaine = idx;
-      bullesSelectionnees = {};
-      assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); majBarreSelection(); });
-    });
-  }
+  //
+  // ouvrirAllerSemaine() (choisir une semaine dans la liste plutôt que de
+  // cliquer ‹ › plusieurs fois — popup centrée avec un <select>, ouverte par
+  // le "Semaine N" du coin de la grille) a été supprimée au §87 (round du
+  // 17.09.2026, suite×2) avec son unique déclencheur .lien-aller — la même
+  // liste (etat.semaines) est désormais proposée par #menuSemaine/
+  // #btnSemainePill dans #legendeBarre, en dropdown façon Sheets plutôt
+  // qu'en popup centrée (cf. cablerPagePlanning).
 
   function construireGrille() {
     if (!racineEl) racineEl = document.getElementById("racine");
@@ -6703,30 +7099,16 @@
     racineEl.innerHTML = "";
     var n = nbJoursAffiches();
     var nbSemainesAffichees = deuxSemaines ? 2 : 1;
-    var donnees = fenetreDonnees();
-
-    var num0 = donnees[0].numero, num1 = donnees[1] ? donnees[1].numero : null;
-    var texteSemaines = (deuxSemaines && num1) ? ("Semaine " + num0 + " → Semaine " + num1) : ("Semaine " + num0);
-    var deb0 = libelleJourGi(0), fin0 = libelleJourGi(deuxSemaines && num1 ? 9 : 4);
-    // Round D — Lionel : « bouton 2 semaines à côté de aujourd'hui, en
-    // surbrillance quand planning affiché sur 2 semaines. placer le bouton
-    // imprimer à droite du bouton 2 [...] le design de bouton doit être
-    // cohérent avec le bouton aujourd'hui. » Remplace l'ancienne paire de
-    // boutons .toggle-sem ("1 semaine"/"2 semaines", dans .header-actions,
-    // câblée une fois pour toutes) par un bouton UNIQUE .btn-deux-semaines,
-    // câblé ici à chaque rendu, donc son état .actif reflète toujours
-    // deuxSemaines sans câblage séparé à maintenir en phase.
-    // Round du 14.09.2026 — Lionel, mockup validé : « les boutons Aujourd'hui
-    // et Imprimer doivent rester au-dessus — on pourrait afficher les
-    // boutons 2 semaines et Aujourd'hui dans la cellule à gauche des
-    // semaines, vide actuellement. » La grande barre .semaine-titre pleine
-    // largeur (flèches + Semaine N + dates + les 3 boutons) disparaît :
-    // Aujourd'hui/2 semaines rejoignent la cellule coin de la grille (cf.
-    // coinNav plus bas) ; les flèches + Semaine N + dates rejoignent une
-    // cellule d'en-tête dédiée de la grille (cf. navSemaine plus bas),
-    // fusionnée sur toute la largeur affichée (1 ou 2 semaines). Imprimer
-    // (round du 16.09.2026, suite, encore) a depuis rejoint #legendeBarre —
-    // cf. htmlPagePlanning/cablerPagePlanning, il n'est plus reconstruit ici.
+    // La ligne "Aujourd'hui/2 semaines/‹ Semaine N ›" qui vivait ici (coinNav/
+    // navSemaine, cf. leur historique avant suppression au §87, round du
+    // 17.09.2026, suite×2) portait ses propres textes calculés à partir de
+    // fenetreDonnees()/libelleJourGi() — donnees/num0/num1/texteSemaines/
+    // deb0/fin0, plus utilisés nulle part ailleurs, disparaissent avec elle.
+    // Lionel, à propos de la même navigation désormais dans #legendeBarre
+    // (cf. htmlPagePlanning/cablerPagePlanning) : « on enlève la première
+    // ligne du tableau qui ne sert plus » — entièrement redondante une fois
+    // dupliquée dans la barre, cette cellule ne portait plus d'information
+    // qu'on ne retrouve pas déjà là-haut.
     //
     // grilleEntete / grilleCorps (round du 16.09.2026, suite, encore) —
     // Lionel : « faire défiler la page après les notes ». La grille CSS
@@ -6763,6 +7145,18 @@
     grilleEntete.style.minWidth = largeurMiniTotale;
     grilleCorps.style.gridTemplateColumns = gabarit;
     grilleCorps.style.minWidth = largeurMiniTotale;
+    // Case de zoom façon Sheets (§85, round du 17.09.2026) — CSS zoom (pas
+    // transform:scale, qui ne changerait que le RENDU sans jamais toucher la
+    // taille réelle occupée : largeur de scroll, hauteur de page) posé
+    // directement sur les 2 grilles, JAMAIS sur enteteFigee (l'élément
+    // sticky lui-même, cf. son historique CSS plus haut) — enteteFigee et
+    // son "top" calculé par ajusterEnteteFixe() restent donc totalement
+    // étrangers au niveau de zoom choisi, quel qu'il soit. Les 2 grilles
+    // gardent le même gabarit/largeurMiniTotale ci-dessus (calculés une
+    // seule fois, en px "réels") : le zoom s'applique ensuite identiquement
+    // aux deux, donc enteteScroll et scroller restent pixel-alignés à
+    // n'importe quel niveau (cf. la synchronisation de scrollLeft plus bas).
+    grilleEntete.style.zoom = grilleCorps.style.zoom = (niveauZoomPlanning / 100);
 
     enteteScroll.appendChild(grilleEntete);
     enteteFigee.appendChild(enteteScroll);
@@ -6794,39 +7188,16 @@
     var poser = poserDans(grilleEntete);
     var poserPleineLargeur = poserPleineLargeurDans(grilleEntete);
 
-    // Round du 14.09.2026 (suite, cf. commentaire plus haut) — cette ligne
-    // d'en-tête existe désormais TOUJOURS (avant : seulement en mode 2
-    // semaines, pour porter "Semaine 37"/"Semaine 38"). coinNav réutilise la
-    // cellule coin, vide jusqu'ici sur cette ligne, pour Aujourd'hui/2
-    // semaines. navSemaine remplace les anciennes cellules s0/s1 (un texte
-    // par semaine) par UNE SEULE cellule portant la navigation complète,
-    // fusionnée sur toute la largeur affichée (1 semaine : largeurSemaine ;
-    // 2 semaines : largeurSemaine × 2, comme l'ancien couple s0+s1 mis bout
-    // à bout) — le texte "Semaine 37 → Semaine 38" y existait déjà tel quel
-    // (texteSemaines, cf. plus haut), seul son emplacement change.
+    // §87 (round du 17.09.2026, suite×2) — la ligne d'en-tête "Aujourd'hui/
+    // 2 semaines/‹ Semaine N ›" qui vivait ici (coinNav + navSemaine, cf.
+    // leur historique dans une version antérieure du fichier) disparaît :
+    // Lionel, une fois cette navigation dupliquée dans #legendeBarre (cf.
+    // htmlPagePlanning/cablerPagePlanning — ‹, la case "Sem. N", ›,
+    // Aujourd'hui, 2 semaines, entre le zoom et le chantier) : « on enlève
+    // la première ligne du tableau qui ne sert plus ». row démarre donc
+    // directement sur la ligne des jours (avant : row 2, décalée d'une ligne
+    // par coinNav/navSemaine).
     var row = 1;
-    var coinNav = document.createElement("div");
-    coinNav.className = "th coin coin-nav semaine-titre";
-    coinNav.innerHTML =
-      '<button type="button" class="btn-titre btn-aujourdhui">Aujourd’hui</button>' +
-      '<button type="button" class="btn-titre btn-deux-semaines' + (deuxSemaines ? " actif" : "") + '" title="Afficher 2 semaines à la fois">2 semaines</button>';
-    poser(coinNav, 1, row);
-    coinNav.querySelector(".btn-aujourdhui").addEventListener("click", allerAujourdhui);
-    coinNav.querySelector(".btn-deux-semaines").addEventListener("click", basculerDeuxSemaines);
-
-    var navSemaine = document.createElement("div");
-    navSemaine.className = "th sem-entete cellule-semaine-nav semaine-titre";
-    navSemaine.innerHTML =
-      '<button type="button" class="fleche-semaine" data-dir="-1" aria-label="Semaine précédente">‹</button>' +
-      '<button type="button" class="lien-aller">' + esc(texteSemaines) + '<span class="semaine-dates"> · ' + deb0.jour + " " + deb0.mois + " – " + fin0.jour + " " + fin0.mois + '</span></button>' +
-      '<button type="button" class="fleche-semaine" data-dir="1" aria-label="Semaine suivante">›</button>';
-    var largeurSemaine = 5 * colsParJour() + (afficherWeekends ? 2 : 0);
-    poser(navSemaine, colonneGrille(0), row, largeurSemaine * nbSemainesAffichees);
-    navSemaine.querySelectorAll(".fleche-semaine").forEach(function (btn) {
-      btn.addEventListener("click", function () { naviguerSemaine(parseInt(btn.dataset.dir, 10)); });
-    });
-    navSemaine.querySelector(".lien-aller").addEventListener("click", ouvrirAllerSemaine);
-    row++;
 
     var aujIso = etat.aujourdhui;
     // Cellule coin de la ligne des jours : redevenue simplement vide au §83
@@ -7001,16 +7372,20 @@
       // §82 : le masquage/affichage de cette section ne se pilote plus
       // depuis une flèche posée ici (cf. .controles-affichage, regroupé dans
       // la barre légende/imprimer) — cette ligne ne garde donc plus que son
-      // libellé et le bouton d'ajout.
+      // libellé. §85 (round du 17.09.2026) — Lionel : « on peut aussi enlever
+      // le "+" des lignes personnel et intervenant » : le bouton .btn-plage-
+      // ligne disparaît d'ici, remplacé par l'icône "ligne+" de la barre
+      // d'outils (cf. #btnAjoutLigne dans htmlPagePlanning/cablerPagePlanning),
+      // qui ouvre le même ouvrirAjoutPersonne(sousTraitant) — ex-.btn-plage-
+      // ligne/.section-row-sticky gap conservés tels quels pour ne pas avoir à
+      // toucher leur CSS, simplement plus jamais peuplés d'un bouton ici.
       var lg = document.createElement("div");
       lg.className = "section-row";
       lg.innerHTML =
         '<div class="section-row-sticky">' +
         '<span class="section-label">' + esc(texte) + '</span>' +
-        '<button type="button" class="btn-plage-ligne" data-add-personne="' + cle + '" title="Ajouter">+</button>' +
         '</div>';
       poserPleineLargeur(lg, row);
-      lg.querySelector(".btn-plage-ligne").addEventListener("click", function () { ouvrirAjoutPersonne(cle === "intervenants"); });
       row++;
     }
 
@@ -7087,10 +7462,24 @@
     var groupePersonnel = PERSONNES.filter(function (p) { return !p.sousTraitant; });
     var groupeIntervenants = PERSONNES.filter(function (p) { return p.sousTraitant; });
 
-    ligneSection("personnel", "Personnel");
-    if (!replierSectionPersonnel) ligneGroupePersonnes(groupePersonnel);
-    ligneSection("intervenants", "Intervenants");
-    if (!replierSectionIntervenants) ligneGroupePersonnes(groupeIntervenants);
+    // §86 (round du 17.09.2026, suite) — Lionel : « les lignes de séparation
+    // "personnel" et "intervenant" doivent aussi être masquées quand le
+    // groupe correspondant est masqué ». Jusqu'ici seule ligneGroupePersonnes
+    // (les personnes elles-mêmes) était sautée quand repliée — ligneSection
+    // (le libellé "PERSONNEL"/"INTERVENANTS", avec son .section-row et le
+    // trait `border-bottom` qui le souligne) restait posée dans tous les cas,
+    // comme un en-tête. Même principe que le §84 (Jalons/Notes) : la ligne
+    // repliée ne doit plus exister DU TOUT dans la grille, libellé compris —
+    // ligneSection() rejoint donc la même condition que le groupe qu'elle
+    // annonce, au lieu d'être appelée inconditionnellement juste avant.
+    if (!replierSectionPersonnel) {
+      ligneSection("personnel", "Personnel");
+      ligneGroupePersonnes(groupePersonnel);
+    }
+    if (!replierSectionIntervenants) {
+      ligneSection("intervenants", "Intervenants");
+      ligneGroupePersonnes(groupeIntervenants);
+    }
 
     if (scrollerPrecedent) scroller.scrollLeft = scrollLeftPrecedent;
     // enteteScroll doit refléter le même défilement horizontal dès ce même
@@ -7102,6 +7491,8 @@
     majBoutonsUndo();
     majBarreSelection();
     majControlesAffichage();
+    majZoomAffichage();
+    majSemaineAffichage();
     ajusterEnteteFixe();
   }
 
@@ -8473,6 +8864,31 @@
     });
   }
 
+  // §85 (round du 17.09.2026) — synchronise le texte de la case de zoom
+  // ("100% ▾") sur niveauZoomPlanning, à chaque rendu — même idée que
+  // majControlesAffichage() juste au-dessus (bouton statique, câblé une
+  // seule fois dans cablerPagePlanning ; le niveau réel est déjà appliqué
+  // par construireGrille sur grilleEntete/grilleCorps, ceci ne touche que
+  // l'étiquette affichée).
+  function majZoomAffichage() {
+    var btn = document.getElementById("btnZoom");
+    if (btn) btn.textContent = niveauZoomPlanning + "% ▾";
+  }
+
+  // §87 (round du 17.09.2026, suite×2) — synchronise la case "Sem. N" et
+  // l'icône "2 semaines" de la barre sur etat.indexSemaine/deuxSemaines, à
+  // chaque rendu — même idée que majZoomAffichage() juste au-dessus (boutons
+  // statiques, câblés une seule fois dans cablerPagePlanning). Remplace
+  // l'ancien affichage "Semaine N" de coinNav/navSemaine, reconstruit à
+  // chaque rendu DANS construireGrille (retiré ce round) ; la case étant
+  // désormais hors de la grille, un aller-retour séparé est nécessaire.
+  function majSemaineAffichage() {
+    var pill = document.getElementById("btnSemainePill");
+    if (pill && etat.semaines[etat.indexSemaine]) pill.textContent = "Sem. " + etat.semaines[etat.indexSemaine].num + " ▾";
+    var btn2s = document.getElementById("btnDeuxSemaines");
+    if (btn2s) btn2s.classList.toggle("actif", deuxSemaines);
+  }
+
   /* ============================================================
      SÉLECTION MULTIPLE / BARRE D'ACTION — repris du prototype (§3.3 de
      v3-inventory.md) : ces fonctions étaient déjà APPELÉES un peu partout
@@ -8794,6 +9210,16 @@
     var d = new Date(iso + "T00:00:00");
     return JOURS_ABBR[d.getDay()] + ". " + l.jour + " " + l.mois;
   }
+  // §88 — même libellé que libelleDateCourte, mais depuis une vraie date ISO
+  // plutôt qu'un gi (donc valable pour une date HORS de la fenêtre chargée,
+  // qui n'a par définition aucun gi — cf. libelleJourGi/isoDeGi, qui lisent
+  // etat.cache et renvoient vide dans ce cas). Calcule jour/mois directement
+  // par l'objet Date plutôt que via le cache serveur.
+  function libelleDateCourteIso(iso) {
+    if (!iso) return "";
+    var d = new Date(iso + "T00:00:00");
+    return JOURS_ABBR[d.getDay()] + ". " + d.getDate() + " " + MOIS_ABBR[d.getMonth() + 1];
+  }
   var ICONE_FERMER = '<svg class="icon" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>';
   var ICONE_DRAPEAU = '<svg class="icon" viewBox="0 0 24 24"><path d="M6 3v18M6 4h12l-3 4 3 4H6"/></svg>';
   var ICONE_CHEVRON_G = '<svg class="icon" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg>';
@@ -8817,13 +9243,21 @@
   // "jeudi A, vendredi P... voudrait dire 2 jours complets, il n'y a pas de
   // trou" — correct, cf. commentaire de datesPlageHTML plus bas) : aucune
   // combinaison n'est désactivée ici.
-  function dateLigneHTML(label, gi, bord, demi) {
+  // isoHorsFenetre (§88) : quand non-null, cette borne est hors de la
+  // fenêtre actuellement chargée (uniquement possible pour un jalon/note,
+  // cf. appliquerDateChoisieFormulaire) — le libellé vient alors directement
+  // de la vraie date ISO (libelleDateCourteIso) plutôt que du gi (calé/
+  // clampé sur le bord visible, cf. commentaire de appliquerDateChoisieFormulaire),
+  // avec une classe CSS dédiée pour rester lisible que ce jour n'est pas
+  // affiché à l'écran en ce moment.
+  function dateLigneHTML(label, gi, bord, demi, isoHorsFenetre) {
+    var texteDate = isoHorsFenetre ? libelleDateCourteIso(isoHorsFenetre) : libelleDateCourte(gi);
     return '<div class="date-ligne" data-bord="' + bord + '">' +
       '<div class="date-ligne-gauche">' +
       '<span class="label-date">' + label + '</span>' +
       '<div class="date-nav">' +
       '<button type="button" class="fleche f-fleche" data-sens="-1" title="Jour précédent">' + ICONE_CHEVRON_G + '</button>' +
-      '<span class="date-val">' + esc(libelleDateCourte(gi)) + '</span>' +
+      '<span class="date-val' + (isoHorsFenetre ? ' date-val-hors-fenetre' : '') + '"' + (isoHorsFenetre ? ' title="Hors de la semaine affichée actuellement à l’écran"' : '') + '>' + esc(texteDate) + '</span>' +
       '<button type="button" class="fleche f-fleche" data-sens="1" title="Jour suivant">' + ICONE_CHEVRON_D + '</button>' +
       '</div></div>' +
       '<div class="demi-toggle" title="Moment de la journée">' +
@@ -8846,10 +9280,10 @@
   // d'une nouvelle tâche et la sélection au glissé) devait être corrigée en
   // conséquence pour ne jamais compter cette combinaison-là comme "à
   // moitié libre" alors qu'elle s'affiche pleine — cf. demisOccupeesTache.
-  function datesPlageHTML(giDebut, giFin, demiDebut, demiFin) {
+  function datesPlageHTML(giDebut, giFin, demiDebut, demiFin, isoDebutHorsFenetre, isoFinHorsFenetre) {
     return '<div class="dates-plage">' +
-      dateLigneHTML("Début", giDebut, "debut", demiDebut) +
-      dateLigneHTML("Fin", giFin, "fin", demiFin) +
+      dateLigneHTML("Début", giDebut, "debut", demiDebut, isoDebutHorsFenetre) +
+      dateLigneHTML("Fin", giFin, "fin", demiFin, isoFinHorsFenetre) +
       '</div>';
   }
   function piedPrincipalHTML(avecSuppr) {
@@ -8872,6 +9306,15 @@
       lien.classList.toggle("ferme", bloc.hidden);
       lien.innerHTML = bloc.hidden ? ("Plus d’options " + ICONE_CHEVRON_BAS) : ("Moins d’options " + ICONE_CHEVRON_HAUT);
     });
+  }
+  // §88 — vraie date ISO d'une borne du state, qu'elle soit dans la fenêtre
+  // (dérivée du gi) ou hors fenêtre (override debutHorsFenetreIso/
+  // finHorsFenetreIso, jalon/note uniquement — cf. appliquerDateChoisieFormulaire).
+  // Utilisée partout où le code avait besoin jusqu'ici de `isoDeGi(state.giXxx)`
+  // pour connaître "la date actuellement affichée pour cette borne".
+  function isoBorneEtat(state, bord) {
+    if (bord === "debut") return state.debutHorsFenetreIso || isoDeGi(state.giDebut);
+    return state.finHorsFenetreIso || isoDeGi(state.giFin);
   }
   // state : { giDebut, giFin, demiDebut, demiFin, ... } muté en place ;
   // rafraichir() est rappelée après chaque changement pour re-rendre le bloc
@@ -8909,8 +9352,12 @@
         // nouvelle fenêtre], il ne doit pas y avoir de limite ». cf. le
         // commentaire de appliquerDateChoisieFormulaire pour l'explication
         // complète (la fenêtre chargée n'est pas qu'une limite d'affichage :
-        // c'est aussi la limite réelle du moteur de synchronisation).
-        var isoActuel = isoDeGi(bord === "debut" ? state.giDebut : state.giFin);
+        // c'est aussi la limite réelle du moteur de synchronisation — vrai
+        // pour tâche/absence, plus pour jalon/note depuis §88, cf. son
+        // commentaire). isoBorneEtat (§88) plutôt que isoDeGi direct : sinon
+        // "Fin suivant" repartirait du bord VISIBLE (clampé) au lieu de la
+        // vraie date déjà choisie, dès qu'une borne est hors fenêtre.
+        var isoActuel = isoBorneEtat(state, bord);
         if (!isoActuel) return;
         appliquerDateChoisieFormulaire(state, bord, isoJourOuvreVoisin(isoActuel, sens), rafraichir);
       });
@@ -8980,15 +9427,23 @@
   // main, il faudra soit ramener une variante d'"Ajout lointain", soit
   // construire le vrai enregistrement en plage évoqué dans le commentaire de
   // appliquerDateChoisieFormulaire.
+  //
+  // §88 : le paragraphe ci-dessus ("une date hors fenêtre est refusée") ne
+  // vaut plus que pour tâche/absence — cf. appliquerDateChoisieFormulaire.
+  // Pour jalon/note, ce calendrier peut donc de nouveau viser une date
+  // lointaine, comme le pouvait l'ancien "Ajout lointain".
   function cablerCalendrierDate(conteneur, state, rafraichir) {
     conteneur.querySelectorAll(".date-val").forEach(function (span) {
       span.classList.add("date-val-cliquable");
-      span.title = "Cliquer pour choisir une date dans le calendrier";
+      // Ne pas écraser le title "hors de la semaine affichée" déjà posé par
+      // dateLigneHTML (§88) sur une borne hors fenêtre — on le complète
+      // plutôt que de le remplacer.
+      span.title = (span.classList.contains("date-val-hors-fenetre") ? "Hors de la semaine affichée actuellement à l’écran. " : "") + "Cliquer pour choisir une date dans le calendrier";
       span.addEventListener("click", function () {
         if (conteneur.querySelector(".date-picker-natif")) return; // déjà ouvert (ex. double-clic)
         var ligne = span.closest(".date-ligne");
         var bord = ligne.dataset.bord;
-        var isoActuel = isoDeGi(bord === "debut" ? state.giDebut : state.giFin);
+        var isoActuel = isoBorneEtat(state, bord);
         if (!isoActuel) return;
         var input = document.createElement("input");
         input.type = "date";
@@ -9040,39 +9495,67 @@
   // n'aurait fait que déplacer le problème (et perdre le fil visuel de
   // Lionel avec la grille, cf. retour 1) sans jamais lever la vraie limite.
   //
-  // Cette fonction ne touche donc plus jamais à etat.indexSemaine : une date
-  // choisie hors de la fenêtre actuellement affichée est refusée (toast
-  // explicatif) plutôt que de déclencher une navigation qui de toute façon ne
-  // pourrait pas être enregistrée correctement. Lever la limite pour de bon
-  // demanderait un vrai enregistrement en plage côté serveur pour les
-  // tâches/absences/jalons (comme enregistrer-plage le fait déjà pour les
-  // notes, cf. diffsNotes) — un chantier séparé, pas fait ici (même logique
-  // que la limite documentée sur la modification d'une série, cf. §53.3 du
-  // FRONTEND-CHANGELOG). En attendant, un élément qui doit vraiment durer
-  // sans limite (une longue absence/vacances) reste réalisable dès
-  // aujourd'hui via la case "Série (se répète)" à la création : chaque
-  // occurrence est créée directement par le serveur à sa date, sans jamais
-  // dépendre de ce qui est chargé côté client.
+  // §88 (round du 17.09.2026, suite×3) — MISE À JOUR IMPORTANTE du
+  // raisonnement ci-dessus, suite au retour de Lionel : « L'ajout hors
+  // semaine active est bloqué par les formulaires de saisie » (après avoir
+  // testé §87 en conditions réelles). Le blocage décrit plus haut reste
+  // ENTIÈREMENT réel pour une Tâche/Absence (aucun enregistrement en plage
+  // côté serveur pour elles — cf. le paragraphe ci-dessus, toujours valable
+  // pour ces 2 types, un chantier séparé à faire). Pour un Jalon ou une
+  // Note en revanche, ce "chantier séparé" n'en est plus un : le serveur
+  // (planPlage, functions/enregistrer-plage/logic.js) sait DÉJÀ écrire une
+  // plage entière à partir de vraies dates ISO, sans jamais dépendre de ce
+  // qui est chargé côté client — cf. diffsNotes, qui l'utilise déjà ainsi.
+  // Le vrai blocage pour ces 2 types n'était donc QUE dans cette fonction
+  // (et le moteur de diff associé, cf. jalonsParId/diffsJalons plus bas) —
+  // purement un choix d'implémentation, pas une limite du serveur.
+  //
+  // state.kind ("jalon"|"note"|"tache"|"absence", posé par
+  // ouvrirEditionPlage/ouvrirEdition) distingue donc maintenant les 2 cas :
+  // - jalon/note : une date hors fenêtre n'est plus refusée. La borne
+  //   choisie est gardée comme une vraie date ISO à part
+  //   (state.debutHorsFenetreIso/finHorsFenetreIso), le gi correspondant
+  //   étant calé ("clampé") sur le bord VISIBLE le plus proche pour que le
+  //   reste du code qui a besoin d'une position d'affichage (surbrillance de
+  //   la grille essentiellement — cf. surbrillancePreciseJalonNote) garde
+  //   quelque chose de valide à lire. La comparaison Début/Fin ci-dessous se
+  //   fait donc sur de VRAIES dates ISO (jamais des gi, qui n'existent que
+  //   DANS la fenêtre) pour rester juste même quand l'une des 2 bornes est
+  //   hors fenêtre.
+  // - tâche/absence : comportement INCHANGÉ, la date est toujours refusée
+  //   (toast) — cf. le paragraphe précédent, toujours vrai pour ces 2 types.
   //
   // La borne éditée (`bord`) garde TOUJOURS exactement la date choisie —
   // l'AUTRE borne n'est recollée dessus que si la garder créerait un
   // intervalle invalide (Début > Fin) ; sinon elle reste inchangée (cf.
   // cablerDatesPlage pour le détail de cette asymétrie).
   function appliquerDateChoisieFormulaire(state, bord, isoChoisi, rafraichir) {
+    var supportePlageServeur = state.kind === "jalon" || state.kind === "note";
     var giChoisi = giDepuisIso(isoChoisi);
-    if (giChoisi == null) {
+    if (giChoisi == null && !supportePlageServeur) {
       toast("Cette date sort de la semaine affichée : la durée d’un élément ne peut pas dépasser la fenêtre actuellement chargée.");
       return;
     }
-    var giAutre = bord === "debut" ? state.giFin : state.giDebut;
+    var autreEstFin = bord === "debut";
+    var isoAutre = autreEstFin
+      ? (state.finHorsFenetreIso || isoDeGi(state.giFin))
+      : (state.debutHorsFenetreIso || isoDeGi(state.giDebut));
+    var isoDebutFinal, isoFinFinal;
     if (bord === "debut") {
-      state.giDebut = giChoisi;
-      state.giFin = (giAutre >= giChoisi) ? giAutre : giChoisi;
+      isoDebutFinal = isoChoisi;
+      isoFinFinal = (isoAutre >= isoChoisi) ? isoAutre : isoChoisi;
     } else {
-      state.giFin = giChoisi;
-      state.giDebut = (giAutre <= giChoisi) ? giAutre : giChoisi;
+      isoFinFinal = isoChoisi;
+      isoDebutFinal = (isoAutre <= isoChoisi) ? isoAutre : isoChoisi;
     }
-    if (state.giDebut === state.giFin) state.demiFin = state.demiDebut;
+    var giD = giDepuisIso(isoDebutFinal), giF = giDepuisIso(isoFinFinal);
+    var n = nbJoursAffiches();
+    state.giDebut = giD != null ? giD : 0;
+    state.giFin = giF != null ? giF : (n - 1);
+    if (state.giDebut > state.giFin) { var tmp = state.giDebut; state.giDebut = state.giFin; state.giFin = tmp; }
+    state.debutHorsFenetreIso = giD != null ? null : isoDebutFinal;
+    state.finHorsFenetreIso = giF != null ? null : isoFinFinal;
+    if (state.giDebut === state.giFin && !state.debutHorsFenetreIso && !state.finHorsFenetreIso) state.demiFin = state.demiDebut;
     rafraichir();
   }
   // Descriptif affiché en texte simple, cliquable pour ouvrir un petit
@@ -9454,6 +9937,41 @@
     cablerBoutonsMenuAjout(pop, fermer, cell, null, null, cibles, giDebut, duree, plageInit, demiDebut, demiFin);
   }
 
+  // §85 (round du 17.09.2026) — Lionel, mockup mockup-sous-menu-outils.html à
+  // l'appui : icône "+" de la barre d'outils, pour ajouter un Jalon/Note/
+  // Tâche/Absence SANS être obligé de cliquer une case de la grille au
+  // préalable (contrairement à ouvrirAjout/ouvrirAjoutPlage ci-dessus, qui
+  // partent toujours d'une case ou d'une plage réellement cliquée).
+  // giPourAjoutBarre() vise aujourd'hui s'il est dans la semaine affichée (10
+  // jours en mode 2 semaines), sinon le premier jour affiché — pas d'autre
+  // choix raisonnable sans case cliquée pour deviner "quel jour".
+  function giPourAjoutBarre() {
+    var n = nbJoursAffiches();
+    for (var gi = 0; gi < n; gi++) { if (isoDeGi(gi) === etat.aujourdhui) return gi; }
+    return 0;
+  }
+  function ouvrirAjoutElementBarre(type, personneId) {
+    var gi = giPourAjoutBarre();
+    // Jalon/Note : même formulaire qu'un clic sur leur ligne (ouvrirAjout,
+    // branche kind !== "personne"), journée ENTIÈRE par défaut (demiDebut/
+    // demiFin null — pas de case cliquée pour deviner matin/après-midi,
+    // ajustable ensuite via les boutons M/A de la fiche qui s'ouvre).
+    if (type === "jalon" || type === "note") {
+      ouvrirEditionPlage(type, null, gi, 1, null, null, null, null, null);
+      return;
+    }
+    // Tâche/Absence : même formulaire qu'un clic sur la case du jour de
+    // cette personne (ouvrirEdition), via un plageInit "fabriqué" à la main
+    // (aucune case réelle) plutôt qu'un cell DOM — cf. le commentaire de
+    // ouvrirEdition, qui ignore totalement `cell` dès qu'un plageInit est
+    // fourni. px/py : même repli "centre de l'écran" que ouvrirAjoutPersonne
+    // ci-dessus (pas de case/position de clic à partir de laquelle positionner
+    // la fiche).
+    var px = Math.round(window.innerWidth / 2 - 110), py = Math.round(window.innerHeight / 2 - 90);
+    var plageInit = { cibles: [{ personne: personneId, demi: "matin" }], giDebut: gi, duree: 1, demiDebut: null, demiFin: null, px: px, py: py };
+    ouvrirEdition(null, null, type, null, null, plageInit, null, null);
+  }
+
   function positionFormulaire(x, y, plageInit) {
     if (plageInit) return { px: plageInit.px, py: plageInit.py };
     return { px: x != null ? x : Math.round(window.innerWidth / 2 - 110), py: y != null ? y : Math.round(window.innerHeight / 2 - 90) };
@@ -9823,7 +10341,9 @@
     // unique, sans plage précise transmise).
     var demiInit = (!itemExisting && extraCell && (extraCell.demi === "matin" || extraCell.demi === "aprem")) ? extraCell.demi : null;
     var state = {
+      kind: typeAffiche, // §88 — "tache"|"absence" : appliquerDateChoisieFormulaire continue donc à refuser toute date hors fenêtre ici, aucun changement de comportement pour ces 2 types (cf. son commentaire — pas encore de vrai enregistrement en plage côté serveur pour eux).
       giDebut: giDebut0, giFin: giDebut0 + duree0 - 1,
+      debutHorsFenetreIso: null, finHorsFenetreIso: null,
       demiDebut: itemExisting ? (itemExisting.demiDebut || null) : (demiDebutArg !== undefined ? demiDebutArg : demiInit),
       demiFin: itemExisting ? (itemExisting.demiFin || null) : (demiFinArg !== undefined ? demiFinArg : demiInit),
       important: itemExisting ? itemExisting.important : false
@@ -10069,7 +10589,9 @@
     // ce round (Lionel : « les surbrillance sont fausse aussi sur les notes
     // et jalons, je les veux case par case »).
     var state = {
+      kind: kind, // §88 — lu par appliquerDateChoisieFormulaire pour savoir si une date hors fenêtre est permise (jalon/note) ou refusée (tâche/absence, cf. ouvrirEdition)
       giDebut: giDebutReel, giFin: giDebutReel + dureeInit - 1,
+      debutHorsFenetreIso: null, finHorsFenetreIso: null,
       demiDebut: itemExisting ? (itemExisting.demiDebut || null) : (demiDebutArg !== undefined ? demiDebutArg : null),
       demiFin: itemExisting ? (itemExisting.demiFin || null) : (demiFinArg !== undefined ? demiFinArg : null),
       important: itemExisting ? itemExisting.important : false
@@ -10092,7 +10614,7 @@
 
     pop.innerHTML =
       bandeauHTML({ clair: true, fondStyle: "background:var(--" + kind + "-bg)", important: state.important, chantierHTML: "", nomGrand: libelles[kind] }) +
-      datesPlageHTML(state.giDebut, state.giFin, state.demiDebut, state.demiFin) +
+      datesPlageHTML(state.giDebut, state.giFin, state.demiDebut, state.demiFin, state.debutHorsFenetreIso, state.finHorsFenetreIso) +
       '<div class="contenu-carte">' +
       '<div class="corps"><div class="label-champ" style="margin:0 0 6px">Descriptif</div>' +
       '<div class="descriptif-texte" tabindex="0"></div></div>' +
@@ -10117,14 +10639,14 @@
       this.classList.toggle("actif", state.important);
     });
     function rafraichirDates() {
-      pop.querySelector(".dates-plage").outerHTML = datesPlageHTML(state.giDebut, state.giFin, state.demiDebut, state.demiFin);
+      pop.querySelector(".dates-plage").outerHTML = datesPlageHTML(state.giDebut, state.giFin, state.demiDebut, state.demiFin, state.debutHorsFenetreIso, state.finHorsFenetreIso);
       cablerDatesPlage(pop, state, rafraichirDates);
     }
     cablerDatesPlage(pop, state, rafraichirDates);
     var texteActuel = texteInit;
     cablerDescriptifEdit(pop, function () { return texteActuel; }, function (v) { texteActuel = v; }, "Cliquer pour ajouter un descriptif…");
 
-    var lireChoixSerie = cablerSerieChamps(pop, itemExisting ? itemExisting.dateDebutIso : isoDeGi(state.giDebut));
+    var lireChoixSerie = cablerSerieChamps(pop, itemExisting ? itemExisting.dateDebutIso : isoBorneEtat(state, "debut"));
     cablerLienPlus(pop);
 
     var suppr = pop.querySelector(".f-suppr");
@@ -10152,22 +10674,32 @@
       var texte = texteActuel.trim();
       if (!texte) { fermer(); return; }
       var important = state.important;
-      var giDebutFinal = state.giDebut, dureeFinal = state.giFin - state.giDebut + 1;
+      // §88 — isoDebutVrai/isoFinVrai (jamais isoDeGi(giDebutFinal) seul,
+      // qui donnerait la date du bord VISIBLE clampé, pas la vraie date,
+      // dès que l'une des 2 bornes est hors fenêtre) + dureeFinal en jours
+      // ouvrés RÉELS entre ces 2 dates (giFin-giDebut+1 ne veut plus rien
+      // dire dans ce cas, ces gi n'étant que des positions d'affichage).
+      var isoDebutVrai = isoBorneEtat(state, "debut"), isoFinVrai = isoBorneEtat(state, "fin");
+      var giDebutFinal = state.giDebut, dureeFinal = nbJoursOuvresEntre(isoDebutVrai, isoFinVrai);
       var demiDebutFinal = state.demiDebut, demiFinFinal = state.demiFin;
       // Sur 1 seul jour, Début=matin + Fin=aprem est une combinaison valide
       // côté fiche (cf. cablerDatesPlage) mais équivaut à une journée
       // entière — ramenée ici à la forme canonique (null/null) qu'attend
       // tout le reste du fichier (demisOccupeesTache, rendu des bulles,
       // glissé/redimensionnement...), qui suppose encore demiDebut ===
-      // demiFin dès que la durée vaut 1.
-      if (state.giDebut === state.giFin && demiDebutFinal === "matin" && demiFinFinal === "aprem") { demiDebutFinal = null; demiFinFinal = null; }
+      // demiFin dès que la durée vaut 1. Le garde-fou "hors fenêtre" (§88)
+      // évite de déclencher ça à tort quand giDebut === giFin uniquement
+      // parce que les 2 bornes sont clampées sur le même jour visible tout
+      // en restant réellement différentes (ex. début un vendredi, fin des
+      // semaines plus tard).
+      if (state.giDebut === state.giFin && !state.debutHorsFenetreIso && !state.finHorsFenetreIso && demiDebutFinal === "matin" && demiFinFinal === "aprem") { demiDebutFinal = null; demiFinFinal = null; }
       if (itemExisting) {
         function appliquerModifUnique() {
           sauvegarderUndo();
           itemExisting.texte = texte; itemExisting.important = important;
           itemExisting.giDebut = giDebutFinal; itemExisting.duree = dureeFinal;
           itemExisting.demiDebut = demiDebutFinal; itemExisting.demiFin = demiFinFinal;
-          itemExisting.dateDebutIso = isoDeGi(giDebutFinal);
+          itemExisting.dateDebutIso = isoDebutVrai;
           fermer(); render(); toast("Modifié.");
         }
         if (itemExisting.serieId) {
@@ -10205,7 +10737,7 @@
         } else {
           sauvegarderUndo();
           liste.push(itemPlage(kind, texte, giDebutFinal, dureeFinal, { important: important, demiDebut: demiDebutFinal, demiFin: demiFinFinal }));
-          liste[liste.length - 1].dateDebutIso = isoDeGi(giDebutFinal);
+          liste[liste.length - 1].dateDebutIso = isoDebutVrai;
           fermer(); render(); toast("Ajouté.");
         }
       }
