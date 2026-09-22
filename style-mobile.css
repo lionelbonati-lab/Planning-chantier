@@ -1,0 +1,50 @@
+/* ============================================================
+   style-mobile.css — overrides spécifiques téléphone (≤600px) uniquement.
+   Extrait de style.css le 22.09.2026 (suite du découpage en plusieurs
+   fichiers, cf. FRONTEND-CHANGELOG.md §89/§90) : sur les ~1700 lignes de
+   style.css, seules ces quelques règles dépendaient vraiment de la taille
+   d'écran — tout le reste (couleurs, grille, boutons, mises en page...)
+   est déjà commun aux 3 tailles, desktop et tablette rendant globalement
+   pareil. Objectif : pouvoir retravailler la version téléphone plus tard
+   en n'ouvrant que ce petit fichier, sans re-scanner tout style.css.
+   Chargé APRÈS style.css dans index.html (l'ordre n'a pas d'incidence ici
+   vu que chaque règle est dans son propre @media, mais autant charger la
+   surcouche en dernier).
+   ============================================================ */
+
+  /* -- mobile (≤600px, cf. .form-pop plein écran plus bas) : bandeau carré
+     (plus de coin arrondi à rogner), le bloc corps/options défile tandis que
+     bandeau/dates/pied restent fixes, éditeur du descriptif en demi-fenêtre
+     ancrée en bas (repris de mockups.html, .sheet). -- */
+  @media (max-width: 600px) {
+    .carte-item .bandeau { border-radius: 0; }
+    .carte-item .contenu-carte { flex: 1; overflow-y: auto; }
+    .desc-edit-box {
+      left: 0; right: 0; top: auto; bottom: 0; transform: none; width: auto; max-width: none;
+      border-radius: 20px 20px 0 0; box-shadow: 0 -12px 30px var(--shadow-lg);
+    }
+    .desc-edit-box textarea { flex: 1; height: 140px; }
+  }
+
+  /* Formulaires en plein écran sur téléphone (retour de Lionel du
+     03.09.2026 : "J'aimerais que tous les formulaires remplissent la page
+     complète téléphone, comme si c'était une nouvelle fenêtre qui
+     s'ouvrait"). Ne touche QUE `.form-pop` — les vrais formulaires (ajout/
+     modification tâche, absence, note, personne, chantier, "Aller à…"…) —
+     ni les menus contextuels (`.menu-pop`) ni les simples confirmations
+     oui/non (`.confirm-pop`), déjà assez petits pour rester lisibles tels
+     quels. `positionnerPop()` continue de poser `left`/`top` en px via JS
+     (repositionnement près du clic, comportement desktop inchangé) : le
+     `!important` ci-dessous est nécessaire pour prendre le dessus sur ce
+     style inline. Coupure à 600px : approximation usuelle téléphone/
+     tablette, aucune borne exacte de matériel n'existe de toute façon. Le
+     pendant tablette (601-1024px, "demi-page") est resté dans style.css —
+     desktop et tablette rendent assez similaires, seule la version
+     téléphone avait besoin d'être isolée. -- */
+  @media (max-width: 600px) {
+    .form-pop {
+      left: 0 !important; top: 0 !important;
+      width: 100% !important; height: 100dvh !important; max-height: 100dvh !important;
+      max-width: 100% !important; border-radius: 0;
+    }
+  }

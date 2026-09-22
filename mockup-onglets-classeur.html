@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — onglets calqués sur la headerbar nolio.io/calendar/</title>
+<style>
+  /* ============================================================
+     Variables reprises telles quelles d'index.html (:root + mode sombre).
+     ============================================================ */
+  :root {
+    --bg: #ffffff; --surface: #f0f0f0; --surface-2: #dfdfdf;
+    --ink: #1a2129; --ink-muted: #57616b; --ink-faint: #8b93a0;
+    --border: #d7dad2; --border-strong: #1a2129;
+    --accent: #1f4d8f; --accent-ink: #ffffff; --accent-soft: #e3ecf7;
+    --shadow: rgba(20, 24, 30, .14);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #10161d; --surface: #171f28; --surface-2: #1c2530;
+      --ink: #eef1f4; --ink-muted: #9aa7b3; --ink-faint: #66717c;
+      --border: #2b3540; --border-strong: #4a5661;
+      --accent: #6fa6e8; --accent-ink: #0b1622; --accent-soft: #223247;
+      --shadow: rgba(0, 0, 0, .4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #10161d; --surface: #171f28; --surface-2: #1c2530;
+    --ink: #eef1f4; --ink-muted: #9aa7b3; --ink-faint: #66717c;
+    --border: #2b3540; --border-strong: #4a5661;
+    --accent: #6fa6e8; --accent-ink: #0b1622; --accent-soft: #223247;
+    --shadow: rgba(0, 0, 0, .4);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: 'Archivo', 'Helvetica Neue', Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---------- bandeau d'explication (mockup uniquement) ---------- */
+  .note-mockup {
+    background: var(--accent-soft); color: var(--accent); border-bottom: 1px solid var(--border);
+    padding: 10px 18px; font-size: 13px; font-weight: 600; display: flex; align-items: center;
+    justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  }
+  .note-mockup span.detail { font-weight: 500; color: var(--ink-muted); }
+  .note-mockup button {
+    font-family: inherit; font-size: 12.5px; font-weight: 700; padding: 7px 13px; border-radius: 8px;
+    border: 1px solid var(--border-strong); background: var(--bg); color: var(--ink); cursor: pointer;
+  }
+  .note-mockup button:hover { background: var(--surface-2); }
+
+  .app-shell { max-width: 1100px; margin: 0 auto; }
+
+  /* ============================================================
+     Reprise §3 — Lionel, 2 consignes :
+     1. « je ne veux plus de différence entre les onglets, ils doivent
+        tous être "principales" » — la distinction .secondaire (5 pages de
+        réglages en retrait, 2 pistes séparées dans la v2) disparaît : un
+        seul groupe, 9 onglets traités à l'identique.
+     2. « je ne veux pas de pilules dans le menu. je veux qu'au passage de
+        la souris une pilule apparaisse mais lorsque la page est
+        sélectionnée, cette pilule est lié à la page. » — 3 états bien
+        distincts, pas 2 :
+          - au repos : du texte SEUL, aucun encadré, aucun fond — la v2
+            (pilule bleue en permanence) est abandonnée.
+          - au survol : une pilule ORDINAIRE apparaît (fond + coins
+            arrondis des 4 côtés), posée entièrement DANS la barre,
+            purement décorative, sans aucun rapport avec la page — un
+            simple retour visuel de survol, comme n'importe quel bouton.
+          - onglet sélectionné : ce n'est PAS la même pilule que le survol
+            — celle-ci est « liée à la page » : elle dépasse au-dessus de
+            la barre, coins arrondis seulement en haut, et son bas
+            rejoint directement le blanc de la page sans bordure ni angle
+            droit (repris de la toute 1ère piste, congé concave inclus —
+            cf. commentaire de .onglet.actif::before/::after plus bas).
+     Fond de la barre : gris clair (var(--surface)), comme dans la toute
+     1ère demande de Lionel — jamais remis en cause depuis, seule la façon
+     de traiter l'onglet actif avait changé entretemps.
+     ============================================================ */
+  .onglets-nav {
+    /* align-items: flex-end (et non "center") : cale le bas de
+       .onglets-liste exactement sur le bas de .marque-nav (le séparateur
+       vertical), lui-même déjà calé sur le bas de la barre. Avec "center"
+       il restait ~3-4px de gris SOUS les onglets avant le blanc de la
+       page : le raccord courbe de l'onglet actif s'arrêtait donc trop
+       tôt, avec un reste de barre grise visible juste en dessous —
+       contribuait aussi au "coupé" signalé par Lionel. */
+    display: flex; align-items: flex-end; gap: 10px;
+    background: var(--surface);
+    padding: 9px 10px 0 10px;
+    position: sticky; top: 0; z-index: 40;
+  }
+  .marque-nav {
+    display: flex; align-items: center; flex-shrink: 0;
+    padding-right: 10px; padding-bottom: 9px; border-right: 1px solid var(--border);
+  }
+  .marque-nav img { width: 28px; height: 28px; border-radius: 7px; display: block; }
+
+  .onglets-liste {
+    display: flex; gap: 9px; align-items: flex-end; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    flex: 1 1 auto; min-width: 0;
+    /* padding gauche/droite = rayon du congé de raccord (14px, cf. plus
+       bas) : sans ça, le 1er ou le dernier onglet, actif, verrait son
+       raccord tronqué par le défilement horizontal.
+       padding-top : CSS force overflow-y à valoir "auto" dès que overflow-x
+       vaut "auto" (règle de la spec Overflow, même quand on ne voulait que
+       le défilement horizontal) — cette liste rogne donc tout ce qui dépasse
+       sa propre boîte. Or l'onglet actif dépasse volontairement vers le
+       haut (margin-top négatif, cf. .onglet.actif) : sans réserver cette
+       place ICI, dans le padding de .onglets-liste elle-même, le haut de
+       la pilule active est purement et simplement coupé — c'est le second
+       bug (distinct du box-shadow) derrière le retour de Lionel « (...)
+       est coupé ». 9px = 7px de dépassement réel + marge de sécurité. */
+    padding: 9px 14px 0 14px;
+    /* §6 — Lionel : « supprime cette barre de défilement ». Le défilement
+       horizontal reste actif (glisser au doigt/trackpad, molette+shift) —
+       seule la barre de scroll VISIBLE disparaît. Sur Windows/Chrome,
+       cette barre classique réserve une bande de hauteur en bas de la
+       liste (contrairement au scrollbar "overlay" de macOS) : elle
+       grignotait la place calculée ci-dessus pour le dépassement de
+       l'onglet actif, ce qui explique très probablement la forme
+       déformée ("bateau") observée chez Lionel — donc ce correctif
+       devrait aussi régler ce bug en plus de répondre à sa demande. */
+    scrollbar-width: none; -ms-overflow-style: none;
+  }
+  .onglets-liste::-webkit-scrollbar { display: none; height: 0; }
+  .avatar-nav {
+    flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%;
+    background: var(--accent-soft); color: var(--accent); border: 1px solid var(--border);
+    display: grid; place-items: center; font-size: 12px; font-weight: 800;
+    font-family: 'IBM Plex Mono', monospace; cursor: pointer; margin-bottom: 9px;
+    transition: background .12s, border-color .12s, color .12s;
+  }
+  .avatar-nav:hover { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+
+  /* ---------- état 1 : au repos — texte seul, rien d'autre ---------- */
+  .onglet {
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px 14px; font-size: 12.5px; font-weight: 700; color: var(--accent);
+    border: none; border-radius: 9px; background: none; cursor: pointer;
+    white-space: nowrap; flex-shrink: 0; font-family: inherit;
+    transition: background .12s, color .12s, margin-top .12s, padding-top .12s;
+  }
+  .onglet svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+  /* ---------- état 2 : survol — pilule ordinaire, posée DANS la barre,
+     sans aucun lien avec la page (4 coins arrondis, ne dépasse pas). ---- */
+  .onglet:hover:not(.actif) { background: var(--surface-2); }
+
+  /* ---------- état 3 : sélectionné — pilule « liée à la page » ----------
+     §5 — Lionel a pointé la vraie référence : la headerbar du calendrier
+     sur nolio.io/calendar/ (barre "Prévu / Réalisé / Prévu et réalisé").
+     Mesures prises pixel par pixel sur sa capture d'écran :
+       - fond de la barre : gris très clair (≈ #f8f8f8 → notre var(--surface))
+       - pilule active : blanc plein, AUCUNE ombre
+       - rayon du coin arrondi du haut ET du congé concave du bas : ~14px
+         dans les deux cas (mesuré ≈13-15px) — même rayon partout, plus
+         généreux que notre 1er essai à 8px, d'où la mise à jour ci-dessous.
+       - le texte garde EXACTEMENT la même couleur (bleu de marque nolio)
+         que l'onglet soit actif ou non : seule la graisse (plus grasse sur
+         l'actif) et la présence de la pilule distinguent l'état — repris
+         ici avec var(--accent) partout + font-weight renforcé sur .actif. */
+  .onglet.actif {
+    position: relative;
+    background: var(--bg); color: var(--accent); font-weight: 800;
+    border-radius: 14px 14px 0 0;
+    margin-top: -7px; padding-top: 15px;
+  }
+  .onglet.actif:hover { background: var(--bg); }
+  /* §4 — Lionel : « l'onglet sélectionné (...) fait une forme bizarre et
+     est coupé ». Cause trouvée : le box-shadow posé ici auparavant suit le
+     VRAI contour rectangulaire de la boîte (coins bas DROITS, puisque
+     border-radius ne les arrondit pas) — visible dès qu'un onglet du
+     MILIEU de la liste est actif (voisins des deux côtés) : un halo gris
+     encadre alors un angle droit juste à côté du raccord courbe donné par
+     les demi-cercles ci-dessous, ce qui casse l'illusion (2 contours
+     différents superposés = "forme bizarre"). Retiré : la fusion avec la
+     page se lit très bien par le seul contraste de couleur (blanc sur
+     gris), sans ombre — aucune ombre ne doit être ajoutée ici sans
+     vérifier qu'elle ne redessine pas ces coins droits.
+
+     Congé concave entre le bas de l'onglet actif et la barre : un petit
+     carré de chaque côté (14×14, cf. §5), rempli d'un dégradé radial
+     centré sur le coin qui touche l'onglet — blanc (var(--bg)) tout près
+     de ce coin, transparent au-delà (le gris de la barre réapparaît) —
+     donne l'illusion d'un raccord courbe plutôt qu'un angle droit. */
+  /* §7 — Lionel a signalé une forme en « bateau » (une base large et plate
+     qui dépasse largement de chaque côté) au lieu du raccord concave
+     attendu. Cause RÉELLE trouvée (capture envoyée par Lionel + calcul
+     exact des coordonnées du centre d'arc SVG à la main, formule du spec
+     "endpoint-to-center parameterization") : le sweep-flag de ::before
+     était FAUX — il plaçait le centre de l'arc au coin OPPOSÉ (0,14) au
+     lieu du coin qui touche l'onglet (14,0), ce qui dessine un renflement
+     convexe vers l'extérieur (le "bateau") au lieu du creux concave.
+     Celui de ::after était déjà correct (centre (0,0), le bon coin) —
+     c'est pour ça qu'une capture montrant les DEUX côtés déformés vient
+     très probablement d'un ancien test où les deux côtés utilisaient par
+     erreur le même sweep-flag non adapté au miroir (le sweep-flag doit
+     s'inverser quand on inverse un tracé en miroir, sinon on obtient la
+     même courbe symétriquement fausse des deux côtés).
+     Vérifié par calcul : sweep=0 avec ce tracé (avant) → centre (14,0) ✓.
+     sweep=1 avec ce tracé (après) → centre (0,0) ✓. Confirmé ensuite par
+     rendu Playwright zoomé x8 sur chaque coin avant envoi. */
+  .onglet.actif::before,
+  .onglet.actif::after {
+    content: ""; position: absolute; bottom: 0; width: 14px; height: 14px; pointer-events: none;
+    background: var(--bg);
+  }
+  .onglet.actif::before {
+    left: -14px;
+    clip-path: path("M14,0 L0,0 A14,14 0 0,0 14,14 L14,0 Z");
+  }
+  .onglet.actif::after {
+    right: -14px;
+    clip-path: path("M0,0 L14,0 A14,14 0 0,1 0,14 L0,0 Z");
+  }
+
+  /* ---------- page ---------- */
+  .app-main { background: var(--bg); }
+  .page-demo { padding: 22px 24px 60px; }
+  .page-demo h2 { margin: 0 0 4px; font-size: 17px; }
+  .page-demo .sous-titre { color: var(--ink-muted); font-size: 13px; margin: 0 0 20px; }
+  .carte-demo {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 18px; margin-bottom: 12px; max-width: 520px;
+  }
+  .carte-demo .titre { font-weight: 700; font-size: 13.5px; margin-bottom: 4px; }
+  .carte-demo .txt { color: var(--ink-muted); font-size: 12.5px; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+  <div class="note-mockup">
+    <span>Mockup v5 — calqué sur la headerbar « Prévu / Réalisé / Prévu et réalisé » de nolio.io/calendar/ <span class="detail">(couleurs, rayon du raccord et poids du texte mesurés directement sur ta capture d'écran)</span></span>
+    <button type="button" id="toggleTheme">Passer en mode sombre</button>
+  </div>
+
+  <div class="app-shell">
+    <nav class="onglets-nav" id="ongletsNav">
+      <div class="marque-nav"><img src="https://raw.githubusercontent.com/lionelbonati-lab/Planning-chantier/main/icons/icon-32.png" width="28" height="28" alt="Planning Chantiers" onerror="this.style.display='none'"></div>
+      <div class="onglets-liste">
+        <button type="button" class="onglet actif" data-page="planning"><svg width="14" height="14" viewBox="0 0 20 20" fill="none"><rect x="2.5" y="4" width="15" height="13" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 8h15" stroke="currentColor" stroke-width="1.5"/><path d="M6 2.5v3M14 2.5v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Planning</button>
+        <button type="button" class="onglet" data-page="jalons"><svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M5 2v16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M5 3h9.5l-2.2 3.5L14.5 10H5" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>Jalons</button>
+        <button type="button" class="onglet" data-page="personnel"><svg width="14" height="14" viewBox="0 0 20 20" fill="none"><circle cx="7" cy="6.2" r="2.6" stroke="currentColor" stroke-width="1.5"/><path d="M2.3 16c0-2.8 2.1-4.7 4.7-4.7s4.7 1.9 4.7 4.7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="14.6" cy="6.7" r="2.1" stroke="currentColor" stroke-width="1.4"/><path d="M12.7 11.7c2-.5 3.9.5 5 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>Personnel</button>
+        <button type="button" class="onglet" data-page="intervenants"><svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M3 15h14a1 1 0 0 0 1-1v-.5a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v.5a1 1 0 0 0 1 1z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M4.5 12.5C4.5 8 7.5 5 10 5s5.5 3 5.5 7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M10 5V3.3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Intervenants</button>
+        <button type="button" class="onglet" data-page="general"><svg width="14" height="14" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="2.6" stroke="currentColor" stroke-width="1.5"/><path d="M10 2.5v2M10 15.5v2M17.5 10h-2M4.5 10h-2M15.4 4.6l-1.4 1.4M6 12.6l-1.4 1.4M15.4 15.4l-1.4-1.4M6 7.4 4.6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Général</button>
+        <button type="button" class="onglet" data-page="chantiers"><svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M3 17V5.5L9 3v14M9 6h5.5a1 1 0 0 1 1 1v10" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M5.5 7h1.5M5.5 10h1.5M5.5 13h1.5M11.5 9.5h2M11.5 12.5h2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>Chantiers</button>
+        <button type="button" class="onglet" data-page="statuts"><svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M9.4 2.5H4a1 1 0 0 0-1 1v5.4c0 .27.1.52.3.7l7.6 7.6c.4.4 1 .4 1.4 0l5.4-5.4c.4-.4.4-1 0-1.4L10.1 2.8a1 1 0 0 0-.7-.3z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="6.3" cy="6.3" r="1.1" fill="currentColor"/></svg>Statuts</button>
+        <button type="button" class="onglet" data-page="feries"><svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M10 2.5l2.2 4.6 5 .7-3.6 3.6.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.6 5-.7L10 2.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Fériés</button>
+        <button type="button" class="onglet" data-page="entree-rapide"><svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M11 2 4 11.5h5L8.5 18 16 8h-5.5L11 2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"/></svg>Entrée rapide</button>
+      </div>
+      <button type="button" class="avatar-nav" title="Se déconnecter" aria-label="Se déconnecter">L</button>
+    </nav>
+
+    <div class="app-main">
+      <div class="page-demo">
+        <h2 id="titrePage">Planning</h2>
+        <p class="sous-titre">Contenu de page factice. Passe la souris sur un onglet pour voir la pilule de survol (ordinaire) ; clique pour voir la pilule liée à la page (qui dépasse et se fond dans le blanc).</p>
+        <div class="carte-demo">
+          <div class="titre">Exemple de carte</div>
+          <div class="txt">Ce bloc simule une carte de la vraie page — seul l'aspect de la barre d'onglets au-dessus change dans ce mockup.</div>
+        </div>
+        <div class="carte-demo">
+          <div class="titre">Deuxième carte</div>
+          <div class="txt">Les 9 onglets sont désormais traités à l'identique, plus de groupe "réglages" en retrait.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  document.querySelectorAll(".onglet").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      document.querySelectorAll(".onglet").forEach(function (b) { b.classList.toggle("actif", b === btn); });
+      document.getElementById("titrePage").textContent = btn.textContent.trim();
+    });
+  });
+
+  var toggleBtn = document.getElementById("toggleTheme");
+  toggleBtn.addEventListener("click", function () {
+    var root = document.documentElement;
+    var actuel = root.getAttribute("data-theme");
+    if (actuel === "dark") {
+      root.setAttribute("data-theme", "light");
+      toggleBtn.textContent = "Passer en mode sombre";
+    } else {
+      root.setAttribute("data-theme", "dark");
+      toggleBtn.textContent = "Passer en mode clair";
+    }
+  });
+</script>
+</body>
+</html>

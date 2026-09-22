@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — toolbar en pilule + couleur liée aux séparateurs</title>
+<style>
+  /* ============================================================
+     Reprise des variables et classes réelles d'Index.html (:root,
+     .onglets-nav/.onglet, .toolbar-sheets/.toolbar-btn/.toolbar-toggle,
+     .zoom-ctrl/.select-chantier, .section-row, .th/.lbl/.grille) — pour que
+     ce mockup soit un aperçu fidèle de CE QUI EXISTE VRAIMENT aujourd'hui
+     dans l'appli, avant d'y ajouter les 4 demandes de Lionel (capture
+     d'écran du planning réel, annotée) :
+       1. une pilule autour de la toolbar
+       2. une page réglages dédiée pour changer sa couleur
+       3. les 3 séparateurs de section (Jalons/Personnel/Intervenants,
+          entourés en rouge sur sa capture) suivent TOUJOURS cette même
+          couleur
+       4. tous les onglets du menu du haut dans UNE SEULE couleur — l'appli
+          réelle a encore .onglet.secondaire (Général/Chantiers/Statuts/
+          Fériés/Entrée rapide, plus fades) datant d'avant l'abandon de la
+          maquette "classeur" : supprimé ici.
+     ============================================================ */
+  :root {
+    --bg: #eef0ec; --surface: #fbfaf7; --surface-2: #ffffff;
+    --ink: #1a2129; --ink-muted: #57616b; --ink-faint: #8b93a0;
+    --border: #d7dad2; --border-strong: #1a2129;
+    --accent: #1f4d8f; --accent-ink: #ffffff; --accent-soft: #e3ecf7;
+    --absence-bg: #f6c893; --jalon-bg: #d7cdf0; --note-bg: #f7e6ab;
+    --shadow: rgba(24, 33, 41, 0.16); --shadow-lg: rgba(15, 21, 27, 0.32);
+    /* §1 — nouvelle variable, seule couleur que la page réglages plus bas
+       modifie réellement. Tout le reste (pilule ET séparateurs) en dépend
+       directement, jamais d'une couleur écrite en dur ailleurs. */
+    --toolbar-pill: #e4ebf7;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #10161d; --surface: #171f28; --surface-2: #1c2530;
+      --ink: #eef1f4; --ink-muted: #9aa7b3; --ink-faint: #66717c;
+      --border: #2b3540; --border-strong: #4a5661;
+      --accent: #6fa6e8; --accent-ink: #0b1622; --accent-soft: #223247;
+      --shadow: rgba(0, 0, 0, .4); --shadow-lg: rgba(0,0,0,.6);
+      --toolbar-pill: #1e2c40;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #10161d; --surface: #171f28; --surface-2: #1c2530;
+    --ink: #eef1f4; --ink-muted: #9aa7b3; --ink-faint: #66717c;
+    --border: #2b3540; --border-strong: #4a5661;
+    --accent: #6fa6e8; --accent-ink: #0b1622; --accent-soft: #223247;
+    --shadow: rgba(0, 0, 0, .4); --shadow-lg: rgba(0,0,0,.6);
+    --toolbar-pill: #1e2c40;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: 'Archivo', 'Helvetica Neue', Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .note-mockup {
+    background: var(--accent-soft); color: var(--accent); border-bottom: 1px solid var(--border);
+    padding: 10px 18px; font-size: 13px; font-weight: 600; display: flex; align-items: center;
+    justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  }
+  .note-mockup span.detail { font-weight: 500; color: var(--ink-muted); }
+  .note-mockup button {
+    font-family: inherit; font-size: 12.5px; font-weight: 700; padding: 7px 13px; border-radius: 8px;
+    border: 1px solid var(--border-strong); background: var(--bg); color: var(--ink); cursor: pointer;
+  }
+  .note-mockup button:hover { background: var(--surface-2); }
+
+  .app-shell { max-width: 1180px; margin: 0 auto; }
+
+  /* ---------- barre d'onglets (réelle, §81/§83) ---------- */
+  .onglets-nav {
+    display: flex; align-items: center; gap: 10px;
+    border-bottom: 1px solid var(--border);
+    padding: 10px 14px 0 14px;
+    position: sticky; top: 0; z-index: 40; background: var(--bg);
+  }
+  .marque-nav { display: flex; align-items: center; flex-shrink: 0; padding-right: 10px; padding-bottom: 8px; border-right: 1px solid var(--border); }
+  .marque-nav img { width: 26px; height: 26px; border-radius: 7px; display: block; }
+  .onglets-liste { display: flex; gap: 3px; overflow-x: auto; -webkit-overflow-scrolling: touch; flex: 1 1 auto; min-width: 0; padding-bottom: 8px; }
+  .avatar-nav {
+    flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
+    background: var(--accent-soft); color: var(--accent); border: 1px solid var(--border);
+    display: grid; place-items: center; font-size: 11px; font-weight: 800;
+    font-family: 'IBM Plex Mono', monospace; cursor: pointer; margin-bottom: 8px;
+  }
+  /* §4 — Lionel : « les éléments du menu doivent tous avoir la même
+     couleur ». L'appli réelle a encore .onglet.secondaire (couleur
+     ink-faint, plus fade) sur Général/Chantiers/Statuts/Fériés/Entrée
+     rapide — reliquat du modèle à 2 groupes d'avant l'abandon de la
+     maquette "classeur". Ici, UNE seule règle .onglet pour les 9 : au
+     repos ink-muted, au survol surface-2/ink, actif accent-soft/accent —
+     aucune classe .secondaire nulle part dans ce fichier. */
+  .onglet {
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 14px; font-size: 12.5px; font-weight: 700; color: var(--ink-muted);
+    border: none; border-radius: 8px; background: none; cursor: pointer;
+    white-space: nowrap; flex-shrink: 0; font-family: inherit; transition: background .12s, color .12s;
+  }
+  .onglet svg { width: 14px; height: 14px; flex-shrink: 0; }
+  .onglet:hover { background: var(--surface-2); color: var(--ink); }
+  .onglet.actif { background: var(--accent-soft); color: var(--accent); }
+
+  /* ============================================================
+     §1/§3 — .toolbar-sheets devient une PILULE flottante (au lieu d'une
+     bande pleine largeur, fond var(--bg) comme aujourd'hui) : fond
+     var(--toolbar-pill), pleinement arrondi (999px, ligne unique de hauteur
+     fixe → forme "stadium" propre), ne s'étire plus sur toute la largeur
+     (width: fit-content, marge au lieu d'un padding pleine largeur) pour
+     se détacher visuellement de la page, comme cerclé par Lionel sur sa
+     capture. Tout le contenu (groupes, séparateurs, boutons) est repris
+     À L'IDENTIQUE de l'appli réelle — seul le conteneur change.
+     ============================================================ */
+  .toolbar-sheets {
+    display: flex; align-items: center; gap: 2px; flex-wrap: wrap;
+    width: fit-content; max-width: calc(100% - 28px);
+    margin: 12px 14px 16px; padding: 6px 12px 6px 14px;
+    border-radius: 999px; background: var(--toolbar-pill);
+    box-shadow: 0 1px 2px var(--shadow);
+  }
+  .toolbar-groupe { display: flex; align-items: center; gap: 2px; }
+  .toolbar-separateur { width: 1px; height: 22px; background: var(--border); margin: 0 8px; flex-shrink: 0; }
+  .toolbar-btn {
+    width: 30px; height: 30px; display: grid; place-items: center; border-radius: 7px; border: none;
+    background: none; color: var(--ink-muted); cursor: pointer; transition: background .12s, color .12s; flex-shrink: 0;
+    font-family: inherit;
+  }
+  .toolbar-btn:hover:not(:disabled) { background: var(--surface-2); color: var(--ink); }
+  .toolbar-btn:disabled { opacity: .32; cursor: default; }
+  .toolbar-btn svg { width: 16px; height: 16px; }
+
+  .zoom-ctrl { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+  .zoom-btn {
+    width: 24px; height: 24px; display: grid; place-items: center; border-radius: 6px; border: none;
+    background: none; color: var(--ink-muted); cursor: pointer; font-size: 15px; font-weight: 700; font-family: inherit; line-height: 1;
+  }
+  .zoom-btn:hover { background: var(--surface-2); color: var(--ink); }
+  .zoom-pill {
+    min-width: 54px; padding: 5px 8px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface-2);
+    font: inherit; font-size: 12px; font-weight: 700; color: var(--ink); cursor: pointer; text-align: center;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .semaine-pill { min-width: 76px; }
+
+  .select-chantier { position: relative; flex-shrink: 0; }
+  .select-chantier-btn {
+    display: flex; align-items: center; gap: 7px; padding: 5px 9px 5px 7px; border-radius: 7px;
+    border: 1px solid transparent; background: none; cursor: pointer; font: inherit; font-size: 12px;
+    font-weight: 600; color: var(--ink);
+  }
+  .select-chantier-btn:hover { background: var(--surface-2); border-color: var(--border); }
+  .select-chantier-btn .swatch { width: 12px; height: 12px; border-radius: 4px; flex-shrink: 0; background: #c96a4d; }
+  .select-chantier-btn .caret { color: var(--ink-faint); font-size: 9px; margin-left: 1px; }
+
+  .toolbar-toggle {
+    width: 30px; height: 30px; display: grid; place-items: center; border-radius: 7px; border: none;
+    background: none; color: var(--ink-muted); cursor: pointer; flex-shrink: 0; font-family: inherit;
+    transition: background .12s, color .12s, opacity .12s;
+  }
+  .toolbar-toggle svg { width: 16px; height: 16px; }
+  .toolbar-toggle:hover { background: var(--surface-2); }
+  .toolbar-toggle.actif[data-cible="jalon"] { background: var(--jalon-bg); color: #4a3d78; }
+  .toolbar-toggle.actif[data-cible="note"] { background: var(--note-bg); color: #7a5d00; }
+  .toolbar-toggle.actif[data-cible="personnel"], .toolbar-toggle.actif[data-cible="intervenants"] { background: var(--accent-soft); color: var(--accent); }
+
+  /* ---------- grille (simplifiée, juste de quoi montrer les 3 séparateurs) ---------- */
+  .grille-cadre { margin: 0 14px 22px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .grille { display: grid; grid-template-columns: 120px repeat(5, 1fr); gap: 1px; background: var(--border); }
+  .th, .lbl, .cell { background: var(--surface-2); }
+  .th { padding: 8px 10px; font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-muted); text-align: center; }
+  .th.coin { background: var(--surface); }
+  .th-date { display: block; font-size: 13px; font-weight: 700; margin-top: 2px; color: var(--ink); }
+  .lbl { padding: 8px 11px; display: flex; align-items: center; font-size: 12px; font-weight: 700; }
+  .lbl-speciale { background: var(--surface); color: var(--ink-muted); font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; font-weight: 700; }
+  .cell { min-height: 40px; padding: 4px; }
+  .bulle { border-radius: 6px; padding: 5px 7px; font-size: 11px; font-weight: 600; color: #4a3320; }
+  .bulle-jalon { background: var(--jalon-bg); color: #4a3d78; }
+  .bulle-tache { background: #f2c9b8; }
+
+  /* §3 — .section-row : ligne d'en-tête réelle de Personnel/Intervenants
+     (border-bottom: 1px solid var(--border) aujourd'hui, en dur). Jalons
+     n'a pas de .section-row propre dans l'appli réelle (juste .lbl-speciale
+     sur sa ligne, cf. commentaire Index.html §84) — mais Lionel cercle
+     bien une séparation au-dessus de Jalons sur sa capture : traité ici
+     comme une bordure-haut de même nature sur la 1ère ligne de la grille,
+     pour que les 3 repères qu'il a entourés suivent la même règle. Les 3
+     pointent vers UNE SEULE variable, --toolbar-pill : aucune couleur à
+     synchroniser à la main, un futur changement de couleur de pilule les
+     déplace tous les 3 ensemble automatiquement. */
+  .section-row td, .section-row .lbl { border-bottom: 2px solid var(--toolbar-pill); }
+  .ligne-jalons .lbl-speciale { border-top: 2px solid var(--toolbar-pill); }
+
+  /* ---------- page réglages (§2) ---------- */
+  .page-reglages { margin: 0 14px 40px; max-width: 460px; }
+  .page-reglages h2 { font-size: 15px; margin: 0 0 3px; }
+  .page-reglages .sous-titre { color: var(--ink-muted); font-size: 12.5px; margin: 0 0 16px; }
+  .carte-reglage { background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; }
+  .carte-reglage .titre { font-weight: 700; font-size: 13px; margin-bottom: 3px; }
+  .carte-reglage .txt { color: var(--ink-muted); font-size: 12px; line-height: 1.5; margin-bottom: 14px; }
+  .ligne-couleur { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .ligne-couleur input[type="color"] {
+    width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--border); padding: 0; cursor: pointer; background: none;
+  }
+  .ligne-couleur .valeur { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--ink-muted); }
+  .presets { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .preset-swatch { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--surface-2); box-shadow: 0 0 0 1px var(--border); cursor: pointer; }
+  .preset-swatch.actif { box-shadow: 0 0 0 2px var(--accent); }
+  .avertissement { display: flex; gap: 8px; font-size: 11.5px; color: var(--ink-muted); background: var(--bg); border-radius: 8px; padding: 9px 11px; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+  <div class="note-mockup">
+    <span>Mockup — pilule de toolbar, page réglages pour sa couleur, séparateurs liés, menu à couleur unique <span class="detail">(4 demandes de Lionel, capture du planning réel annotée à l'appui)</span></span>
+    <button type="button" id="toggleTheme">Passer en mode sombre</button>
+  </div>
+
+  <div class="app-shell">
+    <nav class="onglets-nav">
+      <div class="marque-nav"><img src="https://raw.githubusercontent.com/lionelbonati-lab/Planning-chantier/main/icons/icon-32.png" width="26" height="26" alt="" onerror="this.style.display='none'"></div>
+      <div class="onglets-liste">
+        <button type="button" class="onglet actif"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="4" width="15" height="13" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 8h15" stroke="currentColor" stroke-width="1.5"/><path d="M6 2.5v3M14 2.5v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Planning</button>
+        <button type="button" class="onglet"><svg viewBox="0 0 20 20" fill="none"><path d="M5 2v16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M5 3h9.5l-2.2 3.5L14.5 10H5" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>Jalons</button>
+        <button type="button" class="onglet"><svg viewBox="0 0 20 20" fill="none"><circle cx="7" cy="6.2" r="2.6" stroke="currentColor" stroke-width="1.5"/><path d="M2.3 16c0-2.8 2.1-4.7 4.7-4.7s4.7 1.9 4.7 4.7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="14.6" cy="6.7" r="2.1" stroke="currentColor" stroke-width="1.4"/><path d="M12.7 11.7c2-.5 3.9.5 5 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>Personnel</button>
+        <button type="button" class="onglet"><svg viewBox="0 0 20 20" fill="none"><path d="M3 15h14a1 1 0 0 0 1-1v-.5a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v.5a1 1 0 0 0 1 1z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M4.5 12.5C4.5 8 7.5 5 10 5s5.5 3 5.5 7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M10 5V3.3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Intervenants</button>
+        <button type="button" class="onglet"><svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="2.6" stroke="currentColor" stroke-width="1.5"/><path d="M10 2.5v2M10 15.5v2M17.5 10h-2M4.5 10h-2M15.4 4.6l-1.4 1.4M6 12.6l-1.4 1.4M15.4 15.4l-1.4-1.4M6 7.4 4.6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Général</button>
+        <button type="button" class="onglet"><svg viewBox="0 0 20 20" fill="none"><path d="M3 17V5.5L9 3v14M9 6h5.5a1 1 0 0 1 1 1v10" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M5.5 7h1.5M5.5 10h1.5M5.5 13h1.5M11.5 9.5h2M11.5 12.5h2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>Chantiers</button>
+        <button type="button" class="onglet"><svg viewBox="0 0 20 20" fill="none"><path d="M9.4 2.5H4a1 1 0 0 0-1 1v5.4c0 .27.1.52.3.7l7.6 7.6c.4.4 1 .4 1.4 0l5.4-5.4c.4-.4.4-1 0-1.4L10.1 2.8a1 1 0 0 0-.7-.3z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="6.3" cy="6.3" r="1.1" fill="currentColor"/></svg>Statuts</button>
+        <button type="button" class="onglet"><svg viewBox="0 0 20 20" fill="none"><path d="M10 2.5l2.2 4.6 5 .7-3.6 3.6.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.6 5-.7L10 2.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Fériés</button>
+        <button type="button" class="onglet"><svg viewBox="0 0 20 20" fill="none"><path d="M11 2 4 11.5h5L8.5 18 16 8h-5.5L11 2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"/></svg>Entrée rapide</button>
+      </div>
+      <button type="button" class="avatar-nav" title="Se déconnecter">L</button>
+    </nav>
+
+    <div class="toolbar-sheets" id="toolbarSheets">
+      <div class="toolbar-groupe">
+        <button type="button" class="toolbar-btn" title="Annuler"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
+        <button type="button" class="toolbar-btn" title="Refaire"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
+      </div>
+      <div class="toolbar-separateur"></div>
+      <div class="toolbar-groupe">
+        <button type="button" class="toolbar-btn" title="Imprimer"><svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M5 8V3h10v5M5 15h10v3H5v-3zM3 8h14a1 1 0 0 1 1 1v5h-3M3 8a1 1 0 0 0-1 1v5h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      <div class="toolbar-separateur"></div>
+      <div class="toolbar-groupe">
+        <div class="zoom-ctrl">
+          <button type="button" class="zoom-btn">−</button>
+          <button type="button" class="zoom-pill">100% ▾</button>
+          <button type="button" class="zoom-btn">+</button>
+        </div>
+      </div>
+      <div class="toolbar-separateur"></div>
+      <div class="toolbar-groupe">
+        <button type="button" class="zoom-btn" title="Semaine précédente">‹</button>
+        <button type="button" class="zoom-pill semaine-pill">Sem. 39 ▾</button>
+        <button type="button" class="zoom-btn" title="Semaine suivante">›</button>
+        <button type="button" class="toolbar-btn" title="Aujourd'hui"><svg width="14" height="14" viewBox="0 0 20 20" fill="none"><rect x="2.5" y="4" width="15" height="13" rx="1.5" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="12" r="1.6" fill="currentColor"/></svg></button>
+        <button type="button" class="toolbar-btn" title="2 semaines"><svg width="14" height="14" viewBox="0 0 20 20" fill="none"><rect x="2" y="4" width="7" height="13" rx="1.2" stroke="currentColor" stroke-width="1.5"/><rect x="11" y="4" width="7" height="13" rx="1.2" stroke="currentColor" stroke-width="1.5"/></svg></button>
+      </div>
+      <div class="toolbar-separateur"></div>
+      <div class="toolbar-groupe">
+        <div class="select-chantier">
+          <button type="button" class="select-chantier-btn"><span class="swatch"></span>Filisetti<span class="caret">▾</span></button>
+        </div>
+      </div>
+      <div class="toolbar-separateur"></div>
+      <div class="toolbar-groupe">
+        <button type="button" class="toolbar-btn" title="Ajouter une ligne"><svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M4 6h9M4 10h12M4 14h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="16" cy="14.5" r="3" fill="var(--bg)" stroke="currentColor" stroke-width="1.3"/><path d="M16 13.2v2.6M14.7 14.5h2.6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></button>
+        <button type="button" class="toolbar-btn" title="Ajouter"><svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
+      </div>
+      <div class="toolbar-separateur"></div>
+      <div class="toolbar-groupe">
+        <button type="button" class="toolbar-toggle actif" data-cible="jalon" title="Jalons"><svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M5 2v16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M5 3h9.5l-2.2 3.5L14.5 10H5" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></button>
+        <button type="button" class="toolbar-toggle actif" data-cible="note" title="Notes"><svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M5 2.5h7l3 3v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-13a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M12 2.5v3h3" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></button>
+        <button type="button" class="toolbar-toggle actif" data-cible="personnel" title="Personnel"><svg width="16" height="16" viewBox="0 0 20 20" fill="none"><circle cx="7" cy="6.2" r="2.6" stroke="currentColor" stroke-width="1.5"/><path d="M2.3 16c0-2.8 2.1-4.7 4.7-4.7s4.7 1.9 4.7 4.7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="14.6" cy="6.7" r="2.1" stroke="currentColor" stroke-width="1.4"/><path d="M12.7 11.7c2-.5 3.9.5 5 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
+        <button type="button" class="toolbar-toggle actif" data-cible="intervenants" title="Intervenants"><svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M3 15h14a1 1 0 0 0 1-1v-.5a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v.5a1 1 0 0 0 1 1z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M4.5 12.5C4.5 8 7.5 5 10 5s5.5 3 5.5 7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+      </div>
+    </div>
+
+    <div class="grille-cadre">
+      <div class="grille">
+        <div class="th coin"></div>
+        <div class="th">LUN<span class="th-date">21</span></div>
+        <div class="th">MAR<span class="th-date">22</span></div>
+        <div class="th">MER<span class="th-date">23</span></div>
+        <div class="th">JEU<span class="th-date">24</span></div>
+        <div class="th">VEN<span class="th-date">25</span></div>
+
+        <div class="lbl lbl-speciale ligne-jalons">JALONS</div>
+        <div class="cell" style="grid-column: span 5;"><div class="bulle bulle-jalon">Dalle</div></div>
+
+        <div class="lbl lbl-speciale">NOTES</div>
+        <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+
+        <div class="lbl section-row" style="grid-column: 1 / -1;">PERSONNEL</div>
+
+        <div class="lbl">Lionel</div>
+        <div class="cell"><div class="bulle bulle-tache">Douilles</div></div>
+        <div class="cell"><div class="bulle bulle-tache">Décoffrage</div></div>
+        <div class="cell"></div><div class="cell"></div><div class="cell"></div>
+
+        <div class="lbl">Mathis</div>
+        <div class="cell"><div class="bulle bulle-tache">80%</div></div>
+        <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+
+        <div class="lbl section-row" style="grid-column: 1 / -1;">INTERVENANTS</div>
+
+        <div class="lbl">Béton/Armature</div>
+        <div class="cell"></div>
+        <div class="cell"><div class="bulle bulle-tache">Armature</div></div>
+        <div class="cell"></div><div class="cell"></div><div class="cell"></div>
+      </div>
+    </div>
+
+    <div class="page-reglages">
+      <h2>Réglages — apparence</h2>
+      <p class="sous-titre">Emplacement pressenti : page « Général », nouvelle section dédiée à l'apparence.</p>
+      <div class="carte-reglage">
+        <div class="titre">Couleur de la barre d'outils</div>
+        <div class="txt">S'applique à la pilule de la toolbar ET aux 3 séparateurs de section (Jalons, Personnel, Intervenants) dans la grille — une seule couleur pour les deux, toujours synchronisée.</div>
+        <div class="ligne-couleur">
+          <input type="color" id="colorPicker" value="#e4ebf7">
+          <span class="valeur" id="colorValeur">#E4EBF7</span>
+        </div>
+        <div class="presets" id="presets"></div>
+        <div class="avertissement">⚠ Une couleur trop foncée ou trop saturée peut rendre les icônes de la toolbar difficiles à lire — à vérifier avant de valider si tu choisis une couleur hors des presets.</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  var PRESETS_CLAIR = ['#e4ebf7', '#e2f2ea', '#faeecb', '#fbe6e6', '#efe3f7', '#ffffff'];
+  var PRESETS_SOMBRE = ['#1e2c40', '#1b3128', '#3a3216', '#3a1e1e', '#2c2038', '#232b36'];
+
+  var picker = document.getElementById('colorPicker');
+  var valeur = document.getElementById('colorValeur');
+  var presetsWrap = document.getElementById('presets');
+
+  function estSombre() {
+    var t = document.documentElement.getAttribute('data-theme');
+    if (t === 'dark') return true;
+    if (t === 'light') return false;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+
+  function appliquerCouleur(hex) {
+    document.documentElement.style.setProperty('--toolbar-pill', hex);
+    picker.value = hex;
+    valeur.textContent = hex.toUpperCase();
+    presetsWrap.querySelectorAll('.preset-swatch').forEach(function (s) {
+      s.classList.toggle('actif', s.dataset.hex.toLowerCase() === hex.toLowerCase());
+    });
+  }
+
+  function construirePresets() {
+    presetsWrap.innerHTML = '';
+    var liste = estSombre() ? PRESETS_SOMBRE : PRESETS_CLAIR;
+    liste.forEach(function (hex) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'preset-swatch'; b.dataset.hex = hex;
+      b.style.background = hex;
+      b.title = hex;
+      b.addEventListener('click', function () { appliquerCouleur(hex); });
+      presetsWrap.appendChild(b);
+    });
+  }
+
+  picker.addEventListener('input', function () { appliquerCouleur(picker.value); });
+
+  construirePresets();
+  appliquerCouleur(estSombre() ? PRESETS_SOMBRE[0] : PRESETS_CLAIR[0]);
+
+  var toggleBtn = document.getElementById('toggleTheme');
+  toggleBtn.addEventListener('click', function () {
+    var root = document.documentElement;
+    var actuel = root.getAttribute('data-theme');
+    if (actuel === 'dark') {
+      root.setAttribute('data-theme', 'light');
+      toggleBtn.textContent = 'Passer en mode sombre';
+    } else {
+      root.setAttribute('data-theme', 'dark');
+      toggleBtn.textContent = 'Passer en mode clair';
+    }
+    construirePresets();
+    appliquerCouleur(estSombre() ? PRESETS_SOMBRE[0] : PRESETS_CLAIR[0]);
+  });
+</script>
+</body>
+</html>

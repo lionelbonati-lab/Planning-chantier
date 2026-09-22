@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mockup — navigation téléphone (toolbar en haut, onglets en bas)</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  /* ============================================================
+     Mockup — round du 22.09.2026. Lionel a montré une capture de Google
+     Sheets mobile (« j'aime bien la présentation... en bas la barre
+     d'onglets, en haut la toolbar ») et demandé quelque chose de similaire
+     sur téléphone.
+
+     Repris ici :
+     - .onglets-nav (9 onglets, en haut sur TOUTE taille d'écran aujourd'hui)
+       disparaît sur téléphone, remplacée par une barre basse compacte :
+       l'onglet courant (icône + nom + ▾) + l'avatar, façon "Feuille 1 ▾" de
+       Sheets — plutôt qu'une rangée des 9 onglets tassés en bas, illisible
+       à cette largeur. Toucher l'onglet courant ouvre un panneau qui liste
+       les 9 pages (repris du langage visuel .outil-menu-panneau/-item déjà
+       utilisé partout ailleurs dans l'appli).
+     - .toolbar-sheets (page Planning) reste en haut, sticky, INCHANGÉE —
+       c'est déjà la barre d'outils du fichier réel.
+
+     Variables, polices et la plupart des classes ci-dessous sont copiées
+     telles quelles de style.css pour un rendu fidèle. Le contenu des pages
+     de réglages est simplifié (quelques lignes d'exemple) — seule la
+     navigation est le sujet de ce mockup, cf. FRONTEND-CHANGELOG.md pour
+     le round complet.
+     ============================================================ */
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --bg: #ffffff; --surface: #f0f0f0; --surface-2: #dfdfdf;
+    --ink: #1a2129; --ink-muted: #57616b; --ink-faint: #8b93a0;
+    --border: #d7dad2; --border-strong: #1a2129;
+    --accent: #1f4d8f; --accent-ink: #ffffff; --accent-soft: #e3ecf7;
+    --shadow: rgba(24, 33, 41, 0.16); --shadow-lg: rgba(15, 21, 27, 0.32);
+    --page-bg: #eef0ec;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #10161d; --surface: #171f28; --surface-2: #1c2530;
+      --ink: #eef1f4; --ink-muted: #9aa7b3; --ink-faint: #66717c;
+      --border: #2b3540; --border-strong: #4a5661;
+      --accent: #6fa6e8; --accent-ink: #0b1622; --accent-soft: #223247;
+      --shadow: rgba(0, 0, 0, 0.4); --shadow-lg: rgba(0, 0, 0, 0.6);
+      --page-bg: #0a0d11;
+      color-scheme: dark;
+    }
+  }
+  /* Bascule manuelle clair/sombre (uniquement pour ce mockup, il n'y en a
+     pas dans le vrai fichier — cf. style.css : la vraie appli suit
+     seulement la préférence système). */
+  :root[data-theme="dark"] {
+    --bg: #10161d; --surface: #171f28; --surface-2: #1c2530;
+    --ink: #eef1f4; --ink-muted: #9aa7b3; --ink-faint: #66717c;
+    --border: #2b3540; --border-strong: #4a5661;
+    --accent: #6fa6e8; --accent-ink: #0b1622; --accent-soft: #223247;
+    --shadow: rgba(0, 0, 0, 0.4); --shadow-lg: rgba(0, 0, 0, 0.6);
+    --page-bg: #0a0d11;
+    color-scheme: dark;
+  }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--page-bg); color: var(--ink);
+    font-family: 'Archivo', 'Helvetica Neue', Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100dvh; display: flex; flex-direction: column; align-items: center;
+    padding: 22px 14px 40px;
+  }
+  .intro { max-width: 400px; text-align: center; margin: 0 0 18px; }
+  .intro h1 { font-size: 16px; font-weight: 800; margin: 0 0 6px; letter-spacing: -0.01em; }
+  .intro p { font-size: 12.5px; line-height: 1.55; color: var(--ink-muted); margin: 0; }
+  .intro .toggle-theme {
+    margin-top: 10px; display: inline-flex; gap: 6px; padding: 4px; border-radius: 999px;
+    background: var(--surface); border: 1px solid var(--border);
+  }
+  .intro .toggle-theme button {
+    font: inherit; font-size: 11.5px; font-weight: 700; padding: 5px 12px; border-radius: 999px;
+    border: none; background: none; color: var(--ink-muted); cursor: pointer;
+  }
+  .intro .toggle-theme button.actif { background: var(--accent); color: var(--accent-ink); }
+
+  /* -- cadre "téléphone" pour la preview desktop -- */
+  .phone-frame {
+    width: 390px; max-width: 100%; height: 760px; max-height: 82vh;
+    background: var(--bg); border-radius: 34px; border: 8px solid var(--border-strong);
+    box-shadow: 0 18px 50px var(--shadow-lg); overflow: hidden; position: relative;
+    display: flex; flex-direction: column;
+  }
+  .phone-encoche {
+    position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 120px; height: 22px; background: var(--border-strong); border-radius: 0 0 14px 14px; z-index: 200;
+  }
+
+  /* ============================================================
+     Repris tel quel de style.css (mêmes tokens/valeurs) pour la barre
+     d'outils Planning et les composants qu'elle réutilise.
+     ============================================================ */
+  .toolbar-sheets {
+    display: flex; align-items: center; gap: 0; flex-wrap: wrap;
+    margin: 0; padding: 10px 8px 8px; position: sticky; top: 0; z-index: 39; background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .toolbar-groupe { display: flex; align-items: center; gap: 1px; }
+  .toolbar-separateur { width: 1px; height: 22px; background: var(--border); margin: 0 4px; flex-shrink: 0; }
+  .toolbar-btn {
+    width: 30px; height: 30px; display: grid; place-items: center; border-radius: 7px; border: none;
+    background: none; color: var(--ink-muted); cursor: pointer; transition: background .12s, color .12s; flex-shrink: 0;
+    font-family: inherit;
+  }
+  .toolbar-btn:hover:not(:disabled) { background: var(--surface-2); color: var(--ink); }
+  .toolbar-btn svg { width: 16px; height: 16px; }
+  .zoom-ctrl { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+  .zoom-btn {
+    width: 24px; height: 24px; display: grid; place-items: center; border-radius: 6px; border: none;
+    background: none; color: var(--ink-muted); cursor: pointer; font-size: 15px; font-weight: 700; font-family: inherit; line-height: 1;
+  }
+  .zoom-btn:hover { background: var(--surface-2); color: var(--ink); }
+  .zoom-pill {
+    min-width: 50px; padding: 5px 8px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface-2);
+    font: inherit; font-size: 12px; font-weight: 700; color: var(--ink); cursor: pointer; text-align: center;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  /* Chantier par défaut réduit à la seule pastille de couleur (retour de
+     Lionel, round du 22.09.2026 suite ×2 : « chantier visible mais
+     seulement la pastille de couleur ») — reste dans .toolbar-btn (même
+     gabarit 30×30 que les autres icônes de la barre) pour un alignement
+     cohérent, le nom + le panneau de sélection ne changent pas, seul
+     l'affichage replié change. */
+  .select-chantier-pastille .swatch { width: 14px; height: 14px; border-radius: 50%; display: block; border: 1.5px solid var(--bg); box-shadow: 0 0 0 1px var(--border); }
+
+  /* ============================================================
+     NOUVEAU — retaillage de la toolbar pour téléphone (round du 22.09.2026,
+     suite). Lionel : « on gardera les "tools" principaux sur la barre et le
+     reste sera dans un menu 3 points à droite ». Restent visibles :
+     navigation semaine (◀ Sem. ▶ Aujourd'hui), chantier par défaut et le
+     bouton "+" Ajouter (l'action la plus fréquente sur le terrain) — choix à
+     valider avec Lionel. Tout le reste (Annuler/Refaire, Imprimer, Zoom,
+     Ajouter une ligne, 2 semaines, Afficher/masquer) migre dans le panneau
+     "⋮", au même endroit où ces contrôles vivent déjà dans le fichier réel
+     — rien de nouveau n'est inventé, seulement regroupé et masqué par
+     défaut.
+     ============================================================ */
+  .toolbar-groupe-droite { margin-left: auto; }
+  .toolbar-btn-plus { background: var(--accent-soft); color: var(--accent); }
+  .toolbar-btn-plus:hover { background: var(--accent); color: var(--accent-ink); }
+
+  .voile-outils {
+    position: absolute; inset: 0; background: rgba(15, 21, 27, 0.32); z-index: 47;
+    opacity: 0; pointer-events: none; transition: opacity .15s;
+  }
+  .voile-outils.ouvert { opacity: 1; pointer-events: auto; }
+  .outils-panneau {
+    position: absolute; top: 50px; right: 8px; left: 8px; z-index: 48;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 14px;
+    box-shadow: 0 10px 28px var(--shadow-lg); padding: 6px;
+    transform: translateY(-8px); opacity: 0; pointer-events: none; transition: transform .16s, opacity .16s;
+    max-height: calc(100% - 60px); overflow-y: auto;
+  }
+  .outils-panneau.ouvert { transform: translateY(0); opacity: 1; pointer-events: auto; }
+  .outils-titre {
+    font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--ink-faint); padding: 8px 10px 6px;
+  }
+  .outils-item {
+    display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 10px; border-radius: 9px;
+    border: none; background: none; cursor: pointer; font: inherit; font-size: 13px; font-weight: 600;
+    color: var(--ink); text-align: left;
+  }
+  .outils-item svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--ink-muted); }
+  .outils-item:hover { background: var(--accent-soft); color: var(--accent); }
+  .outils-item:hover svg { color: var(--accent); }
+  .outils-separateur { height: 1px; background: var(--border); margin: 5px 6px; }
+  .outils-item-zoom { cursor: default; }
+  .outils-item-zoom:hover { background: none; color: var(--ink); }
+  .outils-item-zoom:hover svg { color: var(--ink-muted); }
+  .outils-item-nom { flex: 1 1 auto; }
+  .mini-zoom { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+  .mini-zoom-btn {
+    width: 22px; height: 22px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface);
+    color: var(--ink-muted); font-size: 13px; font-weight: 700; cursor: pointer; display: grid; place-items: center;
+  }
+  .mini-zoom-val {
+    min-width: 38px; text-align: center; font-family: 'IBM Plex Mono', monospace; font-size: 11.5px;
+    font-weight: 700; color: var(--ink);
+  }
+  .outils-item-toggle .coche { margin-left: auto; color: var(--accent); font-size: 12px; visibility: hidden; flex-shrink: 0; }
+  .outils-item-toggle.actif .coche { visibility: visible; }
+  .outils-item-toggle.actif { color: var(--accent); }
+  .outils-item-toggle.actif svg { color: var(--accent); }
+
+  /* ============================================================
+     Contenu (zone qui défile, entre la toolbar du haut et la barre basse)
+     ============================================================ */
+  .app-main { flex: 1 1 auto; min-height: 0; position: relative; }
+  .page { display: none; height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .page.actif { display: block; }
+  .page-scroll { padding: 14px 16px 24px; }
+  .page-titre { margin-bottom: 4px; }
+  .page-titre h1 { font-size: 17px; font-weight: 800; letter-spacing: -0.01em; margin: 0; }
+  .page-sous { color: var(--ink-muted); font-size: 12.5px; line-height: 1.55; margin: 3px 0 16px; }
+  .liste-intervenants { display: flex; flex-direction: column; gap: 8px; }
+  .item-exemple {
+    display: flex; align-items: center; gap: 10px; padding: 11px 12px; border-radius: 10px;
+    background: var(--surface); border: 1px solid var(--border); font-size: 13px; font-weight: 600;
+  }
+  .item-exemple .puce { width: 9px; height: 9px; border-radius: 3px; flex-shrink: 0; background: var(--accent); }
+  .item-exemple .sous { font-weight: 500; color: var(--ink-muted); font-size: 11.5px; margin-left: auto; }
+  .grille-placeholder {
+    border: 1.5px dashed var(--border); border-radius: 12px; padding: 20px 14px; color: var(--ink-muted);
+    font-size: 12px; line-height: 1.6; text-align: center;
+  }
+  .grille-mini { margin-top: 12px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .grille-mini table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+  .grille-mini th { background: var(--surface); padding: 6px 4px; font-weight: 700; color: var(--ink-muted); border-bottom: 1px solid var(--border); }
+  .grille-mini td { padding: 8px 4px; border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); vertical-align: top; height: 46px; }
+  .grille-mini td:last-child { border-right: none; }
+  .grille-mini .bulle { display: inline-block; padding: 2px 6px; border-radius: 5px; font-size: 9.5px; font-weight: 700; background: var(--accent-soft); color: var(--accent); }
+
+  /* ============================================================
+     NOUVEAU — barre basse mobile (remplace .onglets-nav sur téléphone).
+     Vivrait dans style-mobile.css, sous @media (max-width: 600px), à côté
+     des overrides .form-pop déjà présents (cf. FRONTEND-CHANGELOG.md §90).
+     ============================================================ */
+  .nav-bas {
+    flex-shrink: 0; min-height: 56px; display: flex; align-items: center; gap: 8px;
+    padding: 0 10px env(safe-area-inset-bottom, 0px);
+    background: var(--bg); border-top: 1px solid var(--border);
+    position: relative; z-index: 41;
+  }
+  .switcher-btn {
+    flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface);
+    font: inherit; font-size: 13px; font-weight: 700; color: var(--ink); cursor: pointer;
+  }
+  .switcher-btn svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--accent); }
+  .switcher-btn .nom { flex: 1 1 auto; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .switcher-btn .caret { color: var(--ink-faint); font-size: 10px; flex-shrink: 0; transition: transform .15s; }
+  .switcher-btn.ouvert .caret { transform: rotate(180deg); }
+  .avatar-nav {
+    flex-shrink: 0; width: 38px; height: 38px; border-radius: 50%;
+    background: var(--accent-soft); color: var(--accent); border: 1px solid var(--border);
+    display: grid; place-items: center; font-size: 13px; font-weight: 800;
+    font-family: 'IBM Plex Mono', monospace; cursor: pointer;
+  }
+
+  .voile-switcher {
+    position: absolute; inset: 0; background: rgba(15, 21, 27, 0.32); z-index: 45;
+    opacity: 0; pointer-events: none; transition: opacity .15s;
+  }
+  .voile-switcher.ouvert { opacity: 1; pointer-events: auto; }
+  .switcher-panneau {
+    position: absolute; left: 8px; right: 8px;
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 8px); z-index: 46;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 14px;
+    box-shadow: 0 -8px 28px var(--shadow-lg); padding: 6px;
+    transform: translateY(10px); opacity: 0; pointer-events: none; transition: transform .16s, opacity .16s;
+    max-height: 70%; overflow-y: auto;
+  }
+  .switcher-panneau.ouvert { transform: translateY(0); opacity: 1; pointer-events: auto; }
+  .switcher-titre {
+    font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--ink-faint); padding: 8px 10px 6px;
+  }
+  .switcher-item {
+    display: flex; align-items: center; gap: 10px; width: 100%; padding: 11px 10px; border-radius: 9px;
+    border: none; background: none; cursor: pointer; font: inherit; font-size: 13.5px; font-weight: 600;
+    color: var(--ink); text-align: left;
+  }
+  .switcher-item svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--ink-muted); }
+  .switcher-item.actif { background: var(--accent-soft); color: var(--accent); }
+  .switcher-item.actif svg { color: var(--accent); }
+  .switcher-item.secondaire { color: var(--ink-faint); }
+  .switcher-item.secondaire svg { color: var(--ink-faint); }
+  .switcher-item.secondaire.actif { color: var(--accent); }
+  .switcher-item.secondaire.actif svg { color: var(--accent); }
+  .switcher-separateur { height: 1px; background: var(--border); margin: 5px 6px; }
+</style>
+</head>
+<body>
+
+<div class="intro">
+  <h1>Navigation téléphone — toolbar en haut, onglets en bas</h1>
+  <p>Cadre ci-dessous = simulation d'un écran de téléphone. Touche « Planning », « Personnel »… en bas pour changer de page — le panneau reprend les 9 onglets actuels.</p>
+  <div class="toggle-theme">
+    <button type="button" class="actif" data-theme-choix="light">Clair</button>
+    <button type="button" data-theme-choix="dark">Sombre</button>
+  </div>
+</div>
+
+<div class="phone-frame" id="phoneFrame">
+  <div class="phone-encoche"></div>
+
+  <div class="app-main">
+
+    <div class="page actif" id="page-planning">
+      <div class="toolbar-sheets">
+        <div class="toolbar-groupe">
+          <button type="button" class="toolbar-btn" title="Semaine précédente"><svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M12.5 4.5 7 10l5.5 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <button type="button" class="zoom-pill">Sem. 39</button>
+          <button type="button" class="toolbar-btn" title="Semaine suivante"><svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M7.5 4.5 13 10l-5.5 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <button type="button" class="toolbar-btn" title="Aller à aujourd’hui"><svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="2.5" y="3.5" width="15" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 7.5h15" stroke="currentColor" stroke-width="1.5"/><path d="M6 2v3M14 2v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="10" cy="12.6" r="2" fill="currentColor"/></svg></button>
+        </div>
+        <div class="toolbar-separateur"></div>
+        <div class="toolbar-groupe">
+          <button type="button" class="toolbar-btn" title="Annuler"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
+          <button type="button" class="toolbar-btn" title="Refaire"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
+        </div>
+        <div class="toolbar-separateur"></div>
+        <div class="toolbar-groupe">
+          <button type="button" class="toolbar-btn select-chantier-pastille" id="btnSelectChantier" title="Chantier par défaut — Villa Perret"><span class="swatch" style="background:#c8622f"></span></button>
+        </div>
+        <div class="toolbar-groupe toolbar-groupe-droite">
+          <button type="button" class="toolbar-btn toolbar-btn-plus" title="Ajouter au planning"><svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M10 3.3v13.4M3.3 10h13.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+          <button type="button" class="toolbar-btn" id="btnPlusOutils" title="Plus d'outils" aria-label="Plus d'outils">
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><circle cx="4" cy="10" r="1.6" fill="currentColor"/><circle cx="10" cy="10" r="1.6" fill="currentColor"/><circle cx="16" cy="10" r="1.6" fill="currentColor"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="voile-outils" id="voileOutils"></div>
+      <div class="outils-panneau" id="outilsPanneau">
+        <button type="button" class="outils-item"><svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M5 8V3h10v5M5 15h10v3H5v-3zM3 8h14a1 1 0 0 1 1 1v5h-3M3 8a1 1 0 0 0-1 1v5h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Imprimer</button>
+        <div class="outils-separateur"></div>
+        <div class="outils-item outils-item-zoom">
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" stroke-width="1.5"/><path d="M16 16l-3.2-3.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <span class="outils-item-nom">Zoom</span>
+          <span class="mini-zoom"><button type="button" class="mini-zoom-btn" id="miniZoomMoins">−</button><span class="mini-zoom-val" id="miniZoomVal">100%</span><button type="button" class="mini-zoom-btn" id="miniZoomPlus">+</button></span>
+        </div>
+        <div class="outils-separateur"></div>
+        <button type="button" class="outils-item"><svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="2.3" y="4.2" width="10.4" height="3.2" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="2.3" y="9.6" width="10.4" height="3.2" rx="1" stroke="currentColor" stroke-width="1.4" stroke-dasharray="2.2 1.8"/><path d="M15.6 10.4v5.2M13 13h5.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>Ajouter une ligne Personnel</button>
+        <button type="button" class="outils-item"><svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="2.3" y="4.2" width="10.4" height="3.2" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="2.3" y="9.6" width="10.4" height="3.2" rx="1" stroke="currentColor" stroke-width="1.4" stroke-dasharray="2.2 1.8"/><path d="M15.6 10.4v5.2M13 13h5.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>Ajouter une ligne Intervenant</button>
+        <div class="outils-separateur"></div>
+        <button type="button" class="outils-item outils-item-toggle" data-toggle="deuxSemaines">
+          <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="2" y="4" width="7" height="12" rx="1.3" stroke="currentColor" stroke-width="1.5"/><rect x="11" y="4" width="7" height="12" rx="1.3" stroke="currentColor" stroke-width="1.5"/></svg>
+          Afficher 2 semaines<span class="coche">✓</span>
+        </button>
+        <div class="outils-separateur"></div>
+        <div class="outils-titre">Afficher / masquer</div>
+        <button type="button" class="outils-item outils-item-toggle actif" data-toggle="jalon">
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M5 2v16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M5 3h9.5l-2.2 3.5L14.5 10H5" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+          Jalons<span class="coche">✓</span>
+        </button>
+        <button type="button" class="outils-item outils-item-toggle actif" data-toggle="note">
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M5 2.5h7l3 3v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-13a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M12 2.5v3h3" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M6.5 11h6M6.5 14h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          Notes<span class="coche">✓</span>
+        </button>
+        <button type="button" class="outils-item outils-item-toggle actif" data-toggle="personnel">
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><circle cx="7" cy="6.2" r="2.6" stroke="currentColor" stroke-width="1.5"/><path d="M2.3 16c0-2.8 2.1-4.7 4.7-4.7s4.7 1.9 4.7 4.7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="14.6" cy="6.7" r="2.1" stroke="currentColor" stroke-width="1.4"/><path d="M12.7 11.7c2-.5 3.9.5 5 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          Personnel<span class="coche">✓</span>
+        </button>
+        <button type="button" class="outils-item outils-item-toggle actif" data-toggle="intervenants">
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M3 15h14a1 1 0 0 0 1-1v-.5a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v.5a1 1 0 0 0 1 1z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M4.5 12.5C4.5 8 7.5 5 10 5s5.5 3 5.5 7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M10 5V3.3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          Intervenants<span class="coche">✓</span>
+        </button>
+      </div>
+      <div class="page-scroll">
+        <div class="grille-mini">
+          <table>
+            <thead><tr><th>Lu 21</th><th>Ma 22</th><th>Me 23</th></tr></thead>
+            <tbody>
+              <tr><td><span class="bulle">Villa Perret</span></td><td></td><td><span class="bulle">Chape 4</span></td></tr>
+              <tr><td></td><td><span class="bulle">Villa Perret</span></td><td></td></tr>
+              <tr><td><span class="bulle">Immeuble Rosa</span></td><td><span class="bulle">Immeuble Rosa</span></td><td><span class="bulle">Immeuble Rosa</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="grille-placeholder" style="margin-top:12px;">Grille simplifiée pour ce mockup — la navigation (toolbar/onglets) est le sujet, pas le rendu détaillé des bulles.</div>
+      </div>
+    </div>
+
+    <div class="page" id="page-jalons">
+      <div class="page-scroll">
+        <div class="page-titre"><h1>Jalons</h1></div>
+        <p class="page-sous">Étapes clés d'un chantier (livraison, coulage, réception…), sur une durée aussi longue que nécessaire.</p>
+        <div class="liste-intervenants">
+          <div class="item-exemple"><span class="puce" style="background:#7a5fc4"></span>Coulage dalle — Villa Perret<span class="sous">12–14 oct.</span></div>
+          <div class="item-exemple"><span class="puce" style="background:#7a5fc4"></span>Livraison béton — Rosa<span class="sous">3 nov.</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-personnel">
+      <div class="page-scroll">
+        <div class="page-titre"><h1>Personnel</h1></div>
+        <p class="page-sous">L'équipe interne.</p>
+        <div class="liste-intervenants">
+          <div class="item-exemple"><span class="puce"></span>Marc Dubois</div>
+          <div class="item-exemple"><span class="puce"></span>Julien Perret</div>
+          <div class="item-exemple"><span class="puce"></span>Antoine Roch</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-intervenants">
+      <div class="page-scroll">
+        <div class="page-titre"><h1>Intervenants</h1></div>
+        <p class="page-sous">Les sous-traitants — leurs tâches ont un champ Statut, pas le personnel.</p>
+        <div class="liste-intervenants">
+          <div class="item-exemple"><span class="puce"></span>Électricité Favre Sàrl</div>
+          <div class="item-exemple"><span class="puce"></span>Toiture Moret</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-general">
+      <div class="page-scroll">
+        <div class="page-titre"><h1>Général</h1></div>
+        <p class="page-sous">Réglages d'affichage du planning (locaux à cet appareil, non partagés).</p>
+        <div class="item-exemple">Afficher les week-ends<span class="sous">Off</span></div>
+      </div>
+    </div>
+
+    <div class="page" id="page-chantiers">
+      <div class="page-scroll">
+        <div class="page-titre"><h1>Chantiers</h1></div>
+        <p class="page-sous">Couleur utilisée dans la grille et les formulaires.</p>
+        <div class="liste-intervenants">
+          <div class="item-exemple"><span class="puce" style="background:#c8622f"></span>Villa Perret</div>
+          <div class="item-exemple"><span class="puce" style="background:#2f8f6b"></span>Immeuble Rosa</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-statuts">
+      <div class="page-scroll">
+        <div class="page-titre"><h1>Statuts</h1></div>
+        <p class="page-sous">Statuts disponibles pour les tâches des intervenants.</p>
+        <div class="liste-intervenants">
+          <div class="item-exemple"><span class="puce" style="background:#0b6459"></span>Confirmé</div>
+          <div class="item-exemple"><span class="puce" style="background:#b3372f"></span>Annulé</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-feries">
+      <div class="page-scroll">
+        <div class="page-titre"><h1>Fériés</h1></div>
+        <p class="page-sous">Jours fériés et vacances d'entreprise, année par année.</p>
+        <div class="grille-placeholder">Calendrier de l'année — simplifié pour ce mockup.</div>
+      </div>
+    </div>
+
+    <div class="page" id="page-entree-rapide">
+      <div class="page-scroll">
+        <div class="page-titre"><h1>Entrée rapide</h1></div>
+        <p class="page-sous">Formulaires proposés dans le menu « Ajouter » de chaque case.</p>
+        <div class="liste-intervenants">
+          <div class="item-exemple"><span class="puce"></span>Chape</div>
+          <div class="item-exemple"><span class="puce"></span>Étanchéité</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="voile-switcher" id="voileSwitcher"></div>
+
+  <div class="switcher-panneau" id="switcherPanneau">
+    <div class="switcher-titre">Pages</div>
+    <button type="button" class="switcher-item actif" data-page="planning" data-label="Planning">
+      <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><rect x="2.5" y="4" width="15" height="13" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 8h15" stroke="currentColor" stroke-width="1.5"/><path d="M6 2.5v3M14 2.5v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      Planning
+    </button>
+    <button type="button" class="switcher-item" data-page="jalons" data-label="Jalons">
+      <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M5 2v16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M5 3h9.5l-2.2 3.5L14.5 10H5" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+      Jalons
+    </button>
+    <button type="button" class="switcher-item" data-page="personnel" data-label="Personnel">
+      <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><circle cx="7" cy="6.2" r="2.6" stroke="currentColor" stroke-width="1.5"/><path d="M2.3 16c0-2.8 2.1-4.7 4.7-4.7s4.7 1.9 4.7 4.7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="14.6" cy="6.7" r="2.1" stroke="currentColor" stroke-width="1.4"/><path d="M12.7 11.7c2-.5 3.9.5 5 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+      Personnel
+    </button>
+    <button type="button" class="switcher-item" data-page="intervenants" data-label="Intervenants">
+      <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M3 15h14a1 1 0 0 0 1-1v-.5a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v.5a1 1 0 0 0 1 1z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M4.5 12.5C4.5 8 7.5 5 10 5s5.5 3 5.5 7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M10 5V3.3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      Intervenants
+    </button>
+    <div class="switcher-separateur"></div>
+    <button type="button" class="switcher-item secondaire" data-page="general" data-label="Général">
+      <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="2.6" stroke="currentColor" stroke-width="1.5"/><path d="M10 2.5v2M10 15.5v2M17.5 10h-2M4.5 10h-2M15.4 4.6l-1.4 1.4M6 12.6l-1.4 1.4M15.4 15.4l-1.4-1.4M6 7.4 4.6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      Général
+    </button>
+    <button type="button" class="switcher-item secondaire" data-page="chantiers" data-label="Chantiers">
+      <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M3 17V5.5L9 3v14M9 6h5.5a1 1 0 0 1 1 1v10" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M5.5 7h1.5M5.5 10h1.5M5.5 13h1.5M11.5 9.5h2M11.5 12.5h2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+      Chantiers
+    </button>
+    <button type="button" class="switcher-item secondaire" data-page="statuts" data-label="Statuts">
+      <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M9.4 2.5H4a1 1 0 0 0-1 1v5.4c0 .27.1.52.3.7l7.6 7.6c.4.4 1 .4 1.4 0l5.4-5.4c.4-.4.4-1 0-1.4L10.1 2.8a1 1 0 0 0-.7-.3z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="6.3" cy="6.3" r="1.1" fill="currentColor"/></svg>
+      Statuts
+    </button>
+    <button type="button" class="switcher-item secondaire" data-page="feries" data-label="Fériés">
+      <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M10 2.5l2.2 4.6 5 .7-3.6 3.6.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.6 5-.7L10 2.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+      Fériés
+    </button>
+    <button type="button" class="switcher-item secondaire" data-page="entree-rapide" data-label="Entrée rapide">
+      <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M11 2 4 11.5h5L8.5 18 16 8h-5.5L11 2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"/></svg>
+      Entrée rapide
+    </button>
+  </div>
+
+  <div class="nav-bas">
+    <button type="button" class="switcher-btn" id="switcherBtn">
+      <svg id="switcherIcone" width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="2.5" y="4" width="15" height="13" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 8h15" stroke="currentColor" stroke-width="1.5"/><path d="M6 2.5v3M14 2.5v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <span class="nom" id="switcherNom">Planning</span>
+      <span class="caret">▾</span>
+    </button>
+    <button type="button" class="avatar-nav" title="Se déconnecter">L</button>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var btn = document.getElementById("switcherBtn");
+  var voile = document.getElementById("voileSwitcher");
+  var panneau = document.getElementById("switcherPanneau");
+  var nomEl = document.getElementById("switcherNom");
+  var icone = document.getElementById("switcherIcone");
+  var items = panneau.querySelectorAll(".switcher-item");
+
+  function ouvrir() {
+    btn.classList.add("ouvert");
+    voile.classList.add("ouvert");
+    panneau.classList.add("ouvert");
+  }
+  function fermer() {
+    btn.classList.remove("ouvert");
+    voile.classList.remove("ouvert");
+    panneau.classList.remove("ouvert");
+  }
+  btn.addEventListener("click", function () {
+    if (panneau.classList.contains("ouvert")) fermer(); else ouvrir();
+  });
+  voile.addEventListener("click", fermer);
+
+  items.forEach(function (it) {
+    it.addEventListener("click", function () {
+      var page = it.getAttribute("data-page");
+      var label = it.getAttribute("data-label");
+      document.querySelectorAll(".page").forEach(function (p) { p.classList.remove("actif"); });
+      document.getElementById("page-" + page).classList.add("actif");
+      items.forEach(function (o) { o.classList.remove("actif"); });
+      it.classList.add("actif");
+      nomEl.textContent = label;
+      icone.innerHTML = it.querySelector("svg").innerHTML;
+      fermer();
+    });
+  });
+
+  // -- Menu "⋮ Plus d'outils" (toolbar retaillée, round du 22.09.2026 suite) --
+  var btnOutils = document.getElementById("btnPlusOutils");
+  var voileOutils = document.getElementById("voileOutils");
+  var panneauOutils = document.getElementById("outilsPanneau");
+
+  function ouvrirOutils() {
+    voileOutils.classList.add("ouvert");
+    panneauOutils.classList.add("ouvert");
+  }
+  function fermerOutils() {
+    voileOutils.classList.remove("ouvert");
+    panneauOutils.classList.remove("ouvert");
+  }
+  if (btnOutils) {
+    btnOutils.addEventListener("click", function () {
+      if (panneauOutils.classList.contains("ouvert")) fermerOutils(); else ouvrirOutils();
+    });
+    voileOutils.addEventListener("click", fermerOutils);
+
+    // Annuler/Refaire/Imprimer/Ajouter une ligne : simples démonstrations,
+    // referment juste le panneau (aucune vraie action dans ce mockup).
+    panneauOutils.querySelectorAll(".outils-item:not(.outils-item-toggle):not(.outils-item-zoom)").forEach(function (it) {
+      it.addEventListener("click", fermerOutils);
+    });
+
+    // Bascules (2 semaines, Afficher/masquer) : cochent/décochent, restent
+    // ouvertes pour permettre plusieurs bascules d'affilée.
+    panneauOutils.querySelectorAll(".outils-item-toggle").forEach(function (it) {
+      it.addEventListener("click", function () {
+        it.classList.toggle("actif");
+      });
+    });
+
+    // Mini zoom +/-
+    var zoomVal = 100;
+    var zoomValEl = document.getElementById("miniZoomVal");
+    document.getElementById("miniZoomMoins").addEventListener("click", function () {
+      zoomVal = Math.max(50, zoomVal - 10);
+      zoomValEl.textContent = zoomVal + "%";
+    });
+    document.getElementById("miniZoomPlus").addEventListener("click", function () {
+      zoomVal = Math.min(200, zoomVal + 10);
+      zoomValEl.textContent = zoomVal + "%";
+    });
+  }
+
+  var boutonsTheme = document.querySelectorAll("[data-theme-choix]");
+  boutonsTheme.forEach(function (b) {
+    b.addEventListener("click", function () {
+      boutonsTheme.forEach(function (o) { o.classList.remove("actif"); });
+      b.classList.add("actif");
+      document.documentElement.setAttribute("data-theme", b.getAttribute("data-theme-choix"));
+    });
+  });
+})();
+</script>
+</body>
+</html>
