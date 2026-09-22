@@ -444,6 +444,88 @@
   .semaine-panneau .outil-menu-item.actif .semaine-dates-item { color: var(--accent); }
   .semaine-panneau .coche { color: var(--accent); font-size: 12px; }
 
+  /* ============================================================
+     #toolbarSecondaire — §91 (round du 22.09.2026, suite). Lionel, mockup
+     mockup-nav-mobile.html validé : « on gardera les "tools" principaux sur
+     la barre et le reste sera dans un menu 3points à droite », puis
+     « chantier visible mais seulement la pastille de couleur. annuler/
+     refaire dans la barre. ». Regroupe, dans UN seul conteneur (nécessaire
+     pour qu'ils deviennent un vrai panneau téléphone d'un seul tenant, cf.
+     style-mobile.css), les 5 groupes retirés de la barre visible sur
+     téléphone : Imprimer, Zoom, 2 semaines, Ajouter une ligne, les 4 icônes
+     masquer/afficher — cf. htmlPagePlanning pour le HTML exact.
+
+     display:contents ICI (règle commune desktop/tablette/téléphone) : sur
+     desktop/tablette, ce conteneur n'a PAS d'override dans style-mobile.css
+     (celui-ci ne s'applique qu'à ≤600px) — il reste donc en display:contents
+     en permanence sur ces 2 tailles, ce qui le rend invisible EN TANT QUE
+     BOÎTE : ses enfants directs (les .toolbar-groupe/.toolbar-separateur
+     listés ci-dessous) deviennent des éléments flex NORMAUX de
+     .toolbar-sheets, exactement comme s'ils n'étaient pas enveloppés.
+
+     `order` — puisque ces groupes ne sont plus à leur place d'origine dans
+     le HTML (regroupés ici à la place), chacun porte un `order` (posé en
+     style inline dans htmlPagePlanning, comme les groupes restés en place)
+     qui reproduit leur position visuelle EXACTE d'avant ce round — le rendu
+     desktop/tablette reste ainsi rigoureusement identique au pixel près.
+     Tableau complet (.toolbar-sheets a lui-même gap:2px, IDENTIQUE au
+     gap:2px de .toolbar-groupe — scinder un groupe en 2 groupes voisins ne
+     change donc AUCUN espacement visuel) :
+       10 Annuler/Refaire        90  séparateur
+       20 séparateur             100 Chantier
+       30 Imprimer                    (reste hors de #toolbarSecondaire)
+           (reste hors)          110 séparateur
+       40 séparateur             120 Ajouter une ligne
+       50 Zoom                   130 "+" (menuAjoutElement)
+       60 séparateur                  (reste hors de #toolbarSecondaire)
+       70 Nav. semaine            140 séparateur
+           (reste hors)          150 Masquer/afficher (#controlesAffichage)
+       80 2 semaines
+
+     Sur téléphone (≤600px), style-mobile.css redéfinit entièrement ce
+     display:contents en display:flex (colonne, position:absolute sous la
+     barre) quand .ouvert est posée par cablerPagePlanning (bouton
+     #btnPlusOutils) — `order` n'a alors plus aucun rôle (le panneau suit
+     l'ordre naturel du HTML ci-dessus, qui correspond déjà à un
+     regroupement logique cohérent pour une liste verticale). */
+  .toolbar-secondaire { display: contents; }
+  /* .toolbar-btn-label/.toolbar-btn-coche/.zoom-secondaire-label — masqués
+     par défaut : seul style-mobile.css les affiche, pour donner un libellé
+     + une coche d'état (déjà tenue à jour par majControlesAffichage/
+     majSemaineAffichage, cf. grille-interactions.js — simples classes
+     posées/retirées sur le bouton, jamais de textContent/innerHTML écrasé,
+     ces spans ne risquent donc jamais d'être effacés à un rendu) aux icônes
+     une fois dans #toolbarSecondaire. .zoom-secondaire-label est un span
+     FRÈRE de #btnZoom (pas un enfant) — majZoomAffichage() fait
+     btnZoom.textContent = ... à chaque rendu (cf. grille-interactions.js),
+     ce qui effacerait tout enfant posé à l'intérieur du bouton. */
+  .toolbar-btn-label, .toolbar-btn-coche, .zoom-secondaire-label { display: none; }
+  /* .toolbar-separateur-mobile — nouveaux séparateurs téléphone uniquement
+     (barre principale ET panneau "⋮"), distincts des 6 séparateurs d'origine
+     ci-dessus (qui gardent leur `order` pour le rendu desktop/tablette et
+     sont masqués sur téléphone, cf. style-mobile.css) : ceux-ci n'existaient
+     pas avant ce round, strictement invisibles tant qu'on n'est pas sur
+     téléphone. Portent eux aussi un `order` (posé en style inline dans
+     htmlPagePlanning, entre les valeurs des groupes qu'ils séparent — ex.
+     order:15 entre Annuler/Refaire=10 et Nav. semaine=70) : sans lui, tout
+     élément flex sans `order` explicite vaut 0 par défaut et se
+     retrouverait tassé tout au début de la barre (avant Annuler/Refaire,
+     order:10), pas à l'endroit voulu. Les 4 posés À L'INTÉRIEUR de
+     #toolbarSecondaire suivent la même logique, mais dans le système
+     d'`order` INDÉPENDANT de ce conteneur (lui-même display:flex quand
+     .ouvert, cf. style-mobile.css) — leurs valeurs n'ont donc aucun rapport
+     avec celles de la barre principale au-dessus. */
+  .toolbar-separateur-mobile { display: none; }
+  /* #btnPlusOutils ("⋮") — n'existe visuellement que sur téléphone
+     (style-mobile.css) : desktop/tablette affichent déjà tout, inutile. */
+  #btnPlusOutils { display: none; }
+  .toolbar-btn.ouvert { background: var(--surface-2); color: var(--ink); }
+  /* .nav-bas (barre basse, remplace .onglets-nav sur téléphone) et son
+     panneau "Pages" (#switcherPanneau) — masqués par défaut, desktop/
+     tablette gardent .onglets-nav en haut, inchangée. Tout l'habillage
+     réel vit dans style-mobile.css. */
+  .nav-bas { display: none; }
+
   /* .entete-planning-figee / .entete-planning-scroll — round du 16.09.2026
      (suite, encore) : Lionel, même croquis, « faire défiler la page après
      les notes ». Étend le principe de .onglets-nav/.legende-barre (sticky)

@@ -186,7 +186,17 @@
     chevronGauche: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M12.5 4.5 7 10l5.5 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     chevronDroite: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M7.5 4.5 13 10l-5.5 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     aujourdhui: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="2.5" y="3.5" width="15" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 7.5h15" stroke="currentColor" stroke-width="1.5"/><path d="M6 2v3M14 2v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="10" cy="12.6" r="2" fill="currentColor"/></svg>',
-    deuxSemaines: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="2" y="4" width="7" height="12" rx="1.3" stroke="currentColor" stroke-width="1.5"/><rect x="11" y="4" width="7" height="12" rx="1.3" stroke="currentColor" stroke-width="1.5"/></svg>'
+    deuxSemaines: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="2" y="4" width="7" height="12" rx="1.3" stroke="currentColor" stroke-width="1.5"/><rect x="11" y="4" width="7" height="12" rx="1.3" stroke="currentColor" stroke-width="1.5"/></svg>',
+    // Round du 22.09.2026 (port du mockup mockup-nav-mobile.html validé par
+    // Lionel) : icône "⋮" du bouton #btnPlusOutils (barre retaillée pour
+    // téléphone, cf. FRONTEND-CHANGELOG.md §91) — 3 points verticaux,
+    // symbole standard "plus d'options" repris tel quel du mockup.
+    dots: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="4" r="1.6" fill="currentColor"/><circle cx="10" cy="10" r="1.6" fill="currentColor"/><circle cx="10" cy="16" r="1.6" fill="currentColor"/></svg>',
+    // Icône du bouton du sélecteur de page en bas d'écran (#switcherBtn) —
+    // repère générique "grille de pages", mise à jour dynamiquement (cf.
+    // cablerNavigation) avec l'icône de la page réellement active dès le
+    // premier clic sur un onglet.
+    pages: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="2.5" y="4" width="15" height="13" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 8h15" stroke="currentColor" stroke-width="1.5"/><path d="M6 2.5v3M14 2.5v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>'
   };
 
   var app = document.getElementById("app");

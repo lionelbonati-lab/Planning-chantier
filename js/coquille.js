@@ -35,6 +35,45 @@
           htmlPagePlanning() + htmlPageJalons() + htmlPageGeneral() + htmlPagePersonnel() + htmlPageIntervenants() +
           htmlPageChantiers() + htmlPageStatuts() + htmlPageEntreeRapide() + htmlPageFeries() +
         '</div>' +
+        // §91 (round du 22.09.2026, suite) — Lionel, mockup mockup-nav-mobile.html
+        // validé (croquis Google Sheets à l'appui : « j'aime bien la
+        // présentation de Google sheet [...] en bas la bar d'onglets. en
+        // haut la toolbar. ») : barre basse REMPLAÇANT .onglets-nav sur
+        // téléphone (masquée par défaut, cf. style.css — desktop/tablette
+        // gardent .onglets-nav telle quelle, INCHANGÉE, rien ici ne les
+        // affecte). #switcherBtn réutilise le même mécanisme d'icône/libellé
+        // que le mockup (mis à jour à chaque changement de page, cf.
+        // cablerNavigation) ; #switcherPanneau reprend les 9 mêmes boutons
+        // .onglet que la barre du haut (même data-page, classe .switcher-item
+        // en plus pour leur habillage "liste" propre au panneau) — un SEUL
+        // querySelectorAll(".onglet") dans cablerNavigation câble donc les 18
+        // boutons (9 du haut + 9 d'ici) d'un coup, et les garde synchronisés
+        // (cf. son commentaire). position:fixed sur .nav-bas (cf.
+        // style-mobile.css) : #app reste le seul conteneur qui défile
+        // (cf. son commentaire plus haut dans ce fichier), rien d'autre dans
+        // l'arbre ne porte transform/filter/perspective qui piégerait un
+        // position:fixed — vérifié avant ce round.
+        '<div class="nav-bas" id="navBas">' +
+          '<button type="button" class="switcher-btn" id="switcherBtn" aria-label="Changer de page">' +
+            '<span id="switcherIcone">' + ICONS.calendar + '</span>' +
+            '<span class="nom" id="switcherNom">Planning</span>' +
+            '<span class="caret">▾</span>' +
+          '</button>' +
+          '<button type="button" class="avatar-nav" id="lienDeconnexionNavBas" title="Se déconnecter" aria-label="Se déconnecter">L</button>' +
+          '<div class="switcher-panneau" id="switcherPanneau">' +
+            '<div class="switcher-titre">Pages</div>' +
+            '<button type="button" class="onglet switcher-item actif" data-page="planning">' + ICONS.calendar + 'Planning</button>' +
+            '<button type="button" class="onglet switcher-item" data-page="jalons">' + ICONS.flag + 'Jalons</button>' +
+            '<button type="button" class="onglet switcher-item" data-page="personnel">' + ICONS.people + 'Personnel</button>' +
+            '<button type="button" class="onglet switcher-item" data-page="intervenants">' + ICONS.hardhat + 'Intervenants</button>' +
+            '<div class="switcher-separateur"></div>' +
+            '<button type="button" class="onglet secondaire switcher-item" data-page="general">' + ICONS.gear + 'Général</button>' +
+            '<button type="button" class="onglet secondaire switcher-item" data-page="chantiers">' + ICONS.building + 'Chantiers</button>' +
+            '<button type="button" class="onglet secondaire switcher-item" data-page="statuts">' + ICONS.tag + 'Statuts</button>' +
+            '<button type="button" class="onglet secondaire switcher-item" data-page="feries">' + ICONS.star + 'Fériés</button>' +
+            '<button type="button" class="onglet secondaire switcher-item" data-page="entree-rapide">' + ICONS.bolt + 'Entrée rapide</button>' +
+          '</div>' +
+        '</div>' +
       '</div>';
     cablerNavigation();
     cablerBarreAction();
@@ -47,9 +86,15 @@
     // bouton juste posé dans la barre d'onglets ci-dessus.
     var flottant = document.getElementById("lienDeconnexion");
     if (flottant) flottant.remove();
-    document.getElementById("lienDeconnexionNav").addEventListener("click", function () {
+    // §91 — 2 boutons de déconnexion coexistent désormais (barre du haut,
+    // masquée sur téléphone + barre basse, visible seulement là) : même
+    // action pour les deux, extraite ici plutôt que dupliquée inline comme
+    // avant ce round.
+    function deconnecter() {
       sbClient.auth.signOut().then(function () { window.location.reload(); });
-    });
+    }
+    document.getElementById("lienDeconnexionNav").addEventListener("click", deconnecter);
+    document.getElementById("lienDeconnexionNavBas").addEventListener("click", deconnecter);
   }
 
   function htmlPagePlanning() {
@@ -87,34 +132,51 @@
       // #menuAjoutElement (Tâche/Absence/Note/Jalon, avec une 2e page "pour
       // qui ?" pour Tâche/Absence) — cf. cablerPagePlanning pour tout le
       // câblage (générique aux 3 .outil-menu) et ouvrirAjoutElementBarre.
+      // §91 (round du 22.09.2026, suite) — Lionel, mockup mockup-nav-mobile.html
+      // validé (« c'est ok pour moi, la toolbar par contre est à retailler
+      // on gardera les "tools" principaux sur la barre et le reste sera
+      // dans un menu 3points à droite », puis « chantier visible mais
+      // seulement la pastille de couleur. annuler/refaire dans la barre. ») :
+      // PORT du mockup dans le vrai fichier. Cette même barre STATIQUE
+      // (desktop/tablette INCHANGÉE au pixel près, cf. plus bas) se retaille
+      // sur téléphone (cf. style-mobile.css) — restent visibles Annuler/
+      // Refaire, la navigation semaine, le chantier (réduit à sa pastille,
+      // simple CSS sur .select-chantier-btn — .nom-chantier/.caret restent
+      // dans le HTML, juste masqués) et le "+" ; tout le reste (Imprimer,
+      // Zoom, 2 semaines, Ajouter une ligne, les 4 icônes masquer/afficher)
+      // rejoint le panneau "⋮" (#btnPlusOutils/#toolbarSecondaire plus bas).
+      //
+      // TECHNIQUE (détail dans FRONTEND-CHANGELOG.md §91) : les groupes
+      // déplacés dans #toolbarSecondaire restent les MÊMES éléments (mêmes
+      // id, même câblage dans cablerPagePlanning/majControlesAffichage/
+      // majZoomAffichage/majSemaineAffichage, inchangés) — aucune
+      // duplication de bouton ni de logique, donc aucun risque de
+      // désynchronisation entre 2 copies. Sur desktop/tablette,
+      // #toolbarSecondaire passe en display:contents (cf. style.css) : ses
+      // enfants redeviennent des éléments flex NORMAUX de CETTE barre,
+      // simplement repositionnés à leur place d'origine via `order` (posé
+      // ci-dessous en style inline — un numéro de séquence par groupe/
+      // séparateur, cf. le commentaire de #toolbarSecondaire dans
+      // style.css pour le tableau complet) : le rendu desktop reste donc
+      // rigoureusement identique à avant, bien que ces groupes ne soient
+      // plus à leur ancienne place dans le HTML. Sur téléphone seulement
+      // (style-mobile.css), #toolbarSecondaire devient un vrai panneau
+      // déroulant (position:absolute sous cette barre), ouvert/fermé par
+      // #btnPlusOutils (cf. cablerPagePlanning, fermerAutresMenusOutils
+      // étendue pour l'inclure dans l'exclusion mutuelle déjà en place pour
+      // #selectChantier/les .outil-menu). Les .toolbar-separateur-mobile/
+      // .toolbar-btn-label/.toolbar-btn-coche/.zoom-secondaire-label
+      // ajoutés ci-dessous sont TOUS masqués par défaut (style.css) : seul
+      // style-mobile.css les affiche, pour donner des séparateurs
+      // horizontaux + un libellé + une coche d'état à ces icônes une fois
+      // dans ce panneau — jamais visibles sur desktop/tablette.
       '<div class="toolbar-sheets" id="legendeBarre">' +
-        '<div class="toolbar-groupe">' +
+        '<div class="toolbar-groupe" style="order:10">' +
           '<button type="button" class="toolbar-btn" id="btnDefaire" title="Annuler (Ctrl+Z)" aria-label="Annuler">' + ICONS.undo + '</button>' +
           '<button type="button" class="toolbar-btn" id="btnRefaire" title="Refaire (Ctrl+Y)" aria-label="Refaire">' + ICONS.redo + '</button>' +
         '</div>' +
-        '<div class="toolbar-separateur"></div>' +
-        '<div class="toolbar-groupe">' +
-          '<button type="button" class="toolbar-btn" id="btnImprimerTitre" title="Imprimer — aperçu et export PDF de la semaine affichée">' + ICONS.print + '</button>' +
-        '</div>' +
-        '<div class="toolbar-separateur"></div>' +
-        '<div class="toolbar-groupe">' +
-          '<div class="zoom-ctrl" id="zoomCtrl">' +
-            '<button type="button" class="zoom-btn" id="zoomMoins" title="Zoom arrière" aria-label="Zoom arrière">−</button>' +
-            '<div class="outil-menu" id="menuZoom">' +
-              '<button type="button" class="zoom-pill" id="btnZoom">100% ▾</button>' +
-              '<div class="outil-menu-panneau zoom-panneau" id="panneauZoom">' +
-                '<button type="button" class="outil-menu-item" data-zoom="75">75%</button>' +
-                '<button type="button" class="outil-menu-item" data-zoom="90">90%</button>' +
-                '<button type="button" class="outil-menu-item" data-zoom="100">100%</button>' +
-                '<button type="button" class="outil-menu-item" data-zoom="110">110%</button>' +
-                '<button type="button" class="outil-menu-item" data-zoom="125">125%</button>' +
-                '<button type="button" class="outil-menu-item" data-zoom="150">150%</button>' +
-              '</div>' +
-            '</div>' +
-            '<button type="button" class="zoom-btn" id="zoomPlus" title="Zoom avant" aria-label="Zoom avant">+</button>' +
-          '</div>' +
-        '</div>' +
-        '<div class="toolbar-separateur"></div>' +
+        '<div class="toolbar-separateur" style="order:20"></div>' +
+        '<div class="toolbar-separateur toolbar-separateur-mobile" style="order:15"></div>' +
         // §87 (round du 17.09.2026, suite×2) — Lionel : « l'insertion via le
         // "+" doit pouvoir se faire aussi en dehors de la vue visible,
         // actuellement limité à la semaine en cours [...] on pourrait
@@ -129,8 +191,11 @@
         // entièrement l'ancienne ligne coinNav/navSemaine du coin de la
         // grille (cf. son historique dans construireGrille), supprimée ce
         // round (Lionel : « on enlève la première ligne du tableau qui ne
-        // sert plus »).
-        '<div class="toolbar-groupe">' +
+        // sert plus »). #btnDeuxSemaines a quitté ce groupe au §91 (rejoint
+        // #toolbarSecondaire plus bas, cf. son commentaire) — reste ici
+        // exactement ce que le mockup téléphone garde visible en
+        // permanence : la navigation semaine elle-même.
+        '<div class="toolbar-groupe" style="order:70">' +
           '<button type="button" class="toolbar-btn" id="btnSemainePrec" title="Semaine précédente" aria-label="Semaine précédente">' + ICONS.chevronGauche + '</button>' +
           '<div class="outil-menu" id="menuSemaine">' +
             '<button type="button" class="zoom-pill" id="btnSemainePill" title="Aller à une semaine">Sem. ▾</button>' +
@@ -138,25 +203,33 @@
           '</div>' +
           '<button type="button" class="toolbar-btn" id="btnSemaineSuiv" title="Semaine suivante" aria-label="Semaine suivante">' + ICONS.chevronDroite + '</button>' +
           '<button type="button" class="toolbar-btn" id="btnAujourdhui" title="Aller à aujourd’hui" aria-label="Aller à aujourd’hui">' + ICONS.aujourdhui + '</button>' +
-          '<button type="button" class="toolbar-btn" id="btnDeuxSemaines" title="Afficher 2 semaines à la fois" aria-label="Afficher 2 semaines à la fois">' + ICONS.deuxSemaines + '</button>' +
         '</div>' +
-        '<div class="toolbar-separateur"></div>' +
-        '<div class="toolbar-groupe">' +
+        '<div class="toolbar-separateur" style="order:90"></div>' +
+        '<div class="toolbar-separateur toolbar-separateur-mobile" style="order:95"></div>' +
+        // §91 — chantier par défaut : reste ici, TOUJOURS visible (Lionel :
+        // « chantier visible mais seulement la pastille de couleur »).
+        // .nom-chantier/.caret restent dans le HTML (construireSelectChantier
+        // les cible par querySelector à chaque rendu, cf. son commentaire) —
+        // seule leur AFFICHAGE change sur téléphone (display:none en CSS,
+        // cf. style-mobile.css), rien n'est retiré ni recâblé ici.
+        '<div class="toolbar-groupe" style="order:100">' +
           '<div class="select-chantier" id="selectChantier">' +
             '<button type="button" class="select-chantier-btn" id="btnSelectChantier"><span class="swatch"></span><span class="nom-chantier">Chantier</span><span class="caret">▾</span></button>' +
             '<div class="select-chantier-panneau" id="panneauChantier"></div>' +
           '</div>' +
         '</div>' +
-        '<div class="toolbar-separateur"></div>' +
-        '<div class="toolbar-groupe">' +
-          '<div class="outil-menu" id="menuAjoutLigne">' +
-            '<button type="button" class="toolbar-btn" id="btnAjoutLigne" title="Ajouter une ligne — Personnel ou Intervenant">' + ICONS.ajoutLigne + '</button>' +
-            '<div class="outil-menu-panneau">' +
-              '<div class="outil-menu-titre">Ajouter une ligne</div>' +
-              '<button type="button" class="outil-menu-item" data-ligne="personnel">' + ICONS.people + 'Personnel</button>' +
-              '<button type="button" class="outil-menu-item" data-ligne="intervenant">' + ICONS.hardhat + 'Intervenant</button>' +
-            '</div>' +
-          '</div>' +
+        '<div class="toolbar-separateur" style="order:110"></div>' +
+        '<div class="toolbar-separateur toolbar-separateur-mobile" style="order:115"></div>' +
+        // §91 — #menuAjoutLigne a quitté ce groupe (rejoint #toolbarSecondaire,
+        // cf. son commentaire) ; #menuAjoutElement ("+") reste seul ici et
+        // TOUJOURS visible (l'action la plus fréquente sur le terrain,
+        // repris tel quel du mockup) — .toolbar-groupe-droite (classe sans
+        // effet sur desktop/tablette, cf. style.css) pousse ce groupe ET
+        // #btnPlusOutils juste à côté à l'extrémité droite de la barre,
+        // SEULEMENT sur téléphone (cf. style-mobile.css) : sur desktop il
+        // reste à sa place d'origine (order:130, juste après le chantier),
+        // margin-left:auto n'étant défini que là-bas.
+        '<div class="toolbar-groupe toolbar-groupe-droite" style="order:130">' +
           '<div class="outil-menu" id="menuAjoutElement">' +
             '<button type="button" class="toolbar-btn" id="btnAjoutElement" title="Ajouter un élément au planning">' + ICONS.plus + '</button>' +
             '<div class="outil-menu-panneau">' +
@@ -170,13 +243,65 @@
               '<div class="outil-menu-page" data-page="personne" id="pageAjoutPersonne" hidden></div>' +
             '</div>' +
           '</div>' +
+          // §91 — bouton "⋮" (nouveau) : ouvre/ferme #toolbarSecondaire
+          // (cf. cablerPagePlanning). Masqué par défaut (style.css) — n'existe
+          // visuellement que sur téléphone (style-mobile.css), desktop/
+          // tablette n'en ont jamais eu besoin (tout est déjà visible).
+          '<button type="button" class="toolbar-btn" id="btnPlusOutils" title="Plus d’outils" aria-label="Plus d’outils">' + ICONS.dots + '</button>' +
         '</div>' +
-        '<div class="toolbar-separateur"></div>' +
-        '<div class="toolbar-groupe" id="controlesAffichage">' +
-          '<button type="button" class="toolbar-toggle actif" data-affichage-cible="jalon" title="Masquer/afficher Jalons">' + ICONS.flag + '</button>' +
-          '<button type="button" class="toolbar-toggle actif" data-affichage-cible="note" title="Masquer/afficher Notes">' + ICONS.note + '</button>' +
-          '<button type="button" class="toolbar-toggle actif" data-affichage-cible="personnel" title="Masquer/afficher Personnel">' + ICONS.people + '</button>' +
-          '<button type="button" class="toolbar-toggle actif" data-affichage-cible="intervenants" title="Masquer/afficher Intervenants">' + ICONS.hardhat + '</button>' +
+        // §91 — panneau "⋮" : regroupe les 5 groupes retirés de la barre
+        // principale sur téléphone (Imprimer, Zoom, 2 semaines, Ajouter une
+        // ligne, les 4 icônes masquer/afficher) — cf. le grand commentaire
+        // en tête de htmlPagePlanning() pour la technique (display:contents
+        // + `order` sur desktop, vrai panneau sur téléphone).
+        '<div class="toolbar-secondaire" id="toolbarSecondaire">' +
+          '<div class="toolbar-groupe" style="order:30">' +
+            '<button type="button" class="toolbar-btn" id="btnImprimerTitre" title="Imprimer — aperçu et export PDF de la semaine affichée">' + ICONS.print + '<span class="toolbar-btn-label">Imprimer</span></button>' +
+          '</div>' +
+          '<div class="toolbar-separateur" style="order:40"></div>' +
+          '<div class="toolbar-separateur toolbar-separateur-mobile" style="order:35"></div>' +
+          '<div class="toolbar-groupe" style="order:50">' +
+            '<div class="zoom-ctrl" id="zoomCtrl">' +
+              '<span class="zoom-secondaire-label">Zoom</span>' +
+              '<button type="button" class="zoom-btn" id="zoomMoins" title="Zoom arrière" aria-label="Zoom arrière">−</button>' +
+              '<div class="outil-menu" id="menuZoom">' +
+                '<button type="button" class="zoom-pill" id="btnZoom">100% ▾</button>' +
+                '<div class="outil-menu-panneau zoom-panneau" id="panneauZoom">' +
+                  '<button type="button" class="outil-menu-item" data-zoom="75">75%</button>' +
+                  '<button type="button" class="outil-menu-item" data-zoom="90">90%</button>' +
+                  '<button type="button" class="outil-menu-item" data-zoom="100">100%</button>' +
+                  '<button type="button" class="outil-menu-item" data-zoom="110">110%</button>' +
+                  '<button type="button" class="outil-menu-item" data-zoom="125">125%</button>' +
+                  '<button type="button" class="outil-menu-item" data-zoom="150">150%</button>' +
+                '</div>' +
+              '</div>' +
+              '<button type="button" class="zoom-btn" id="zoomPlus" title="Zoom avant" aria-label="Zoom avant">+</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="toolbar-separateur" style="order:60"></div>' +
+          '<div class="toolbar-separateur toolbar-separateur-mobile" style="order:65"></div>' +
+          '<div class="toolbar-groupe" style="order:80">' +
+            '<button type="button" class="toolbar-btn" id="btnDeuxSemaines" title="Afficher 2 semaines à la fois" aria-label="Afficher 2 semaines à la fois">' + ICONS.deuxSemaines + '<span class="toolbar-btn-label">Afficher 2 semaines</span><span class="toolbar-btn-coche">✓</span></button>' +
+          '</div>' +
+          '<div class="toolbar-separateur toolbar-separateur-mobile" style="order:100"></div>' +
+          '<div class="toolbar-groupe" style="order:120">' +
+            '<div class="outil-menu" id="menuAjoutLigne">' +
+              '<button type="button" class="toolbar-btn" id="btnAjoutLigne" title="Ajouter une ligne — Personnel ou Intervenant">' + ICONS.ajoutLigne + '<span class="toolbar-btn-label">Ajouter une ligne</span></button>' +
+              '<div class="outil-menu-panneau">' +
+                '<div class="outil-menu-titre">Ajouter une ligne</div>' +
+                '<button type="button" class="outil-menu-item" data-ligne="personnel">' + ICONS.people + 'Personnel</button>' +
+                '<button type="button" class="outil-menu-item" data-ligne="intervenant">' + ICONS.hardhat + 'Intervenant</button>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="toolbar-separateur" style="order:140"></div>' +
+          '<div class="toolbar-separateur toolbar-separateur-mobile" style="order:135"></div>' +
+          '<div class="toolbar-groupe" id="controlesAffichage" style="order:150">' +
+            '<button type="button" class="toolbar-toggle actif" data-affichage-cible="jalon" title="Masquer/afficher Jalons">' + ICONS.flag + '<span class="toolbar-btn-label">Jalons</span><span class="toolbar-btn-coche">✓</span></button>' +
+            '<button type="button" class="toolbar-toggle actif" data-affichage-cible="note" title="Masquer/afficher Notes">' + ICONS.note + '<span class="toolbar-btn-label">Notes</span><span class="toolbar-btn-coche">✓</span></button>' +
+            '<button type="button" class="toolbar-toggle actif" data-affichage-cible="personnel" title="Masquer/afficher Personnel">' + ICONS.people + '<span class="toolbar-btn-label">Personnel</span><span class="toolbar-btn-coche">✓</span></button>' +
+            '<button type="button" class="toolbar-toggle actif" data-affichage-cible="intervenants" title="Masquer/afficher Intervenants">' + ICONS.hardhat + '<span class="toolbar-btn-label">Intervenants</span><span class="toolbar-btn-coche">✓</span></button>' +
+          '</div>' +
         '</div>' +
       '</div>' +
       '<div class="zone-planning">' +
@@ -302,7 +427,16 @@
   // etat.*Serveur/PERSONNES, déjà tenue à jour par les fonctions de
   // rafraîchissement de chaque CRUD).
   function cablerNavigation() {
+    // §91 (round du 22.09.2026, suite) — querySelectorAll(".onglet") capte
+    // maintenant 18 boutons (9 de .onglets-nav en haut + 9 de
+    // #switcherPanneau en bas, cf. construireCoquille) plutôt que 9 : la
+    // même classe + le même data-page sur les 2 jeux de boutons suffit à
+    // les câbler TOUS ici, sans rien dupliquer côté logique.
     var ongletsBtns = document.querySelectorAll(".onglet");
+    var switcherBtn = document.getElementById("switcherBtn");
+    var switcherIcone = document.getElementById("switcherIcone");
+    var switcherNom = document.getElementById("switcherNom");
+    var switcherPanneau = document.getElementById("switcherPanneau");
     var RENDU_PAR_PAGE = {
       jalons: renderJalons, personnel: renderPersonnel, intervenants: renderIntervenants,
       chantiers: renderChantiers, statuts: renderStatuts,
@@ -317,16 +451,54 @@
       // reconstruire toute la grille.
       planning: ajusterEnteteFixe
     };
+    function fermerSwitcher() {
+      if (switcherBtn) switcherBtn.classList.remove("ouvert");
+      if (switcherPanneau) switcherPanneau.classList.remove("ouvert");
+    }
     ongletsBtns.forEach(function (btn) {
       btn.addEventListener("click", function () {
-        ongletsBtns.forEach(function (b) { b.classList.toggle("actif", b === btn); });
+        // §91 — comparaison par data-page (et non plus par référence exacte
+        // au bouton cliqué) : un clic sur .onglet OU sur .switcher-item pour
+        // la même page doit teinter les DEUX exemplaires (haut ET bas),
+        // puisque les 2 barres peuvent coexister dans le DOM (l'une des
+        // deux simplement masquée en CSS selon la largeur d'écran).
+        ongletsBtns.forEach(function (b) { b.classList.toggle("actif", b.dataset.page === btn.dataset.page); });
         document.querySelectorAll(".page").forEach(function (p) { p.classList.remove("actif"); });
         var page = document.getElementById("page-" + btn.dataset.page);
         if (page) page.classList.add("actif");
+        // §91 — resynchronise l'icône/le libellé du sélecteur de page bas
+        // d'écran sur la page réellement choisie, quel que soit le bouton
+        // cliqué (barre du haut OU liste du bas) : le texte du bouton
+        // cliqué porte déjà exactement le même libellé que l'entrée
+        // correspondante (même page, cf. construireCoquille), textContent
+        // suffit donc (aucun nœud de texte dans le svg de l'icône). AVANT
+        // fn() ci-dessous à dessein : cette barre de navigation doit rester
+        // cohérente même si le rendu de la page ciblée échoue (ex. souci
+        // réseau dans un render*() qui charge ses données à la demande).
+        if (switcherIcone) {
+          var svg = btn.querySelector("svg");
+          if (svg) switcherIcone.innerHTML = svg.outerHTML;
+        }
+        if (switcherNom) switcherNom.textContent = btn.textContent.trim();
+        fermerSwitcher();
         var fn = RENDU_PAR_PAGE[btn.dataset.page];
         if (fn) fn();
       });
     });
+    // §91 — ouverture/fermeture du panneau "Pages" du bas, même principe que
+    // #selectChantier dans cablerPagePlanning (bouton statique, panneau
+    // reconstruit une seule fois ici) ; document reste seul responsable de
+    // la fermeture au clic extérieur (cf. tout en bas).
+    if (switcherBtn && switcherPanneau) {
+      switcherBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        var etaitOuvert = switcherPanneau.classList.contains("ouvert");
+        switcherBtn.classList.toggle("ouvert", !etaitOuvert);
+        switcherPanneau.classList.toggle("ouvert", !etaitOuvert);
+      });
+      switcherPanneau.addEventListener("click", function (e) { e.stopPropagation(); });
+    }
+    document.addEventListener("click", fermerSwitcher);
   }
 
   function cablerPagePlanning() {
@@ -361,6 +533,11 @@
     // construireSelectChantier() à chaque rendu — cf. plus bas.
     var selectChantier = document.getElementById("selectChantier");
     var btnSelectChantier = document.getElementById("btnSelectChantier");
+    // §91 (round du 22.09.2026, suite) — panneau "⋮" téléphone (cf. le grand
+    // commentaire de htmlPagePlanning) : mêmes variables statiques que
+    // selectChantier ci-dessus, même conteneur câblé une seule fois.
+    var toolbarSecondaire = document.getElementById("toolbarSecondaire");
+    var btnPlusOutils = document.getElementById("btnPlusOutils");
     // §85 (round du 17.09.2026) — menuAjoutElement/reinitialiserMenuAjoutElement/
     // fermerAutresMenusOutils sont déclarées ici (var/function, "hoistées"
     // dans toute cablerPagePlanning) mais réellement remplies un peu plus
@@ -391,6 +568,16 @@
         if (m === menuAjoutElement) reinitialiserMenuAjoutElement();
       });
       if (selectChantier) selectChantier.classList.remove("ouvert");
+      // §91 — #toolbarSecondaire (panneau "⋮" téléphone) rejoint ce même
+      // mécanisme générique d'exclusion mutuelle — SAUF quand l'appel vient
+      // d'un menu qu'il contient lui-même (ex. #menuAjoutLigne, resté un
+      // .outil-menu tout à fait normal une fois déplacé dans ce panneau,
+      // cf. htmlPagePlanning) : sinon ouvrir ce sous-menu refermerait
+      // aussitôt le panneau qui le contient.
+      if (toolbarSecondaire && (!sauf || !toolbarSecondaire.contains(sauf))) {
+        toolbarSecondaire.classList.remove("ouvert");
+        if (btnPlusOutils) btnPlusOutils.classList.remove("ouvert");
+      }
     }
     if (selectChantier && btnSelectChantier) {
       btnSelectChantier.addEventListener("click", function (e) {
@@ -398,6 +585,17 @@
         var etaitOuvert = selectChantier.classList.contains("ouvert");
         fermerAutresMenusOutils(null);
         selectChantier.classList.toggle("ouvert", !etaitOuvert);
+      });
+    }
+    // §91 — ouverture/fermeture du panneau "⋮", même principe que
+    // #selectChantier ci-dessus.
+    if (toolbarSecondaire && btnPlusOutils) {
+      btnPlusOutils.addEventListener("click", function (e) {
+        e.stopPropagation();
+        var etaitOuvert = toolbarSecondaire.classList.contains("ouvert");
+        fermerAutresMenusOutils(null);
+        toolbarSecondaire.classList.toggle("ouvert", !etaitOuvert);
+        btnPlusOutils.classList.toggle("ouvert", !etaitOuvert);
       });
     }
     // Ouverture/fermeture des 3 .outil-menu (zoom, ligne+, +) — générique

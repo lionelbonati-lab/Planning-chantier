@@ -6127,3 +6127,129 @@ vérifié aux 3 seuils :
 
 Résultat identique à avant ce round dans les 3 cas. Comme toujours, pas de test possible contre le vrai
 projet Supabase depuis cet environnement — à confirmer par Lionel en conditions réelles.
+
+## 91. Round du 22.09.2026 (suite) — Navigation téléphone façon Google Sheets (port du mockup dans le vrai fichier)
+
+### 91.1. Ce qui a changé
+
+Lionel, croquis d'écran Google Sheets mobile à l'appui : « j'aime bien la présentation de Google sheet.
+on pourrait faire quelques chose de similaire sur téléphone. en bas la bar d'onglets. en haut la
+toolbar. » — puis, sur un mockup dédié (`mockup-nav-mobile.html`, itéré en 3 rounds) : « c'est ok pour moi,
+la tool bar par contre est à retailler on gardera les "tools" principaux sur la barre et le reste sera
+dans un menu 3points à droite » et enfin « chantier visible mais seulement la pastille de couleur.
+annuler/refaire dans la barre. ». Ce round PORTE ce mockup validé dans le vrai fichier (`js/coquille.js`,
+`style.css`, `style-mobile.css`) — première fois dans cette suite de rounds mobiles que du vrai code
+interactif change (pas seulement une extraction mécanique de fichiers ou de CSS, cf. §89/§90).
+
+Sur téléphone (≤600px) seulement :
+
+- La barre d'onglets du haut (`.onglets-nav`) disparaît, remplacée par une barre basse fixe (`.nav-bas`) :
+  un bouton central affichant l'icône + le nom de la page active (`#switcherBtn`), qui ouvre un panneau
+  listant les 9 pages (`#switcherPanneau`, repris des mêmes boutons `.onglet`/`data-page` que la barre du
+  haut — cf. §91.2) ; un avatar de déconnexion à droite (identique à celui du haut, dupliqué ici).
+- La barre d'outils du planning (`#legendeBarre`) se retaille : restent visibles en permanence Annuler/
+  Refaire, la navigation semaine (◀ Sem. ▶ Aujourd'hui), le chantier par défaut (réduit à sa seule
+  pastille de couleur) et le bouton "+" d'ajout. Tout le reste — Imprimer, Zoom, "Afficher 2 semaines",
+  "Ajouter une ligne", les 4 icônes masquer/afficher (Jalons/Notes/Personnel/Intervenants) — rejoint un
+  panneau "⋮" (`#btnPlusOutils` / `#toolbarSecondaire`), sous forme de liste avec icône + libellé + coche
+  d'état le cas échéant.
+
+Desktop et tablette (601px et plus) : **rien ne change** — même barre d'onglets en haut, même barre
+d'outils, même disposition, au pixel près (cf. §91.3).
+
+### 91.2. Pourquoi c'est sûr
+
+**Barre basse / sélecteur de page** — `#switcherPanneau` réutilise EXACTEMENT les mêmes boutons `.onglet`
+(même `data-page`) que `.onglets-nav`, avec juste une classe `.switcher-item` en plus pour leur habillage
+"liste pleine largeur" sur téléphone. `cablerNavigation()` fait donc un seul `querySelectorAll(".onglet")`
+qui câble les 18 boutons (9 en haut + 9 en bas) d'un coup — aucune logique de navigation dupliquée. Seul
+changement dans cette fonction : la synchronisation de la classe `.actif` se fait maintenant par
+comparaison de `data-page` plutôt que par référence exacte au bouton cliqué (`b.dataset.page ===
+btn.dataset.page` plutôt que `b === btn`), pour que cliquer sur l'un ou l'autre exemplaire d'une même page
+mette bien les DEUX à jour. Le libellé/l'icône du bouton `#switcherBtn` sont resynchronisés à chaque clic
+AVANT d'appeler le rendu de la page ciblée (`fn()`) — volontairement, pour que cette barre reste cohérente
+même si ce rendu échoue (ex. souci réseau dans un `render*()` qui charge ses données à la demande).
+
+**Barre d'outils retaillée** — technique centrale : les 5 groupes retirés de la vue directe (Imprimer,
+Zoom, "2 semaines", "Ajouter une ligne", les 4 icônes masquer/afficher) sont regroupés dans UN wrapper,
+`<div class="toolbar-secondaire" id="toolbarSecondaire">`, mais restent EXACTEMENT les mêmes éléments
+(mêmes `id`, même câblage dans `cablerPagePlanning`/`majControlesAffichage`/`majZoomAffichage`/
+`majSemaineAffichage`, tous inchangés) — aucun bouton dupliqué, donc aucun risque de désynchronisation
+entre deux copies d'un même contrôle.
+
+Sur desktop/tablette, `#toolbarSecondaire` reste en `display: contents` en permanence (pas d'override dans
+`style-mobile.css`, qui ne s'applique qu'≤600px) : ses enfants redeviennent des éléments flex NORMAUX de
+`.toolbar-sheets`, comme s'ils n'étaient pas enveloppés. Comme ces groupes ne sont plus à leur position
+d'origine dans le HTML (regroupés dans ce wrapper à la place), chacun porte un `order` CSS (posé en style
+inline, comme les groupes restés en place) qui reproduit très exactement leur position visuelle d'AVANT ce
+round — `.toolbar-sheets` et `.toolbar-groupe` partagent le même `gap: 2px`, donc scinder un groupe en 2
+groupes voisins (ex. la navigation semaine et "2 semaines" étaient un seul groupe, désormais deux) ne
+change aucun espacement visuel. Le tableau complet des `order` est documenté dans `style.css`, au-dessus de
+la règle `.toolbar-secondaire { display: contents; }`.
+
+Sur téléphone, `style-mobile.css` bascule `#toolbarSecondaire` en panneau réel (`.ouvert` posée par
+`#btnPlusOutils`, `position: absolute` sous `.toolbar-sheets` — qui est `position: sticky`, donc déjà
+"containing block" de ses descendants absolus, sans calcul JS nécessaire, même principe que
+`.select-chantier-panneau`/`.outil-menu-panneau` déjà existants). `fermerAutresMenusOutils()` (le mécanisme
+générique déjà en place pour `#selectChantier`/les `.outil-menu`, cf. §85) est étendu de 4 lignes pour
+fermer aussi ce panneau — SAUF quand l'appel vient d'un menu qu'il contient lui-même (`#menuAjoutLigne`,
+resté un `.outil-menu` tout à fait normal une fois déplacé dedans), sinon ouvrir ce sous-menu aurait
+aussitôt refermé le panneau qui le contient. `#btnPlusOutils` est câblé exactement comme
+`#btnSelectChantier` (ferme tout, puis rouvre sa propre cible).
+
+Le chantier par défaut n'est PAS déplacé : `.nom-chantier`/`.caret` restent dans le HTML (nécessaire,
+`construireSelectChantier()` les cible par `querySelector` à chaque rendu) — seul leur affichage change
+(`display: none` en CSS sur téléphone), rien n'est retiré ni recâblé.
+
+Nouveaux éléments purement décoratifs (`.toolbar-btn-label`, `.toolbar-btn-coche`, `.zoom-secondaire-
+label`, séparateurs `.toolbar-separateur-mobile`) : tous masqués par défaut dans `style.css`
+(`display: none`), affichés uniquement dans `style-mobile.css` — invisibles et sans effet sur desktop/
+tablette. Le libellé "Zoom" est un `<span>` FRÈRE de `#btnZoom`, pas un enfant : `majZoomAffichage()` fait
+`btnZoom.textContent = ...` à chaque rendu, ce qui aurait effacé tout enfant posé à l'intérieur du bouton.
+
+`.nav-bas`/`.onglets-nav` (masquage/bascule) : `#app` reste le seul conteneur qui défile (`position: fixed;
+inset: 0`, inchangé) — masquer `.onglets-nav` fait tomber sa hauteur mesurée par `ajusterEnteteFixe()` à 0,
+ce qui décale automatiquement et correctement `#legendeBarre`/`.entete-planning-figee` en haut de l'écran
+(exactement le comportement voulu, cette fonction n'a pas eu besoin d'être modifiée). Vérifié qu'aucun
+ancêtre ne porte `transform`/`filter`/`perspective` qui piégerait un `position: fixed` (`.nav-bas`,
+`#toolbarSecondaire` ouvert). `.page-scroll` gagne un `padding-bottom` supplémentaire sur téléphone
+(`40px + 56px + safe-area`) pour que `.nav-bas`, en `position: fixed`, ne cache jamais le bas d'une page en
+fin de défilement (elle n'occupe aucune place dans le flux normal de `#app`).
+
+### 91.3. Vérifications
+
+Comme toujours, aucun accès réseau au vrai projet Supabase de Lionel n'est possible depuis cet
+environnement — vérifié via un petit serveur HTTP local + Playwright, `window.supabase` simulé (aucun vrai
+appel réseau, données de planning factices) :
+
+- **Desktop (1600px) : rendu strictement identique à avant ce round.** Comparaison position par position
+  (`getBoundingClientRect`) de chaque groupe/séparateur de la barre d'outils contre les positions attendues
+  d'avant : tous alignés au pixel près (écart maximal observé : 1px, imputable à l'arrondi sous-pixel du
+  moteur de mise en page, pas à un changement réel). `#btnPlusOutils`/`.nav-bas` bien masqués
+  (`display: none`), `.onglets-nav` bien affichée. Aucune erreur console/page.
+- **Tablette (900px) : identique au rendu desktop**, comme attendu (la coupure `@media (max-width: 600px)`
+  ne s'applique pas).
+- **Téléphone (390px) : barre basse + panneau "⋮" fonctionnels.** Barre du haut retaillée (Annuler/Refaire,
+  navigation semaine, pastille chantier colorée, "+", "⋮" — dans cet ordre, alignés) ; panneau "⋮" affiche
+  les 7 lignes attendues (Imprimer, Zoom avec mini +/-, "Afficher 2 semaines", "Ajouter une ligne", puis les
+  4 icônes masquer/afficher avec leur teinte/coche d'état existante — Jalons violet, Notes jaune, Personnel/
+  Intervenants bleu accent, comme sur la barre desktop) ; défilement interne si la liste dépasse 70% de la
+  hauteur d'écran. Panneau "Pages" en bas (9 pages, section principale + séparateur + section réglages).
+- **Exclusion mutuelle** : ouvrir le panneau "⋮" ferme le sélecteur de chantier/les autres `.outil-menu` et
+  réciproquement (mécanisme partagé, cf. §91.2) ; ouvrir "Ajouter une ligne" DEPUIS le panneau "⋮" ouvre son
+  sous-menu SANS refermer le panneau qui le contient (cas particulier vérifié explicitement) ; un clic à
+  l'extérieur referme tout.
+- **Synchronisation barre du haut / panneau du bas** : cliquer une page dans le panneau du bas met à jour
+  la page affichée, l'onglet actif en haut ET dans le panneau du bas, ainsi que l'icône/le libellé de
+  `#switcherBtn`.
+- **Redimensionnement en direct** téléphone → desktop pendant que le panneau "⋮" est ouvert : aucun résidu
+  visuel, la barre desktop réapparaît intacte (la classe `.ouvert` résiduelle n'a d'effet que dans le
+  `@media (max-width: 600px)`).
+- Fichiers CSS/JS vérifiés syntaxiquement valides (`node --check`, comptage d'accolades équilibré).
+
+**Pas testé en conditions réelles contre le vrai projet Supabase de Lionel, ni sur un vrai téléphone**
+(même limite que toujours, cf. §89/§90) — c'est le premier round de cette suite qui touche du VRAI code
+interactif (pas une extraction mécanique) : Lionel est invité à vérifier particulièrement soigneusement en
+conditions réelles avant de considérer ce round acquis (ouvrir l'appli sur son téléphone, se connecter,
+essayer le panneau "⋮" et le sélecteur de pages, puis repasser sur un écran large pour confirmer que rien
+n'a changé là). Réversible facilement si besoin (Git garde l'ancienne version dans l'historique).

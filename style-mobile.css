@@ -48,3 +48,160 @@
       max-width: 100% !important; border-radius: 0;
     }
   }
+
+  /* ============================================================
+     Navigation téléphone façon Google Sheets — §91 (round du 22.09.2026,
+     suite). Lionel, croquis à l'appui : « j'aime bien la présentation de
+     Google sheet. on pourrait faire quelques chose de similaire sur
+     téléphone. en bas la bar d'onglets. en haut la toolbar. », puis
+     « c'est ok pour moi, la toolbar par contre est à retailler on gardera
+     les "tools" principaux sur la barre et le reste sera dans un menu
+     3points à droite », enfin « chantier visible mais seulement la
+     pastille de couleur. annuler/refaire dans la barre. ». Port du mockup
+     mockup-nav-mobile.html (validé à l'identique sur ces 3 points) dans le
+     vrai fichier — cf. le grand commentaire de htmlPagePlanning()
+     (js/coquille.js) et celui de #toolbarSecondaire (style.css) pour le
+     détail de la technique (display:contents + `order` desktop/tablette,
+     panneau réel ici). Tout ce bloc ne s'applique qu'≤600px : desktop et
+     tablette (601px et plus) restent AU PIXEL PRÈS ce qu'ils étaient avant
+     ce round — aucune règle plus haut dans ce fichier ni dans style.css
+     n'a été modifiée pour leur rendu normal (hors le déplacement de
+     groupes dans #toolbarSecondaire, entièrement compensé par `order`,
+     cf. son commentaire). ============================================================ */
+  @media (max-width: 600px) {
+    /* -- Barre basse (remplace .onglets-nav) ------------------------- */
+    .onglets-nav { display: none; }
+    .nav-bas {
+      display: flex; align-items: center; gap: 8px;
+      position: fixed; left: 0; right: 0; bottom: 0; min-height: 56px;
+      padding: 0 10px env(safe-area-inset-bottom, 0px);
+      background: var(--bg); border-top: 1px solid var(--border);
+      z-index: 41;
+    }
+    .switcher-btn {
+      flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px;
+      padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-2);
+      font: inherit; font-size: 13px; font-weight: 700; color: var(--ink); cursor: pointer;
+    }
+    .switcher-btn svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--accent); }
+    .switcher-btn .nom { flex: 1 1 auto; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .switcher-btn .caret { color: var(--ink-faint); font-size: 10px; flex-shrink: 0; transition: transform .15s; }
+    .switcher-btn.ouvert .caret { transform: rotate(180deg); }
+    /* Avatar déconnexion du bas — un peu plus grand que celui de
+       .onglets-nav (28px, inchangé là-haut) : cible tactile isolée en bout
+       de barre, pas de voisin immédiat avec qui s'aligner visuellement ici. */
+    .nav-bas .avatar-nav { width: 38px; height: 38px; font-size: 13px; margin-right: 0; }
+    /* Panneau "Pages" — position:absolute ancré sur .nav-bas (position:fixed
+       ci-dessus = containing block de ses descendants absolus), juste
+       au-dessus de la barre, plutôt qu'un calcul JS de sa hauteur (cf.
+       ajusterEnteteFixe pour la même idée côté barre du haut — ici
+       bottom:100% suffit, aucune mesure nécessaire). */
+    .switcher-panneau {
+      position: absolute; left: 8px; right: 8px; bottom: calc(100% + 8px); z-index: 41;
+      background: var(--surface-2); border: 1px solid var(--border); border-radius: 14px;
+      box-shadow: 0 -8px 28px var(--shadow-lg); padding: 6px;
+      max-height: 60vh; overflow-y: auto;
+      display: none;
+    }
+    .switcher-panneau.ouvert { display: block; }
+    .switcher-titre {
+      font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+      color: var(--ink-faint); padding: 8px 10px 6px;
+    }
+    .switcher-separateur { height: 1px; background: var(--border); margin: 5px 6px; }
+    /* .switcher-item réutilise .onglet/.onglet.secondaire TELS QUELS pour
+       les couleurs/hover/actif (cf. style.css, inchangés) — seuls le
+       gabarit "ligne pleine largeur" (au lieu de la pilule desktop) et la
+       taille de police changent ici. */
+    .switcher-item { width: 100%; padding: 11px 10px; font-size: 13.5px; border-radius: 9px; }
+
+    /* -- Barre du haut retaillée --------------------------------------
+       Les 6 séparateurs d'origine gardent leur `order` pour le calcul
+       desktop/tablette (cf. #toolbarSecondaire dans style.css) mais n'ont
+       plus leur place ici : masqués, remplacés par les séparateurs dédiés
+       .toolbar-separateur-mobile (posés aux bons endroits dans le HTML,
+       cf. htmlPagePlanning). */
+    .toolbar-sheets .toolbar-separateur:not(.toolbar-separateur-mobile) { display: none; }
+    .toolbar-separateur-mobile { display: block; }
+    /* "+" et "⋮" poussés à l'extrémité droite de la barre (Lionel,
+       mockup : les 2 boutons les plus utilisés/le menu restent groupés à
+       droite) — sans effet sur desktop/tablette (cf. style.css, classe non
+       définie là-bas). */
+    .toolbar-groupe-droite { margin-left: auto; }
+    #btnPlusOutils { display: grid; }
+    /* Chantier réduit à sa seule pastille de couleur (Lionel : « chantier
+       visible mais seulement la pastille de couleur ») — .nom-chantier/
+       .caret restent dans le HTML (construireSelectChantier les cible à
+       chaque rendu, cf. grille-rendu.js) mais deviennent invisibles ; le
+       bouton retrouve le même gabarit 30×30 que les autres icônes de la
+       barre pour un alignement cohérent. */
+    .select-chantier-btn { width: 30px; height: 30px; padding: 0; justify-content: center; border-radius: 7px; }
+    .select-chantier-btn .nom-chantier, .select-chantier-btn .caret { display: none; }
+    .select-chantier-btn .swatch { width: 14px; height: 14px; border-radius: 50%; }
+
+    /* -- Panneau "⋮" (#toolbarSecondaire) -----------------------------
+       display:contents (style.css, valable desktop/tablette/téléphone par
+       défaut) est ici entièrement remplacé : conteneur réel, ancré sous
+       .toolbar-sheets (position:sticky = containing block de ses
+       descendants absolus, même principe que .switcher-panneau plus haut),
+       masqué tant que .ouvert n'est pas posée par cablerPagePlanning
+       (#btnPlusOutils). */
+    .toolbar-secondaire {
+      display: none;
+    }
+    .toolbar-secondaire.ouvert {
+      display: flex; flex-direction: column; gap: 2px;
+      position: absolute; left: 8px; right: 8px; top: calc(100% + 6px); z-index: 41;
+      background: var(--surface-2); border: 1px solid var(--border); border-radius: 14px;
+      box-shadow: 0 10px 28px var(--shadow-lg); padding: 6px;
+      max-height: 70vh; overflow-y: auto;
+    }
+    /* Séparateurs internes du panneau : reprennent .toolbar-separateur-mobile
+       mais en trait HORIZONTAL (barre du haut = trait vertical entre
+       icônes ; ici = ligne entre sections d'une liste verticale). */
+    .toolbar-secondaire .toolbar-separateur-mobile { width: auto; height: 1px; margin: 4px 2px; }
+    /* Chaque groupe devient une ligne pleine largeur (au lieu d'un cluster
+       compact d'icônes 30×30) — même gabarit que .switcher-item/
+       .outil-menu-item pour une liste cohérente dans toute l'appli. */
+    /* flex-direction:column — sans quoi un groupe à PLUSIEURS boutons
+       (ex. #controlesAffichage, ses 4 icônes masquer/afficher) resterait
+       aligné en ligne (comportement par défaut de .toolbar-groupe, adapté
+       à la barre horizontale desktop) au lieu de former 4 lignes distinctes
+       dans cette liste verticale ; sans effet sur les groupes à un seul
+       bouton (Imprimer, 2 semaines, Ajouter une ligne, Zoom). */
+    .toolbar-secondaire .toolbar-groupe { width: 100%; flex-direction: column; align-items: stretch; gap: 2px; }
+    .toolbar-secondaire .toolbar-btn, .toolbar-secondaire .toolbar-toggle {
+      width: 100%; height: auto; justify-content: flex-start; gap: 10px;
+      padding: 10px 8px; border-radius: 9px; font-size: 13.5px; font-weight: 600; color: var(--ink);
+    }
+    .toolbar-secondaire .toolbar-btn svg, .toolbar-secondaire .toolbar-toggle svg { width: 15px; height: 15px; flex-shrink: 0; }
+    /* .toolbar-toggle.actif (Jalons/Notes/Personnel/Intervenants, cf.
+       majControlesAffichage) teinte déjà l'icône via les règles existantes
+       de style.css (.toolbar-toggle.actif[data-affichage-cible=...]),
+       inchangées ici — seuls le libellé et la coche deviennent visibles. */
+    .toolbar-btn-label, .zoom-secondaire-label { display: inline; }
+    .toolbar-btn-coche { display: inline; margin-left: auto; color: var(--accent); font-size: 12px; visibility: hidden; flex-shrink: 0; }
+    .toolbar-toggle.actif .toolbar-btn-coche, .toolbar-btn.actif .toolbar-btn-coche { visibility: visible; }
+    /* #btnDeuxSemaines utilise .toolbar-btn.actif (cf. majSemaineAffichage,
+       style.css) plutôt que .toolbar-toggle.desactive (2 modes valides, pas
+       un masquage — cf. le commentaire de .toolbar-btn.actif, style.css) :
+       même teinte accent que les .outil-menu-item actifs, pour un panneau
+       visuellement cohérent. */
+    .toolbar-secondaire .toolbar-btn.actif { background: var(--accent-soft); color: var(--accent); }
+    /* Ligne "Zoom" : libellé à gauche, mini-contrôles (−/pill/+, déjà
+       existants et câblés, cf. cablerPagePlanning) poussés à droite par le
+       même margin-right:auto que .outils-item-nom du mockup. */
+    .toolbar-secondaire .zoom-ctrl { width: 100%; padding: 10px 8px; gap: 6px; }
+    .zoom-secondaire-label { margin-right: auto; font-size: 13.5px; font-weight: 600; color: var(--ink); }
+    .toolbar-secondaire .zoom-btn { width: 26px; height: 26px; border: 1px solid var(--border); border-radius: 6px; flex-shrink: 0; }
+    /* #menuAjoutLigne garde son propre sous-menu déroulant (.outil-menu-panneau,
+       cf. style.css) — inchangé, simplement ancré sous sa ligne à
+       l'intérieur de ce panneau plutôt que sous une icône compacte. */
+
+    /* -- Espace réservé en bas de chaque page, sous la barre fixe -------
+       .nav-bas (position:fixed, ~56px + zone encoche) n'occupe aucune
+       place dans le flux de #app (seul vrai conteneur qui défile, cf. son
+       commentaire dans style.css) : sans cette marge, le bas de chaque
+       page resterait caché derrière elle en fin de défilement. */
+    .page-scroll { padding-bottom: calc(40px + 56px + env(safe-area-inset-bottom, 0px)); }
+  }
