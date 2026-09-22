@@ -6319,3 +6319,23 @@ Même méthode que d'habitude (Playwright local, `window.supabase` simulé, aucu
 Comme pour le §91, pas testé sur un vrai téléphone contre le vrai projet Supabase — mais cette fois les 2
 bugs corrigés sont exactement ceux que Lionel a remontés en conditions réelles, donc particulièrement
 recommandé de revalider ces deux points précis (le panneau "⋮" et le bouton "+") sur son téléphone.
+
+## 93. Round du 22.09.2026 (suite ×4) — Toolbar en pilule + "Ajouter un chantier" dans le sélecteur
+
+Demande de Lionel : « un "+" pour ajouter un chantier en bas de la liste / arrondir les coins façon
+pilule [sur] le fond de la toolbar ».
+
+- **`style.css`** : `.toolbar-sheets` passe en `border-radius: 999px` (+ un peu de padding horizontal,
+  absent avant, pour que les boutons d'extrémité ne touchent plus le bord arrondi). `.page-scroll` lui
+  donnait déjà 18px de marge de chaque côté, donc rien d'autre à changer pour que la pilule se voie.
+  Nouvelle classe `.select-chantier-ajouter` pour le style du bouton "+".
+- **`js/grille-rendu.js`** (`construireSelectChantier`) : une ligne "+ Ajouter un chantier" est ajoutée en
+  bas du panneau, séparée par un trait. Elle appelle `ouvrirAjoutChantier()` — la fonction existante de
+  la page "Chantiers" (`page-chantiers.js`, même formulaire nom + couleur, même sauvegarde serveur), pas
+  de logique dupliquée. Son propre rafraîchissement rappelle déjà `construireSelectChantier()`, donc le
+  nouveau chantier apparaît automatiquement dans ce même panneau juste après l'ajout.
+
+Vérifié en local (desktop 1280px + téléphone 390px) : barre en pilule sur les deux, bouton "+" bien
+positionné et stylable dans le panneau chantier. Pas testé le clic réel sur "+" contre le vrai serveur
+Supabase (même limite que d'habitude) — le formulaire qui s'ouvre est cependant celui, déjà en
+production, de la page "Chantiers".

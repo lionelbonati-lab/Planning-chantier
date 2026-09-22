@@ -291,10 +291,19 @@
      d'où aussi le hover de .toolbar-btn/.toolbar-toggle ci-dessous en
      var(--surface-2) (inverse du mockup), même logique que .onglet:hover
      juste au-dessus. */
+  /* Round du 22.09.2026 (suite ×4) — Lionel : « arrondir les coins façon
+     pilule » sur le fond de la toolbar. border-radius:999px arrondit au
+     maximum (forme "stade"/pilule sur une barre bien plus large que haute) ;
+     .page-scroll lui donne déjà 18px de marge de chaque côté (cf. cette
+     règle plus bas), donc les coins arrondis se voient sans rien ajouter
+     d'autre — seul un peu de padding horizontal est ajouté (absent avant,
+     les boutons touchaient les bords) pour que les boutons d'extrémité
+     (Annuler, "⋮") ne collent plus au bord arrondi. */
   .toolbar-sheets {
     display: flex; align-items: center; gap: 2px; flex-wrap: wrap;
-    margin: 0; padding-top: 8px; padding-bottom: 2px;
+    margin: 0; padding: 8px 12px 2px;
     position: sticky; z-index: 39; background: var(--surface);
+    border-radius: 999px;
   }
   .toolbar-groupe { display: flex; align-items: center; gap: 2px; }
   .toolbar-separateur { width: 1px; height: 22px; background: var(--border); margin: 0 8px; flex-shrink: 0; }
@@ -336,6 +345,14 @@
   .select-chantier-item.actif { font-weight: 700; color: var(--accent); }
   .select-chantier-item .coche { margin-left: auto; color: var(--accent); font-size: 12px; visibility: hidden; }
   .select-chantier-item.actif .coche { visibility: visible; }
+  /* "+ Ajouter un chantier" (round du 22.09.2026, suite ×4) — dernier
+     élément du panneau, cf. construireSelectChantier (grille-rendu.js).
+     Même gabarit que .select-chantier-item (hérité), teinté accent + séparé
+     du reste de la liste par un fin trait, comme .switcher-separateur. */
+  .select-chantier-ajouter {
+    color: var(--accent); font-weight: 700;
+    border-top: 1px solid var(--border); margin-top: 3px; padding-top: 8px;
+  }
   /* Icônes de masquage — ex-.btn-affichage texte (§82). Lionel : « je
      préfèrerai des icones pour les 4 sous-groupes » puis « toolbar et menu
      ok ». Une icône DIFFÉRENTE par sous-groupe (plutôt que 4× la même icône

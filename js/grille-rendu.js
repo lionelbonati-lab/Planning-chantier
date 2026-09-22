@@ -97,6 +97,23 @@
       });
       panneau.appendChild(it);
     });
+    // Round du 22.09.2026 (suite ×4) — Lionel : « un "+" pour ajouter un
+    // chantier en bas de la liste ». Réutilise TEL QUEL le flux existant
+    // (ouvrirAjoutChantier, page-chantiers.js — même formulaire nom+couleur,
+    // même sauvegarde serveur, aucune logique dupliquée) : sa propre
+    // callback de rafraîchissement (rafraichirApresChantiers -> finir())
+    // rappelle déjà construireSelectChantier(), ce panneau se remplit donc
+    // automatiquement avec le nouveau chantier dès l'enregistrement.
+    var btnAjoutChantier = document.createElement("button");
+    btnAjoutChantier.type = "button";
+    btnAjoutChantier.className = "select-chantier-item select-chantier-ajouter";
+    btnAjoutChantier.textContent = "+ Ajouter un chantier";
+    btnAjoutChantier.addEventListener("click", function () {
+      var sel = document.getElementById("selectChantier");
+      if (sel) sel.classList.remove("ouvert");
+      if (typeof ouvrirAjoutChantier === "function") ouvrirAjoutChantier();
+    });
+    panneau.appendChild(btnAjoutChantier);
     ajusterEnteteFixe();
   }
 
