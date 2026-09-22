@@ -129,6 +129,16 @@
        définie là-bas). */
     .toolbar-groupe-droite { margin-left: auto; }
     #btnPlusOutils { display: grid; }
+    /* Bug signalé par Lionel (round du 22.09.2026, suite ×3) : le menu
+       déroulant "+" (#menuAjoutElement, .outil-menu-panneau) reste ancré à
+       gauche de son bouton (left:0, cf. style.css) — correct quand le
+       bouton est en milieu de barre, mais depuis que .toolbar-groupe-droite
+       le pousse à l'extrémité droite de l'écran (règle ci-dessus), ce
+       panneau de 190px de large débordait hors du viewport à droite.
+       Seul ce panneau change d'ancrage (right:0 au lieu de left:0) — celui
+       de #menuAjoutLigne, resté à sa place dans la barre desktop/tablette
+       et déplacé dans le panneau "⋮" ici, n'est pas concerné. */
+    .toolbar-groupe-droite .outil-menu-panneau { left: auto; right: 0; }
     /* Chantier réduit à sa seule pastille de couleur (Lionel : « chantier
        visible mais seulement la pastille de couleur ») — .nom-chantier/
        .caret restent dans le HTML (construireSelectChantier les cible à
@@ -170,7 +180,18 @@
        dans cette liste verticale ; sans effet sur les groupes à un seul
        bouton (Imprimer, 2 semaines, Ajouter une ligne, Zoom). */
     .toolbar-secondaire .toolbar-groupe { width: 100%; flex-direction: column; align-items: stretch; gap: 2px; }
+    /* Bug signalé par Lionel (round du 22.09.2026, suite ×3) : "les 4
+       boutons d'affichage des groupes sont trop gros". Cause : .toolbar-btn/
+       .toolbar-toggle (style.css) sont display:grid;place-items:center —
+       pensés pour un carré icône seule (30×30) sur la barre desktop. Cette
+       règle ne redéfinissait que width/height/padding, jamais `display` :
+       une grille implicite à une seule colonne empile alors icône/libellé/
+       coche chacun sur sa propre ligne au lieu d'un rang horizontal, d'où
+       des lignes de 84px de haut au lieu d'environ 40px (mesuré en local).
+       `display: flex` restaure un rang unique icône—libellé—coche, comme
+       .outils-item dans le mockup validé. */
     .toolbar-secondaire .toolbar-btn, .toolbar-secondaire .toolbar-toggle {
+      display: flex; align-items: center;
       width: 100%; height: auto; justify-content: flex-start; gap: 10px;
       padding: 10px 8px; border-radius: 9px; font-size: 13.5px; font-weight: 600; color: var(--ink);
     }

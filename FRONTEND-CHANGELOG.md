@@ -6253,3 +6253,69 @@ interactif (pas une extraction mécanique) : Lionel est invité à vérifier par
 conditions réelles avant de considérer ce round acquis (ouvrir l'appli sur son téléphone, se connecter,
 essayer le panneau "⋮" et le sélecteur de pages, puis repasser sur un écran large pour confirmer que rien
 n'a changé là). Réversible facilement si besoin (Git garde l'ancienne version dans l'historique).
+
+## 92. Round du 22.09.2026 (suite ×3) — 2 bugs téléphone signalés par Lionel après le portage du §91
+
+### 92.1. Ce qui a changé
+
+Lionel, après avoir mis en ligne le portage du §91 : « sur la version mobile l'ajout avec "+" déborde
+dans la marge. Les 4 bouton d'affichage des groupes sont trop gros. Sur ton mockup ils étaient pas aussi
+grand ». Deux bugs réels, confirmés tous les deux en local (Playwright, viewport téléphone 390px) avant
+correction — mesures exactes ci-dessous.
+
+**1. Menu "+" (#menuAjoutElement) hors écran.** Son panneau (`.outil-menu-panneau`, `style.css`) est ancré
+`left: 0` par rapport à son bouton — correct tant que le bouton est en milieu de barre, mais le §91 l'a
+déplacé à l'extrémité droite de l'écran (`.toolbar-groupe-droite { margin-left: auto }`). Résultat mesuré :
+panneau de 190px allant de x=310 à x=500 sur un écran de 390px de large — 110px hors du viewport à droite
+(texte/titre coupés, cf. capture). Corrigé par un ancrage inversé spécifique à ce panneau, mobile
+uniquement : `.toolbar-groupe-droite .outil-menu-panneau { left: auto; right: 0; }` (`style-mobile.css`).
+Le panneau de `#menuAjoutLigne`, ancré ailleurs (dans le panneau "⋮"), n'est pas concerné.
+
+**2. Les 4 boutons Jalons/Notes/Personnel/Intervenants (et en fait TOUS les boutons du panneau "⋮",
+Imprimer/2 semaines/Ajouter une ligne inclus) bien plus hauts que prévu.** Cause : `.toolbar-btn` et
+`.toolbar-toggle` (`style.css`) sont `display: grid; place-items: center` — conçus à l'origine pour une
+icône seule dans un carré 30×30 sur la barre desktop. La règle du §91 qui les retaille en lignes pleine
+largeur dans le panneau (`.toolbar-secondaire .toolbar-btn, .toolbar-secondaire .toolbar-toggle`)
+redéfinissait `width`/`height`/`padding` mais jamais `display` — la grille à une seule colonne héritée de
+`style.css` empilait alors icône, libellé et coche chacun sur sa propre ligne au lieu d'un rang horizontal.
+Mesuré en local : 84px de haut par bouton au lieu d'environ 40px attendus (cf. capture — icône au-dessus du
+texte, au lieu d'icône+texte côte à côte comme sur le mockup validé). Corrigé en ajoutant `display: flex;
+align-items: center;` à cette même règle — remet un rang unique icône—libellé—coche, comme `.outils-item`
+dans `mockup-nav-mobile.html`.
+
+Les deux correctifs sont dans `style-mobile.css`, exclusivement à l'intérieur du `@media (max-width: 600px)`
+— aucune ligne touchée dans `style.css` ni dans le JS.
+
+### 92.2. Pourquoi c'est sûr
+
+- Périmètre strictement mobile : les deux sélecteurs modifiés (`.toolbar-groupe-droite .outil-menu-panneau`
+  et `.toolbar-secondaire .toolbar-btn/.toolbar-toggle`) ne peuvent matcher que dans le panneau "⋮", qui
+  n'existe (`display` autre que `contents`) que sous `@media (max-width: 600px)` — confirmé par mesure
+  (`getComputedStyle`) à 1280px : `#toolbarSecondaire` reste `display: contents`, `.toolbar-toggle` reste
+  `grid`/30×30px, identique à avant ce correctif.
+- Correctif 1 : un seul sélecteur ajouté, scopé à `.toolbar-groupe-droite` (donc à `#menuAjoutElement`
+  uniquement) — aucun autre `.outil-menu-panneau` de l'appli (chantier, ajout de ligne, semaine…) n'est
+  affecté.
+- Correctif 2 : `display: flex` sur une règle déjà scopée à `.toolbar-secondaire` (le panneau lui-même),
+  qui n'existe pas hors mobile — aucun risque de ressembler à nouveau à `.toolbar-btn`/`.toolbar-toggle`
+  ailleurs dans l'appli (barre desktop, autres menus), non touchés.
+
+### 92.3. Vérifications
+
+Même méthode que d'habitude (Playwright local, `window.supabase` simulé, aucun accès au vrai projet) :
+
+- **Panneau "⋮" (390px)** : les 4 boutons Jalons/Notes/Personnel/Intervenants mesurent désormais 35px de
+  haut (au lieu de 84px), `display: flex` confirmé par `getComputedStyle` ; rendu identique au mockup validé
+  (icône + libellé sur un rang, coche alignée à droite, fond teinté pour les toggles actifs). Même effet
+  positif sur Imprimer/Zoom/2 semaines/Ajouter une ligne, déjà corrects visuellement avant (fond compact)
+  mais tout aussi touchés par le bug — confirmé par capture avant/après.
+- **Menu "+" (390px)** : panneau désormais de x=150 à x=340, entièrement dans le viewport (0–390) — plus
+  aucun débordement, titre et 4 lignes (Tâche/Absence/Note/Jalon) entièrement visibles.
+- **Desktop (1280px)** : capture avant/après identique, `#toolbarSecondaire` toujours `display: contents`,
+  `.toolbar-toggle` toujours 30×30px `display: grid` — aucun changement.
+- Fichier vérifié syntaxiquement valide, appliqué directement dans le fichier réel (remplacement textuel
+  ciblé, exactement le même contenu que testé en local — hachage identique vérifié après application).
+
+Comme pour le §91, pas testé sur un vrai téléphone contre le vrai projet Supabase — mais cette fois les 2
+bugs corrigés sont exactement ceux que Lionel a remontés en conditions réelles, donc particulièrement
+recommandé de revalider ces deux points précis (le panneau "⋮" et le bouton "+") sur son téléphone.
