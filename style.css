@@ -1185,14 +1185,12 @@
   .onglet svg { width: 14px; height: 14px; flex-shrink: 0; }
   .onglet:hover { background: var(--surface-2); color: var(--ink); }
   .onglet.actif { background: var(--accent-soft); color: var(--accent); }
-  /* Pages de réglages (Général/Chantiers/Statuts/Fériés/Entrée rapide) : en
-     retrait visuel plutôt que regroupées sous un sous-menu, comme validé sur
-     le mockup — mais toujours accent quand actives, comme n'importe quel
-     onglet (spécificité 3 classes, l'emporte sur .onglet.secondaire seul). */
-  .onglet.secondaire { color: var(--ink-faint); font-weight: 600; }
-  .onglet.secondaire:hover { background: var(--surface-2); color: var(--ink-muted); }
-  .onglet.secondaire.actif { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
-  .app-main { min-width: 0; }
+  /* Round du 22.09.2026 (suite ×5) — Lionel : « je ne veux pas 2 types
+     d'onglets ». Les 9 pages (avant : 4 "principales" + 5 "secondaires" en
+     retrait visuel via .onglet.secondaire, ci-dessous jusqu'ici) partagent
+     maintenant EXACTEMENT le même style .onglet — règles .secondaire retirées
+     (plus aucun bouton ne porte cette classe, cf. coquille.js). */
+.app-main { min-width: 0; }
   .page { display: none; }
   .page.actif { display: block; }
 

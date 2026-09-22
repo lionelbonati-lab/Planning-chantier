@@ -108,7 +108,6 @@
       font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
       color: var(--ink-faint); padding: 8px 10px 6px;
     }
-    .switcher-separateur { height: 1px; background: var(--border); margin: 5px 6px; }
     /* .switcher-item réutilise .onglet/.onglet.secondaire TELS QUELS pour
        les couleurs/hover/actif (cf. style.css, inchangés) — seuls le
        gabarit "ligne pleine largeur" (au lieu de la pilule desktop) et la

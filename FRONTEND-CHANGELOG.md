@@ -6339,3 +6339,13 @@ Vérifié en local (desktop 1280px + téléphone 390px) : barre en pilule sur le
 positionné et stylable dans le panneau chantier. Pas testé le clic réel sur "+" contre le vrai serveur
 Supabase (même limite que d'habitude) — le formulaire qui s'ouvre est cependant celui, déjà en
 production, de la page "Chantiers".
+
+## 94. Round du 22.09.2026 (suite ×5) — Un seul type d'onglet
+
+Lionel : « Mettre tous les onglets principale, je ne veux pas 2 types d'onglets ». Les 5 pages de
+réglages (Général/Chantiers/Statuts/Fériés/Entrée rapide) étaient en retrait visuel (`.onglet.secondaire`,
+texte plus pâle) par rapport aux 4 autres depuis le §81 — supprimé : les 9 pages partagent maintenant
+exactement le même style, dans la barre du haut ET dans le panneau "Pages" en bas sur téléphone (où le
+trait séparateur entre les deux groupes disparaît aussi, même logique). `.onglet.secondaire` et
+`.switcher-separateur`, devenus inutilisés, sont retirés de style.css/style-mobile.css plutôt que
+laissés morts. Vérifié en local desktop + téléphone.

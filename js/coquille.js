@@ -7,8 +7,10 @@
      horizontale, toujours visible, IDENTIQUE sur les 9 pages — plus de
      bouton ☰ ni de panneau qui s'ouvre par-dessus le contenu. Les 5 pages
      de réglages (Général/Chantiers/Statuts/Fériés/Entrée rapide) restent
-     de simples onglets, en retrait visuel (.secondaire) plutôt que
-     regroupées, comme validé sur le mockup.
+     de simples onglets, SANS distinction visuelle avec les 4 premiers —
+     Lionel (round du 22.09.2026, suite ×5) : « je ne veux pas 2 types
+     d'onglets » (le retrait visuel .secondaire d'origine est retiré, cf. plus
+     bas et style.css).
      Construite UNE SEULE FOIS après le premier apiDemarrer() réussi (cf.
      demarrer()). #progress/#toast restent EN DEHORS de #app (déjà correct,
      non touché ici — cf. body plus bas dans le fichier).
@@ -23,11 +25,11 @@
             '<button type="button" class="onglet" data-page="jalons">' + ICONS.flag + 'Jalons</button>' +
             '<button type="button" class="onglet" data-page="personnel">' + ICONS.people + 'Personnel</button>' +
             '<button type="button" class="onglet" data-page="intervenants">' + ICONS.hardhat + 'Intervenants</button>' +
-            '<button type="button" class="onglet secondaire" data-page="general">' + ICONS.gear + 'Général</button>' +
-            '<button type="button" class="onglet secondaire" data-page="chantiers">' + ICONS.building + 'Chantiers</button>' +
-            '<button type="button" class="onglet secondaire" data-page="statuts">' + ICONS.tag + 'Statuts</button>' +
-            '<button type="button" class="onglet secondaire" data-page="feries">' + ICONS.star + 'Fériés</button>' +
-            '<button type="button" class="onglet secondaire" data-page="entree-rapide">' + ICONS.bolt + 'Entrée rapide</button>' +
+            '<button type="button" class="onglet" data-page="general">' + ICONS.gear + 'Général</button>' +
+            '<button type="button" class="onglet" data-page="chantiers">' + ICONS.building + 'Chantiers</button>' +
+            '<button type="button" class="onglet" data-page="statuts">' + ICONS.tag + 'Statuts</button>' +
+            '<button type="button" class="onglet" data-page="feries">' + ICONS.star + 'Fériés</button>' +
+            '<button type="button" class="onglet" data-page="entree-rapide">' + ICONS.bolt + 'Entrée rapide</button>' +
           '</div>' +
           '<button type="button" class="avatar-nav" id="lienDeconnexionNav" title="Se déconnecter" aria-label="Se déconnecter">L</button>' +
         '</nav>' +
@@ -66,12 +68,11 @@
             '<button type="button" class="onglet switcher-item" data-page="jalons">' + ICONS.flag + 'Jalons</button>' +
             '<button type="button" class="onglet switcher-item" data-page="personnel">' + ICONS.people + 'Personnel</button>' +
             '<button type="button" class="onglet switcher-item" data-page="intervenants">' + ICONS.hardhat + 'Intervenants</button>' +
-            '<div class="switcher-separateur"></div>' +
-            '<button type="button" class="onglet secondaire switcher-item" data-page="general">' + ICONS.gear + 'Général</button>' +
-            '<button type="button" class="onglet secondaire switcher-item" data-page="chantiers">' + ICONS.building + 'Chantiers</button>' +
-            '<button type="button" class="onglet secondaire switcher-item" data-page="statuts">' + ICONS.tag + 'Statuts</button>' +
-            '<button type="button" class="onglet secondaire switcher-item" data-page="feries">' + ICONS.star + 'Fériés</button>' +
-            '<button type="button" class="onglet secondaire switcher-item" data-page="entree-rapide">' + ICONS.bolt + 'Entrée rapide</button>' +
+            '<button type="button" class="onglet switcher-item" data-page="general">' + ICONS.gear + 'Général</button>' +
+            '<button type="button" class="onglet switcher-item" data-page="chantiers">' + ICONS.building + 'Chantiers</button>' +
+            '<button type="button" class="onglet switcher-item" data-page="statuts">' + ICONS.tag + 'Statuts</button>' +
+            '<button type="button" class="onglet switcher-item" data-page="feries">' + ICONS.star + 'Fériés</button>' +
+            '<button type="button" class="onglet switcher-item" data-page="entree-rapide">' + ICONS.bolt + 'Entrée rapide</button>' +
           '</div>' +
         '</div>' +
       '</div>';
