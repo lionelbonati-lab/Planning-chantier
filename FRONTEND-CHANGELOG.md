@@ -6497,3 +6497,13 @@ Suppression du groupe "toolbar" dans `GROUPES_COULEURS` (js/page-couleurs.js) �
 
 Vérifié en local (Playwright) : le picker "Fond de la barre d'outils" et son texte ont disparu de la page Couleurs ; `--toolbar-bg` n'existe plus comme variable CSS ; même en injectant artificiellement une ancienne entrée `localStorage` "toolbar" (simulant un réglage fait avant ce round), le fond de la toolbar reste aligné sur `--accent-soft` — cette entrée orpheline est ignorée puisque le groupe n'est plus dans la liste lue par `appliquerCouleursPersonnalisees()`. Changer "Fond de l'onglet actif" reste le seul levier et continue de faire suivre la toolbar en direct, capture à l'appui.
 
+## 103. Round du 23.09.2026 (suite 8) — Recentrage vertical des onglets et de la toolbar
+
+Lionel : « recentre correctement les élément dans la toolbar et les onglets, les éléments sont trop contre le bas. »
+
+Cause dans les deux cas : un padding vertical asymétrique. `.onglets-nav` ne posait qu'un `padding-top: 4px` (rien en bas), donc les onglets touchaient directement le `border-bottom` de la barre — `align-items: center` ne pouvait rien recentrer puisque la hauteur du conteneur ne dépassait pas celle des boutons plus ce seul padding du haut. `.toolbar-sheets` posait `padding: 8px 12px 2px` (8px en haut, seulement 2px en bas) : même total vertical (10px) mais réparti tout en haut, ce qui poussait visuellement les boutons vers le bas de la pilule.
+
+Fix : padding vertical symétrique des deux côtés — `.onglets-nav` passe à `padding: 4px 0` (4px en haut et en bas) et `.toolbar-sheets` à `padding: 5px 12px` (5px en haut et en bas, même total que les 8+2px d'avant donc aucun changement de hauteur globale des barres). Le padding horizontal de `.toolbar-sheets` (12px) est inchangé.
+
+Vérifié en local (Playwright, mesure des rects) : l'espace entre le haut du conteneur et le premier bouton égale maintenant l'espace entre le dernier bouton et le bas du conteneur, à la fois pour `.onglets-nav` (aux ~1px du trait de séparation près, normal) et pour `.toolbar-sheets` (exactement 7px/7px). Capture à l'appui.
+

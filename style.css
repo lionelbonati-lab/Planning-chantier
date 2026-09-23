@@ -358,7 +358,13 @@
      (Annuler, "⋮") ne collent plus au bord arrondi. */
   .toolbar-sheets {
     display: flex; align-items: center; gap: 2px; flex-wrap: wrap;
-    margin: 0; padding: 8px 12px 2px;
+    margin: 0;
+    /* Round du 23.09.2026 (suite ×9) — Lionel : « recentre correctement les
+       élément dans la toolbar et les onglets, les éléments sont trop contre
+       le bas ». Padding vertical asymétrique (8px en haut, 2px en bas) :
+       même total (10px) réparti à égalité pour centrer réellement les
+       boutons dans la pilule, sans changer sa hauteur globale. */
+    padding: 5px 12px;
     /* Round du 23.09.2026 (suite ×8) — plus de --toolbar-bg dédiée (cf. le
        commentaire dans :root) : lit --accent-soft directement, sans réglage
        indépendant possible (Lionel : « elle doit toujours garder celle du
@@ -1236,7 +1242,15 @@
   .onglets-nav {
     display: flex; align-items: center; gap: 10px;
     border-bottom: 1px solid var(--border); margin-bottom: 4px; flex-shrink: 0;
-    padding-top: 4px;
+    /* Round du 23.09.2026 (suite ×9) — Lionel : « recentre correctement les
+       élément dans la toolbar et les onglets, les éléments sont trop contre
+       le bas ». padding-top seul (4px, rien en bas) laissait les onglets
+       collés au border-bottom : la hauteur de la barre se limitait à ce
+       padding-top + la hauteur des boutons, donc align-items:center n'avait
+       aucun espace en trop à répartir et ne pouvait rien recentrer. Même
+       valeur en haut ET en bas désormais : un vrai espace symétrique existe
+       pour que le centrage vertical se voie. */
+    padding: 4px 0;
     position: sticky; top: 0; z-index: 40; background: var(--bg);
   }
   /* §81 (round du 16.09.2026, encore un autre, suite, suite, encore) —
