@@ -34,6 +34,16 @@
     --avertissement-bg: #f9d4b0; --avertissement-ink: #8a3d00;
     --succes-bg: #cdeccb; --succes-ink: #1f6b2c;
     --weekend-bg: #cdcfc9;
+    /* Round du 23.09.2026 — page de réglages des couleurs (Général, cf.
+       js/page-couleurs.js) : ces 2 couleurs étaient codées en dur dans les
+       règles qui les utilisent plus bas (.important-toggle.actif,
+       .sync-dot). Sorties ici en variables pour pouvoir être pilotées
+       depuis la nouvelle page, sans changer leur valeur ni leur rendu
+       actuel. Même valeur dans les 2 thèmes (comme Absence/Jalon/Note
+       ci-dessus) : pas de redéfinition à ajouter dans le bloc sombre plus
+       bas, l'absence de règle là-bas suffit à garder cette valeur. */
+    --important-toggle-bg: #f2b134; --important-toggle-ink: #6b4400;
+    --sync-dot: #3fa15a;
     color-scheme: light;
   }
   /* Round du 16.09.2026 (suite, suite, suite, encore) — nettoyage suite à
@@ -178,7 +188,7 @@
     width: 20px; height: 20px; border-radius: 6px; background: var(--accent); color: var(--accent-ink);
     display: grid; place-items: center; font-size: 10px; font-weight: 800; flex-shrink: 0;
   }
-  .topbar .sync-dot { width: 6px; height: 6px; border-radius: 50%; background: #3fa15a; flex-shrink: 0; animation: pulse 2.4s ease-in-out infinite; }
+  .topbar .sync-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--sync-dot); flex-shrink: 0; animation: pulse 2.4s ease-in-out infinite; }
   @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
   .topbar .spacer { flex: 1; }
   .topbar button {
@@ -932,7 +942,7 @@
   .carte-item .bandeau .fermer { right: 10px; }
   .carte-item .bandeau .important-toggle { right: 52px; }
   .carte-item .bandeau.clair .fermer, .carte-item .bandeau.clair .important-toggle { background: rgba(20, 24, 20, .1); color: var(--ink); }
-  .carte-item .bandeau .important-toggle.actif { background: #f2b134; color: #6b4400; }
+  .carte-item .bandeau .important-toggle.actif { background: var(--important-toggle-bg); color: var(--important-toggle-ink); }
   /* Round du 12.09.2026 — Lionel : « le chantier est cliquable pour le
      changer, mais la case est trop grande, réduit la à la taille du texte.
      La flèche type menu déroulant me dérange, supprime la. Souligne
@@ -1218,6 +1228,30 @@
   .interrupteur input:checked ~ .interrupteur-piste { background: var(--accent); opacity: 1; }
   .interrupteur input:checked ~ .interrupteur-piste::before { transform: translateX(16px); }
   .interrupteur input:focus-visible ~ .interrupteur-piste { outline: 2.5px solid var(--accent); outline-offset: 2px; }
+
+  /* Round du 23.09.2026 — page de réglages des couleurs (Général), cf.
+     js/page-couleurs.js. Une "ligne" = même patron visuel que .reglage-ligne
+     ci-dessus (carte grise, coins arrondis) mais avec 2 sélecteurs de
+     couleur natifs (clair/sombre) au lieu d'un interrupteur, plus un bouton
+     de réinitialisation par ligne. */
+  .reglage-couleurs-entete { display: flex; align-items: center; justify-content: space-between; max-width: 540px; margin: 22px 0 6px; }
+  .reglage-couleurs-entete h2 { font-size: 14px; font-weight: 700; margin: 0; }
+  .lien-reset-tout { border: none; background: none; color: var(--accent); font-size: 12px; font-weight: 600; cursor: pointer; padding: 4px 0; }
+  .lien-reset-tout:hover { text-decoration: underline; }
+  .reglage-couleurs-groupe {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    max-width: 540px; padding: 12px 16px; border: 1px solid var(--border); border-radius: 10px;
+    background: var(--surface-2); margin-bottom: 8px;
+  }
+  .reglage-couleurs-paires { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+  .reglage-couleur-paire { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .reglage-couleur-paire span { font-size: 10px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: .03em; }
+  .reglage-couleurs-groupe input[type="color"] { width: 34px; height: 30px; padding: 2px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); cursor: pointer; }
+  .reglage-couleur-reset {
+    border: none; background: var(--surface); color: var(--ink-faint); font-size: 15px; cursor: pointer;
+    width: 28px; height: 28px; border-radius: 7px; line-height: 1; flex-shrink: 0;
+  }
+  .reglage-couleur-reset:hover { color: var(--accent); }
 
   .liste-intervenants { display: flex; flex-direction: column; gap: 8px; max-width: 520px; }
   .ligne-intervenant { display: flex; align-items: center; padding: 11px 14px; border: 1px solid var(--border); border-radius: 10px; font-size: 13px; background: var(--surface-2); }

@@ -330,6 +330,11 @@
       '<label class="reglage-ligne"><span class="reglage-texte"><b>Afficher les week-ends</b>' +
       '<span>Ajoute Samedi et Dimanche à la fin de chaque semaine, pour y poser une tâche ponctuelle.</span></span>' +
       '<span class="interrupteur"><input type="checkbox" id="chkWeekends"><span class="interrupteur-piste"></span></span></label>' +
+      // Round du 23.09.2026 — page de réglages des couleurs, cf.
+      // js/page-couleurs.js (données + logique). Générée par
+      // htmlReglagesCouleurs() plutôt qu'écrite ici en dur : la liste des
+      // groupes de couleurs vit dans un seul fichier, pas dupliquée.
+      htmlReglagesCouleurs() +
       '</div></div>';
   }
   function htmlPagePersonnel() {
@@ -826,5 +831,10 @@
       chk.checked = afficherWeekends;
       chk.addEventListener("change", function () { afficherWeekends = chk.checked; render(false); });
     }
+    // Round du 23.09.2026 — câblage des sélecteurs de couleur de la page
+    // Général, une fois leur HTML (htmlReglagesCouleurs(), ci-dessus dans
+    // htmlPageGeneral()) posé dans le DOM par le innerHTML tout en haut de
+    // cette fonction. Définie dans js/page-couleurs.js.
+    initReglagesCouleurs();
   }
 

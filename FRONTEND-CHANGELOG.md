@@ -6349,3 +6349,42 @@ exactement le même style, dans la barre du haut ET dans le panneau "Pages" en b
 trait séparateur entre les deux groupes disparaît aussi, même logique). `.onglet.secondaire` et
 `.switcher-separateur`, devenus inutilisés, sont retirés de style.css/style-mobile.css plutôt que
 laissés morts. Vérifié en local desktop + téléphone.
+
+## 95. Round du 23.09.2026 — Page de réglages des couleurs (Général)
+
+Lionel : « j'aimerai pouvoir changer les couleurs des éléments sans passer
+par le code. » Tableau xlsx envoyé pour choisir les regroupements
+(couleurs partagées entre plusieurs éléments), rempli sur son Google Drive
+et confirmé avec lui (25 éléments -> 16 réglages après regroupement,
+notamment Erreur+Suppression+Étoile important ensemble, et Fond
+général+cases+coin+Jalon+Note ensemble).
+
+Nouveau fichier js/page-couleurs.js : la liste des 16 groupes (variables
+CSS pilotées, valeurs par défaut clair/sombre) + la logique. Chaque groupe
+a un sélecteur de couleur natif (input type=color) pour le clair et un
+pour le sombre sur la page Général, sous les réglages existants. Un choix
+enregistré construit une balise <style> injectée dans <head> qui pose les
+variables CSS correspondantes (ex. --accent, ou les 5 variables du groupe
+Fond en une fois) ; tant qu'aucun choix n'est enregistré pour un groupe,
+rien ne change, les valeurs d'origine de style.css s'appliquent. Piège
+rencontré et corrigé en test : le bloc sombre de style.css cible `:root:not([data-theme="light"])`, plus spécifique qu'un simple `:root` — la balise injectée reprend le même sélecteur pour le mode sombre, sinon
+elle perdait contre la règle d'origine malgré un ordre plus tardif dans le
+document. Stockage dans localStorage (portée locale à l'appareil, comme
+"Afficher les week-ends" déjà sur cette page) : pas de table Supabase,
+rien de partagé entre appareils.
+
+2 couleurs jusqu'ici codées en dur (l'étoile "important" activée, le point
+de synchronisation) sont sorties en variables CSS (--important-toggle-bg/
+-ink, --sync-dot) dans style.css pour pouvoir être pilotées comme les
+autres — mêmes valeurs qu'avant, aucun changement visuel tant que Lionel
+n'y touche pas.
+
+Bouton "Tout réinitialiser" en haut de la section, et bouton de reset par
+ligne. Vérifié en local (Playwright) : rendu clair/sombre par défaut
+identique à l'existant (aucune régression sur les couleurs actuelles),
+changement d'un groupe simple (1 variable) et d'un groupe multiple (Fond,
+5 variables) répercuté immédiatement, alpha préservé sur les groupes
+Ombres/Texte (rgba, seule la teinte change), persistance après rechargement,
+reset par ligne et reset global, non-régression sur les onglets/toolbar
+pilule/sélecteur chantier déjà en place. Livré directement dans le dépôt
+(style.css, js/coquille.js, nouveau js/page-couleurs.js, index.html).
