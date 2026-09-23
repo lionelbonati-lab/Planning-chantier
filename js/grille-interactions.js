@@ -1350,5 +1350,11 @@
     if (pill && etat.semaines[etat.indexSemaine]) pill.textContent = "Sem. " + etat.semaines[etat.indexSemaine].num + " ▾";
     var btn2s = document.getElementById("btnDeuxSemaines");
     if (btn2s) btn2s.classList.toggle("actif", deuxSemaines);
+    // Round du 23.09.2026 (suite 4) — #btnVueJourMobile (mobile uniquement,
+    // remplace "Afficher 2 semaines" sur téléphone) : "actif" représente son
+    // propre libellé "1 semaine", donc tinté quand on N'EST PLUS en mode "1
+    // jour" — même logique que btn2s juste au-dessus.
+    var btnVJM = document.getElementById("btnVueJourMobile");
+    if (btnVJM) btnVJM.classList.toggle("actif", !vueJourMobile);
   }
 

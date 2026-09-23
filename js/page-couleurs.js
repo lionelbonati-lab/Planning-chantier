@@ -50,10 +50,22 @@
     },
     {
       id: "fond", nom: "Fond général, cases et coin",
-      description: "Regroupés à ta demande : le fond général de l'appli, le fond des cases, et le coin de la grille (aussi utilisé par les lignes Personnel/Intervenants) prendront tous la même couleur.",
+      description: "Regroupés à ta demande : le fond général de l'appli, le fond des cases, et le coin de la grille prendront tous la même couleur.",
       champs: [{ v: "--bg" }, { v: "--surface-2" }, { v: "--surface" }],
       defautClair: "#ffffff", defautSombre: "#10161d"
     },
+    // Groupe "toolbar" (Fond de la barre d'outils) — existé un temps ici
+    // (rounds du 23.09.2026, suite ×3 puis ×7), réglable indépendamment
+    // avec un lien par défaut vers --accent-soft. Retiré au round suivant
+    // (suite ×8) — Lionel : « enlève la possibilité de choisir la couleur
+    // de la toolbar, elle doit toujours garder celle du thème ». La
+    // variable --toolbar-bg elle-même a été supprimée de style.css :
+    // .toolbar-sheets lit --accent-soft directement désormais, donc plus
+    // rien à piloter ici — voir le commentaire dans style.css :root pour le
+    // détail. Une éventuelle vieille entrée "toolbar" dans le localStorage
+    // d'un appareil (choisie avant ce round) reste inerte : ce groupe
+    // n'étant plus dans la liste ci-dessus, appliquerCouleursPersonnalisees
+    // ne la lit plus jamais.
     {
       // Round du 23.09.2026 (suite) — Lionel : « le fond des jalons et note,
       // c'était pour les cellules, pas pour les bulles ». --jalon-bg/
@@ -63,7 +75,10 @@
       // fond de cellule séparé dans le code. Sortis du groupe "fond"
       // ci-dessus (qui les avait fait passer blanc/noir par erreur) et
       // remis en réglages indépendants, un par élément comme demandé.
-      id: "jalon", nom: "Jalon",
+      // (suite ×3) — déplacé de la page Général vers la page Jalons, sur
+      // demande de Lionel ; "page" dit à htmlReglagesCouleurs() où
+      // afficher la ligne (cf. plus bas). "Note" reste sur Général.
+      id: "jalon", nom: "Jalon", page: "jalons",
       description: "Couleur de la bulle « Jalon » posée sur le planning, et du bouton « afficher les jalons » de la barre d'outils quand il est activé.",
       champs: [{ v: "--jalon-bg" }],
       defautClair: "#d7cdf0", defautSombre: "#d7cdf0"
@@ -73,6 +88,25 @@
       description: "Couleur de la bulle « Note » posée sur le planning, et du bouton « afficher les notes » de la barre d'outils quand il est activé.",
       champs: [{ v: "--note-bg" }],
       defautClair: "#f7e6ab", defautSombre: "#f7e6ab"
+    },
+    {
+      // Round du 23.09.2026 (suite ×3) — Lionel : « séparations Personnel/
+      // Intervenants : un réglage de couleur dans leurs pages respectives »
+      // + « aussi utilisé pour les boutons de masquage ». Remplace la part
+      // --surface (donc le groupe "fond") de .section-row-personnel — cf.
+      // style.css — et le bouton "afficher/masquer Personnel" de la
+      // toolbar (auparavant accent bleu générique, cf. .toolbar-toggle).
+      // "page" affiche cette ligne sur la page Personnel, pas Général.
+      id: "section-personnel", nom: "Séparation « Personnel »", page: "personnel",
+      description: "Fond de la ligne « Personnel » dans le planning, et du bouton « afficher/masquer Personnel » de la barre d'outils quand il est activé.",
+      champs: [{ v: "--section-personnel-bg" }],
+      defautClair: "#f0f0f0", defautSombre: "#171f28"
+    },
+    {
+      id: "section-intervenants", nom: "Séparation « Intervenants »", page: "intervenants",
+      description: "Fond de la ligne « Intervenants » dans le planning, et du bouton « afficher/masquer Intervenants » de la barre d'outils quand il est activé.",
+      champs: [{ v: "--section-intervenants-bg" }],
+      defautClair: "#f0f0f0", defautSombre: "#171f28"
     },
     {
       id: "halo-suppression", nom: "Halo de suppression",
@@ -206,20 +240,35 @@
   // de la coquille), pour éviter tout flash des couleurs d'origine.
   appliquerCouleursPersonnalisees();
 
-  function htmlReglagesCouleurs() {
-    var html = '<div class="reglage-couleurs-entete"><h2>Couleurs</h2>' +
-      '<button type="button" class="lien-reset-tout" id="btnResetToutesCouleurs">Tout réinitialiser</button></div>' +
-      '<p class="page-sous">Une couleur pour le mode clair, une pour le mode sombre. Les éléments listés ensemble ont été regroupés ensemble à ta demande : ils partagent la même couleur.</p>';
-    GROUPES_COULEURS.forEach(function (groupe) {
-      html += '<div class="reglage-couleurs-groupe" data-groupe="' + groupe.id + '">' +
-        '<span class="reglage-texte"><b>' + groupe.nom + '</b><span>' + groupe.description + '</span></span>' +
-        '<span class="reglage-couleurs-paires">' +
-          '<span class="reglage-couleur-paire"><span>Clair</span><input type="color" class="rc-clair" data-groupe="' + groupe.id + '"></span>' +
-          '<span class="reglage-couleur-paire"><span>Sombre</span><input type="color" class="rc-sombre" data-groupe="' + groupe.id + '"></span>' +
-          '<button type="button" class="reglage-couleur-reset" data-groupe="' + groupe.id + '" title="Rétablir la couleur d’origine">↺</button>' +
-        '</span>' +
-      '</div>';
-    });
+  function htmlLigneCouleur(groupe) {
+    return '<div class="reglage-couleurs-groupe" data-groupe="' + groupe.id + '">' +
+      '<span class="reglage-texte"><b>' + groupe.nom + '</b><span>' + groupe.description + '</span></span>' +
+      '<span class="reglage-couleurs-paires">' +
+        '<span class="reglage-couleur-paire"><span>Clair</span><input type="color" class="rc-clair" data-groupe="' + groupe.id + '"></span>' +
+        '<span class="reglage-couleur-paire"><span>Sombre</span><input type="color" class="rc-sombre" data-groupe="' + groupe.id + '"></span>' +
+        '<button type="button" class="reglage-couleur-reset" data-groupe="' + groupe.id + '" title="Rétablir la couleur d’origine">↺</button>' +
+      '</span>' +
+    '</div>';
+  }
+
+  // Round du 23.09.2026 (suite ×3) — Lionel a demandé que certains réglages
+  // (Jalon, Personnel, Intervenants) vivent sur leur propre page plutôt que
+  // sur Général, à côté de l'élément qu'ils colorent. Chaque groupe porte
+  // maintenant un `page` ("general" par défaut) ; htmlReglagesCouleurs(page)
+  // n'affiche que les groupes de CETTE page. L'entête "Couleurs" + "Tout
+  // réinitialiser" (qui agit sur TOUS les groupes, quelle que soit leur
+  // page) ne s'affiche que sur Général — les autres pages n'ont qu'une
+  // ligne, inutile de leur donner l'entête complète.
+  function htmlReglagesCouleurs(page) {
+    page = page || "general";
+    var groupes = GROUPES_COULEURS.filter(function (g) { return (g.page || "general") === page; });
+    var html = "";
+    if (page === "general") {
+      html += '<div class="reglage-couleurs-entete"><h2>Couleurs</h2>' +
+        '<button type="button" class="lien-reset-tout" id="btnResetToutesCouleurs">Tout réinitialiser</button></div>' +
+        '<p class="page-sous">Une couleur pour le mode clair, une pour le mode sombre. Les éléments listés ensemble ont été regroupés ensemble à ta demande : ils partagent la même couleur.</p>';
+    }
+    groupes.forEach(function (groupe) { html += htmlLigneCouleur(groupe); });
     return html;
   }
   window.htmlReglagesCouleurs = htmlReglagesCouleurs;

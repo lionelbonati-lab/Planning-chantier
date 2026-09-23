@@ -281,8 +281,22 @@
           '</div>' +
           '<div class="toolbar-separateur" style="order:60"></div>' +
           '<div class="toolbar-separateur toolbar-separateur-mobile" style="order:65"></div>' +
-          '<div class="toolbar-groupe" style="order:80">' +
+          '<div class="toolbar-groupe" id="groupeDeuxSemaines" style="order:80">' +
             '<button type="button" class="toolbar-btn" id="btnDeuxSemaines" title="Afficher 2 semaines à la fois" aria-label="Afficher 2 semaines à la fois">' + ICONS.deuxSemaines + '<span class="toolbar-btn-label">Afficher 2 semaines</span><span class="toolbar-btn-coche">✓</span></button>' +
+          '</div>' +
+          // Round du 23.09.2026 (suite 4) — Lionel : « sur la vue mobile ne
+          // soit afficher que 1 jours. Un bouton permettrait d'afficher la
+          // vue 1 semaine (à la place du 2 semaines qu'on retrouve sur
+          // desktop et tablettes) ». #groupeVueJourMobile occupe le même
+          // emplacement/order que #groupeDeuxSemaines juste au-dessus — seul
+          // l'un des deux est visible à la fois : masqué par défaut ici
+          // (classe .mobile-seulement, cf. style-mobile.css) sur
+          // desktop/tablette où "Afficher 2 semaines" garde son rôle
+          // habituel inchangé ; sur téléphone (≤600px) c'est l'inverse
+          // (#groupeDeuxSemaines masqué, celui-ci affiché) — cf.
+          // style-mobile.css pour le détail des 2 règles.
+          '<div class="toolbar-groupe mobile-seulement" id="groupeVueJourMobile" style="order:80">' +
+            '<button type="button" class="toolbar-btn" id="btnVueJourMobile" title="Afficher la semaine complète" aria-label="Afficher la semaine complète">' + ICONS.semaineMobile + '<span class="toolbar-btn-label">1 semaine</span><span class="toolbar-btn-coche">✓</span></button>' +
           '</div>' +
           '<div class="toolbar-separateur toolbar-separateur-mobile" style="order:100"></div>' +
           '<div class="toolbar-groupe" style="order:120">' +
@@ -320,6 +334,10 @@
     return '<div class="page" id="page-jalons"><div class="page-scroll">' +
       '<div class="page-titre"><h1>Jalons</h1></div>' +
       '<p class="page-sous">Étapes clés d’un chantier (livraison, coulage, réception…), sur une durée aussi longue que nécessaire — indépendant des semaines affichées dans le planning.</p>' +
+      // Round du 23.09.2026 (suite) — à la demande de Lionel, le réglage de
+      // couleur "Jalon" est déplacé ici (sur sa page naturelle) plutôt que
+      // sur Général. Cf. js/page-couleurs.js.
+      htmlReglagesCouleurs('jalons') +
       '<div class="liste-intervenants" id="listeJalons"></div>' +
       '</div></div>';
   }
@@ -341,6 +359,10 @@
     return '<div class="page" id="page-personnel"><div class="page-scroll">' +
       '<div class="page-titre"><h1>Personnel</h1></div>' +
       '<p class="page-sous">L’équipe interne.</p>' +
+      // Round du 23.09.2026 (suite) — réglage de couleur de la ligne de
+      // séparation Personnel, placé ici à la demande de Lionel (réutilisé
+      // aussi par le bouton de masquage de la toolbar). Cf. js/page-couleurs.js.
+      htmlReglagesCouleurs('personnel') +
       '<div class="liste-intervenants" id="listePersonnel"></div>' +
       '</div></div>';
   }
@@ -348,6 +370,8 @@
     return '<div class="page" id="page-intervenants"><div class="page-scroll">' +
       '<div class="page-titre"><h1>Intervenants</h1></div>' +
       '<p class="page-sous">Les sous-traitants — leurs tâches ont un champ Statut, pas le personnel.</p>' +
+      // Round du 23.09.2026 (suite) — idem Personnel, cf. js/page-couleurs.js.
+      htmlReglagesCouleurs('intervenants') +
       '<div class="liste-intervenants" id="listeIntervenants"></div>' +
       '</div></div>';
   }
@@ -733,10 +757,15 @@
     var btnSemaineSuiv = document.getElementById("btnSemaineSuiv");
     var btnAujourdhuiBarre = document.getElementById("btnAujourdhui");
     var btnDeuxSemainesBarre = document.getElementById("btnDeuxSemaines");
+    // Round du 23.09.2026 (suite 4) — #btnVueJourMobile, pendant mobile de
+    // btnDeuxSemainesBarre (cf. #groupeVueJourMobile plus haut et
+    // basculerVueJourMobile, js/grille-rendu.js).
+    var btnVueJourMobileBarre = document.getElementById("btnVueJourMobile");
     if (btnSemainePrec) btnSemainePrec.addEventListener("click", function () { naviguerSemaine(-1); });
     if (btnSemaineSuiv) btnSemaineSuiv.addEventListener("click", function () { naviguerSemaine(1); });
     if (btnAujourdhuiBarre) btnAujourdhuiBarre.addEventListener("click", allerAujourdhui);
     if (btnDeuxSemainesBarre) btnDeuxSemainesBarre.addEventListener("click", basculerDeuxSemaines);
+    if (btnVueJourMobileBarre) btnVueJourMobileBarre.addEventListener("click", basculerVueJourMobile);
     // #menuSemaine/#btnSemainePill remplacent ouvrirAllerSemaine() (popup
     // centrée avec un <select>, supprimée avec son unique déclencheur
     // .lien-aller) par un dropdown façon Sheets, cohérent avec zoom/ligne+/+

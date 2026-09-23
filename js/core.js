@@ -187,6 +187,12 @@
     chevronDroite: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M7.5 4.5 13 10l-5.5 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     aujourdhui: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="2.5" y="3.5" width="15" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 7.5h15" stroke="currentColor" stroke-width="1.5"/><path d="M6 2v3M14 2v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="10" cy="12.6" r="2" fill="currentColor"/></svg>',
     deuxSemaines: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="2" y="4" width="7" height="12" rx="1.3" stroke="currentColor" stroke-width="1.5"/><rect x="11" y="4" width="7" height="12" rx="1.3" stroke="currentColor" stroke-width="1.5"/></svg>',
+    // Round du 23.09.2026 (suite 4) — semaineMobile : 5 colonnes fines
+    // (5 jours ouvrés), pour le bouton mobile "1 semaine" qui remplace
+    // "Afficher 2 semaines" sur téléphone (cf. #groupeVueJourMobile,
+    // js/coquille.js) — délibérément distinct de deuxSemaines ci-dessus
+    // (2 gros blocs) pour ne pas laisser croire qu'il s'agit du même réglage.
+    semaineMobile: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="0.8" y="4" width="2.4" height="12" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="4.8" y="4" width="2.4" height="12" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="8.8" y="4" width="2.4" height="12" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="12.8" y="4" width="2.4" height="12" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="16.8" y="4" width="2.4" height="12" rx="1" stroke="currentColor" stroke-width="1.4"/></svg>',
     // Round du 22.09.2026 (port du mockup mockup-nav-mobile.html validé par
     // Lionel) : icône "⋮" du bouton #btnPlusOutils (barre retaillée pour
     // téléphone, cf. FRONTEND-CHANGELOG.md §91) — 3 points verticaux,
@@ -630,6 +636,26 @@
   var TACHES = [], JALONS = [], NOTES = [];
   var deuxSemaines = false;
   var afficherWeekends = false;
+  // Round du 23.09.2026 (suite 4) — Lionel : « sur la vue mobile ne soit
+  // afficher que 1 jours. Un bouton permettrait d'afficher la vue 1 semaine
+  // (à la place du 2 semaines qu'on retrouve sur desktop et tablettes) ».
+  // vueJourMobile ne prend effet qu'en dessous de 600px (cf. construireGrille,
+  // js/grille-rendu.js) — sur desktop/tablette il reste inerte, deuxSemaines/
+  // #btnDeuxSemaines gardent leur rôle habituel, inchangés. true par défaut :
+  // vue "1 jour" à l'ouverture, comme demandé.
+  var vueJourMobile = true;
+  // cibleApresRendu pilote le recalage du défilement horizontal juste après
+  // un rendu qui doit délibérément l'ignorer (au lieu de restaurer
+  // scrollLeftPrecedent, cf. construireGrille) : "aujourdhui" (premier rendu,
+  // ou retour en mode "1 jour" via basculerVueJourMobile), "debut" (retour en
+  // mode "1 semaine", ou arrivée sur une semaine suivante via
+  // naviguerSemaineDepuisBordJour — cf. son commentaire, round du 23.09.2026
+  // suite 5, Lionel : « Swipper un vendredi permet de passer au lundi de la
+  // semaine suivante ? »), "fin" (arrivée sur une semaine précédente, même
+  // fonction — dernier jour affiché plutôt que le premier), ou null (rendu
+  // normal, ex. après édition d'une tâche : position de défilement de
+  // l'utilisateur préservée comme avant).
+  var cibleApresRendu = "aujourdhui";
   var replierSectionPersonnel = false, replierSectionIntervenants = false;
   // §80 (round du 16.09.2026, encore un autre, suite, suite) — Lionel :
   // « avoir la possibilité de masquer jalons et note avec une petite flèche

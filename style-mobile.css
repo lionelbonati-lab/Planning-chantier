@@ -224,4 +224,22 @@
        commentaire dans style.css) : sans cette marge, le bas de chaque
        page resterait caché derrière elle en fin de défilement. */
     .page-scroll { padding-bottom: calc(40px + 56px + env(safe-area-inset-bottom, 0px)); }
+
+    /* -- Vue "1 jour" par défaut sur téléphone --------------------------
+       Round du 23.09.2026 (suite 4) — Lionel : « sur la vue mobile ne soit
+       afficher que 1 jours. Un bouton permettrait d'afficher la vue 1
+       semaine (à la place du 2 semaines qu'on retrouve sur desktop et
+       tablettes) ». La largeur des colonnes elle-même est calculée en JS
+       (gabarit/largeurMiniTotale, cf. construireGrille dans
+       js/grille-rendu.js — inline style, une media query CSS ne pourrait de
+       toute façon pas la emporter dessus) ; ici on échange seulement lequel
+       des 2 boutons "Afficher 2 semaines"/"1 semaine" est visible.
+       #groupeDeuxSemaines (ID, l'emporte sur .toolbar-groupe.mobile-seulement
+       de style.css quelle que soit la cascade) : son rôle usuel (1/2
+       semaines) ne fait plus sens une fois la largeur de colonnes pilotée
+       par vueJourMobile sur téléphone — remplacé ici par
+       #groupeVueJourMobile (display:flex, comme .toolbar-groupe de base,
+       pour un rendu identique aux autres groupes du panneau "⋮"). */
+    #groupeDeuxSemaines { display: none; }
+    .toolbar-groupe.mobile-seulement { display: flex; }
   }

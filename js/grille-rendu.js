@@ -644,6 +644,41 @@
     deuxSemaines = !deuxSemaines;
     assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); });
   }
+  // Round du 23.09.2026 (suite 4) — pendant mobile de basculerDeuxSemaines()
+  // ci-dessus, pour le bouton "1 semaine" qui remplace "Afficher 2 semaines"
+  // sur téléphone (cf. commentaire du gabarit dans construireGrille et
+  // #groupeVueJourMobile dans js/coquille.js). Plus simple que
+  // basculerDeuxSemaines : on ne change que la largeur des colonnes déjà en
+  // mémoire, jamais la semaine chargée — pas besoin d'assurerFenetreChargee/
+  // construireVueDepuisCache. cibleApresRendu recale le défilement (sur
+  // aujourd'hui en repassant en "1 jour", sur le début de semaine en passant
+  // en "1 semaine") dès ce même rendu, cf. son commentaire dans js/core.js.
+  function basculerVueJourMobile() {
+    vueJourMobile = !vueJourMobile;
+    cibleApresRendu = vueJourMobile ? "aujourdhui" : "debut";
+    render(false);
+  }
+  // Round du 23.09.2026 (suite 5) — Lionel : « Swipper un vendredi permet de
+  // passer au lundi de la semaine suivante ? » (pas encore, à l'époque) —
+  // pendant "bord de semaine" de naviguerSemaine() plus haut, déclenché par
+  // un swipe qui continue au-delà du bord en mode "1 jour" mobile (cf. le
+  // détecteur tactile posé sur .scroller dans construireGrille). dir>0 :
+  // semaine suivante, on atterrit sur son PREMIER jour (cibleApresRendu =
+  // "debut", symétrique du dernier jour de la semaine qu'on vient de
+  // quitter) — dir<0 : semaine précédente, sur son DERNIER jour ("fin").
+  // Pas de toast en cas de butée réelle (début/fin des 260 semaines
+  // préchargées) : contrairement à naviguerSemaine(), qui réagit à un clic
+  // explicite sur ‹ ›, ce déclencheur vient d'un simple geste continu — un
+  // message à ce moment-là serait intrusif pour un cas qui n'arrivera
+  // quasiment jamais en pratique.
+  function naviguerSemaineDepuisBordJour(dir) {
+    var nouvel = etat.indexSemaine + dir;
+    if (nouvel < 0 || nouvel >= etat.semaines.length) return;
+    etat.indexSemaine = nouvel;
+    bullesSelectionnees = {};
+    cibleApresRendu = dir > 0 ? "debut" : "fin";
+    assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); majBarreSelection(); });
+  }
   // Round D (11.09.2026) — « Ajout lointain » (poser une tâche/absence/
   // note/jalon à une date éloignée sans faire défiler le calendrier,
   // ex-round du 02.09.2026) a été RETIRÉ à la demande de Lionel : « ajout
@@ -668,7 +703,11 @@
     if (!racineEl || !fenetrePrete()) return;
     var scrollerPrecedent = racineEl.querySelector(".scroller");
     var scrollLeftPrecedent = scrollerPrecedent ? scrollerPrecedent.scrollLeft : 0;
-    var enteteScrollPrecedent = racineEl.querySelector(".entete-planning-scroll");
+    // enteteScrollPrecedent (son scrollLeft servait de source pour resynchro
+    // l'en-tête figé) a disparu round du 23.09.2026 (suite 4) : ce rôle est
+    // repris par cibleScrollLeft, calculé une seule fois plus bas et
+    // appliqué identiquement aux deux (scroller ET enteteScroll) — cf. son
+    // commentaire pour le détail (recalage sur aujourd'hui en mode "1 jour").
     // §83 (round du 16.09.2026, encore un autre, suite×7) : Annuler/Refaire
     // ont quitté la cellule coin de cette grille pour la nouvelle barre
     // d'outils fixe sous les onglets (cf. #btnDefaire/#btnRefaire dans
@@ -714,12 +753,40 @@
     // scroller deux fois plus. C'est le compromis assumé du mode compact :
     // moitié moins de largeur pour le texte, moitié moins de hauteur.
     var largeurMin = modeCompact ? 58 : 108;
+    // Round du 23.09.2026 (suite 4) — Lionel : « sur la vue mobile ne soit
+    // afficher que 1 jours. Un bouton permettrait d'afficher la vue 1
+    // semaine (à la place du 2 semaines qu'on retrouve sur desktop et
+    // tablettes) ». enModeJourMobile ne s'active qu'en dessous de 600px
+    // (même coupure que style-mobile.css) ET si vueJourMobile est actif
+    // (bouton mobile, cf. basculerVueJourMobile plus bas — inerte sur
+    // desktop/tablette, deuxSemaines/#btnDeuxSemaines inchangés là-bas).
+    // Chaque colonne de jour prend alors quasi toute la largeur de l'écran
+    // (calc(100vw - 116px), 116px = la colonne d'étiquette figée à gauche,
+    // cf. .th.coin/.lbl/.lbl-speciale { position:sticky; left:0 } dans
+    // style.css) au lieu de sa largeur minimale habituelle (108/58px) : un
+    // seul jour tient à l'écran, le suivant/précédent se révèle en faisant
+    // défiler horizontalement .scroller (mécanisme déjà existant, aucun
+    // nouveau geste). En mode compact (colsParJour()===2, le réglage par
+    // défaut), les 2 demi-colonnes matin/aprem se partagent cette largeur à
+    // parts égales plutôt que chacune prendre 100% — sinon 1 jour occuperait
+    // 2 écrans pleins. Colonnes week-end : même traitement (largeur pleine),
+    // pas de division par colsParJour() puisqu'elles n'ont qu'une seule case
+    // par personne (cf. commentaire de colonneDemi()).
+    var enModeJourMobile = vueJourMobile && typeof window.matchMedia === "function" && window.matchMedia("(max-width: 600px)").matches;
     var gabarit = "116px";
     for (var sTpl = 0; sTpl < nbSemainesAffichees; sTpl++) {
-      gabarit += " repeat(" + (5 * colsParJour()) + ", minmax(" + largeurMin + "px, 1fr))";
-      if (afficherWeekends) gabarit += " repeat(2, 46px)";
+      if (enModeJourMobile) {
+        gabarit += " repeat(" + (5 * colsParJour()) + ", minmax(calc((100vw - 116px) / " + colsParJour() + "), 1fr))";
+        if (afficherWeekends) gabarit += " repeat(2, minmax(calc(100vw - 116px), 1fr))";
+      } else {
+        gabarit += " repeat(" + (5 * colsParJour()) + ", minmax(" + largeurMin + "px, 1fr))";
+        if (afficherWeekends) gabarit += " repeat(2, 46px)";
+      }
     }
-    var largeurMiniTotale = (116 + nbSemainesAffichees * (5 * colsParJour() * largeurMin + (afficherWeekends ? 2 * 46 : 0))) + "px";
+    var largeurMiniTotale = enModeJourMobile
+      ? "calc(116px + " + (nbSemainesAffichees * 5 * colsParJour()) + " * ((100vw - 116px) / " + colsParJour() + ")"
+        + (afficherWeekends ? " + " + (nbSemainesAffichees * 2) + " * (100vw - 116px)" : "") + ")"
+      : (116 + nbSemainesAffichees * (5 * colsParJour() * largeurMin + (afficherWeekends ? 2 * 46 : 0))) + "px";
     grilleEntete.style.gridTemplateColumns = gabarit;
     grilleEntete.style.minWidth = largeurMiniTotale;
     grilleCorps.style.gridTemplateColumns = gabarit;
@@ -744,6 +811,44 @@
     cadre.appendChild(scroller);
     racineEl.appendChild(cadre);
     scroller.addEventListener("scroll", function () { enteteScroll.scrollLeft = scroller.scrollLeft; });
+    // Round du 23.09.2026 (suite 5) — Lionel : « Swipper un vendredi permet
+    // de passer au lundi de la semaine suivante ? ». Réattaché à chaque
+    // rendu (comme le mirroir de scroll juste au-dessus) puisque .scroller
+    // est recréé à chaque fois. On ne s'appuie PAS sur le rebond élastique
+    // natif du défilement (scrollLeft qui dépasserait 0/scrollWidth-
+    // clientWidth pendant l'effet ressort iOS) : ce rebond n'existe pas
+    // partout (Android/Chrome "colle" simplement au bord, sans dépassement
+    // mesurable), ce qui laisserait le geste sans effet sur une partie des
+    // téléphones. On mesure donc le déplacement RÉEL du doigt (touchmove),
+    // indépendamment de scrollLeft, et on ne déclenche le changement de
+    // semaine qu'au relâchement (touchend) si le doigt a continué à glisser
+    // d'au moins seuilBordSemaine px au-delà du bord ALORS QUE le défilement,
+    // lui, est déjà à sa butée — identique sur les 2 plateformes. Inerte
+    // hors mode "1 jour" mobile (enModeJourMobile, capturé par fermeture —
+    // valeur du rendu en cours) : en mode "1 semaine"/desktop/tablette, un
+    // swipe au bord ne fait rien de plus qu'avant (défilement natif borné).
+    var seuilBordSemaine = 46, toucheDebutX = null, toucheBord = null;
+    scroller.addEventListener("touchstart", function (e) {
+      toucheDebutX = (enModeJourMobile && e.touches.length === 1) ? e.touches[0].clientX : null;
+      toucheBord = null;
+    }, { passive: true });
+    scroller.addEventListener("touchmove", function (e) {
+      if (toucheDebutX === null || e.touches.length !== 1) return;
+      var dx = e.touches[0].clientX - toucheDebutX;
+      var maxScroll = scroller.scrollWidth - scroller.clientWidth;
+      // "<= 1"/">= maxScroll - 1", pas une comparaison stricte à 0/maxScroll :
+      // decalerSurColonne_ (plus bas) peut caler le repos sur 1px près de la
+      // butée réelle (arrondi Math.round sur des rects sub-pixel) — trouvé en
+      // testant ce round-ci (le seuil strict à 0 ratait systématiquement le
+      // retour en arrière depuis le tout premier jour d'une semaine).
+      if (scroller.scrollLeft <= 1 && dx > seuilBordSemaine) toucheBord = "debut";
+      else if (scroller.scrollLeft >= maxScroll - 1 && dx < -seuilBordSemaine) toucheBord = "fin";
+    }, { passive: true });
+    scroller.addEventListener("touchend", function () {
+      if (toucheBord === "debut") naviguerSemaineDepuisBordJour(-1);
+      else if (toucheBord === "fin") naviguerSemaineDepuisBordJour(1);
+      toucheDebutX = null; toucheBord = null;
+    }, { passive: true });
 
     function poserDans(cibleGrille) {
       return function (el, col, row, colSpan, rowSpan) {
@@ -962,7 +1067,11 @@
       // ligne/.section-row-sticky gap conservés tels quels pour ne pas avoir à
       // toucher leur CSS, simplement plus jamais peuplés d'un bouton ici.
       var lg = document.createElement("div");
-      lg.className = "section-row";
+      // Round du 23.09.2026 (suite ×3) — modificateur .section-row-<cle>
+      // pour un fond réglable indépendamment par section (cf. style.css et
+      // js/page-couleurs.js) : "personnel" ou "intervenants", exactement
+      // les 2 valeurs passées à ligneSection() plus bas.
+      lg.className = "section-row section-row-" + cle;
       lg.innerHTML =
         '<div class="section-row-sticky">' +
         '<span class="section-label">' + esc(texte) + '</span>' +
@@ -1063,13 +1172,58 @@
       ligneGroupePersonnes(groupeIntervenants);
     }
 
-    if (scrollerPrecedent) scroller.scrollLeft = scrollLeftPrecedent;
+    // Round du 23.09.2026 (suite 4, puis suite 5) — cibleApresRendu (cf. son
+    // commentaire dans js/core.js) recale le défilement horizontal plutôt
+    // que de restaurer scrollLeftPrecedent quand cette ancienne valeur n'a
+    // plus de sens : soit parce que la largeur de colonnes vient de changer
+    // (bascule 1 jour/1 semaine, ou tout premier rendu où elle n'existe
+    // simplement pas), soit parce qu'elle correspond à la butée de
+    // l'ANCIENNE semaine juste avant un changement de semaine déclenché par
+    // un swipe au bord (cf. naviguerSemaineDepuisBordJour) — réappliquée
+    // telle quelle à la nouvelle grille, elle ne tomberait pas forcément sur
+    // le bon jour. "aujourdhui" : colonne .th.today (posée plus haut, boucle
+    // des en-têtes de jour), seulement en mode "1 jour" (soustraction de
+    // 116px, largeur de la colonne d'étiquette figée à gauche, cf.
+    // commentaire du gabarit, pour que le jour visé remplisse l'écran juste
+    // à côté d'elle). "debut"/"fin" : premier/dernier jour affiché (même
+    // calcul que .th.today mais sur le premier/dernier ".th:not(.coin):not(.th-demi)"
+    // du DOM — ":not(.th-demi)" exclu la fine ligne d'en-tête "M | A" du mode
+    // compact, elle aussi construite en ".th" mais APRÈS la ligne des jours
+    // (donc son DERNIER élément serait sinon pris à tort pour "fin"
+    // — bug trouvé en testant ce round-ci). .th-weekend inclus, donc "fin"
+    // tombe sur dimanche plutôt que vendredi quand les week-ends sont
+    // affichés. En dehors de ces cas (rendu normal, ex. après édition d'une
+    // tâche, ou navigation par les flèches ‹ › qui n'a jamais fixé
+    // cibleApresRendu), la position de défilement de l'utilisateur est
+    // préservée comme avant.
+    var cibleScrollLeft = 0;
+    function decalerSurColonne_(th) {
+      if (!th) return 0;
+      var rGrilleEntete = grilleEntete.getBoundingClientRect(), rTh = th.getBoundingClientRect();
+      return Math.max(0, Math.round((rTh.left - rGrilleEntete.left) - 116));
+    }
+    if (cibleApresRendu === "aujourdhui") {
+      if (enModeJourMobile) cibleScrollLeft = decalerSurColonne_(grilleEntete.querySelector(".th.today"));
+      cibleApresRendu = null;
+    } else if (cibleApresRendu === "debut") {
+      cibleScrollLeft = enModeJourMobile ? decalerSurColonne_(grilleEntete.querySelector(".th:not(.coin):not(.th-demi)")) : 0;
+      cibleApresRendu = null;
+    } else if (cibleApresRendu === "fin") {
+      if (enModeJourMobile) {
+        var thsJours = grilleEntete.querySelectorAll(".th:not(.coin):not(.th-demi)");
+        cibleScrollLeft = thsJours.length ? decalerSurColonne_(thsJours[thsJours.length - 1]) : 0;
+      }
+      cibleApresRendu = null;
+    } else if (scrollerPrecedent) {
+      cibleScrollLeft = scrollLeftPrecedent;
+    }
+    scroller.scrollLeft = cibleScrollLeft;
     // enteteScroll doit refléter le même défilement horizontal dès ce même
     // rendu (sans attendre l'événement "scroll" ci-dessus, asynchrone dans
     // certains navigateurs) — sans quoi l'en-tête figé afficherait un bref
     // instant les mauvaises colonnes après un changement de semaine/mode qui
     // conserve le défilement horizontal.
-    enteteScroll.scrollLeft = enteteScrollPrecedent ? enteteScrollPrecedent.scrollLeft : scroller.scrollLeft;
+    enteteScroll.scrollLeft = cibleScrollLeft;
     majBoutonsUndo();
     majBarreSelection();
     majControlesAffichage();

@@ -44,6 +44,52 @@
        bas, l'absence de règle là-bas suffit à garder cette valeur. */
     --important-toggle-bg: #f2b134; --important-toggle-ink: #6b4400;
     --sync-dot: #3fa15a;
+    /* Round du 23.09.2026 (suite ×3) — Lionel, 2e retour sur la page de
+       couleurs : « sortir le fond de la toolbar de la couleur de fond, un
+       réglage séparé » + « séparations Personnel/Intervenants : un réglage
+       dans leurs pages respectives, aussi utilisé pour les boutons de
+       masquage ». Les 3 nouvelles variables remplacent var(--surface) dans
+       .toolbar-sheets et .section-row (qui l'utilisaient directement).
+       Round du 23.09.2026 (suite ×4) — Lionel, après test en direct : « La
+       ligne M/A à un fond qui s'adapte à la couleur du fond. Quand j'ai
+       changé la couleurs le gris s'est adapté à la couleur du fond. Faire
+       la même avec la toolbar. » En les codant d'abord en dur (valeur figée
+       recopiée depuis --surface), ces 3 variables avaient perdu ce lien :
+       elles ne suivaient plus les changements du réglage "Fond" comme le
+       fait la ligne M/A (.th.th-demi, qui lit var(--surface) directement).
+       Fix : leur valeur PAR DÉFAUT devient var(--surface) elle-même — donc
+       chacune suit "Fond" tant que Lionel n'a pas personnalisé son propre
+       réglage. Dès qu'il choisit une couleur pour Toolbar/Personnel/
+       Intervenants, le style injecté par js/page-couleurs.js redéfinit la
+       variable directement (même sélecteur :root, posé après dans le
+       document) et le lien avec --surface est alors coupé pour celle-là
+       uniquement — réglage indépendant conservé.
+       Round du 23.09.2026 (suite ×7) — Lionel : « la couleur de la toolbar
+       doit être de la même couleur que l'onglet sélectionné (couleur du
+       thème) ». --toolbar-bg suivait donc "Fond" (--surface) depuis le fix
+       ci-dessus ; son lien par défaut était alors passé à --accent-soft
+       (« Fond de l'onglet actif » dans la page Couleurs, cf. .onglet.actif
+       plus bas et page-couleurs.js).
+       Round du 23.09.2026 (suite ×8) — Lionel : « enlève la possibilité de
+       choisir la couleur de la toolbar, elle doit toujours garder celle du
+       thème ». Le réglage indépendant "Fond de la barre d'outils" est donc
+       retiré de la page Couleurs (groupe supprimé de GROUPES_COULEURS,
+       page-couleurs.js) et, avec lui, la variable --toolbar-bg elle-même :
+       elle ne servait plus qu'à porter un lien qui ne devait justement plus
+       jamais se rompre. .toolbar-sheets lit maintenant var(--accent-soft)
+       directement (cf. plus bas) — aucune variable dédiée à surcharger,
+       donc aucune façon technique de désynchroniser la toolbar de l'onglet
+       actif. Personnel/Intervenants restent liées à --surface avec leur
+       propre réglage indépendant, inchangées : seule la toolbar est
+       concernée par ce round. */
+    --section-personnel-bg: var(--surface); --section-intervenants-bg: var(--surface);
+    /* Fond des cases "zoom" (#btnZoom) et "semaine" (#btnSemainePill,
+       .zoom-pill partagée) — Lionel : « toujours en blanc », y compris en
+       thème sombre et quel que soit le fond de la toolbar qui les entoure
+       désormais (accent-soft ci-dessus). Fixe, non piloté par la page
+       Couleurs : pas de redéfinition dans le bloc sombre plus bas, la valeur
+       d'ici s'applique aux deux thèmes. */
+    --case-fixe-bg: #ffffff;
     color-scheme: light;
   }
   /* Round du 16.09.2026 (suite, suite, suite, encore) — nettoyage suite à
@@ -75,6 +121,7 @@
       --avertissement-bg: #5a3110; --avertissement-ink: #f2a565;
       --succes-bg: #1c3a20; --succes-ink: #7fd88c;
       --weekend-bg: #232b34;
+      --section-personnel-bg: var(--surface); --section-intervenants-bg: var(--surface);
       color-scheme: dark;
     }
   }
@@ -312,10 +359,21 @@
   .toolbar-sheets {
     display: flex; align-items: center; gap: 2px; flex-wrap: wrap;
     margin: 0; padding: 8px 12px 2px;
-    position: sticky; z-index: 39; background: var(--surface);
+    /* Round du 23.09.2026 (suite ×8) — plus de --toolbar-bg dédiée (cf. le
+       commentaire dans :root) : lit --accent-soft directement, sans réglage
+       indépendant possible (Lionel : « elle doit toujours garder celle du
+       thème »). */
+    position: sticky; z-index: 39; background: var(--accent-soft);
     border-radius: 999px;
   }
   .toolbar-groupe { display: flex; align-items: center; gap: 2px; }
+  /* Round du 23.09.2026 (suite 4) — .mobile-seulement (#groupeVueJourMobile,
+     cf. js/coquille.js) : masqué par défaut ici (desktop/tablette, où
+     #groupeDeuxSemaines garde seul son rôle habituel), réaffiché uniquement
+     ≤600px par style-mobile.css (même spécificité .toolbar-groupe.X, donc la
+     règle @media qui vient après dans la cascade l'emporte quand elle
+     s'applique). */
+  .toolbar-groupe.mobile-seulement { display: none; }
   .toolbar-separateur { width: 1px; height: 22px; background: var(--border); margin: 0 8px; flex-shrink: 0; }
   .toolbar-btn {
     width: 30px; height: 30px; display: grid; place-items: center; border-radius: 7px; border: none;
@@ -384,7 +442,17 @@
   .toolbar-toggle:hover { background: var(--surface-2); }
   .toolbar-toggle.actif[data-affichage-cible="jalon"] { background: var(--jalon-bg); color: #4a3d78; }
   .toolbar-toggle.actif[data-affichage-cible="note"] { background: var(--note-bg); color: #7a5d00; }
-  .toolbar-toggle.actif[data-affichage-cible="personnel"], .toolbar-toggle.actif[data-affichage-cible="intervenants"] { background: var(--accent-soft); color: var(--accent); }
+  /* Round du 23.09.2026 (suite ×3) — Lionel : les boutons de masquage
+     Personnel/Intervenants doivent reprendre la couleur de leur propre
+     ligne de séparation (--section-personnel-bg/--section-intervenants-bg,
+     réglables sur les pages Personnel/Intervenants), plutôt que l'accent
+     bleu générique partagé avec l'onglet actif. var(--ink) pour le texte/
+     l'icône plutôt qu'une teinte fixe (contrairement à Jalon/Note
+     ci-dessous) : le fond de ces 2 réglages reste un gris neutre pensé pour
+     rester lisible avec du texte clair/sombre standard, quelle que soit la
+     couleur choisie par Lionel. */
+  .toolbar-toggle.actif[data-affichage-cible="personnel"] { background: var(--section-personnel-bg); color: var(--ink); }
+  .toolbar-toggle.actif[data-affichage-cible="intervenants"] { background: var(--section-intervenants-bg); color: var(--ink); }
   .toolbar-toggle.desactive { opacity: .5; background: none; color: var(--ink-faint); }
 
   /* .outil-menu/.outil-menu-panneau/.outil-menu-item — §85 (round du
@@ -436,7 +504,7 @@
   }
   .zoom-btn:hover { background: var(--surface-2); color: var(--ink); }
   .zoom-pill {
-    min-width: 58px; padding: 5px 8px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface-2);
+    min-width: 58px; padding: 5px 8px; border-radius: 7px; border: 1px solid var(--border); background: var(--case-fixe-bg);
     font: inherit; font-size: 12px; font-weight: 700; color: var(--ink); cursor: pointer; text-align: center;
     font-family: 'IBM Plex Mono', monospace; transition: background .12s, border-color .12s, color .12s;
   }
@@ -709,7 +777,15 @@
      même grille, avait déjà ce trait via le quadrillage normal
      (gap:1px + background:var(--border) de .grille) : lui ajouter la même
      règle ne change rien à son rendu (même couleur, même épaisseur). */
-  .section-row { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .section-row { border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  /* Round du 23.09.2026 (suite ×3) — Lionel : « un réglage de couleur dans
+     leurs pages respectives » pour Personnel/Intervenants (jusqu'ici une
+     seule couleur --surface partagée par les 2 via .section-row). Chaque
+     ligne reçoit maintenant en plus un modificateur .section-row-<cle>
+     (posé en JS, cf. ligneSection() dans grille-rendu.js) pour piloter son
+     propre fond indépendamment. */
+  .section-row-personnel { background: var(--section-personnel-bg); }
+  .section-row-intervenants { background: var(--section-intervenants-bg); }
   .section-row-sticky { position: sticky; left: 0; display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px; }
   .section-label { font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-muted); }
   /* .btn-plage-ligne (le "+" de fin de ligne section) a vécu : §85 (round du
