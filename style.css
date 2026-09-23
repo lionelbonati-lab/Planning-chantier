@@ -684,6 +684,39 @@
      espace, pour ne former qu'un seul cadre visuel continu. */
   .grille-cadre { border: 1px solid var(--border); border-top: none; border-radius: 0 0 12px 12px; overflow: hidden; }
   .scroller { overflow-x: auto; padding-bottom: 4px; }
+  /* Round du 23.09.2026 (suite ×10) — Lionel, retour sur la vue mobile
+     "1 jour" (§99) : « La case du jour doit être aimantée pour qu'elle
+     rentre sur l'écran. A l'heure actuelle je peux afficher 2 demi journée
+     de jours différents [...] je pense qu'il faut voir cela comme un
+     nouveau mode d'affichage dédié. » Cause : la largeur de colonne
+     "pleine largeur d'écran" (§99, calc(100vw-116px)) rendait déjà 1 jour =
+     1 écran, mais RIEN n'empêchait le défilement natif de s'arrêter à
+     N'IMPORTE QUELLE position intermédiaire (dont pile entre les 2
+     colonnes M/A de 2 jours voisins) — .scroller défilait librement, sans
+     notion de "case".
+     Fix : scroll-snap natif, posé UNIQUEMENT sur .scroller (seul élément
+     réellement touché/swipé par le doigt — .entete-planning-scroll n'est
+     que le miroir JS de son scrollLeft, cf. le mirroir de scroll dans
+     construireGrille) et seulement en mode "1 jour" mobile (classe
+     .snap-jour-mobile posée par JS quand enModeJourMobile, cf.
+     construireGrille) — inerte en mode "1 semaine"/desktop/tablette,
+     défilement libre inchangé partout ailleurs. scroll-padding-left:116px
+     décale le point d'alignement de la même largeur que la colonne
+     d'étiquette sticky (.lbl/.lbl-speciale ci-dessus) : sans ça, un jour
+     "aimanté" laisserait ses 116px de gauche cachés dessous elle, comme le
+     fait déjà manuellement decalerSurColonne_() pour la navigation par
+     bouton/swipe de bord de semaine. Les points d'ancrage eux-mêmes
+     (scroll-snap-align) sont posés sur .snap-jour, un repère invisible
+     (hauteur 0) ajouté une fois PAR JOUR dans grilleCorps, à la colonne de
+     son démarrage et large de colsParJour() colonnes (donc toujours le jour
+     ENTIER, jamais une simple demi-journée M ou A) — repère dédié plutôt
+     que réutiliser une case Personnel/Intervenants existante, qui peut être
+     masquée par un bascule d'affichage et ferait alors disparaître le point
+     d'ancrage avec elle. Résultat : tout défilement (glissé au doigt ou
+     inertie) se recale TOUJOURS exactement sur un jour entier, plus jamais
+     entre 2 demi-journées de jours différents. */
+  .scroller.snap-jour-mobile { scroll-snap-type: x mandatory; scroll-padding-left: 116px; }
+  .snap-jour { height: 0; scroll-snap-align: start; }
   .grille { display: grid; gap: 1px; background: var(--border); }
   .th, .lbl, .cell { background: var(--surface-2); }
   .th {
@@ -919,6 +952,44 @@
     white-space: normal; overflow: hidden; text-overflow: ellipsis; overflow-wrap: anywhere;
   }
   .bulle.important .b-txt { color: var(--important-ink); }
+  /* Round du 23.09.2026 (suite ×10) — Lionel (vue mobile « 1 jour ») : « je
+     ne vois pas le texte d'une bulle qui fait partie d'un jour avant ». Une
+     bulle-plage (.bulle-plage) est un seul élément DOM couvrant TOUTE sa
+     durée (grid-column en span, cf. poser()/colonneEtSpanDemi dans
+     grille-rendu.js) : son texte, positionné normalement au fil du flux
+     (donc collé au bord GAUCHE de la bulle), reste au tout début du span —
+     s'il commence un jour désormais scrollé hors champ (mode "1 jour", mais
+     ça vaut pour tout contexte assez étroit pour scroller une bulle longue),
+     ce texte sort purement et simplement de l'écran alors que la bulle,
+     elle, continue de traverser la case actuellement affichée.
+     Fix générique (pas seulement mobile) : b-txt/b-statut/b-serie devient
+     "sticky" horizontalement DANS les bornes de la bulle — colle au bord
+     gauche VISIBLE de .scroller (116px = largeur de la colonne d'étiquette
+     sticky qui recouvre le début de .scroller, cf. .lbl/.lbl-speciale plus
+     bas) tant que ce point reste dans la bulle, sans jamais en sortir
+     (comportement natif de position:sticky, borné par .bulle { position:
+     relative }, son bloc conteneur). Résultat : le texte reste lisible quel
+     que soit le jour affiché à l'écran, du début à la fin de la bulle.
+     Piège trouvé en testant (Playwright, bulle de 3 jours + défilement
+     programmatique jusqu'au jour du milieu) : posé tel quel, .b-txt restait
+     totalement figé — aucun collage, comme s'il n'était pas sticky du tout.
+     Cause isolée par élimination : .b-txt héritait d'align-items:stretch
+     (défaut de .bulle, display:flex, jamais réécrit pour lui) et s'étirait
+     donc pile à la largeur de son bloc conteneur (.bulle) — un élément
+     sticky qui fait EXACTEMENT la largeur de son propre conteneur n'a
+     structurellement nulle part où "glisser" pour rattraper le bord visible
+     qui défile sous lui (Chromium ne recalcule alors plus jamais sa
+     position). align-self:flex-start (déjà utilisé par .b-statut/.b-serie
+     juste en dessous, donc déjà éprouvé ici) sort .b-txt de cet étirement ;
+     max-width borné à la largeur visible de l'écran (calc(100vw-132px),
+     116px de colonne d'étiquette + un peu de marge) au lieu de 100% de la
+     bulle garde le retour à la ligne/l'ellipse à 2 lignes pour un texte
+     long, sans jamais réintroduire la largeur exacte du conteneur qui
+     bloquait le collage. Sans texte assez long pour en avoir besoin, cette
+     max-width ne change rien au rendu (la case reste au plus large que le
+     texte, comme avant). */
+  .b-txt, .b-statut, .b-serie { position: sticky; left: 116px; max-width: calc(100vw - 132px); }
+  .b-txt { align-self: flex-start; }
   .b-statut {
     align-self: flex-start; margin-top: 1px; display: inline-flex; align-items: center; gap: 4px;
     font-family: 'IBM Plex Mono', monospace; font-size: 8.5px; font-weight: 600; text-transform: uppercase;

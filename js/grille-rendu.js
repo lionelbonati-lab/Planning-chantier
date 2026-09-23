@@ -671,6 +671,12 @@
   // explicite sur ‹ ›, ce déclencheur vient d'un simple geste continu — un
   // message à ce moment-là serait intrusif pour un cas qui n'arrivera
   // quasiment jamais en pratique.
+  // (suite ×11) — Lionel : « L'action de swiper d'une semaine à l'autre est
+  // intéressante et pourrait être portée aux versions tablette et desktop. »
+  // Partagée telle quelle par le détecteur tactile ci-dessus (mobile "1
+  // jour") ET par le détecteur "wheel" plus bas dans construireGrille
+  // (molette/trackpad, desktop/tablette) — seul le geste d'entrée diffère,
+  // le comportement (semaine + jour d'atterrissage) reste identique aux 2.
   function naviguerSemaineDepuisBordJour(dir) {
     var nouvel = etat.indexSemaine + dir;
     if (nouvel < 0 || nouvel >= etat.semaines.length) return;
@@ -773,6 +779,12 @@
     // pas de division par colsParJour() puisqu'elles n'ont qu'une seule case
     // par personne (cf. commentaire de colonneDemi()).
     var enModeJourMobile = vueJourMobile && typeof window.matchMedia === "function" && window.matchMedia("(max-width: 600px)").matches;
+    // Round du 23.09.2026 (suite ×10) — cf. le commentaire de
+    // .scroller.snap-jour-mobile dans style.css : le scroll-snap "1 jour"
+    // (Lionel : « la case du jour doit être aimantée pour qu'elle rentre sur
+    // l'écran ») ne s'active QUE dans ce mode, jamais en "1 semaine"/desktop/
+    // tablette où le défilement libre reste inchangé.
+    scroller.classList.toggle("snap-jour-mobile", enModeJourMobile);
     var gabarit = "116px";
     for (var sTpl = 0; sTpl < nbSemainesAffichees; sTpl++) {
       if (enModeJourMobile) {
@@ -825,8 +837,10 @@
     // d'au moins seuilBordSemaine px au-delà du bord ALORS QUE le défilement,
     // lui, est déjà à sa butée — identique sur les 2 plateformes. Inerte
     // hors mode "1 jour" mobile (enModeJourMobile, capturé par fermeture —
-    // valeur du rendu en cours) : en mode "1 semaine"/desktop/tablette, un
-    // swipe au bord ne fait rien de plus qu'avant (défilement natif borné).
+    // valeur du rendu en cours) : en mode "1 semaine" mobile, un swipe au
+    // bord ne fait rien de plus qu'avant (défilement natif borné) — desktop/
+    // tablette ont leur propre équivalent à la molette/trackpad, cf.
+    // l'écouteur "wheel" juste plus bas.
     var seuilBordSemaine = 46, toucheDebutX = null, toucheBord = null;
     scroller.addEventListener("touchstart", function (e) {
       toucheDebutX = (enModeJourMobile && e.touches.length === 1) ? e.touches[0].clientX : null;
@@ -849,6 +863,43 @@
       else if (toucheBord === "fin") naviguerSemaineDepuisBordJour(1);
       toucheDebutX = null; toucheBord = null;
     }, { passive: true });
+
+    // Round du 23.09.2026 (suite ×11) — Lionel : « L'action de swiper d'une
+    // semaine à l'autre est intéressante et pourrait être portée aux
+    // versions tablette et desktop. » Équivalent du détecteur tactile
+    // ci-dessus pour un dispositif à molette/trackpad, jamais actif en même
+    // temps (enModeJourMobile→return, exactement l'inverse de la condition
+    // qui garde le détecteur tactile inerte hors mode "1 jour"). deltaX
+    // (molette horizontale native, trackpad) OU deltaY avec Maj enfoncée
+    // (convention historique du défilement horizontal à la molette
+    // verticale, cf. la plupart des tableurs/calendriers web) — jamais les
+    // deux à la fois : on prend le plus significatif des deux pour éviter
+    // qu'un simple défilement vertical de la page (deltaY sans Maj) ne
+    // déclenche quoi que ce soit ici.
+    // Cumul (accumulMolette) plutôt qu'un seul événement : un trackpad émet
+    // de nombreux petits événements "wheel" pendant un seul geste physique
+    // (parfois quelques unités chacun) — un seuil unitaire les raterait
+    // presque tous. Remis à zéro après un silence (resetAccumulMolette,
+    // 400ms) ou dès que le défilement s'écarte du bord concerné — un simple
+    // aller-retour de la molette sans rester au bord ne doit rien
+    // déclencher. e.preventDefault() seulement au moment du déclenchement
+    // réel (pas à chaque événement à la butée) : un utilisateur qui
+    // s'arrête pile au bord sans vouloir changer de semaine garde un
+    // défilement natif tout à fait normal.
+    var seuilMolette = 60, accumulMolette = 0, resetAccumulMolette = null;
+    scroller.addEventListener("wheel", function (e) {
+      if (enModeJourMobile) return;
+      var dx = Math.abs(e.deltaX) >= Math.abs(e.deltaY) ? e.deltaX : (e.shiftKey ? e.deltaY : 0);
+      if (!dx) return;
+      var maxScrollW = scroller.scrollWidth - scroller.clientWidth;
+      var auDebut = scroller.scrollLeft <= 1, aLaFin = scroller.scrollLeft >= maxScrollW - 1;
+      if (dx < 0 ? !auDebut : !aLaFin) { accumulMolette = 0; return; }
+      accumulMolette += dx;
+      clearTimeout(resetAccumulMolette);
+      resetAccumulMolette = setTimeout(function () { accumulMolette = 0; }, 400);
+      if (accumulMolette <= -seuilMolette) { accumulMolette = 0; e.preventDefault(); naviguerSemaineDepuisBordJour(-1); }
+      else if (accumulMolette >= seuilMolette) { accumulMolette = 0; e.preventDefault(); naviguerSemaineDepuisBordJour(1); }
+    }, { passive: false });
 
     function poserDans(cibleGrille) {
       return function (el, col, row, colSpan, rowSpan) {
@@ -1055,6 +1106,38 @@
     poserPleineLargeur = poserPleineLargeurDans(grilleCorps);
     row = 1;
 
+    // Round du 23.09.2026 (suite ×10) — repères invisibles pour le
+    // scroll-snap "1 jour" mobile (cf. .snap-jour/.scroller.snap-jour-mobile
+    // dans style.css pour le détail du mécanisme). Un par jour, posé ici
+    // dans grilleCorps — la seule des 2 grilles réellement DANS .scroller,
+    // l'élément qui porte le scroll-snap (grilleEntete est dans l'en-tête
+    // figée séparée, cf. son historique plus haut) — plutôt que réutiliser
+    // une case Personnel/Intervenants existante : celle-ci peut disparaître
+    // si Lionel masque la section correspondante depuis la barre d'outils,
+    // ce qui ferait disparaître le point d'ancrage avec elle. row=1 (fixe,
+    // sans incrémenter la variable row utilisée par les sections
+    // ci-dessous) et hauteur 0 (cf. CSS) : ne pousse ni ne recouvre rien,
+    // seule sa position/largeur de colonne (colonneGrille/colsParJour)
+    // compte pour le calcul du point d'ancrage. Même boucle et même
+    // traitement des colonnes week-end que l'en-tête des jours plus haut
+    // (poser(th, colonneGrille(gi), row, colsParJour())/thWE), pour rester
+    // cohérent avec le découpage réel des colonnes.
+    if (enModeJourMobile) {
+      for (var giSnap = 0; giSnap < n; giSnap++) {
+        var repereJour = document.createElement("div");
+        repereJour.className = "snap-jour";
+        poser(repereJour, colonneGrille(giSnap), 1, colsParJour());
+        if (afficherWeekends && (giSnap + 1) % 5 === 0) {
+          var semSnap = Math.floor(giSnap / 5);
+          [0, 1].forEach(function (jSnap) {
+            var repereWE = document.createElement("div");
+            repereWE.className = "snap-jour";
+            poser(repereWE, colonneGrille(giWeekend(semSnap, jSnap)), 1);
+          });
+        }
+      }
+    }
+
     function ligneSection(cle, texte) {
       // §82 : le masquage/affichage de cette section ne se pilote plus
       // depuis une flèche posée ici (cf. .controles-affichage, regroupé dans
@@ -1212,6 +1295,19 @@
       if (enModeJourMobile) {
         var thsJours = grilleEntete.querySelectorAll(".th:not(.coin):not(.th-demi)");
         cibleScrollLeft = thsJours.length ? decalerSurColonne_(thsJours[thsJours.length - 1]) : 0;
+      } else {
+        // Round du 23.09.2026 (suite ×11) — "fin" existait déjà mais ne
+        // servait jusqu'ici qu'au mode "1 jour" mobile (branche ci-dessus).
+        // Le swipe inter-semaines molette/trackpad (desktop/tablette, cf.
+        // l'écouteur "wheel" plus bas) l'utilise aussi désormais en arrière
+        // (dir=-1, cibleApresRendu="fin") pour atterrir sur la BUTÉE DROITE
+        // de la semaine précédente plutôt que sur son tout début : sans ça
+        // le défilement repartirait de 0 à chaque semaine chargée en
+        // arrière, un aller-retour visuel qui casserait la continuité du
+        // geste. Pas de notion de "jour" hors mode "1 jour" — juste la
+        // butée de défilement réelle de la nouvelle grille, déjà dans le DOM
+        // à ce stade (scroller.scrollWidth la reflète).
+        cibleScrollLeft = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
       }
       cibleApresRendu = null;
     } else if (scrollerPrecedent) {
