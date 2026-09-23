@@ -305,6 +305,7 @@
             '<button type="button" class="toolbar-btn" id="btnSemaineSuiv" title="Semaine suivante" aria-label="Semaine suivante">' + ICONS.chevronDroite + '<span class="toolbar-btn-label">Semaine suivante</span></button>' +
             '<button type="button" class="toolbar-btn" id="btnAujourdhui" title="Aller à aujourd’hui" aria-label="Aller à aujourd’hui">' + ICONS.aujourdhui + '<span class="toolbar-btn-label">Aujourd’hui</span></button>' +
           '</div>' +
+
           '<div class="toolbar-groupe" id="groupeDeuxSemaines" style="order:80">' +
             '<button type="button" class="toolbar-btn" id="btnDeuxSemaines" title="Afficher 2 semaines à la fois" aria-label="Afficher 2 semaines à la fois">' + ICONS.deuxSemaines + '<span class="toolbar-btn-label">Afficher 2 semaines</span><span class="toolbar-btn-coche">✓</span></button>' +
           '</div>' +
