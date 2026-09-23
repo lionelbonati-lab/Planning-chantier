@@ -1,0 +1,52 @@
+LISEZ-MOI — Mise à jour du 23.09.2026 à pousser sur GitHub
+=============================================================
+
+Ce dossier contient uniquement les fichiers modifiés depuis le dernier commit.
+Structure à respecter en les remplaçant dans le dépôt Planning-chantier :
+
+  FRONTEND-CHANGELOG.md   -> à la racine du dépôt
+  style.css                -> à la racine du dépôt
+  style-mobile.css         -> à la racine du dépôt
+  js/coquille.js           -> dans le dossier js/
+  js/core.js                -> dans le dossier js/
+  js/grille-interactions.js -> dans le dossier js/
+  js/grille-rendu.js       -> dans le dossier js/
+  js/page-couleurs.js      -> dans le dossier js/
+
+Sur GitHub (interface web) : ouvre chaque fichier existant dans le dépôt,
+clique le crayon "Edit", puis "Upload files" en glissant le fichier
+correspondant de ce dossier (même nom = remplacement direct). Le sous-dossier
+js/ peut aussi être glissé en une fois si tu uploades depuis la racine du
+dépôt (drag & drop conserve l'arborescence).
+
+Résumé des changements inclus (détail complet dans FRONTEND-CHANGELOG.md,
+sections 97 à 106) :
+- Fond de la toolbar indépendant du fond général, puis aligné sur la couleur
+  de l'onglet actif (thème), et enfin non personnalisable séparément (suit
+  toujours le thème).
+- Cases "zoom" et "semaine" (pilules 100% / Sem. N) toujours en fond blanc.
+- Vue mobile (≤600px) : 1 seul jour affiché par défaut, bouton "1 semaine"
+  pour voir la semaine complète (remplace "2 semaines" sur mobile).
+- Navigation par glissement (swipe) entre jours sur mobile, avec passage
+  continu à la semaine suivante/précédente en swipant au-delà de
+  vendredi/lundi.
+- Recentrage vertical des onglets et de la toolbar ; retrait du réglage
+  indépendant de la couleur de toolbar.
+- Vue mobile "1 jour" : case aimantée au défilement (scroll-snap) + texte
+  des bulles toujours lisible même à cheval sur plusieurs jours.
+- Swipe molette/trackpad pour changer de semaine, porté au desktop et à la
+  tablette (en plus du tactile mobile déjà existant).
+- (Round 106, dernier en date) 5 corrections supplémentaires demandées par
+  Lionel : sélecteur de semaine déplacé dans le menu "⋮" sur mobile pour
+  gagner de la place ; sur desktop/tablette, tout élément de la toolbar qui
+  déborde part désormais dans le menu "⋮" au lieu de repasser à la ligne ;
+  inertie/décélération ajoutée au scroll tactile sur les cases et les
+  bulles du tableau (jusqu'ici seule la colonne des noms avait cet effet) ;
+  correction du léger défilement vertical résiduel sur la case du jour en
+  mobile (hauteur 100dvh) ; en vue mobile "1 jour", la bulle ENTIÈRE (pas
+  seulement son texte) reste désormais affichée en carte complète et
+  arrondie sur le jour actif, même pour une tâche/absence/note/jalon
+  s'étalant sur plusieurs jours — plus aucune bulle coupée.
+
+Les fichiers Personnel/Intervenants (réglages de séparation de ligne) et le
+reste de l'appli sont inchangés par rapport à la version déjà en ligne.
