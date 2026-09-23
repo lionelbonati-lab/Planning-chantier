@@ -6388,3 +6388,48 @@ Ombres/Texte (rgba, seule la teinte change), persistance après rechargement,
 reset par ligne et reset global, non-régression sur les onglets/toolbar
 pilule/sélecteur chantier déjà en place. Livré directement dans le dépôt
 (style.css, js/coquille.js, nouveau js/page-couleurs.js, index.html).
+
+## 96. Round du 23.09.2026 (suite) — 3 corrections apres le premier retour de Lionel sur les couleurs
+
+Lionel a teste la page de reglages des couleurs (Round #95) et remonte 3 points :
+
+1. « le fond des jalons et note, c'etait pour les cellules, pas pour les
+   bulles, retabli la couleur de ces bulles et insere un reglage de couleur
+   pour chacun. » Verifie dans le code : --jalon-bg/--note-bg ne pilotent
+   QUE la bulle/le badge d'un jalon ou d'une note pose sur le planning (et
+   le bouton correspondant de la toolbar) -- aucun "fond de cellule" separe
+   n'existe. Sortis du groupe "Fond" (qui les avait fait passer blanc/noir
+   par erreur) et remis en 2 reglages independants ("Jalon", "Note"),
+   valeurs d'origine (#d7cdf0 / #f7e6ab, memes en clair et sombre). Le
+   groupe "Fond" ne pilote plus que --bg/--surface-2/--surface (18 reglages
+   au total desormais).
+
+2. « les ligne de separation personnel et intervenant doivent avoir la
+   meme couleur que la ligne avec les textes A/A pour matin et
+   apres-midi. il manque une bordure sur la ligne de separation
+   personnel. » .section-row passe de var(--bg) a var(--surface) (meme
+   fond que .th.th-demi). Bordure du HAUT ajoutee en plus de celle du bas
+   deja presente : la ligne Personnel est la toute premiere ligne de la
+   grille qui defile, juste sous l'en-tete fixe separe
+   (.entete-planning-scroll) -- les deux blocs se touchent SANS bordure
+   entre eux par construction (design d'origine pour souder les 2 panneaux
+   en un seul visuel), donc rien ne separait "Notes" (derniere ligne fixe)
+   de "Personnel" juste en dessous. Intervenants, plus bas dans la meme
+   grille, avait deja ce trait via le quadrillage normal de la grille
+   (gap + fond) : la regle ajoutee ne change rien a son rendu (meme
+   couleur/epaisseur).
+
+3. « les week-end de la page ferie sont passe en blanc. les mettre dans
+   le groupe week-end. » .calendrier td.jour.weekend (page Feries)
+   utilisait var(--bg) au lieu de var(--weekend-bg) -- deja utilise par les
+   colonnes week-end du planning et deja dans le groupe "Week-end" des
+   reglages. Alignee sur --weekend-bg : les 2 week-ends (planning +
+   calendrier Feries) suivent maintenant toujours le meme reglage.
+
+Verifie en local (Playwright) : .section-row a bien le meme fond que
+.th.th-demi + bordure haut ET bas ; changer "Fond" ne touche plus
+--jalon-bg/--note-bg (restent a leurs valeurs d'origine) ; changer "Jalon"
+seul ne touche pas "Note" ; .calendrier td.jour.weekend matche
+var(--weekend-bg) ; non-regression sur les tests des rounds precedents
+(onglets, toolbar pilule, selecteur chantier). Livre directement dans le
+depot (style.css, js/page-couleurs.js).

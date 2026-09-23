@@ -49,10 +49,30 @@
       defautClair: "#f6c893", defautSombre: "#f6c893"
     },
     {
-      id: "fond", nom: "Fond général, cases, coin, jalons et notes",
-      description: "Regroupés à ta demande : le fond général de l'appli, le fond des cases, le coin de la grille, et les fonds de Jalon/Note prendront tous la même couleur.",
-      champs: [{ v: "--bg" }, { v: "--surface-2" }, { v: "--surface" }, { v: "--jalon-bg" }, { v: "--note-bg" }],
+      id: "fond", nom: "Fond général, cases et coin",
+      description: "Regroupés à ta demande : le fond général de l'appli, le fond des cases, et le coin de la grille (aussi utilisé par les lignes Personnel/Intervenants) prendront tous la même couleur.",
+      champs: [{ v: "--bg" }, { v: "--surface-2" }, { v: "--surface" }],
       defautClair: "#ffffff", defautSombre: "#10161d"
+    },
+    {
+      // Round du 23.09.2026 (suite) — Lionel : « le fond des jalons et note,
+      // c'était pour les cellules, pas pour les bulles ». --jalon-bg/
+      // --note-bg ne pilotent QUE la bulle/le badge d'un jalon ou d'une note
+      // posé sur le planning (cf. js/grille-rendu.js, js/page-jalons.js,
+      // le bouton "afficher les jalons"/"notes" de la toolbar) — pas de
+      // fond de cellule séparé dans le code. Sortis du groupe "fond"
+      // ci-dessus (qui les avait fait passer blanc/noir par erreur) et
+      // remis en réglages indépendants, un par élément comme demandé.
+      id: "jalon", nom: "Jalon",
+      description: "Couleur de la bulle « Jalon » posée sur le planning, et du bouton « afficher les jalons » de la barre d'outils quand il est activé.",
+      champs: [{ v: "--jalon-bg" }],
+      defautClair: "#d7cdf0", defautSombre: "#d7cdf0"
+    },
+    {
+      id: "note", nom: "Note",
+      description: "Couleur de la bulle « Note » posée sur le planning, et du bouton « afficher les notes » de la barre d'outils quand il est activé.",
+      champs: [{ v: "--note-bg" }],
+      defautClair: "#f7e6ab", defautSombre: "#f7e6ab"
     },
     {
       id: "halo-suppression", nom: "Halo de suppression",

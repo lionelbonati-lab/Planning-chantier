@@ -694,7 +694,22 @@
      UNE SEULE bulle continue (cf. ligneGroupePersonnesCompact), il n'y a
      plus de segment par jour à distinguer visuellement. */
 
-  .section-row { background: var(--bg); border-bottom: 1px solid var(--border); }
+  /* Round du 23.09.2026 (suite) — Lionel : « les lignes de séparation
+     Personnel et Intervenants doivent avoir la même couleur que la ligne
+     avec les textes M/A [.th.th-demi, var(--surface)] ». Était var(--bg),
+     le fond général — plus foncé/différent de --surface au premier coup
+     d'œil. Bordure du HAUT ajoutée en plus de celle du bas déjà là :
+     .section-row de Personnel est la toute première ligne de la grille qui
+     défile (.grille-cadre), juste sous l'en-tête fixe séparé
+     (.entete-planning-scroll, cf. plus haut) — les deux blocs se touchent
+     SANS bordure entre eux par construction (bordures volontairement
+     retirées des deux côtés pour souder les 2 panneaux en un seul visuel),
+     donc rien ne séparait visuellement "Notes" (dernière ligne de l'en-tête
+     fixe) de "Personnel" juste en dessous. Intervenants, plus bas dans la
+     même grille, avait déjà ce trait via le quadrillage normal
+     (gap:1px + background:var(--border) de .grille) : lui ajouter la même
+     règle ne change rien à son rendu (même couleur, même épaisseur). */
+  .section-row { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
   .section-row-sticky { position: sticky; left: 0; display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px; }
   .section-label { font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-muted); }
   /* .btn-plage-ligne (le "+" de fin de ligne section) a vécu : §85 (round du
@@ -1422,7 +1437,15 @@
   .calendrier td.mois { background: var(--surface); font-weight: 700; text-align: left; padding: 0 8px; color: var(--ink); white-space: nowrap; }
   .calendrier td.jour { height: 24px; cursor: pointer; position: relative; background: var(--surface-2); }
   .calendrier td.jour:hover { box-shadow: inset 0 0 0 1.5px var(--accent); }
-  .calendrier td.jour.weekend { background: var(--bg); }
+  /* Round du 23.09.2026 (suite) — Lionel : « les week-ends de la page
+     Fériés sont passés en blanc, mets-les dans le groupe week-end ». Cette
+     case utilisait --bg (fond général, dans le groupe "Fond" des réglages
+     de couleur) au lieu de --weekend-bg (déjà utilisé pour les colonnes
+     week-end du planning lui-même, groupe "Week-end") — d'où la différence
+     de rendu dès que Lionel personnalise l'un sans l'autre. Alignée sur la
+     même variable pour que les 2 week-ends (planning + calendrier Fériés)
+     suivent toujours le même réglage. */
+  .calendrier td.jour.weekend { background: var(--weekend-bg); }
   .calendrier td.jour.vide { background: var(--border-strong); cursor: default; }
   .calendrier td.jour.vide:hover { box-shadow: none; }
   .calendrier td.jour.coloree { background: var(--jour-couleur) !important; }
