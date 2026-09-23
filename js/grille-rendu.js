@@ -671,9 +671,29 @@
   function allerAujourdhui() {
     var idx = indexSemaineAujourdhui_();
     if (idx < 0) return;
-    if (idx === etat.indexSemaine) { toast("Déjà sur la semaine actuelle."); return; }
+    // Round du 23.09.2026 (suite 13) — Lionel, mode mobile "1 jour" :
+    // « "Aujourd'hui" doit ramener à Aujourd'hui même si on est un autre
+    // jour de la semaine ». Avant ce round, ce bouton ne réagissait qu'à un
+    // changement de SEMAINE (idx !== etat.indexSemaine) — en mode "1 jour"
+    // mobile, rester sur la semaine en cours mais scrollé sur un autre jour
+    // (lundi, mercredi...) faisait donc juste afficher le toast ci-dessous
+    // sans rien recentrer. modeJourMobile_ recalcule ici la même condition
+    // que la var locale enModeJourMobile de construireGrille (inaccessible
+    // depuis cette fonction, appelée avant tout rendu) : vueJourMobile actif
+    // ET largeur ≤600px.
+    var modeJourMobile_ = vueJourMobile && typeof window.matchMedia === "function" && window.matchMedia("(max-width: 600px)").matches;
+    if (idx === etat.indexSemaine) {
+      if (!modeJourMobile_) { toast("Déjà sur la semaine actuelle."); return; }
+      // Semaine déjà correcte : pas besoin de recharger les données, juste
+      // reposition ner le scroll sur la colonne d'aujourd'hui (cibleApresRendu,
+      // consommé par construireGrille — cf. son commentaire plus bas).
+      cibleApresRendu = "aujourdhui";
+      render(false);
+      return;
+    }
     etat.indexSemaine = idx;
     bullesSelectionnees = {};
+    if (modeJourMobile_) cibleApresRendu = "aujourdhui";
     assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); majBarreSelection(); });
   }
   // Round D — bouton unique "2 semaines" (remplace la paire .toggle-sem
@@ -825,19 +845,44 @@
     // l'écran ») ne s'active QUE dans ce mode, jamais en "1 semaine"/desktop/
     // tablette où le défilement libre reste inchangé.
     scroller.classList.toggle("snap-jour-mobile", enModeJourMobile);
+    // Round du 23.09.2026 (suite 15) — Lionel : « La case jour ne fait pas
+    // la largeur de l'écran mais déborde à droite ». Avant ce correctif, la
+    // largeur de colonne ci-dessous se calculait avec l'unité CSS `100vw` —
+    // la largeur BRUTE du viewport, qui ne « voit » jamais le padding
+    // horizontal posé plus haut dans l'arbre entre le viewport et .scroller
+    // (.page-scroll, 18px de chaque côté, cf. son commentaire — sans
+    // compter les 2px de bordure gauche/droite de .grille-cadre). Résultat :
+    // la colonne du jour se calculait ~38px plus large que l'espace
+    // RÉELLEMENT disponible dans .scroller, débordant d'autant à droite.
+    // Remplacé par une mesure réelle et déjà juste par construction :
+    // racineEl (cf. plus haut, toujours monté à ce stade) hérite sa largeur
+    // de .page-scroll comme .scroller lui-même, padding déjà déduit — measure
+    // once ici (avant le vidage/reconstruction de son contenu, qui ne change
+    // pas sa propre largeur, fixée par son parent) plutôt qu'une unité CSS
+    // aveugle à ce padding.
+    var largeurEcranJour = enModeJourMobile ? (racineEl.clientWidth + "px") : "0px";
+    // Même correctif pour .b-txt/.b-statut/.b-serie et .b-carte (style.css,
+    // toutes deux `max-width: var(--largeur-visible-bulle, ...)` désormais)
+    // — ces règles s'appliquent que l'on soit en mode "1 jour" mobile ou
+    // non (texte sticky d'une bulle-plage large, y compris desktop/"1
+    // semaine"), donc mise à jour à CHAQUE rendu, pas seulement en
+    // enModeJourMobile. Variable globale (:root) plutôt que posée sur
+    // .scroller/racineEl : plus simple à référencer depuis ces sélecteurs
+    // (héritage CSS normal), pas de risque de portée manquante.
+    document.documentElement.style.setProperty("--largeur-visible-bulle", (racineEl.clientWidth - 132) + "px");
     var gabarit = "116px";
     for (var sTpl = 0; sTpl < nbSemainesAffichees; sTpl++) {
       if (enModeJourMobile) {
-        gabarit += " repeat(" + (5 * colsParJour()) + ", minmax(calc((100vw - 116px) / " + colsParJour() + "), 1fr))";
-        if (afficherWeekends) gabarit += " repeat(2, minmax(calc(100vw - 116px), 1fr))";
+        gabarit += " repeat(" + (5 * colsParJour()) + ", minmax(calc((" + largeurEcranJour + " - 116px) / " + colsParJour() + "), 1fr))";
+        if (afficherWeekends) gabarit += " repeat(2, minmax(calc(" + largeurEcranJour + " - 116px), 1fr))";
       } else {
         gabarit += " repeat(" + (5 * colsParJour()) + ", minmax(" + largeurMin + "px, 1fr))";
         if (afficherWeekends) gabarit += " repeat(2, 46px)";
       }
     }
     var largeurMiniTotale = enModeJourMobile
-      ? "calc(116px + " + (nbSemainesAffichees * 5 * colsParJour()) + " * ((100vw - 116px) / " + colsParJour() + ")"
-        + (afficherWeekends ? " + " + (nbSemainesAffichees * 2) + " * (100vw - 116px)" : "") + ")"
+      ? "calc(116px + " + (nbSemainesAffichees * 5 * colsParJour()) + " * ((" + largeurEcranJour + " - 116px) / " + colsParJour() + ")"
+        + (afficherWeekends ? " + " + (nbSemainesAffichees * 2) + " * (" + largeurEcranJour + " - 116px)" : "") + ")"
       : (116 + nbSemainesAffichees * (5 * colsParJour() * largeurMin + (afficherWeekends ? 2 * 46 : 0))) + "px";
     grilleEntete.style.gridTemplateColumns = gabarit;
     grilleEntete.style.minWidth = largeurMiniTotale;
@@ -1386,7 +1431,6 @@
     var bg = it.type === "tache" ? (it.chantier && CHANTIERS[it.chantier] ? CHANTIERS[it.chantier].couleur : "#e5e5e5")
       : it.type === "absence" ? "var(--absence-bg)"
       : it.type === "jalon" ? "var(--jalon-bg)" : "var(--note-bg)";
-    el.style.background = bg;
     // Étiquette (nom de chantier / "Absence"/"Jalon"/"Note") : n'est plus
     // affichée dans la bulle elle-même depuis le round du 02.09.2026 (retour
     // de Lionel : "on peut réduire les hauteurs de ligne en enlevant les
@@ -1397,11 +1441,17 @@
     // l'infobulle au survol (title ci-dessous), qui garde l'info accessible.
     var tag = it.type === "tache" ? (it.chantier && CHANTIERS[it.chantier] ? CHANTIERS[it.chantier].nom : "")
       : it.type === "absence" ? "Absence" : it.type === "jalon" ? "Jalon" : "Note";
+    // Round du 23.09.2026 (suite 14) — .b-carte : nouvel enveloppe interne
+    // portant tout le VISUEL (fond, coins arrondis, ombre — cf. son
+    // commentaire CSS pour le bug Chromium que ça contourne). .bulle reste
+    // l'item de grille "brut", jamais habillé ni sticky lui-même.
     var html = '<span class="poignee poignee-g" data-poignee="gauche"></span><span class="poignee poignee-d" data-poignee="droite"></span>' +
-      '<span class="b-txt">' + esc(it.texte) + '</span>';
+      '<div class="b-carte"><span class="b-txt">' + esc(it.texte) + '</span>';
     if (it.statut && STATUTS[it.statut]) html += '<span class="b-statut" style="background:' + STATUTS[it.statut].couleur + '"><span class="dot"></span>' + esc(STATUTS[it.statut].nom) + '</span>';
     if (it.serieId) html += '<span class="b-serie" title="Fait partie d\'une série">↻ série</span>';
+    html += '</div>';
     el.innerHTML = html;
+    el.querySelector(".b-carte").style.background = bg;
     el.title = (tag ? tag + " — " : "") + it.texte;
     el.addEventListener("pointerdown", onPointerDownBulle);
     cablerPoigneeRedim(el.querySelector('[data-poignee="gauche"]'), el, it, "gauche");

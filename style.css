@@ -604,7 +604,9 @@
      change donc AUCUN espacement visuel) — mis à jour au round du
      23.09.2026 (suite ×12) : Nav. semaine (70) a rejoint ce tableau, cf. son
      propre commentaire dans htmlPagePlanning (Lionel, téléphone : « placer
-     le sélecteur de semaine dans le menu pour gagner de la place ») :
+     le sélecteur de semaine dans le menu pour gagner de la place »), PUIS
+     (suite 13) #btnAujourdhui en est ressorti à part (75, Lionel :
+     « "Aujourd'hui" doit rester dans la tool bar ») :
        10 Annuler/Refaire        90  séparateur
        20 séparateur             100 Chantier
        30 Imprimer                    (reste hors de #toolbarSecondaire)
@@ -612,8 +614,12 @@
        40 séparateur             120 Ajouter une ligne
        50 Zoom                   130 "+" (menuAjoutElement)
        60 séparateur                  (reste hors de #toolbarSecondaire)
-       70 Nav. semaine            140 séparateur
-       80 2 semaines             150 Masquer/afficher (#controlesAffichage)
+       70 Nav. semaine (Prec./     75 Aujourd'hui
+          pilule/Suiv., sans           (reste hors de #toolbarSecondaire,
+          Aujourd'hui)                 cf. son commentaire dans
+       80 2 semaines/1 jour            htmlPagePlanning)
+                                  140 séparateur
+                                  150 Masquer/afficher (#controlesAffichage)
 
      Sur téléphone (≤600px), style-mobile.css redéfinit entièrement ce
      display:contents en display:flex (colonne, position:absolute sous la
@@ -893,7 +899,7 @@
      8px, donc 9px ici contre 7px pour `.cell`). */
   .grille-compacte .cell.cell-aprem { margin-left: -1px; padding-left: 7px; }
   .grille-compacte .th.th-demi-aprem { margin-left: -1px; padding-left: 1px; }
-  .grille-compacte .bulle.demi-aprem { margin-left: -1px; padding-left: 9px; }
+  .grille-compacte .bulle.demi-aprem .b-carte { margin-left: -1px; padding-left: 9px; }
   .lbl-compacte { justify-content: center; }
   /* .bulle-suite/.bulle-continue (segments de continuation d'une tâche
      multi-jours en mode compact) : supprimées au round du 08.09.2026,
@@ -1023,21 +1029,36 @@
     border-radius: inherit; background: var(--ferie-tint);
   }
 
+  /* .bulle / .b-carte — round du 23.09.2026 (suite 14) : .bulle reste l'item
+     de grille "brut" (position/dimensions, jamais habillé visuellement ni
+     sticky lui-même) ; .b-carte (nouvel enfant unique, cf. bulleEl() dans
+     grille-rendu.js) porte TOUT le visuel (fond posé en JS, coins arrondis,
+     ombre) — cf. le commentaire détaillé de .scroller.snap-jour-mobile
+     .bulle > .b-carte plus bas pour la raison de cette séparation (bug
+     Chromium contourné). En display:flex column normal (aucun changement
+     requis pour .b-carte ici : un item flex sans align-self s'étire par
+     défaut sur toute la largeur de .bulle — pixel identique à avant, où
+     c'était .bulle elle-même qui portait ce padding/fond). */
   .bulle {
-    position: relative; z-index: 2; border-radius: 9px; padding: 6px 14px 6px 8px; display: flex; flex-direction: column; gap: 1px;
-    justify-content: center;
+    position: relative; z-index: 2; display: flex; flex-direction: column;
     cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none;
-    box-shadow: 0 1px 2px var(--shadow);
-    transition: box-shadow .15s, transform .12s;
+    transition: transform .12s;
     color: var(--bubble-ink);
   }
+  .b-carte {
+    border-radius: 9px; padding: 6px 14px 6px 8px; display: flex; flex-direction: column; gap: 1px;
+    justify-content: center;
+    box-shadow: 0 1px 2px var(--shadow);
+    transition: box-shadow .15s;
+  }
   .bulle-plage { z-index: 1; align-self: start; margin-bottom: 14px; }
-  .bulle.selectionnee { box-shadow: 0 0 0 2.5px var(--accent), 0 1px 2px var(--shadow); }
+  .bulle.selectionnee .b-carte { box-shadow: 0 0 0 2.5px var(--accent), 0 1px 2px var(--shadow); }
   .bulle:active { cursor: grabbing; }
   .bulle.dragging {
-    position: fixed; z-index: 60; box-shadow: 0 12px 26px var(--shadow-lg);
+    position: fixed; z-index: 60;
     transform: scale(1.045) rotate(-1.2deg); pointer-events: none;
   }
+  .bulle.dragging .b-carte { box-shadow: 0 12px 26px var(--shadow-lg); }
   /* Jusqu'à 2 lignes si le texte ne tient pas sur 1 (retour de Lionel du
      03.09.2026 : "autoriser les bulles a faire 2 hauteur de texte si
      nécessaire") — 1 seule ligne quand ça suffit (la bulle ne grandit pas
@@ -1088,7 +1109,17 @@
      bloquait le collage. Sans texte assez long pour en avoir besoin, cette
      max-width ne change rien au rendu (la case reste au plus large que le
      texte, comme avant). */
-  .b-txt, .b-statut, .b-serie { position: sticky; left: 116px; max-width: calc(100vw - 132px); }
+  /* --largeur-visible-bulle (round du 23.09.2026, suite 15) : posée en JS
+     (construireGrille, grille-rendu.js) à chaque rendu, à partir d'une
+     largeur RÉELLEMENT mesurée (racineEl.clientWidth) plutôt que l'unité
+     CSS 100vw utilisée ici jusque-là — 100vw ignore le padding horizontal
+     de .page-scroll (18px de chaque côté) posé entre le viewport et
+     .scroller, ce qui rendait ce max-width ~36px trop généreux et laissait
+     déborder à droite le texte/la carte d'une bulle assez longue pour en
+     avoir besoin (Lionel : « la case jour... déborde à droite »). Fallback
+     calc(100vw - 132px) conservé au cas où cette variable ne serait pas
+     encore posée (avant le tout premier rendu). */
+  .b-txt, .b-statut, .b-serie { position: sticky; left: 116px; max-width: var(--largeur-visible-bulle, calc(100vw - 132px)); }
   .b-txt { align-self: flex-start; }
   .b-statut {
     align-self: flex-start; margin-top: 1px; display: inline-flex; align-items: center; gap: 4px;
@@ -1108,40 +1139,73 @@
   .poignee-d::after { right: 3px; }
   .poignee:hover::after, .poignee.actif::after { opacity: .55; }
   .poignee.actif { background: rgba(0, 0, 0, .08); }
-  /* Round du 23.09.2026 (suite ×13) — Lionel : « Intègre un vrai mode 1
-     jour, avec bulle sur le jour actif même si c'est une bulle sur
-     plusieurs jours, pas de bulle coupée. » Le round précédent (cf.
-     commentaire de .b-txt plus haut) rendait le TEXTE/statut/série sticky,
-     mais .bulle elle-même — son fond coloré, ses coins arrondis — restait
-     un unique bloc large de plusieurs jours (grid-column en span) : sur un
-     jour DU MILIEU d'une plage, on ne voyait qu'un rectangle plat sans coin
-     arrondi (le texte sticky comme "posé dessus"), lisible comme une bulle
-     tronquée plutôt qu'une vraie carte pour ce jour précis.
-     EN MODE "1 JOUR" UNIQUEMENT (.scroller.snap-jour-mobile, cf. son
-     commentaire — jamais en "1 semaine"/desktop/tablette, où voir la barre
-     colorée continue sur plusieurs jours reste le comportement voulu et
-     attendu) : .bulle elle-même devient sticky + bornée à peu près à la
-     largeur d'un jour, exactement comme .b-txt juste au-dessus — même
-     ancrage (left:116px, même max-width), même piège de largeur exacte
-     contourné, mais sa variante GRILLE : .bulle est un ITEM DE GRILLE (posé
-     par poser()/grid-column dans grille-rendu.js), pas un enfant flex, donc
-     justify-self:start (pas align-self, qui gouvernerait l'axe vertical
-     pour un item de grille) pour sortir de l'étirement par défaut
-     (justify-items/justify-self:stretch) qui reproduirait le même bug.
-     Bornée par son propre bloc conteneur (le grid-column/span réel de la
-     tâche, inchangé) exactement comme .b-txt : ne "sort" jamais avant/après
-     les jours réels de la tâche — sur son premier/dernier jour, elle se
-     comporte donc naturellement comme une bulle normale d'un seul jour.
-     .b-txt/.b-statut/.b-serie restent sticky EUX AUSSI (partagés avec les 2
-     autres modes, cf. leur commentaire) — une fois .bulle déjà étroite et
-     positionnée ici, leur propre collage n'a simplement plus rien à
-     corriger. Poignées de redimensionnement masquées dans ce mode (juste en
-     dessous) : elles se retrouveraient sur les bords du jour VISIBLE plutôt
-     que sur le vrai début/fin de la tâche, ce qui n'a pas de sens dès lors
-     qu'on ne voit justement plus qu'un seul jour à la fois — modifier la
-     durée reste possible depuis la fiche (tap sur la bulle). */
-  .scroller.snap-jour-mobile .bulle {
-    position: sticky; left: 116px; justify-self: start; max-width: calc(100vw - 132px);
+  /* Round du 23.09.2026 (suite ×13, puis suite 14 — correctif ci-dessous) —
+     Lionel : « Intègre un vrai mode 1 jour, avec bulle sur le jour actif
+     même si c'est une bulle sur plusieurs jours, pas de bulle coupée. » Le
+     round précédent (cf. commentaire de .b-txt plus haut) rendait le TEXTE/
+     statut/série sticky, mais .bulle elle-même — son fond coloré, ses coins
+     arrondis — restait un unique bloc large de plusieurs jours (grid-column
+     en span) : sur un jour DU MILIEU d'une plage, on ne voyait qu'un
+     rectangle plat sans coin arrondi (le texte sticky comme "posé dessus"),
+     lisible comme une bulle tronquée plutôt qu'une vraie carte pour ce jour
+     précis.
+
+     PREMIÈRE VERSION (suite ×13, abandonnée) : rendre .bulle elle-même
+     sticky + bornée (justify-self:start), exactement comme .b-txt. Ça
+     fonctionnait en apparence en test manuel, mais Lionel a signalé un bug
+     bien plus tard : « Toutes les bulles de la semaine s'empilent le
+     vendredi » — en fait dès qu'on scrolle assez loin, TOUTE bulle
+     (quels que soient ses jours réels) reste figée à gauche (116px) au lieu
+     de sortir de l'écran une fois son propre intervalle dépassé.
+     Isolé en Playwright (retirer position:sticky ↔ position:static sur
+     l'élément : sa position "réelle", non collée, était correcte et bien
+     hors-écran — seul le COLLAGE refusait de se re-borner) : un item de
+     GRILLE CSS qui devient lui-même sticky (position:sticky posée
+     DIRECTEMENT sur un enfant avec justify-self:start, donc rétréci à son
+     contenu plutôt qu'étiré à toute sa zone de grille) ne recalcule plus
+     jamais sa borne de droite après le tout premier calcul, dans ce
+     Chromium — aucun forçage de reflow trouvé n'y change quoi que ce soit
+     (testé : toggle position statique/sticky, retrait+réinsertion du même
+     nœud, toggle overflow du scroller, will-change/contain/transform —
+     seule la création d'un nouvel élément APRÈS le défilement s'en sortait
+     bien, piste non exploitable en pratique). En clair : sticky + grid-item
+     rétréci = bug de ce moteur, pas une erreur de logique CSS.
+
+     CORRECTIF (suite 14) : ne plus jamais rendre .bulle elle-même sticky.
+     .bulle reste TOUJOURS un item de grille normal, étiré (comportement par
+     défaut, jamais réécrit) — ses bornes réelles (le vrai grid-column/span
+     de la tâche) restent donc TOUJOURS correctement calculées, y compris
+     après un défilement. .b-carte (nouvel enfant unique de .bulle, cf.
+     bulleEl() dans grille-rendu.js — porte désormais le fond/rayon/ombre,
+     cf. son commentaire plus haut) devient l'élément sticky+rétréci à la
+     place, mais c'est un ENFANT FLEX ordinaire de .bulle (jamais lui-même
+     un item de grille) : exactement la même configuration, déjà éprouvée
+     sans bug, que .b-txt/.b-statut/.b-serie juste au-dessus (sticky DANS
+     une .bulle non-sticky, étirée) — align-self (pas justify-self, ici
+     axe flex) pour sortir de l'étirement par défaut. Bornée par le vrai
+     bloc conteneur (.bulle, dont les dimensions suivent maintenant
+     TOUJOURS le grid-column réel) : ne "sort" jamais avant/après les jours
+     réels de la tâche, se recale correctement à chaque défilement, y
+     compris loin dans la semaine. .b-txt/.b-statut/.b-serie, EUX, N'ONT
+     PLUS besoin d'être sticky ici (contrairement aux 2 autres modes, cf.
+     override juste en dessous) : une fois .b-carte déjà étroite et
+     positionnée sur le bon jour, leur propre collage n'a plus rien à
+     corriger — pire, laissé actif, il les re-borne à l'intérieur du
+     padding de .b-carte (déjà décalée) plutôt qu'au bord de .scroller,
+     un décalage de quelques px en trop (repéré en testant : texte à 143px
+     du bord au lieu de ~116-135px attendu). Poignées de redimensionnement
+     masquées dans ce mode (juste en dessous) : elles se retrouveraient sur
+     les bords du jour VISIBLE plutôt que sur le vrai début/fin de la
+     tâche, ce qui n'a pas de sens dès lors qu'on ne voit justement plus
+     qu'un seul jour à la fois — modifier la durée reste possible depuis la
+     fiche (tap sur la bulle). */
+  .scroller.snap-jour-mobile .bulle > .b-carte {
+    position: sticky; left: 116px; align-self: flex-start; max-width: var(--largeur-visible-bulle, calc(100vw - 132px));
+  }
+  .scroller.snap-jour-mobile .bulle > .b-carte .b-txt,
+  .scroller.snap-jour-mobile .bulle > .b-carte .b-statut,
+  .scroller.snap-jour-mobile .bulle > .b-carte .b-serie {
+    position: static; max-width: none;
   }
   .scroller.snap-jour-mobile .poignee { display: none; }
   .ghost { border: 1.5px dashed var(--border-strong); border-radius: 9px; opacity: .5; }

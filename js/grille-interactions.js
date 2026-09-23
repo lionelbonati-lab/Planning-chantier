@@ -105,13 +105,53 @@
   // arbitraire à mi-chemin entre 2 jours — le scroll-snap natif ne rattrape
   // pas seul un scrollLeft posé programmatiquement image par image.
   var VITESSE_MINI_INERTIE = 0.03, FRICTION_INERTIE = 0.995;
+  // snapDesactive/desactiverSnapSiBesoin_/reactiverSnap_ — round du
+  // 23.09.2026 (suite ×16) : Lionel : « Le swipe gauche/droite ne fonctionne
+  // pas sur le tableau du jour. Il fait juste bouger la case du jour en
+  // question. » Cause, trouvée en instrumentant scroller.scrollLeft à chaque
+  // étape du geste (test_swipe_jour_mobile.js) : en mode "1 jour" mobile,
+  // .scroller porte scroll-snap-type:x MANDATORY (cf. .snap-jour-mobile,
+  // style.css) — un point d'aimantation obligatoire. Contrairement au
+  // défilement tactile natif (où le navigateur sait qu'un geste est "en
+  // cours" et attend son relâchement pour aimanter), une simple AFFECTATION
+  // JS de scrollLeft (scroller.scrollLeft -= dx, ci-dessous) est un
+  // déplacement instantané et ponctuel aux yeux du navigateur : Chromium le
+  // considère "terminé" sur-le-champ et le RECALE immédiatement sur le repère
+  // .snap-jour le plus proche, avant même le prochain pointermove — vérifié
+  // en isolation (scroller.scrollLeft = 300 avec la classe posée retombe
+  // instantanément à 244, le repère le plus proche, alors qu'il tient sans
+  // la classe). Résultat : le défilement manuel ne peut jamais s'éloigner du
+  // jour de départ pendant le geste, quelle que soit l'amplitude du swipe —
+  // d'où l'impression que « ça ne fait que bouger la case du jour ». Fix :
+  // désactiver le snap CSS (scrollSnapType inline = "none") dès le premier
+  // pointermove qui déclenche un défilement, et le RÉTABLIR seulement une
+  // fois notre propre calage manuel appliqué (finirSurRepere, qui fait
+  // exactement ce que le snap CSS aurait fait, mais APRÈS le geste plutôt que
+  // pendant) — jamais pendant le geste lui-même, où il n'apporte rien (le
+  // défilement tactile natif est de toute façon inerte ici, cf. touch-
+  // action:none sur .cell/.bulle/.poignee, commentaire ci-dessus) et ne fait
+  // que saboter le suivi du doigt.
+  function desactiverSnapSiBesoin_(scroller, etat) {
+    if (etat.snapDesactive || !scroller) return;
+    etat.snapDesactive = true;
+    etat.snapTypeOrigine = scroller.style.scrollSnapType;
+    scroller.style.scrollSnapType = "none";
+  }
+  function reactiverSnap_(scroller, etat) {
+    if (!etat.snapDesactive) return;
+    etat.snapDesactive = false;
+    if (scroller) scroller.style.scrollSnapType = etat.snapTypeOrigine || "";
+  }
   function creerDefilementManuel(scroller) {
     var vx = 0, vy = 0, raf = null;
+    var etatSnap = { snapDesactive: false, snapTypeOrigine: "" };
     function finirSurRepere() {
       raf = null;
-      if (!scroller) return;
-      var cible = plusProcheRepereJour_(scroller);
-      if (cible !== null) scroller.scrollLeft = cible;
+      if (scroller) {
+        var cible = plusProcheRepereJour_(scroller);
+        if (cible !== null) scroller.scrollLeft = cible;
+      }
+      reactiverSnap_(scroller, etatSnap);
     }
     function tick(t, derniereFrame) {
       var dt = Math.min(48, t - derniereFrame);
@@ -131,6 +171,7 @@
       // dt : temps écoulé en ms depuis ce même échantillon (0 au tout
       // premier appel — pas de vitesse mesurable, juste le déplacement).
       suivre: function (dx, dy, dt) {
+        desactiverSnapSiBesoin_(scroller, etatSnap);
         if (scroller) scroller.scrollLeft -= dx;
         if (dy) window.scrollBy(0, -dy);
         if (dt > 0) { vx = vx * 0.7 + (dx / dt) * 0.3; vy = vy * 0.7 + (dy / dt) * 0.3; }
@@ -139,7 +180,11 @@
         if (Math.abs(vx) < VITESSE_MINI_INERTIE && Math.abs(vy) < VITESSE_MINI_INERTIE) { finirSurRepere(); return; }
         raf = requestAnimationFrame(function (t) { tick(t, t); });
       },
-      annuler: function () { if (raf) { cancelAnimationFrame(raf); raf = null; } vx = 0; vy = 0; }
+      // annuler() (pas de site d'appel actif à ce round, gardée par
+      // symétrie avec suivre/relacher) : doit elle aussi rétablir le snap
+      // CSS si suivre() l'avait désactivé — sinon un futur appelant qui
+      // annule au lieu de relâcher laisserait .scroller sans aimantation.
+      annuler: function () { if (raf) { cancelAnimationFrame(raf); raf = null; } vx = 0; vy = 0; reactiverSnap_(scroller, etatSnap); }
     };
   }
 
