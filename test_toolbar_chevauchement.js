@@ -99,9 +99,10 @@ function mesurer() {
   }
 
   // 1) Rétrécissement 1400 -> 320px : jamais de chevauchement ; les groupes
-  //    partent dans "⋮" un par un, de droite à gauche (round du 24.09.2026,
-  //    suite 3 — Lionel : Masquages, Zoom, Navigation, Imprimer).
-  const ORDRE_REPLI = ['controlesAffichage', 'groupeZoom', 'groupeNavSemaine', 'groupeImprimer'];
+  //    partent dans "⋮" un par un (round du 24.09.2026, suite 3), Zoom en
+  //    premier (suite 10 — Lionel : « c'est la moins utilisé des
+  //    fonctions »), puis Masquages, Navigation, Imprimer.
+  const ORDRE_REPLI = ['groupeZoom', 'controlesAffichage', 'groupeNavSemaine', 'groupeImprimer'];
   const TOUJOURS_BARRE = ['groupeAnnulerRefaire', 'groupeChantier', 'groupeAujourdhui', 'groupeAjoutElement'];
   let largeursOk = 0, nbLargeurs = 0, replis = [], ordreRespecte = true, toujoursLa = true;
   for (let w = 1400; w >= 320; w -= 10) {
@@ -119,7 +120,7 @@ function mesurer() {
     }
   }
   verifier(largeursOk === nbLargeurs, largeursOk + '/' + nbLargeurs + ' largeurs sans chevauchement ni bouton hors de la barre');
-  verifier(ordreRespecte, 'repli de droite à gauche, un groupe à la fois : ' + JSON.stringify(replis));
+  verifier(ordreRespecte, 'repli un groupe à la fois, Zoom en premier : ' + JSON.stringify(replis));
   verifier(toujoursLa, 'Annuler/Refaire, Chantier, Aujourd\'hui et "+" toujours dans la barre');
 
   // 2) Barre complète : ordre de Lionel « annuler/refaire | imprimer |
@@ -206,6 +207,23 @@ function mesurer() {
   await page.waitForTimeout(150);
   verifier(!(await ouvert()), 'Ajouter une ligne > Personnel referme le menu');
   await page.keyboard.press('Escape');
+  // "1 semaine" referme le menu, dans les deux sens (suite 12 — Lionel :
+  // « Je veux que le menu se ferme lors de l'appui sur la vue 1 semaine »),
+  // alors qu'un masquage le laisse ouvert.
+  await ouvrirMenu();
+  await page.evaluate(() => document.querySelector('#controlesAffichage [data-affichage-cible="note"]').click());
+  await page.waitForTimeout(100);
+  verifier(await ouvert(), 'téléphone : un masquage laisse le menu ouvert');
+  await page.evaluate(() => document.querySelector('#controlesAffichage [data-affichage-cible="note"]').click());
+  const vues = [await page.evaluate(() => vueJourMobile)];
+  for (const sens of ['1 jour -> 1 semaine', '1 semaine -> 1 jour']) {
+    await ouvrirMenu();
+    await page.evaluate(() => document.getElementById('btnVueJourMobile').click());
+    await page.waitForTimeout(300);
+    vues.push(await page.evaluate(() => vueJourMobile));
+    verifier(!(await ouvert()) && await page.evaluate(() => !document.getElementById('btnPlusOutils').classList.contains('ouvert')), '"1 semaine" referme le menu (' + sens + ')');
+  }
+  verifier(JSON.stringify(vues) === JSON.stringify([true, false, true]), '"1 semaine" a bien basculé la vue, puis l\'a remise : ' + JSON.stringify(vues));
   await ouvrirMenu();
   await page.evaluate(() => document.getElementById('btnImprimerTitre').click());
   await page.waitForTimeout(150);

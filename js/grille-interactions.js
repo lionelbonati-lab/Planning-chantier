@@ -417,6 +417,12 @@
     }
     var dejaSelectionnee = !!bullesSelectionnees[idClic];
     var groupeIds = dejaSelectionnee ? Object.keys(bullesSelectionnees) : [idClic];
+    // fantomesARefaire (round du 24.09.2026, suite 11) : cf. appuiLong
+    // ci-dessous — vrai quand l'appui long a changé la sélection pendant que
+    // le bouton était encore enfoncé ; les fantômes du glisser, créés au
+    // pointerdown pour l'ANCIEN groupeIds, sont retirés et reconstruits au
+    // premier vrai déplacement, pour le NOUVEAU groupe.
+    var fantomesARefaire = false;
     var tactile = e.pointerType === "touch";
     // copieSelectionActive (suite 9) : le bouton ⧉ de la pilule vaut Maj —
     // au doigt comme à la souris.
@@ -434,12 +440,40 @@
     // appuiLong (round du 24.09.2026, suite 9 — Lionel : « simple appui =
     // sélection simple, appui long = sélection multiple ») : vrai si le
     // pointeur est resté posé sans bouger au moins DELAI_APPUI_LONG. Un
-    // relâchement sans glisser vaut alors "ajouter à la sélection multiple"
-    // (cf. onUp -> resoudreClicBulle(cumuler)). Un minuteur plutôt que la
-    // différence des timeStamp : identique souris/doigt, et insensible à
-    // une horloge figée (tests).
+    // minuteur plutôt que la différence des timeStamp : identique
+    // souris/doigt, et insensible à une horloge figée (tests).
+    //
+    // Suite 11 — Lionel : « la barre d'outils sélections doit s'afficher
+    // avant le relâcher de souris, dès que le délai d'appui est passé ».
+    // Jusque-là le minuteur ne faisait que lever un drapeau, lu par onUp :
+    // rien ne bougeait à l'écran avant le relâchement, on ne savait pas si
+    // l'appui avait "pris". La sélection est désormais appliquée DANS le
+    // minuteur, bouton encore enfoncé : la bulle s'entoure, la pilule
+    // apparaît (basculerSelection -> majBarreSelection, qui ne touche qu'aux
+    // classes — aucun re-rendu de la grille sous le pointeur). onUp ne
+    // refait alors plus rien (sinon il annulerait la bascule).
+    //
+    // Un défilement au doigt (enDefilement) ou un glisser déjà commencé
+    // (bouge) n'est pas un appui long : le minuteur ne sélectionne rien.
+    //
+    // Appui long sur LA bulle déjà sélectionnée en mode simple : elle reste
+    // sélectionnée et le mode multiple s'allume. basculerSelection(id, true)
+    // l'aurait désélectionnée — la pilule aurait disparu sous le doigt au
+    // moment précis où elle doit apparaître.
+    //
+    // Si l'utilisateur glisse APRÈS l'appui long, le glisser emporte la
+    // sélection telle qu'elle est maintenant affichée (même règle qu'au
+    // pointerdown : bulle sélectionnée -> toute la sélection, sinon elle
+    // seule) : cf. fantomesARefaire plus haut.
     var appuiLong = false;
-    var minuteurAppuiLong = setTimeout(function () { appuiLong = true; }, DELAI_APPUI_LONG);
+    var minuteurAppuiLong = setTimeout(function () {
+      if (bouge || enDefilement) return;
+      appuiLong = true;
+      if (!modeSelectionMultiple && bullesSelectionnees[idClic]) { modeSelectionMultiple = true; majBarreSelection(); }
+      else basculerSelection(idClic, true);
+      groupeIds = bullesSelectionnees[idClic] ? Object.keys(bullesSelectionnees) : [idClic];
+      if (arme) { nettoyerFantomes(); fantomesARefaire = true; }
+    }, DELAI_APPUI_LONG);
     var fantomes = [];
     var cibleActuelle = null, cellulesSurvoleesActuelles = [];
     var surlignagePrecisEl = null;
@@ -546,6 +580,11 @@
     function armer() {
       arme = true;
       document.body.classList.add("en-glissement");
+      creerFantomes();
+    }
+    // Séparé d'armer() à la suite 11 : reconstruit aussi les fantômes après
+    // un appui long (fantomesARefaire).
+    function creerFantomes() {
       groupeIds.forEach(function (id) {
         var dom = document.querySelector('.bulle[data-id="' + id + '"]');
         if (!dom) return;
@@ -613,6 +652,11 @@
       }
       var d2 = Math.abs(e2.clientX - sx) + Math.abs(e2.clientY - sy);
       if (d2 > 4) { bouge = true; clearTimeout(minuteurAppuiLong); }
+      if (fantomesARefaire) {
+        if (!bouge) return;
+        fantomesARefaire = false;
+        creerFantomes();
+      }
       // Badge "Copier/Déplacer N bulles" : au doigt aussi désormais (suite
       // 9), dès que la copie est armée par ⧉ — seule indication visible
       // pendant le geste que la dépose posera une copie.
@@ -849,7 +893,8 @@
       var celluleCible = cibleActuelle;
       detacher();
       if (enDefilement) { nettoyerFantomes(); return; }
-      if (!arme || !bouge) { nettoyerFantomes(); resoudreClicBulle(idClic, appuiLong || (!tactile && (e2.ctrlKey || e2.metaKey))); return; }
+      // appuiLong : la sélection a déjà été faite par le minuteur (suite 11).
+      if (!arme || !bouge) { nettoyerFantomes(); if (!appuiLong) resoudreClicBulle(idClic, !tactile && (e2.ctrlKey || e2.metaKey)); return; }
       resoudreCibleGroupe(celluleCible, e2.clientX);
     }
     function onCancel(e2) { if (e2.pointerId !== pointerId) return; detacher(); nettoyerFantomes(); }

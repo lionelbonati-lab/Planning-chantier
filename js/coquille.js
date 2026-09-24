@@ -179,8 +179,10 @@
       // Toujours dans la barre (jamais repliés, Lionel : « mode compact,
       // sur la barre, annuler/refaire | Chantier | Insertions », plus
       // "Aujourd'hui" qu'il veut « Toujours sur la barre ») : Annuler/Refaire,
-      // Chantier, Aujourd'hui, Ajouter une ligne + "+". Repliés de droite à
-      // gauche : Masquages, Zoom, Navigation (+ 2 semaines), Imprimer.
+      // Chantier, Aujourd'hui, Ajouter une ligne + "+". Ordre de repli :
+      // Zoom d'abord (round du 24.09.2026, suite 10 — Lionel : « c'est la
+      // moins utilisé des fonctions »), puis Masquages, Navigation
+      // (+ 2 semaines), Imprimer — cf. REPLIS_ORDRE, js/grille-rendu.js.
       // Téléphone (≤600px) : barre inchangée (Lionel : « Menu ⋮ seulement »),
       // tout le reste — Ajouter une ligne compris — toujours dans le panneau.
       '<div class="toolbar-sheets" id="legendeBarre">' +
@@ -660,9 +662,15 @@
       // propre listener (openPrintSheet) a déjà agi à ce stade, ce listener-ci
       // passant après lui (remontée de l'événement). Pendant pour "Ajouter
       // une ligne" : dans le câblage de #menuAjoutLigne plus bas.
+      //
+      // Round du 24.09.2026 (suite 12) — "1 semaine" (#btnVueJourMobile,
+      // téléphone) referme aussi le menu. Lionel : « Je veux que le menu se
+      // ferme lors de l'appui sur la vue 1 semaine ». Changer de vue
+      // remplace toute la grille : le menu n'a plus rien à faire ouvert
+      // par-dessus. Dans les deux sens (1 jour -> 1 semaine et retour).
       toolbarSecondaire.addEventListener("click", function (e) {
         e.stopPropagation();
-        fermerAutresMenusOutils(e.target.closest("#btnImprimerTitre") ? null : toolbarSecondaire);
+        fermerAutresMenusOutils(e.target.closest("#btnImprimerTitre, #btnVueJourMobile") ? null : toolbarSecondaire);
       });
     }
     // Ouverture/fermeture des 3 .outil-menu (zoom, ligne+, +) — générique

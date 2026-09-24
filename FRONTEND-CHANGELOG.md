@@ -6791,3 +6791,43 @@ Lionel, capture BlueMail à l'appui : « il serait mieux de placer cette barre e
 Repéré et corrigé en cours de route : la suppression de la variable `copie` du glisser laissait une référence dans `armer()` (badge du glisser) — toute pression sur une bulle levait une erreur et la bulle restait figée en fantôme ; trouvé par le test de sélection dès le premier clic.
 
 Vérifié en local (Playwright) : `test_selection_bulles.js` **34/34** — pilule fixée en bas dès une bulle seule, appui long (mode multiple, compteur), Ctrl+clic, ✕/Échap qui éteignent tout, ⧉ + flèches (copie posée à la nouvelle position, fusion avec l'original vérifiée dans la table et la bulle fusionnée toujours sélectionnée), ⧉ + glisser à la souris (copie de C sur le vendredi, l'original en place), corbeille, crayon, pilule pleine largeur sur téléphone. `test_toolbar_chevauchement.js` 23/23 (plus de bouton dans la barre), `test_tache_hors_semaine.js` 16/16, `test_defilement_jour_mobile.js` 20/20. Captures à 1200 px (pilule centrée en bas, mode multiple) et 390 px.
+
+## 118. Round du 24.09.2026 (suite 10) — Barre d'outils : le Zoom part le premier dans le menu ⋮
+
+Lionel : « placer le zoom en premier dans le menu 3points lors du rétrécissement, c'est la moins utilisé des fonctions ».
+
+**Ordre de repli** (`REPLIS_ORDRE`, `js/grille-rendu.js`) : Zoom, puis Masquages, Navigation (+ 2 semaines), Imprimer. Avant, le repli suivait strictement la barre de droite à gauche (Masquages d'abord, §111). Relevé en local avec le chantier au nom long de la capture d'origine :
+
+| Largeur de fenêtre | Groupes dans ⋮ |
+|---|---|
+| plus de 1020 px | aucun |
+| 1020 px | Zoom |
+| 915 px | Zoom, Masquages |
+| 770 px | Zoom, Navigation, Masquages |
+
+**Inchangé** : l'ordre de la barre complète, l'ordre d'affichage dans le menu (« Imprimer > Zoom > Navigation semaine > Affichage 1 ou 2 semaines > Masquages », `data-rang-menu`) — chaque groupe replié y prend son rang, quel que soit le moment où il part — et le téléphone, où tout est déjà dans le menu.
+
+Vérifié en local (Playwright) : `test_toolbar_chevauchement.js` 23/23, avec l'ordre de repli attendu mis à jour (Zoom en premier, un groupe à la fois, aucun chevauchement de 1400 à 320 px). Capture contrôlée à 1020 px : Zoom seul dans ⋮, les quatre masquages toujours dans la barre.
+
+## 119. Round du 24.09.2026 (suite 11) — Appui long : la pilule de sélection apparaît avant de relâcher
+
+Lionel : « la barre d'outils sélections doit s'afficher avant le relâcher de souris, dès que le délai d'appui est passé ».
+
+**Avant** : le minuteur de l'appui long (§117, `DELAI_APPUI_LONG` = 450 ms) ne faisait que lever un drapeau, lu au relâchement. Rien ne bougeait à l'écran tant que le bouton ou le doigt restait posé : impossible de savoir si l'appui avait « pris ».
+
+**Maintenant** (`onPointerDownGroupeSelection`, `js/grille-interactions.js`) : la sélection est appliquée dans le minuteur, bouton encore enfoncé. La bulle s'entoure et la pilule apparaît aussitôt (mode multiple, compteur). Le relâchement ne refait plus rien. `basculerSelection` ne touche qu'aux classes, sans reconstruire la grille sous le pointeur. Souris et doigt se comportent pareil.
+
+Trois cas précisés au passage :
+- **Défilement ou glisser déjà commencé** : le minuteur ne sélectionne rien, ce n'est pas un appui long.
+- **Appui long sur la bulle déjà seule sélectionnée** : elle reste sélectionnée et le mode multiple s'allume. Avant, elle était désélectionnée au relâchement ; avec la pilule affichée pendant l'appui, celle-ci aurait disparu sous le doigt au moment précis où elle doit apparaître.
+- **Glisser après l'appui long** : le glisser emporte la sélection telle qu'elle est affichée, avec la même règle qu'au pointerdown. Les fantômes créés pour l'ancien groupe sont retirés à l'appui long (la bulle apparaît alors pleinement, entourée) et reconstruits au premier vrai déplacement pour le nouveau groupe. `armer()` est scindée en `armer()` + `creerFantomes()` pour ça.
+
+Vérifié en local (Playwright) : `test_selection_bulles.js` étendu à **43 vérifications**, toutes OK. Les nouvelles relèvent l'état **bouton encore enfoncé** : rien avant le délai, bulle entourée et pilule visible après, rien de changé au relâchement ; appui long sur la bulle déjà sélectionnée ; C choisie puis appui long sur B et glisser d'un jour, qui fait reculer B et C ensemble avec 2 fantômes, annulé d'un seul Ctrl+Z ; appui long **au doigt** sur téléphone (vrais pointeurs tactiles, émulation Chromium), pilule affichée avant de lever le doigt. Sur l'ancien code, 6 de ces vérifications échouent.
+
+## 120. Round du 24.09.2026 (suite 12) — « 1 semaine » referme le menu ⋮
+
+Lionel : « Je veux que le menu se ferme lors de l'appui sur la vue 1 semaine ».
+
+Sur téléphone, le bouton « 1 semaine » du menu ⋮ (`#btnVueJourMobile`) referme désormais le menu, comme Imprimer et Ajouter une ligne (§111). Changer de vue remplace toute la grille : le menu n'a plus rien à faire ouvert par-dessus. Vaut dans les deux sens, de la vue 1 jour à la semaine et retour. Les autres boutons du menu le laissent ouvert, comme avant : ‹ ›, masquages, zoom. Le changement tient dans l'écouteur de clic du panneau (`cablerPagePlanning`, `js/coquille.js`), qui traite `#btnVueJourMobile` comme `#btnImprimerTitre`.
+
+Vérifié en local (Playwright) : `test_toolbar_chevauchement.js` étendu à **27 vérifications**, toutes OK. Les nouvelles couvrent un masquage qui laisse le menu ouvert sur téléphone, « 1 semaine » qui le referme dans les deux sens, et la vue réellement basculée puis remise. Sur l'ancien code, les deux vérifications de fermeture échouent. `test_selection_bulles.js` 43/43, `test_tache_hors_semaine.js` 16/16, `test_defilement_jour_mobile.js` 20/20.
