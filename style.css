@@ -763,15 +763,19 @@
   .nav-semaine-ligne { display: flex; align-items: center; gap: 2px; }
   .toolbar-secondaire .zoom-ctrl,
   .toolbar-secondaire .nav-semaine-ligne { width: 100%; padding: 6px 8px; gap: 6px; }
-  /* Icônes calendrier (round du 24.09.2026, suite 15) — barre et menu ⋮,
-     téléphone seulement (cf. style-mobile.css) : jamais affichées ici.
+  /* Icônes calendrier (round du 24.09.2026, suite 15) — barre et menu ⋮.
+     #btnCalendrierBarre, collé à Aujourd'hui, est affiché partout depuis
+     le round du 24.09.2026 (suite 16 — Lionel : « oui, ajoute aussi
+     l'icône sur ordinateur et tablette ») : .toolbar-btn ordinaire, dans
+     #groupeAujourdhui qui ne se replie jamais. .ligne-vue-mobile, la ligne
+     du menu ⋮ « calendrier + 1 semaine » en icônes seules, reste au
+     téléphone (cf. style-mobile.css) : jamais affichée ici.
      .date-picker-jour : le calendrier natif, invisible, couvre toute
      l'icône et reçoit l'appui (cf. .btn-calendrier, js/coquille.js) ; le
      survol passe donc par l'icône elle-même (:hover d'un parent). 16px :
      en dessous, Safari (iPhone) zoome la page quand le champ prend le
-     focus. .ligne-vue-mobile : ligne du menu ⋮ « calendrier + 1 semaine »,
-     en icônes seules. */
-  #btnCalendrierBarre, .ligne-vue-mobile { display: none; }
+     focus. */
+  .ligne-vue-mobile { display: none; }
   .btn-calendrier { position: relative; }
   .date-picker-jour { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: none; padding: 0; margin: 0; cursor: pointer; font-size: 16px; }
   .toolbar-secondaire .libelle-panneau { display: inline; margin-right: auto; font-size: 13.5px; font-weight: 600; color: var(--ink); }
