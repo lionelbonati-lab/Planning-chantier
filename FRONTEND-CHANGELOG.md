@@ -7234,3 +7234,38 @@ Chaque bug ci-dessous a d'abord été reproduit (faux Supabase qui exécute la v
   - les règles RLS autorisent tout utilisateur connecté, donc vérifier que les inscriptions publiques sont désactivées ;
   - clés étrangères sans index (ex. `taches.serie_id`, utilisée par `series.js`).
 - **4 tests périmés** au chemin fixe `/home/claude/work/testenv/` : à réécrire ou à supprimer.
+
+## 131. Round du 24.09.2026 (suite 23) — Page Fériés sur téléphone, bulles du vendredi qui débordaient sur le week-end
+
+Lionel : « Propose moi une version mobile de la page des feriés », puis « en affichant les week-end, les bulles du vendredi sont affichés sur le week-end ».
+
+**1. Bulles du vendredi étalées sur le samedi et le dimanche** (`spanColonnes`, `colonneEtSpanDemi`, `js/grille-rendu.js`) :
+- cause : la fin d'une bulle était calculée comme « début du jour ouvré suivant ». Pour une bulle qui finit un vendredi, c'est le lundi, posé APRÈS les 2 colonnes Samedi/Dimanche : dès que les week-ends étaient affichés, toute bulle finissant un vendredi les recouvrait (tâche, note, jalon, plage jeudi → vendredi, jalon du vendredi après-midi) ;
+- correctif : la fin est désormais la fin du DERNIER jour de la bulle (`colFinDernierJour_`), juste après sa dernière case. Une plage vendredi → lundi s'étend toujours jusqu'au lundi ;
+- les aperçus (glisser, poignée, surbrillances de dépôt, sélection) passent tous par `colonneEtSpanDemi` et sont donc corrigés du même coup.
+
+**2. Page Fériés sur téléphone** (≤600px ; `renderFerieMoisMobile`, `js/page-feries.js` ; `style-mobile.css`) :
+- avant : le tableau annuel (12 lignes × 31 colonnes, 760px de large au minimum) obligeait à défiler de côté, ses cases de 24px étaient trop petites pour un doigt, et le libellé d'un jour ne se lisait qu'au survol ;
+- désormais, sur téléphone :
+  - 12 mois l'un sous l'autre, en calendrier classique (lundi → dimanche, cases carrées d'environ 44px), aujourd'hui entouré, week-ends grisés et non touchables ;
+  - sous chaque mois : ses jours colorés avec leur libellé (« lun. 21 · Lundi du Jeûne fédéral ») et leur nombre dans le titre ;
+  - catégories collées en haut pendant le défilement : on change de catégorie sans remonter. La pastille reste un sélecteur de couleur ;
+  - Calculer / Effacer / Enregistrer : barre collée juste au-dessus de la barre du bas, libellés courts (« Calculer », « Effacer ») ;
+  - aide réduite à une phrase ;
+- même état et même règle au toucher qu'au clic (`basculerJourFerie`) : les 2 vues sont toujours construites, le CSS choisit laquelle montrer. Rien à recalculer si l'écran pivote ;
+- **aussi sur ordinateur** : un compteur de modifications non enregistrées sur Enregistrer (`diffFeries`, également utilisé par Enregistrer lui-même). Le tableau annuel est inchangé.
+
+Vérifié en local (Playwright) :
+- **`test_weekend_vendredi.js`** (nouveau), 8 vérifications, toutes OK. En modes compact et classique, week-ends affichés puis masqués :
+  - bulles du vendredi au ras du vendredi ;
+  - note vendredi → lundi jusqu'au lundi ;
+  - sur l'ancien code : 2 échecs (week-ends affichés, dans les 2 modes).
+- **`test_feries_mobile.js`** (nouveau), 16 vérifications, toutes OK. Téléphone 390px tactile :
+  - 12 cartes à la place du tableau, pas de défilement de côté, cases de 44px ;
+  - septembre commence un mardi ;
+  - libellés listés sous le mois ;
+  - toucher / retoucher un jour, avec le compteur ;
+  - changement de catégorie ;
+  - catégories et barre d'actions collées, aucun bouton coupé, décembre visible en fin de page ;
+  - Enregistrer écrit en base ;
+  - ordinateur 1300px : tableau annuel inchangé.

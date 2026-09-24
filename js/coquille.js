@@ -473,11 +473,16 @@
     return '<div class="page" id="page-feries"><div class="page-scroll">' +
       '<div class="page-titre"><h1>Fériés</h1>' +
         '<div class="nav-annee"><button type="button" class="fleche" id="ferieAnneePrec">&larr;</button><span id="ferieAnneeLabel"></span><button type="button" class="fleche" id="ferieAnneeSuiv">&rarr;</button></div>' +
-        '<div class="actions-feries"><button class="btn-calculer" id="btnCalculerFeries" type="button">Calculer les fériés</button><button class="btn-effacer" id="btnEffacerFeries" type="button">Effacer l’année</button><button class="btn-enregistrer" id="btnEnregistrerFeries" type="button">Enregistrer</button></div>' +
+        '<div class="actions-feries"><button class="btn-calculer" id="btnCalculerFeries" type="button">Calculer<span class="lib-long"> les fériés</span></button><button class="btn-effacer" id="btnEffacerFeries" type="button">Effacer<span class="lib-long"> l’année</span></button><button class="btn-enregistrer" id="btnEnregistrerFeries" type="button">Enregistrer</button></div>' +
       '</div>' +
       '<p class="page-sous">Choisis une catégorie ci-dessous puis clique les dates à colorer (reclic = efface). « Calculer les fériés » ajoute les jours fériés suisses fixes/mobiles de l’année et les ponts qui en dépendent, en catégorie Férié — vacances d’entreprise restent à poser à la main. Rien n’est écrit sur le serveur tant que tu n’as pas cliqué Enregistrer.</p>' +
       '<div class="categories" id="ferieCategories"></div>' +
+      '<p class="page-sous-mobile">Choisis une catégorie, puis touche les jours à colorer (retoucher = efface). Rien n’est envoyé avant Enregistrer.</p>' +
       '<div class="calendrier-wrap"><table class="calendrier" id="ferieCalendrier"></table></div>' +
+      // Version téléphone (suite 23) : 12 mois l'un sous l'autre, cf.
+      // renderFerieMoisMobile (page-feries.js) ; affichée à la place du
+      // tableau par style-mobile.css.
+      '<div class="mois-feries" id="ferieMoisMobile"></div>' +
       '<div class="legende-feries">Semaines grisées, dates qui n’existent pas (ex. 30/31 février) en noir et non cliquables.</div>' +
       '</div></div>';
   }
