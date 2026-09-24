@@ -514,7 +514,11 @@
     var switcherNom = document.getElementById("switcherNom");
     var switcherPanneau = document.getElementById("switcherPanneau");
     var RENDU_PAR_PAGE = {
-      jalons: renderJalons, personnel: renderPersonnel, intervenants: renderIntervenants,
+      // Jalons (revue du 24.09.2026, suite 22) : liste relue à CHAQUE
+      // ouverture de la page — chargée une seule fois auparavant, elle
+      // ignorait tout ce que la grille avait fait aux jalons depuis.
+      jalons: function () { JALONS_TOUS = null; renderJalons(); },
+      personnel: renderPersonnel, intervenants: renderIntervenants,
       chantiers: renderChantiers, statuts: renderStatuts,
       "entree-rapide": renderFormulaires, feries: renderFeries,
       // Round du 16.09.2026 (suite, encore) : la page Planning elle-même

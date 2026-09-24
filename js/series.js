@@ -301,7 +301,10 @@
     if (!!ap.important !== !!av.important) m.important = !!ap.important;
     if (table === "taches") {
       if ((ap.statut || null) !== (av.statut || null)) m.statut_id = ap.statut ? (etat.statutIdParCle[ap.statut] || null) : null;
-      if ((ap.chantier || null) !== (av.chantier || null) && ap.chantier) m.chantier_id = chantierIdDeNom_(ap.chantier);
+      // Chantier retiré dans la fiche (revue du 24.09.2026, suite 22) : écrit
+      // aussi (null) — la condition `&& ap.chantier` l'ignorait sans rien
+      // dire, l'occurrence gardait son ancien chantier.
+      if ((ap.chantier || null) !== (av.chantier || null)) m.chantier_id = chantierIdDeNom_(ap.chantier);
     }
     if (Object.keys(m).length) ch.modifs = m;
     return ch;
