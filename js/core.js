@@ -203,6 +203,12 @@
     // js/coquille.js) — délibérément distinct de deuxSemaines ci-dessus
     // (2 gros blocs) pour ne pas laisser croire qu'il s'agit du même réglage.
     semaineMobile: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="0.8" y="4" width="2.4" height="12" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="4.8" y="4" width="2.4" height="12" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="8.8" y="4" width="2.4" height="12" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="12.8" y="4" width="2.4" height="12" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="16.8" y="4" width="2.4" height="12" rx="1" stroke="currentColor" stroke-width="1.4"/></svg>',
+    // Round du 24.09.2026 (suite 15) — choisirJour : calendrier dont la
+    // grille des jours est pointillée (vue mois), pour le bouton qui ouvre
+    // le calendrier du téléphone (cf. .btn-calendrier, js/coquille.js) —
+    // distinct d'aujourdhui juste au-dessus (un seul gros point : ce jour-ci)
+    // qu'il côtoie dans la barre.
+    choisirJour: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="2.5" y="3.5" width="15" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 7.5h15" stroke="currentColor" stroke-width="1.5"/><path d="M6 2v3M14 2v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="6.5" cy="10.8" r="1" fill="currentColor"/><circle cx="10" cy="10.8" r="1" fill="currentColor"/><circle cx="13.5" cy="10.8" r="1" fill="currentColor"/><circle cx="6.5" cy="14.2" r="1" fill="currentColor"/><circle cx="10" cy="14.2" r="1" fill="currentColor"/><circle cx="13.5" cy="14.2" r="1" fill="currentColor"/></svg>',
     // Round du 22.09.2026 (port du mockup mockup-nav-mobile.html validé par
     // Lionel) : icône "⋮" du bouton #btnPlusOutils (barre retaillée pour
     // téléphone, cf. FRONTEND-CHANGELOG.md §91) — 3 points verticaux,

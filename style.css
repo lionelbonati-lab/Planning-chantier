@@ -433,13 +433,10 @@
      menu "⋮". */
   .toolbar-groupe { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
   /* Round du 23.09.2026 (suite 4) — #btnVueJourMobile ("1 semaine") :
-     masqué ici (desktop/tablette, où #btnDeuxSemaines garde seul son rôle),
-     échangé avec lui ≤600px par style-mobile.css. Round du 24.09.2026
-     (suite 3) : ce sont désormais 2 boutons du MÊME groupe
-     (#groupeNavSemaine) plutôt que 2 groupes voisins, d'où un sélecteur
-     d'id (l'emporte sur `.toolbar-secondaire .toolbar-btn { display:flex }`
-     quand le groupe est replié dans le panneau). */
-  #btnVueJourMobile { display: none; }
+     masqué ici (desktop/tablette, où #btnDeuxSemaines garde seul son rôle).
+     Round du 24.09.2026 (suite 15) : il vit désormais dans .ligne-vue-mobile
+     (avec l'icône calendrier), masquée ici en bloc et affichée ≤600px par
+     style-mobile.css — plus besoin de règle propre au bouton. */
   /* Séparateur vertical — round du 24.09.2026 (suite 3) : porté par le
      groupe qui le suit (.sep-avant) plutôt qu'un élément .toolbar-separateur
      à part, pour qu'il parte AVEC son groupe quand celui-ci est replié dans
@@ -765,20 +762,18 @@
      règle "ligne pleine largeur" de .toolbar-btn juste au-dessus). */
   .nav-semaine-ligne { display: flex; align-items: center; gap: 2px; }
   .toolbar-secondaire .zoom-ctrl,
-  .toolbar-secondaire .nav-semaine-ligne,
-  .toolbar-secondaire .nav-jour-ligne { width: 100%; padding: 6px 8px; gap: 6px; }
-  /* Date du jour affiché (round du 24.09.2026, suite 15) : téléphone en
-     vue "1 jour" seulement, à la place de ‹ Sem. N › (cf. style-mobile.css) ;
-     jamais affichée ici. Calée à gauche comme la navigation qu'elle
-     remplace. .date-picker-jour : le calendrier natif, invisible, couvre
-     toute la pilule et reçoit l'appui (cf. #inputDateJourMobile,
-     js/coquille.js) — le survol de la pilule passe donc par son conteneur.
-     16px : en dessous, Safari (iPhone) zoome la page quand le champ prend
-     le focus. */
-  .nav-jour-ligne { display: none; align-items: center; }
-  .date-jour-pilule { position: relative; display: inline-flex; }
+  .toolbar-secondaire .nav-semaine-ligne { width: 100%; padding: 6px 8px; gap: 6px; }
+  /* Icônes calendrier (round du 24.09.2026, suite 15) — barre et menu ⋮,
+     téléphone seulement (cf. style-mobile.css) : jamais affichées ici.
+     .date-picker-jour : le calendrier natif, invisible, couvre toute
+     l'icône et reçoit l'appui (cf. .btn-calendrier, js/coquille.js) ; le
+     survol passe donc par l'icône elle-même (:hover d'un parent). 16px :
+     en dessous, Safari (iPhone) zoome la page quand le champ prend le
+     focus. .ligne-vue-mobile : ligne du menu ⋮ « calendrier + 1 semaine »,
+     en icônes seules. */
+  #btnCalendrierBarre, .ligne-vue-mobile { display: none; }
+  .btn-calendrier { position: relative; }
   .date-picker-jour { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: none; padding: 0; margin: 0; cursor: pointer; font-size: 16px; }
-  .date-jour-pilule:hover .zoom-pill { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
   .toolbar-secondaire .libelle-panneau { display: inline; margin-right: auto; font-size: 13.5px; font-weight: 600; color: var(--ink); }
   .toolbar-secondaire .zoom-btn,
   .toolbar-secondaire .nav-semaine-ligne .toolbar-btn {

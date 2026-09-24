@@ -4,20 +4,25 @@ const path = require('path');
 // Round du 24.09.2026 (suite 15) — Lionel : « Dans le menu 3 point sur
 // mobile, en mode un jour, la navigation par semaine doit être remplacée
 // par la date du jour aller sélectionner une autre date dans le
-// calendrier. » Vérifie sur un téléphone simulé (390px, tactile), date
-// figée au jeudi 24.09.2026 :
-//   - vue "1 jour" : dans le menu ⋮, la date du jour affiché (pilule)
-//     remplace ‹ Sem. N › ;
-//   - un appui sur la pilule tombe sur le calendrier natif (<input
-//     type="date"> qui la couvre, borné aux semaines du planning), le
-//     menu reste ouvert ;
-//   - une date choisie : menu refermé, jour affiché, libellé à jour — même
-//     semaine, autre semaine, date lointaine ; samedi/dimanche masqués ->
+// calendrier », puis « tu ajoutes une icône calendrier où on pourra
+// sélectionner un jour, sur la même ligne que le bouton afficher une
+// semaine. Cette icône calendrier sera aussi affichée dans la toolbar à
+// côté de aujourd'hui. 1 semaine seulement l'icône ». Vérifie sur un
+// téléphone simulé (390px, tactile), date figée au jeudi 24.09.2026 :
+//   - menu ⋮, vue "1 jour" : plus de ‹ Sem. N › ; une ligne « calendrier +
+//     1 semaine » en icônes seules ; barre : calendrier collé à Aujourd'hui ;
+//   - un appui sur une icône tombe sur le calendrier natif (<input
+//     type="date"> qui la couvre, sur le jour affiché, borné aux semaines
+//     du planning), le menu reste ouvert ;
+//   - une date choisie (menu ou barre) : menu refermé, jour affiché — autre
+//     semaine, même semaine, date lointaine ; samedi/dimanche masqués ->
 //     vendredi/lundi, affichés tels quels si le week-end est visible ;
-//   - le libellé suit le défilement (swipe) ;
-//   - vue "1 semaine" : ‹ Sem. N › revient ; ordinateur : jamais de date.
+//   - les calendriers suivent le swipe ;
+//   - vue "1 semaine" : ‹ Sem. N › revient, « 1 semaine » teinté, une date
+//     choisie mène à sa semaine sans quitter la vue ;
+//   - barre à 320px sans chevauchement ; ordinateur : pas d'icône.
 //
-// Lancer : node test_date_jour_mobile.js
+// Lancer : node test_calendrier_mobile.js
 
 const FAUX_SUPABASE = '(' + function () {
   var BD = window.__BD = {
@@ -89,92 +94,100 @@ const FAUX_SUPABASE = '(' + function () {
     if (cond) console.log('OK: ' + message);
     else { echecs++; console.error('ÉCHEC: ' + message); }
   }
-  // Jour affiché = colonne de jour au ras de la colonne des noms ; menu,
-  // pilule date, navigation semaine. Bord EXTÉRIEUR de la colonne : c'est
-  // lui qu'un saut vers un jour (Aujourd'hui, ‹ ›, calendrier) aligne (cf.
-  // decalerSurColonne_, grille-rendu.js) — un lundi de 2e semaine garde
-  // donc sa bordure de début de semaine visible (3px).
+  const MENU = '#btnCalendrierMenu .date-picker-jour', BARRE = '#btnCalendrierBarre .date-picker-jour';
+  // Jour affiché = colonne de jour au ras de la colonne des noms. Bord
+  // EXTÉRIEUR de la colonne : c'est lui qu'un saut vers un jour
+  // (Aujourd'hui, ‹ ›, calendrier) aligne (cf. decalerSurColonne_,
+  // grille-rendu.js) — un lundi de 2e semaine garde donc sa bordure de
+  // début de semaine visible (3px).
   const etatVue = () => page.evaluate(() => {
     const sc = document.querySelector('.scroller');
     const bordNoms = sc.getBoundingClientRect().left + 116;
     let best = null, ecart = Infinity;
-    const gauche = (th) => th.getBoundingClientRect().left;
     document.querySelectorAll('.entete-planning-figee .th[data-gi]').forEach((th) => {
-      const e = Math.abs(gauche(th) - bordNoms);
+      const e = Math.abs(th.getBoundingClientRect().left - bordNoms);
       if (e < ecart) { ecart = e; best = th; }
     });
-    const vis = (id) => { const el = document.getElementById(id); return !!el && el.getBoundingClientRect().width > 0; };
+    const vis = (el) => !!el && el.getBoundingClientRect().width > 0;
     return {
       jour: best ? best.textContent.replace(/\s+/g, ' ').trim() : null, ecart: Math.round(ecart),
       menu: document.getElementById('toolbarSecondaire').classList.contains('ouvert'),
-      date: document.getElementById('btnDateJourMobile').textContent.trim(), dateVisible: vis('btnDateJourMobile'),
-      navVisible: vis('btnSemainePrec') || vis('btnSemainePill') || vis('btnSemaineSuiv'),
+      navVisible: ['btnSemainePrec', 'btnSemainePill', 'btnSemaineSuiv'].some((id) => vis(document.getElementById(id))),
+      calMenu: vis(document.getElementById('btnCalendrierMenu')), calBarre: vis(document.getElementById('btnCalendrierBarre')),
+      vue1Sem: vis(document.getElementById('btnVueJourMobile')),
+      vue1SemActif: document.getElementById('btnVueJourMobile').classList.contains('actif') && document.getElementById('btnVueJourMobile').getAttribute('aria-pressed') === 'true',
       pilule: document.getElementById('btnSemainePill').textContent.trim(),
-      toast: (document.getElementById('toast') || {}).textContent || ''
+      valeurs: [document.querySelector('#btnCalendrierMenu .date-picker-jour').value, document.querySelector('#btnCalendrierBarre .date-picker-jour').value],
+      vueJour: vueJourMobile, toast: (document.getElementById('toast') || {}).textContent || ''
     };
   });
   async function ouvrirMenu() {
     if (!(await page.evaluate(() => document.getElementById('toolbarSecondaire').classList.contains('ouvert')))) await page.click('#btnPlusOutils');
     await page.waitForTimeout(150);
   }
-  // Appui sur la pilule date puis choix d'une date dans le calendrier natif
-  // (valeur posée + "change", comme le fait le sélecteur du téléphone).
-  async function choisirDate(iso) {
-    await ouvrirMenu();
-    await page.tap('#inputDateJourMobile');
+  // Appui sur l'icône calendrier (menu ou barre) puis choix d'une date
+  // (valeur posée + "change", comme le fait le calendrier du téléphone).
+  async function choisirDate(iso, ou) {
+    if (ou !== BARRE) await ouvrirMenu();
+    await page.tap(ou || MENU);
     await page.waitForTimeout(80);
-    await page.evaluate((v) => {
-      const input = document.getElementById('inputDateJourMobile');
-      input.value = v;
+    await page.evaluate((a) => {
+      const input = document.querySelector(a.sel);
+      input.value = a.iso;
       input.dispatchEvent(new Event('change', { bubbles: true }));
-    }, iso);
+    }, { sel: ou || MENU, iso: iso });
     await page.waitForTimeout(500);
   }
 
-  // 1) Menu ⋮ en vue "1 jour" : la date à la place de ‹ Sem. N ›.
+  // 1) Vue "1 jour" : menu et barre.
   await ouvrirMenu();
   let v = await etatVue();
-  verifier(v.dateVisible && !v.navVisible && v.date === 'Jeu. 24 sept. 2026 ▾', 'vue 1 jour : date du jour « ' + v.date + ' » à la place de ‹ Sem. N ›');
-
-  // 2) Appui au doigt : il tombe sur le calendrier natif (champ date qui
-  //    couvre toute la pilule), réglé sur le jour affiché et borné aux
-  //    semaines du planning ; le menu reste ouvert.
-  const cal = await page.evaluate(() => {
-    const i = document.getElementById('inputDateJourMobile'), r = document.getElementById('btnDateJourMobile').getBoundingClientRect();
-    const dessus = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-    return { type: i.type, value: i.value, min: i.min, max: i.max, dessus: dessus === i };
+  const disposition = await page.evaluate(() => {
+    const r = (id) => document.getElementById(id).getBoundingClientRect();
+    const cal = r('btnCalendrierMenu'), sem = r('btnVueJourMobile'), auj = r('btnAujourdhui'), calB = r('btnCalendrierBarre');
+    const texte = document.getElementById('btnVueJourMobile').innerText.trim();
+    return { memeLigne: Math.abs((cal.top + cal.height / 2) - (sem.top + sem.height / 2)) < 1 && cal.right <= sem.left, texte: texte,
+      barre: Math.abs((auj.top + auj.height / 2) - (calB.top + calB.height / 2)) < 1 && calB.left >= auj.right && calB.left - auj.right < 6,
+      memeGroupe: document.getElementById('btnCalendrierBarre').parentElement.id };
   });
-  await page.tap('#inputDateJourMobile');
+  verifier(!v.navVisible && v.calMenu && v.vue1Sem && disposition.memeLigne && disposition.texte === '', 'menu, vue 1 jour : plus de ‹ Sem. N ›, calendrier + « 1 semaine » (icônes seules) sur la même ligne');
+  verifier(v.calBarre && disposition.barre && disposition.memeGroupe === 'groupeAujourdhui', 'barre : calendrier collé à droite d\'Aujourd\'hui');
+
+  // 2) Appui : il tombe sur le calendrier natif, jour affiché, bornes, menu ouvert.
+  const cal = await page.evaluate((sel) => {
+    const i = document.querySelector(sel), r = document.getElementById('btnCalendrierMenu').getBoundingClientRect();
+    return { dessus: document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) === i, type: i.type, value: i.value, min: i.min, max: i.max };
+  }, MENU);
+  await page.tap(MENU);
   await page.waitForTimeout(150);
   const menuApresAppui = await page.evaluate(() => document.getElementById('toolbarSecondaire').classList.contains('ouvert'));
   verifier(cal.dessus && cal.type === 'date' && cal.value === '2026-09-24' && cal.min < '2022-01-01' && cal.max > '2031-01-01' && menuApresAppui,
-    'appui sur la date : calendrier sur le 24.09.2026 (bornes ' + cal.min + ' → ' + cal.max + '), menu ouvert');
+    'appui sur le calendrier du menu : sur le 24.09.2026 (bornes ' + cal.min + ' → ' + cal.max + '), menu ouvert');
 
-  // 3) Autre semaine.
+  // 3) Autre semaine, depuis le menu.
   await choisirDate('2026-10-15');
   v = await etatVue();
-  verifier(!v.menu && /^Jeu ?15/.test(v.jour) && v.ecart <= 1 && v.pilule.indexOf('Sem. 42') === 0 && v.date === 'Jeu. 15 oct. 2026 ▾',
-    '15.10.2026 choisi : menu refermé, jeudi 15 affiché (' + v.jour + ', ' + v.pilule + ', « ' + v.date + ' »)');
+  verifier(!v.menu && /^Jeu ?15/.test(v.jour) && v.ecart <= 1 && v.pilule.indexOf('Sem. 42') === 0 && v.valeurs.join() === '2026-10-15,2026-10-15',
+    '15.10.2026 (menu) : menu refermé, jeudi 15 affiché (' + v.jour + ', ' + v.pilule + ')');
 
-  // 4) Même semaine (la grille ne change pas de fenêtre).
-  await choisirDate('2026-10-13');
+  // 4) Même semaine, depuis la barre.
+  await choisirDate('2026-10-13', BARRE);
   v = await etatVue();
-  verifier(/^Mar ?13/.test(v.jour) && v.ecart <= 1 && v.date === 'Mar. 13 oct. 2026 ▾', 'même semaine : mardi 13 affiché (' + v.jour + ')');
+  verifier(/^Mar ?13/.test(v.jour) && v.ecart <= 1 && v.valeurs.join() === '2026-10-13,2026-10-13', '13.10.2026 (barre) : mardi 13 affiché (' + v.jour + ')');
 
   // 5) Week-end masqué : samedi -> vendredi, dimanche -> lundi.
-  await choisirDate('2026-10-17');
+  await choisirDate('2026-10-17', BARRE);
   v = await etatVue();
   verifier(/^Ven ?16/.test(v.jour) && v.ecart <= 1 && v.toast.indexOf('Week-end masqué') === 0, 'samedi 17 : vendredi 16 affiché, « ' + v.toast + ' »');
-  await choisirDate('2026-10-18');
+  await choisirDate('2026-10-18', BARRE);
   v = await etatVue();
   verifier(/^Lun ?19/.test(v.jour) && v.ecart <= 1 && v.pilule.indexOf('Sem. 43') === 0, 'dimanche 18 : lundi 19 affiché (' + v.pilule + ')');
-
   // Week-end affiché : le samedi choisi est affiché tel quel.
   await page.evaluate(() => { afficherWeekends = true; render(false); });
   await page.waitForTimeout(200);
-  await choisirDate('2026-10-24');
+  await choisirDate('2026-10-24', BARRE);
   v = await etatVue();
-  verifier(/^Sam ?24/.test(v.jour) && v.ecart <= 1 && v.date === 'Sam. 24 oct. 2026 ▾', 'week-end affiché : samedi 24 affiché tel quel (' + v.jour + ')');
+  verifier(/^Sam ?24/.test(v.jour) && v.ecart <= 1, 'week-end affiché : samedi 24 affiché tel quel (' + v.jour + ')');
   await page.evaluate(() => { afficherWeekends = false; render(false); });
   await page.waitForTimeout(200);
 
@@ -182,35 +195,51 @@ const FAUX_SUPABASE = '(' + function () {
   await choisirDate('2027-03-03');
   await page.waitForTimeout(300);
   v = await etatVue();
-  verifier(/^Mer ?0?3/.test(v.jour) && v.ecart <= 1 && v.date === 'Mer. 3 mars 2027 ▾', 'date lointaine : mercredi 3 mars 2027 (' + v.jour + ', « ' + v.date + ' »)');
+  verifier(/^Mer ?0?3/.test(v.jour) && v.ecart <= 1, 'date lointaine : mercredi 3 mars 2027 (' + v.jour + ')');
 
-  // 7) Le libellé suit le swipe.
+  // 7) Les calendriers suivent le swipe.
   await page.evaluate(() => { const sc = document.querySelector('.scroller'); sc.scrollLeft += sc.clientWidth - 116; });
   await page.waitForTimeout(500);
   v = await etatVue();
-  const valeurCal = await page.evaluate(() => document.getElementById('inputDateJourMobile').value);
-  verifier(/^Jeu ?0?4/.test(v.jour) && v.date === 'Jeu. 4 mars 2027 ▾' && valeurCal === '2027-03-04', 'swipe d\'un jour : « ' + v.date + ' », calendrier sur ' + valeurCal);
+  verifier(/^Jeu ?0?4/.test(v.jour) && v.valeurs.join() === '2027-03-04,2027-03-04', 'swipe d\'un jour : calendriers sur ' + v.valeurs[0]);
 
-  // 8) Vue "1 semaine" : ‹ Sem. N › revient, puis retour à la date.
+  // 8) Vue "1 semaine" : ‹ Sem. N › revient, « 1 semaine » teinté ; une
+  //    date mène à sa semaine sans quitter la vue.
   await ouvrirMenu();
   await page.click('#btnVueJourMobile');
   await page.waitForTimeout(400);
   await ouvrirMenu();
   v = await etatVue();
-  verifier(v.navVisible && !v.dateVisible, 'vue 1 semaine : ‹ Sem. N › de retour, pas de date');
+  verifier(v.navVisible && v.calMenu && v.vue1SemActif && !v.vueJour, 'vue 1 semaine : ‹ Sem. N › de retour, calendrier présent, « 1 semaine » teinté');
+  await choisirDate('2026-11-11');
+  v = await etatVue();
+  verifier(!v.menu && !v.vueJour && v.pilule.indexOf('Sem. 46') === 0 && v.valeurs[0] === '2026-11-09', 'vue 1 semaine, 11.11.2026 : semaine 46, toujours en vue 1 semaine (' + v.pilule + ', calendriers sur ' + v.valeurs + ')');
+  await ouvrirMenu();
   await page.click('#btnVueJourMobile');
   await page.waitForTimeout(400);
   await ouvrirMenu();
   v = await etatVue();
-  verifier(v.dateVisible && !v.navVisible, 'retour en vue 1 jour : la date remplace de nouveau ‹ Sem. N ›');
-
-  // 9) Ordinateur : jamais de date, navigation semaine dans la barre.
+  verifier(!v.navVisible && v.calMenu && !v.vue1SemActif && v.vueJour, 'retour en vue 1 jour : ‹ Sem. N › de nouveau masqué');
+  if (process.env.CAPTURE) await page.screenshot({ path: process.env.CAPTURE + '-390.png' });
   await page.click('#btnPlusOutils');
+
+  // 9) Barre à 320px : tout tient, sans chevauchement.
+  await page.setViewportSize({ width: 320, height: 800 });
+  await page.waitForTimeout(500);
+  const barre = await page.evaluate(() => {
+    const b = document.getElementById('legendeBarre'), rb = b.getBoundingClientRect();
+    const el = Array.from(b.querySelectorAll('.toolbar-btn, .select-chantier-btn')).filter((e) => !e.closest('.toolbar-secondaire') && e.getBoundingClientRect().width > 0).map((e) => e.getBoundingClientRect());
+    let chev = 0;
+    for (let i = 0; i < el.length; i++) for (let j = i + 1; j < el.length; j++) if (el[i].left < el[j].right - 1 && el[j].left < el[i].right - 1) chev++;
+    return { dedans: el.every((r) => r.left >= rb.left - 1 && r.right <= rb.right + 1), chev: chev, n: el.length };
+  });
+  verifier(barre.dedans && !barre.chev, '320 px : barre (' + barre.n + ' boutons, calendrier compris) sans chevauchement ni débordement');
+
+  // 10) Ordinateur : pas d'icône calendrier.
   await page.setViewportSize({ width: 1300, height: 800 });
   await page.waitForTimeout(600);
   v = await etatVue();
-  verifier(!v.dateVisible && v.navVisible, 'ordinateur : ‹ Sem. N › dans la barre, pas de date');
-  if (process.env.CAPTURE) await page.screenshot({ path: process.env.CAPTURE + '-1300.png' });
+  verifier(!v.calBarre && !v.calMenu && v.navVisible, 'ordinateur : ‹ Sem. N › dans la barre, pas d\'icône calendrier');
 
   if (erreurs.length) { echecs++; console.error('ERREURS JS : ' + JSON.stringify(erreurs, null, 2)); }
   console.log((total - echecs) + '/' + total + ' vérifications' + (echecs ? ' — ' + echecs + ' ÉCHEC(S)' : ' — OK'));
