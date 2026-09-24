@@ -6655,3 +6655,78 @@ Lionel, 2 captures téléphone à l'appui (au repos, puis en cours de défilemen
 - Même correction sur desktop/tablette, touché par le même bug (10 px).
 
 Vérifié en local (Playwright) : `test_toolbar_chevauchement.js` passe à 23 vérifications. Deux nouvelles contrôlent, à 390 px et à 1200 px, que la barre et l'en-tête restent au pixel près à la même position pour un défilement de 0 à 300 px. Toutes deux échouent sur l'ancien code (6 et 10 px de remontée) et passent sur le nouveau, avec les 21 vérifications précédentes. Captures en position défilée, avec la grille colorée pour la rendre visible : aucune trace de grille au-dessus de la barre ni dans ses coins, pilule toujours bleue.
+
+## 113. Round du 24.09.2026 (suite 5) — Déplacer une tâche/absence hors de la semaine affichée
+
+Lionel, capture à l'appui (toast « Cette date sort de la semaine affichée : la durée d'un élément ne peut pas dépasser la fenêtre actuellement chargée » en décalant la fin d'une tâche au-delà du vendredi) : « J'aimerai pouvoir déplacer une tâche en dehors de la semaine activé. »
+
+Réponses de Lionel aux questions posées avant de coder :
+- après l'enregistrement, **la grille reste sur la semaine affichée**, et un message confirme les nouvelles dates (« le planning ne doit pas suivre en arrière-plan », déjà demandé le 12.09.2026) ;
+- **via le formulaire seulement** : le glisser-déposer dans la grille reste limité à la semaine visible.
+
+**Pourquoi ce n'était pas qu'un toast à retirer.** Une tâche n'existe côté serveur que sous forme de lignes `taches` par (personne, date, demi-journée), et le moteur de diff (`calculerEtatLocal`/`synchroniser`) ne sait écrire QUE les jours de la fenêtre chargée. Le §88 l'avait noté comme « un chantier séparé à faire » pour les tâches et absences, alors que les jalons et les notes passaient déjà par `enregistrer-plage` en vraies dates.
+
+**Ce qui change.**
+- **Fiche tâche/absence** (`ouvrirEdition`) : Début et Fin acceptent n'importe quelle date, avec les flèches ‹ › comme avec le calendrier. Une borne hors écran s'affiche avec le style « hors fenêtre » déjà utilisé pour les jalons et les notes. `appliquerDateChoisieFormulaire` ne refuse plus rien.
+- **Écriture en vraies dates, « serveur d'abord »** (nouvelle section « TÂCHE/ABSENCE HORS DE LA FENÊTRE CHARGÉE », `js/donnees-sync.js`), comme les séries :
+  - les lignes de la tâche d'origine sont supprimées ;
+  - une ligne est insérée par demi-journée de la nouvelle plage, **en bout de case** (ordre = max + 1), pour ne jamais écraser ni réordonner les tâches déjà posées ce jour-là ;
+  - la fenêtre est ensuite rechargée. Même règle de bords que `demisOccupeesTache`, jours ouvrés seulement.
+- **Étendue réelle de la tâche d'origine** (`lignesTacheServeur`). La grille ne connaît d'une tâche à cheval sur 2 semaines que sa partie visible. Si cette partie touche le bord de l'écran (lundi matin ou vendredi après-midi), la fiche va chercher le reste sur le serveur dès son ouverture : même texte, même type, même chantier, demi-journées contiguës, jusqu'à 10 semaines de part et d'autre.
+  - La fiche affiche alors les vraies dates, par exemple « ven. 25 sept. → mar. 29 sept. ».
+  - Enregistrer ou Supprimer depuis n'importe quelle semaine traite la tâche entière, même pour ne changer que le texte. Sans ça, la partie hors écran restait orpheline, ou la tâche était raccourcie à sa partie visible (cas trouvé en écrivant le test).
+- **Tâche qui ne touche aucun bord de l'écran et reste dans la semaine** : aucune requête en plus, la voie locale habituelle est inchangée (Annuler compris).
+- **Pile Annuler/Refaire vidée après une écriture hors fenêtre.** Elle ne contient que des copies de la partie visible : annuler réécrirait l'ancienne partie visible sans retirer la nouvelle partie hors écran, ce qui créerait un doublon.
+- **Occurrence de série envoyée hors de la semaine** : déplacée seule et détachée de sa série (`gerer-serie` ne sait déplacer aucune occurrence), sans demander la portée ; le message le précise. Une **nouvelle série** peut démarrer hors de la semaine (`creerSerieServeur` accepte une date de départ réelle).
+- Double clic sur Enregistrer/Supprimer bloqué pendant la réponse du serveur (`enregistrementEnCours`).
+
+**Limites connues** : le glisser et le redimensionnement d'une bulle dans la grille ne touchent toujours que sa partie visible (choix de Lionel : formulaire seulement) ; une tâche qui déborde de plus de 10 semaines au-delà de l'écran resterait tronquée.
+
+Vérifié en local (Playwright) avec le nouveau test `test_tache_hors_semaine.js` : 16 vérifications, toutes OK. Il utilise un faux Supabase qui applique vraiment les filtres, insertions et suppressions sur des tables en mémoire, et la date est figée au jeudi 24.09.2026. Scénarios vérifiés en relisant la table `taches` :
+1. tâche déplacée entièrement sur la semaine suivante : anciennes lignes supprimées, tâche déjà présente ce jour-là gardant sa place, message, grille restée sur la semaine ;
+2. tâche étendue du vendredi au mardi suivant ;
+3. fiche ouverte depuis la 1re semaine montrant l'étendue réelle, et renommage de la tâche entière ;
+4. suppression de la tâche entière depuis la 1re semaine ;
+5. tâche au milieu de la semaine toujours modifiée par la voie locale, avec Annuler disponible ;
+6. nouvelle absence créée directement sur le lundi suivant.
+
+`test_toolbar_chevauchement.js` toujours à 23/23.
+
+## 114. Round du 24.09.2026 (suite 6) — Téléphone, vue « 1 jour » : défilement continu d'une semaine à l'autre
+
+Lionel : « Sur mobile j'aimerai que les défilement des jours soient plus fluides quand on change de semaine, comme si la page était infinie. » Réponse à la question posée avant de coder : **téléphone, vue « 1 jour » seulement** ; tablette et ordinateur inchangés.
+
+**Avant.** La vue « 1 jour » ne chargeait qu'une semaine. Arrivé au vendredi, le défilement butait. Il fallait un 2e swipe « contre le bord » (`naviguerSemaineDepuisBordJour`, §100), qui reconstruisait la grille sur la semaine suivante, souvent après un rechargement réseau : un arrêt net, puis un saut.
+
+**Principe retenu.**
+- **Deux semaines chargées en vue « 1 jour »** (`fenetreLabGs`, `js/core.js`). C'est le mode « 2 semaines » du bureau, déjà éprouvé par tout le reste du code (coordonnées gi 0..9, synchronisation, bulles à cheval). Le lundi suivant est simplement la colonne d'après le vendredi, atteinte par le même geste, sans rechargement.
+- **Deux notions séparées.**
+  - `etat.indexSemaine` garde son sens de « semaine du jour affiché » : pilule Sem. N, impression, ‹ ›.
+  - La fenêtre commence à `debutFenetreMobile`, soit la semaine affichée, soit celle d'avant, choisie pour laisser au moins 2 jours d'avance de chaque côté du jour affiché : lundi/mardi → [semaine d'avant, cette semaine] ; mercredi à vendredi → [cette semaine, la suivante].
+  - Le jour affiché est mémorisé dans `jourMobileIso`.
+- **À l'arrêt du défilement** (plus d'événement `scroll` depuis 200 ms, aucun doigt posé, aucun glisser de bulle en cours) :
+  - on relève le jour affiché ;
+  - la pilule Sem. N le suit ;
+  - s'il reste moins de 2 jours d'avance d'un côté, la fenêtre **glisse d'une semaine**. La grille est reconstruite avec le même jour exactement à la même place à l'écran : rien ne bouge visuellement, et le geste suivant repart avec de l'avance des deux côtés. Jamais pendant le geste : reconstruire sous le doigt le casserait (cf. `differerSiEnGlissement`).
+- **Préchargement en arrière-plan** de la semaine juste avant et juste après la fenêtre (`prechargerVoisinesJourMobile`), silencieux : le glissement se fait sans attendre le réseau. Le préchargement est ignoré si le cache a été vidé entre-temps (nouvelle `generationCache`, incrémentée par `oublierCache`), pour ne jamais réinjecter des données d'avant une écriture.
+- **Le rendu en vue « 1 jour » se cale toujours sur le jour affiché**, au lieu de l'ancienne position de défilement, qui ne désigne plus le même jour dès que la fenêtre a glissé.
+  - ‹ › : même jour de la semaine, une semaine avant ou après.
+  - Aujourd'hui : aujourd'hui.
+  - Rendu après une modification : le jour visible. Il est relevé dans l'ancienne grille juste avant de la reconstruire, pour couvrir le défilement automatique pendant un glisser de bulle, qui ne déclenche pas le relevé « à l'arrêt ».
+- **Détecteur de swipe « contre le bord de semaine »** désactivé en vue « 1 jour » (plus de bord à franchir) ; inchangé dans les autres vues.
+
+**Ajustements induits.**
+- `nbJoursAffiches()` et le nombre de semaines de la grille se basent sur la fenêtre réellement chargée, plus sur `deuxSemaines` seul.
+- `demarrer()` charge toute la fenêtre au démarrage : la vue « 1 jour », ouverte par défaut, en demande 2. Sans cela, l'appli ne démarrait plus sur téléphone (repéré au premier test).
+- `basculerVueJourMobile` recharge la fenêtre (1 ↔ 2 semaines) au lieu d'un simple re-rendu.
+- **Franchissement de 600 px** (rotation du téléphone, fenêtre redimensionnée) : la vue « 1 jour » s'active ou se désactive, et la fenêtre change avec elle. La grille est reconstruite aussitôt (`verifierModeFenetre`, écouteur `matchMedia`), ou au retour sur l'onglet Planning s'il était masqué.
+- En-têtes des jours de week-end : `data-gi` ajouté, comme les jours ouvrés.
+
+Vérifié en local (Playwright) avec le nouveau test `test_defilement_jour_mobile.js` : 20 vérifications, toutes OK, sur un téléphone simulé (390 px, tactile), date figée au jeudi 24.09.2026. Points vérifiés :
+- 2 semaines chargées ; vendredi → lundi d'un seul geste, sans rechargement ; pilule qui suit ;
+- fenêtre qui glisse près du bord avec le jour aligné au pixel près (aucun saut), puis retour en arrière symétrique ;
+- ‹ ›, Aujourd'hui, et rendu après un défilement fait pendant un glisser ;
+- bascule « 1 semaine » et retour ; passage au-delà de 600 px et retour ;
+- semaines voisines préchargées.
+
+Contrôle complémentaire avec de vrais gestes tactiles (événements touch envoyés via le protocole Chrome) : 7 swipes vers l'avant du jeudi 24 au lundi 5 oct., puis 4 vers l'arrière. Chaque swipe avance d'un jour, et la fenêtre glisse au bon moment. `test_tache_hors_semaine.js` (16/16) et `test_toolbar_chevauchement.js` (23/23, une vérification adaptée : ses lignes de test sont ajoutées après le changement de largeur, puisque franchir 600 px reconstruit désormais la grille) toujours verts.

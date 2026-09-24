@@ -773,7 +773,20 @@
     // que la var locale enModeJourMobile de construireGrille (inaccessible
     // depuis cette fonction, appelée avant tout rendu) : vueJourMobile actif
     // ET largeur ≤600px.
-    var modeJourMobile_ = vueJourMobile && typeof window.matchMedia === "function" && window.matchMedia("(max-width: 600px)").matches;
+    var modeJourMobile_ = modeJourMobileActif();
+    // Round du 24.09.2026 (suite 6) — vue "1 jour" : la fenêtre de 2
+    // semaines dépend du jour affiché (cf. fenetreLabGs, core.js) — aller à
+    // aujourd'hui peut donc la déplacer même sans changer de semaine. Chemin
+    // unique ici : jour et fenêtre recalculés, puis rendu calé sur ce jour.
+    if (modeJourMobile_) {
+      etat.indexSemaine = idx;
+      jourMobileIso = etat.aujourdhui;
+      debutFenetreMobile = null;
+      cibleApresRendu = "aujourdhui"; // impose ce jour au rendu (cf. le relevé de l'ancienne grille, construireGrille)
+      bullesSelectionnees = {};
+      assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); majBarreSelection(); });
+      return;
+    }
     if (idx === etat.indexSemaine) {
       if (!modeJourMobile_) { toast("Déjà sur la semaine actuelle."); return; }
       // Semaine déjà correcte : pas besoin de recharger les données, juste
@@ -805,10 +818,58 @@
   // construireVueDepuisCache. cibleApresRendu recale le défilement (sur
   // aujourd'hui en repassant en "1 jour", sur le début de semaine en passant
   // en "1 semaine") dès ce même rendu, cf. son commentaire dans js/core.js.
+  // Round du 24.09.2026 (suite 6) : la vue "1 jour" charge désormais 2
+  // semaines (cf. fenetreLabGs, core.js) et la vue "1 semaine" une seule —
+  // basculer change donc la FENÊTRE chargée, plus seulement la largeur des
+  // colonnes : rechargement + reconstruction des bulles (gi) obligatoires,
+  // comme basculerDeuxSemaines. En entrant en "1 jour", aujourd'hui s'il est
+  // dans la semaine affichée, sinon son lundi (jourMobileCourant).
   function basculerVueJourMobile() {
     vueJourMobile = !vueJourMobile;
     cibleApresRendu = vueJourMobile ? "aujourdhui" : "debut";
-    render(false);
+    jourMobileIso = null;
+    debutFenetreMobile = null;
+    bullesSelectionnees = {};
+    assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); majBarreSelection(); });
+  }
+  // Largeur d'écran qui passe au-dessus/au-dessous de 600px (rotation d'un
+  // téléphone, fenêtre redimensionnée) : la vue "1 jour" s'active ou se
+  // désactive, et avec elle la fenêtre chargée change (2 semaines <-> 1).
+  // Les bulles déjà construites (gi) ne correspondraient plus : on
+  // reconstruit. Onglet Planning masqué : fait à son retour (coquille.js,
+  // RENDU_PAR_PAGE.planning) — renvoie true si une reconstruction est lancée.
+  var modeJourMobileRendu = null, labsRendusDernier = null;
+  function verifierModeFenetre() {
+    var page = document.getElementById("page-planning");
+    if (!page || !page.classList.contains("actif") || modeJourMobileRendu === null) return false;
+    if (modeJourMobileActif() === modeJourMobileRendu) return false;
+    debutFenetreMobile = null;
+    bullesSelectionnees = {};
+    assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); majBarreSelection(); });
+    return true;
+  }
+  if (typeof window.matchMedia === "function") {
+    var mqTelephone = window.matchMedia("(max-width: 600px)");
+    if (mqTelephone.addEventListener) mqTelephone.addEventListener("change", verifierModeFenetre);
+  }
+  // Préchargement, en arrière-plan, de la semaine juste avant et juste après
+  // la fenêtre de la vue "1 jour" : c'est elle que demandera le prochain
+  // recentrage (cf. recentrerFenetreJourMobile dans construireGrille) —
+  // déjà en cache, il se fait sans attendre le réseau, donc sans à-coup.
+  // Silencieux (pas de sablier ni de message) ; rafraîchi un peu avant
+  // l'expiration du cache (FRAICHEUR_MS) pour ne pas recharger au mauvais
+  // moment ; ignoré si le cache a été vidé entre-temps (generationCache,
+  // cf. oublierCache).
+  function prechargerVoisinesJourMobile() {
+    var d = debutFenetreJourMobile_();
+    [d - 1, d + 2].forEach(function (i) {
+      var sem = etat.semaines[i];
+      if (!sem) return;
+      var ts = etat.cacheTs[sem.labG];
+      if (etat.cache[sem.labG] && ts && (Date.now() - ts) < FRAICHEUR_MS / 2) return;
+      var gen = generationCache;
+      chargerSemaineDepuisServeur(sem.labG).then(function (data) { if (gen === generationCache) mettreEnCache(data); }, function () {});
+    });
   }
   // Round du 23.09.2026 (suite 5) — Lionel : « Swipper un vendredi permet de
   // passer au lundi de la semaine suivante ? » (pas encore, à l'époque) —
@@ -861,6 +922,26 @@
     if (!racineEl || !fenetrePrete()) return;
     var scrollerPrecedent = racineEl.querySelector(".scroller");
     var scrollLeftPrecedent = scrollerPrecedent ? scrollerPrecedent.scrollLeft : 0;
+    // Vue "1 jour" (round du 24.09.2026, suite 6) : le rendu se cale sur
+    // jourMobileIso, tenu à jour à chaque ARRÊT du défilement — mais un
+    // défilement fait PENDANT un glisser de bulle (défilement automatique au
+    // bord de l'écran) ne déclenche pas cette mise à jour, et le rendu qui
+    // suit le dépôt ramènerait alors l'écran sur l'ancien jour. On relève
+    // donc ici le jour réellement visible dans l'ancienne grille, tant que
+    // rien n'impose un autre jour : même fenêtre qu'au rendu précédent, pas
+    // de cible imposée (Aujourd'hui, bascule de vue), et jour toujours dans
+    // la semaine affichée (sinon, c'est ‹ › ou la pilule qui viennent d'en
+    // changer — jourMobileCourant se charge alors du bon jour).
+    if (scrollerPrecedent && modeJourMobileRendu && modeJourMobileActif() && !cibleApresRendu && labsRendusDernier === fenetreLabGs().join(",")) {
+      var bordNomsPrec = scrollerPrecedent.getBoundingClientRect().left + 116, thVisible = null, ecartVisible = Infinity;
+      racineEl.querySelectorAll(".entete-planning-figee .th[data-gi]").forEach(function (th) {
+        var e = Math.abs(th.getBoundingClientRect().left + th.clientLeft - bordNomsPrec);
+        if (e < ecartVisible) { ecartVisible = e; thVisible = th; }
+      });
+      var isoVisible = thVisible ? isoDeGi(+thVisible.dataset.gi) : null;
+      var semAff = etat.semaines[etat.indexSemaine];
+      if (isoVisible && semAff && isoVisible >= semAff.debut && isoVisible <= semAff.fin) jourMobileIso = isoVisible;
+    }
     // enteteScrollPrecedent (son scrollLeft servait de source pour resynchro
     // l'en-tête figé) a disparu round du 23.09.2026 (suite 4) : ce rôle est
     // repris par cibleScrollLeft, calculé une seule fois plus bas et
@@ -874,7 +955,7 @@
     // (ancien va-et-vient .barre-undo, cf. son historique CSS plus haut).
     racineEl.innerHTML = "";
     var n = nbJoursAffiches();
-    var nbSemainesAffichees = deuxSemaines ? 2 : 1;
+    var nbSemainesAffichees = fenetreLabGs().length; // 2 aussi en vue "1 jour" téléphone (round du 24.09.2026, suite 6, cf. fenetreLabGs)
     // La ligne "Aujourd'hui/2 semaines/‹ Semaine N ›" qui vivait ici (coinNav/
     // navSemaine, cf. leur historique avant suppression au §87, round du
     // 17.09.2026, suite×2) portait ses propres textes calculés à partir de
@@ -930,7 +1011,9 @@
     // 2 écrans pleins. Colonnes week-end : même traitement (largeur pleine),
     // pas de division par colsParJour() puisqu'elles n'ont qu'une seule case
     // par personne (cf. commentaire de colonneDemi()).
-    var enModeJourMobile = vueJourMobile && typeof window.matchMedia === "function" && window.matchMedia("(max-width: 600px)").matches;
+    var enModeJourMobile = modeJourMobileActif();
+    modeJourMobileRendu = enModeJourMobile;
+    var labsRendus = labsRendusDernier = fenetreLabGs().join(",");
     // Round du 23.09.2026 (suite ×10) — cf. le commentaire de
     // .scroller.snap-jour-mobile dans style.css : le scroll-snap "1 jour"
     // (Lionel : « la case du jour doit être aimantée pour qu'elle rentre sur
@@ -1124,6 +1207,10 @@
       toucheBord = null;
     }, { passive: true });
     scroller.addEventListener("touchmove", function (e) {
+      // Vue "1 jour" téléphone : plus de bord de semaine à franchir, le
+      // défilement est continu (round du 24.09.2026, suite 6 — cf.
+      // fenetreLabGs, core.js) ; ce détecteur ne sert plus qu'aux autres vues.
+      if (enModeJourMobile) return;
       if (toucheDebutX === null || e.touches.length !== 1) return;
       if (document.body.classList.contains("en-glissement")) { toucheBord = null; return; }
       var dx = e.touches[0].clientX - toucheDebutX;
@@ -1269,6 +1356,7 @@
           var giWE = giWeekend(semIdxTh, j);
           var thWE = document.createElement("div");
           thWE.className = "th th-weekend";
+          thWE.dataset.gi = giWE;
           var infoWE = libelleJourGi(giWE);
           thWE.innerHTML = JOURS_WEEKEND[j] + '<span class="th-date">' + infoWE.jour + "</span>";
           poser(thWE, colonneGrille(giWE), row);
@@ -1583,30 +1671,34 @@
       var rGrilleEntete = grilleEntete.getBoundingClientRect(), rTh = th.getBoundingClientRect();
       return Math.max(0, Math.round((rTh.left - rGrilleEntete.left) - 116));
     }
-    if (cibleApresRendu === "aujourdhui") {
-      if (enModeJourMobile) cibleScrollLeft = decalerSurColonne_(grilleEntete.querySelector(".th.today"));
+    if (enModeJourMobile) {
+      // Round du 24.09.2026 (suite 6) — vue "1 jour" : TOUJOURS calé sur le
+      // jour affiché (jourMobileCourant, core.js), quel que soit le motif du
+      // rendu — après un recentrage de la fenêtre (même jour, nouvelle
+      // colonne), ‹ › (même jour de la semaine), Aujourd'hui, ou un simple
+      // re-rendu après modification. Remplace l'ancien scrollLeftPrecedent,
+      // qui ne désigne plus le même jour dès que la fenêtre a glissé.
+      cibleApresRendu = null;
+      cibleScrollLeft = decalerSurColonne_(grilleEntete.querySelector('.th[data-gi="' + giDepuisIso(jourMobileCourant()) + '"]'));
+    } else if (cibleApresRendu === "aujourdhui") {
       cibleApresRendu = null;
     } else if (cibleApresRendu === "debut") {
-      cibleScrollLeft = enModeJourMobile ? decalerSurColonne_(grilleEntete.querySelector(".th:not(.coin):not(.th-demi)")) : 0;
+      cibleScrollLeft = 0;
       cibleApresRendu = null;
     } else if (cibleApresRendu === "fin") {
-      if (enModeJourMobile) {
-        var thsJours = grilleEntete.querySelectorAll(".th:not(.coin):not(.th-demi)");
-        cibleScrollLeft = thsJours.length ? decalerSurColonne_(thsJours[thsJours.length - 1]) : 0;
-      } else {
-        // Round du 23.09.2026 (suite ×11) — "fin" existait déjà mais ne
-        // servait jusqu'ici qu'au mode "1 jour" mobile (branche ci-dessus).
-        // Le swipe inter-semaines molette/trackpad (desktop/tablette, cf.
-        // l'écouteur "wheel" plus bas) l'utilise aussi désormais en arrière
-        // (dir=-1, cibleApresRendu="fin") pour atterrir sur la BUTÉE DROITE
-        // de la semaine précédente plutôt que sur son tout début : sans ça
-        // le défilement repartirait de 0 à chaque semaine chargée en
-        // arrière, un aller-retour visuel qui casserait la continuité du
-        // geste. Pas de notion de "jour" hors mode "1 jour" — juste la
-        // butée de défilement réelle de la nouvelle grille, déjà dans le DOM
-        // à ce stade (scroller.scrollWidth la reflète).
-        cibleScrollLeft = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
-      }
+      // Round du 23.09.2026 (suite ×11) — "fin" existait déjà mais ne
+      // servait jusqu'ici qu'au mode "1 jour" mobile (qui ne l'utilise plus depuis le
+      // round du 24.09.2026, suite 6 : défilement continu, cf. plus haut).
+      // Le swipe inter-semaines molette/trackpad (desktop/tablette, cf.
+      // l'écouteur "wheel" plus bas) l'utilise aussi désormais en arrière
+      // (dir=-1, cibleApresRendu="fin") pour atterrir sur la BUTÉE DROITE
+      // de la semaine précédente plutôt que sur son tout début : sans ça
+      // le défilement repartirait de 0 à chaque semaine chargée en
+      // arrière, un aller-retour visuel qui casserait la continuité du
+      // geste. Pas de notion de "jour" hors mode "1 jour" — juste la
+      // butée de défilement réelle de la nouvelle grille, déjà dans le DOM
+      // à ce stade (scroller.scrollWidth la reflète).
+      cibleScrollLeft = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
       cibleApresRendu = null;
     } else if (scrollerPrecedent) {
       cibleScrollLeft = scrollLeftPrecedent;
@@ -1624,6 +1716,61 @@
     // en cours, ex. re-rendu sans changement de semaine/jour) — cf. le
     // commentaire de ajusterLargeurBullesJourMobile plus haut.
     ajusterLargeurBullesJourMobile();
+    // Round du 24.09.2026 (suite 6) — défilement "infini" de la vue "1 jour"
+    // (cf. fenetreLabGs, core.js). Une fois le défilement ARRÊTÉ (plus
+    // d'événement "scroll" depuis 200ms, aucun doigt posé, aucun glisser de
+    // bulle en cours) : on relève le jour affiché (colonne dont le bord
+    // gauche est le plus proche du bord de l'écran, après la colonne des
+    // noms), on met à jour la semaine affichée (pilule Sem. N) s'il a changé
+    // de semaine, et, s'il reste moins de 2 jours d'avance d'un côté, on fait
+    // glisser la fenêtre de 2 semaines d'un cran (recentrerFenetreJourMobile).
+    // Jamais PENDANT le geste : reconstruire la grille sous le doigt
+    // casserait le geste en cours (cf. differerSiEnGlissement) ; à l'arrêt,
+    // le jour affiché est déjà aligné (aimantation) et la grille reconstruite
+    // le remet exactement à la même place — rien ne bouge à l'écran.
+    if (enModeJourMobile) {
+      var minuteurArret = null, doigtsPoses = 0;
+      var programmerArret = function () { clearTimeout(minuteurArret); minuteurArret = setTimeout(defilementArrete, 200); };
+      scroller.addEventListener("touchstart", function (e) { doigtsPoses = e.touches.length; clearTimeout(minuteurArret); }, { passive: true });
+      scroller.addEventListener("touchend", function (e) { doigtsPoses = e.touches.length; programmerArret(); }, { passive: true });
+      scroller.addEventListener("touchcancel", function (e) { doigtsPoses = e.touches.length; programmerArret(); }, { passive: true });
+      scroller.addEventListener("scroll", programmerArret, { passive: true });
+      var defilementArrete = function () {
+        if (!scroller.isConnected || doigtsPoses > 0 || document.body.classList.contains("en-glissement")) return;
+        if (syncEnCours) { minuteurArret = setTimeout(defilementArrete, 400); return; }
+        var thJour = null, ecart = Infinity;
+        grilleEntete.querySelectorAll(".th[data-gi]").forEach(function (th) {
+          var e = Math.abs(decalerSurColonne_(th) - scroller.scrollLeft);
+          if (e < ecart) { ecart = e; thJour = th; }
+        });
+        if (!thJour) return;
+        var giJour = +thJour.dataset.gi, isoJour = isoDeGi(giJour);
+        if (!isoJour) return;
+        jourMobileIso = isoJour;
+        for (var iSem = 0; iSem < etat.semaines.length; iSem++) {
+          var sem = etat.semaines[iSem];
+          if (isoJour >= sem.debut && isoJour <= sem.fin) {
+            if (iSem !== etat.indexSemaine) { etat.indexSemaine = iSem; majSemaineAffichage(); }
+            break;
+          }
+        }
+        var rangJour = estGiWeekend(giJour) ? semaineDuGiWeekend(giJour) * 5 + 4 : giJour;
+        if (rangJour >= 2 && rangJour <= n - 3) return;
+        recentrerFenetreJourMobile();
+      };
+      // Recentrage : la fenêtre est recalculée autour du jour affiché
+      // (debutFenetreMobile = null -> debutFenetreJourMobile_, core.js) ;
+      // rien à faire si elle ne peut pas bouger (tout début/fin des semaines
+      // du planning). Semaine voisine en principe déjà en cache
+      // (prechargerVoisinesJourMobile) : reconstruction immédiate.
+      var recentrerFenetreJourMobile = function () {
+        debutFenetreMobile = null;
+        if (fenetreLabGs().join(",") === labsRendus) return;
+        bullesSelectionnees = {};
+        assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); majBarreSelection(); });
+      };
+      prechargerVoisinesJourMobile();
+    }
     majBoutonsUndo();
     majBarreSelection();
     majControlesAffichage();

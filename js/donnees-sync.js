@@ -392,9 +392,12 @@
       etat.semaines = genererSemaines(etat.aujourdhui, FENETRE_SEMAINES, FENETRE_SEMAINES);
       etat.indexSemaine = indexSemaineAujourdhui_(); // réutilise la règle existante (semaine du jour, sinon prochaine, sinon dernière)
 
-      return chargerSemaineDepuisServeur(etat.semaines[etat.indexSemaine].labG);
-    }).then(function (data) {
-      mettreEnCache(data);
+      // Toute la fenêtre d'affichage (fenetreLabGs), et plus seulement la
+      // semaine du jour : la vue "1 jour" téléphone, par défaut à
+      // l'ouverture, en charge 2 (round du 24.09.2026, suite 6, cf. core.js).
+      return Promise.all(fenetreLabGs().map(function (lg) { return chargerSemaineDepuisServeur(lg); }));
+    }).then(function (donnees) {
+      donnees.forEach(function (data) { mettreEnCache(data); });
       appliquerStatutsEtFormulaires();
       idc = 1;
       // Coquille de navigation (sidebar + 9 pages) : construite une seule
@@ -1403,7 +1406,10 @@
     NOTES.forEach(function (n) { out[n.id] = { texte: n.texte, important: !!n.important, giDebut: n.giDebut, duree: n.duree, dateDebutIso: n.dateDebutIso, demiDebut: n.demiDebut || null, demiFin: n.demiFin || null }; });
     return out;
   }
-  function nbJoursAffiches() { return deuxSemaines ? 10 : 5; }
+  // Nombre de semaines réellement chargées × 5 (et non plus deuxSemaines
+  // seul) : la vue "1 jour" téléphone en charge aussi 2 (round du
+  // 24.09.2026, suite 6, cf. fenetreLabGs dans core.js).
+  function nbJoursAffiches() { return fenetreLabGs().length * 5; }
   function giVisibleFenetre(gi, n) {
     if (estGiWeekend(gi)) return afficherWeekends && semaineDuGiWeekend(gi) < (n / 5);
     return gi < n;
@@ -1732,5 +1738,171 @@
       d.setDate(d.getDate() + 1);
     }
     return Math.max(1, n);
+  }
+
+  /* ============ TÂCHE/ABSENCE HORS DE LA FENÊTRE CHARGÉE ============
+     Round du 24.09.2026 (suite 5) — Lionel, capture à l'appui (toast « Cette
+     date sort de la semaine affichée… » en décalant une tâche au-delà du
+     vendredi) : « J'aimerai pouvoir déplacer une tâche en dehors de la
+     semaine activé. » Réponses aux questions posées avant de coder : via le
+     formulaire seulement (le glisser-déposer reste limité à l'écran), et la
+     grille reste sur la semaine affichée avec un message de confirmation.
+
+     Pourquoi un chemin à part : une tâche n'existe côté serveur que sous
+     forme de lignes `taches` par (personne, date, demi-journée), et le
+     moteur de diff (calculerEtatLocal/synchroniser) ne sait écrire QUE les
+     jours de la fenêtre chargée (giVisibleFenetre) — cf. le long commentaire
+     d'appliquerDateChoisieFormulaire (formulaires-communs.js), qui notait déjà
+     "un chantier séparé à faire" pour ces 2 types. Ce chemin-ci travaille en
+     vraies dates ISO, directement sur la table, "serveur d'abord" comme les
+     séries (gerer-serie/enregistrer-serie) : suppression des lignes de la
+     tâche d'origine, insertion de la nouvelle plage, puis rechargement
+     (apresEcritureSerie) — jamais une mutation de TACHES suivie d'un diff.
+
+     Étendue RÉELLE de la tâche d'origine (lignesTacheServeur) : dans la
+     grille, une tâche qui déborde de la fenêtre n'est connue que par sa
+     partie visible. Sans aller chercher le reste sur le serveur, la déplacer
+     ou la modifier depuis une seule semaine laisserait l'autre morceau
+     orphelin. On repart donc des demi-journées visibles et on prolonge, de
+     part et d'autre, tant que la demi-journée voisine (jours ouvrés) porte
+     une ligne identique (même texte, même type tâche/absence, même
+     chantier) — la même règle que la fusion des bulles
+     (construireVueDepuisCache), qui aurait affiché ces lignes comme une
+     seule bulle si elles avaient toutes été à l'écran. Prolongation tentée
+     seulement du côté où la partie visible touche le bord de la fenêtre :
+     une bulle qui s'arrête au milieu de l'écran s'arrête vraiment là.
+     ============================================================ */
+  function cleSlot_(s) { return s.date + "|" + s.demi; }
+  // Demi-journée voisine (sens +1/-1), en sautant samedi/dimanche comme les
+  // flèches du formulaire (isoJourOuvreVoisin) et la fusion des bulles.
+  function slotVoisin_(s, sens) {
+    if (sens > 0) return s.demi === "matin" ? { date: s.date, demi: "aprem" } : { date: isoJourOuvreVoisin(s.date, 1), demi: "matin" };
+    return s.demi === "aprem" ? { date: s.date, demi: "matin" } : { date: isoJourOuvreVoisin(s.date, -1), demi: "aprem" };
+  }
+  // Demi-journées couvertes par une plage en dates réelles — même règle de
+  // bord que demisOccupeesTache (grille-rendu.js), transposée des gi aux
+  // dates : sur plusieurs jours, demiDebut "aprem" n'occupe que l'après-midi
+  // du 1er jour et demiFin "matin" que le matin du dernier ; tout autre jour
+  // est entier. Jours ouvrés seulement (sauf une borne posée elle-même un
+  // week-end, gardée telle quelle).
+  function slotsPlageTacheIso(isoDebut, isoFin, demiDebut, demiFin) {
+    var jours = [isoDebut];
+    var d = isoDebut;
+    while (d < isoFin) { d = isoJourOuvreVoisin(d, 1); if (d > isoFin) break; jours.push(d); }
+    if (jours[jours.length - 1] !== isoFin) jours.push(isoFin);
+    var out = [];
+    jours.forEach(function (j, i) {
+      var demis;
+      if (jours.length === 1) {
+        if (demiDebut && demiDebut === demiFin) demis = [demiDebut];
+        else if (demiDebut === "aprem") demis = ["aprem"];
+        else if (demiFin === "matin") demis = ["matin"];
+        else demis = ["matin", "aprem"];
+      } else if (i === 0) demis = demiDebut === "aprem" ? ["aprem"] : ["matin", "aprem"];
+      else if (i === jours.length - 1) demis = demiFin === "matin" ? ["matin"] : ["matin", "aprem"];
+      else demis = ["matin", "aprem"];
+      demis.forEach(function (dm) { out.push({ date: j, demi: dm }); });
+    });
+    return out;
+  }
+  function slotsVisiblesItem_(it) {
+    var out = [];
+    for (var gi = it.giDebut; gi < it.giDebut + it.duree; gi++) {
+      var iso = isoDeGi(gi);
+      if (!iso) continue;
+      demisOccupeesTache(it, gi).forEach(function (dm) { out.push({ date: iso, demi: dm }); });
+    }
+    return out;
+  }
+  function chantierIdDeNom_(nom) { return nom ? ((etat.chantierParNom[nom] && etat.chantierParNom[nom].ligne) || null) : null; }
+  function decalerIsoJours_(iso, n) { var d = new Date(iso + "T00:00:00"); d.setDate(d.getDate() + n); return isoDeDate(d); }
+  // Lignes serveur de la tâche `it` (partie visible + prolongements hors
+  // fenêtre, cf. commentaire de section). Résout un tableau de lignes
+  // {id, date, demi, ...} ; `debordeFenetre` indique si au moins une est
+  // hors de la fenêtre chargée. Recherche plafonnée à 10 semaines de part et
+  // d'autre (une tâche plus longue que ça au-delà de l'écran resterait
+  // tronquée — cas jugé irréaliste pour un planning de chantier).
+  // La partie visible de `it` occupe-t-elle la toute première (lundi matin)
+  // ou la toute dernière (vendredi après-midi) demi-journée de la fenêtre ?
+  // Sinon, elle ne peut pas continuer au-delà : pas besoin d'interroger le
+  // serveur (cf. ouvrirEdition, debordementOrigine).
+  function bordsTouchesFenetre_(it) {
+    var seeds = slotsVisiblesItem_(it), n = nbJoursAffiches();
+    if (!seeds.length) return { avant: false, apres: false, seeds: seeds };
+    return {
+      avant: cleSlot_(seeds[0]) === cleSlot_({ date: isoDeGi(0), demi: "matin" }),
+      apres: cleSlot_(seeds[seeds.length - 1]) === cleSlot_({ date: isoDeGi(n - 1), demi: "aprem" }),
+      seeds: seeds
+    };
+  }
+  function toucheBordFenetre(it) { var b = bordsTouchesFenetre_(it); return b.avant || b.apres; }
+  function lignesTacheServeur(it) {
+    var bords = bordsTouchesFenetre_(it), seeds = bords.seeds;
+    if (!seeds.length) return Promise.resolve({ lignes: [], debordeFenetre: false });
+    var n = nbJoursAffiches();
+    var prolongerAvant = bords.avant, prolongerApres = bords.apres;
+    var absence = it.type === "absence", chantierId = chantierIdDeNom_(it.chantier);
+    return sbClient.from("taches").select("id, date, demi, ordre, texte, est_absence, chantier_id")
+      .eq("personne_id", ancreDe(it.personneId)).eq("texte", it.texte)
+      .gte("date", decalerIsoJours_(seeds[0].date, -70)).lte("date", decalerIsoJours_(seeds[seeds.length - 1].date, 70))
+      .then(function (res) {
+        if (res.error) throw res.error;
+        var parSlot = {};
+        (res.data || []).filter(function (r) {
+          return !!r.est_absence === absence && (r.chantier_id || null) === chantierId;
+        }).sort(function (a, b) { return (a.ordre || 0) - (b.ordre || 0); }).forEach(function (r) {
+          (parSlot[r.date + "|" + r.demi] = parSlot[r.date + "|" + r.demi] || []).push(r);
+        });
+        var prises = {}, out = [];
+        function prendre(s) {
+          var liste = parSlot[cleSlot_(s)] || [];
+          for (var i = 0; i < liste.length; i++) if (!prises[liste[i].id]) { prises[liste[i].id] = true; out.push(liste[i]); return true; }
+          return false;
+        }
+        seeds.forEach(prendre);
+        var s;
+        if (prolongerAvant) { s = seeds[0]; while (prendre(s = slotVoisin_(s, -1))) { /* prolonge */ } }
+        if (prolongerApres) { s = seeds[seeds.length - 1]; while (prendre(s = slotVoisin_(s, 1))) { /* prolonge */ } }
+        var debut = isoDeGi(0), fin = isoDeGi(n - 1);
+        return { lignes: out, debordeFenetre: out.some(function (r) { return r.date < debut || r.date > fin; }) };
+      });
+  }
+  // Écrit une tâche/absence en vraies dates : supprime d'abord les lignes
+  // `idsASupprimer` (la tâche d'origine, cf. lignesTacheServeur), puis
+  // ajoute une ligne par demi-journée de `slots`, EN BOUT de la case (ordre =
+  // max existant + 1) pour ne jamais écraser ni réordonner les autres tâches
+  // déjà posées ce jour-là — contrairement à enregistrerCellulePersonneServeur,
+  // qui réécrit la case entière depuis l'état complet connu de la grille
+  // (état qu'on n'a justement pas hors de la fenêtre). serie_id toujours null :
+  // une occurrence de série déplacée hors de la fenêtre en est détachée
+  // (gerer-serie ne sait pas déplacer une occurrence, cf. ouvrirEdition).
+  function enregistrerTacheEnDatesServeur(personneId, idsASupprimer, slots, champs) {
+    var chaine = idsASupprimer.length
+      ? sbClient.from("taches").delete().in("id", idsASupprimer).then(function (res) { if (res.error) throw res.error; })
+      : Promise.resolve();
+    if (!slots.length) return chaine;
+    var dates = slots.map(function (s) { return s.date; }).sort();
+    return chaine.then(function () {
+      return sbClient.from("taches").select("date, demi, ordre").eq("personne_id", personneId).gte("date", dates[0]).lte("date", dates[dates.length - 1]);
+    }).then(function (res) {
+      if (res.error) throw res.error;
+      var ordreMax = {};
+      (res.data || []).forEach(function (r) {
+        var k = r.date + "|" + r.demi;
+        ordreMax[k] = Math.max(ordreMax[k] == null ? -1 : ordreMax[k], r.ordre || 0);
+      });
+      var chantierId = chantierIdDeNom_(champs.chantier);
+      var lignes = slots.map(function (s) {
+        var k = cleSlot_(s);
+        var ligne = {
+          personne_id: personneId, date: s.date, demi: s.demi, ordre: (ordreMax[k] == null ? -1 : ordreMax[k]) + 1,
+          texte: champs.texte, statut_id: champs.statut ? (etat.statutIdParCle[champs.statut] || null) : null,
+          important: !!champs.important, serie_id: null, est_absence: !!champs.absence
+        };
+        if (chantierId) ligne.chantier_id = chantierId;
+        return ligne;
+      });
+      return sbClient.from("taches").insert(lignes);
+    }).then(function (res) { if (res && res.error) throw res.error; });
   }
 

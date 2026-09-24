@@ -635,17 +635,19 @@
   // - tâche/absence : comportement INCHANGÉ, la date est toujours refusée
   //   (toast) — cf. le paragraphe précédent, toujours vrai pour ces 2 types.
   //
+  // Round du 24.09.2026 (suite 5) — le "chantier séparé" annoncé ci-dessus
+  // pour tâche/absence est fait (Lionel : « J'aimerai pouvoir déplacer une
+  // tâche en dehors de la semaine activé ») : plus aucun refus ici, les 4
+  // types gardent une borne hors fenêtre en vraie date ISO. L'écriture de
+  // la tâche/absence passe alors par enregistrerTacheEnDatesServeur
+  // (donnees-sync.js, vraies dates, directement sur la table `taches`),
+  // plus par le moteur de diff — cf. ouvrirEdition.
+  //
   // La borne éditée (`bord`) garde TOUJOURS exactement la date choisie —
   // l'AUTRE borne n'est recollée dessus que si la garder créerait un
   // intervalle invalide (Début > Fin) ; sinon elle reste inchangée (cf.
   // cablerDatesPlage pour le détail de cette asymétrie).
   function appliquerDateChoisieFormulaire(state, bord, isoChoisi, rafraichir) {
-    var supportePlageServeur = state.kind === "jalon" || state.kind === "note";
-    var giChoisi = giDepuisIso(isoChoisi);
-    if (giChoisi == null && !supportePlageServeur) {
-      toast("Cette date sort de la semaine affichée : la durée d’un élément ne peut pas dépasser la fenêtre actuellement chargée.");
-      return;
-    }
     var autreEstFin = bord === "debut";
     var isoAutre = autreEstFin
       ? (state.finHorsFenetreIso || isoDeGi(state.giFin))
