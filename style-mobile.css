@@ -184,7 +184,8 @@
        desktop (fond blanc, contour, cf. style.css) est neutralisé ici —
        barre téléphone inchangée. */
     .select-chantier-btn { width: 30px; height: 30px; padding: 0; justify-content: center; border-radius: 7px; border-color: transparent; background: none; }
-    .select-chantier-btn:hover, .select-chantier.ouvert .select-chantier-btn { background: var(--surface-2); border-color: var(--border); color: var(--ink); }
+    .select-chantier.ouvert .select-chantier-btn { background: var(--surface-2); border-color: var(--border); color: var(--ink); }
+    @media (hover: hover) and (pointer: fine) { .select-chantier-btn:hover { background: var(--surface-2); border-color: var(--border); color: var(--ink); } }
     .select-chantier-btn .nom-chantier, .select-chantier-btn .caret { display: none; }
     .select-chantier-btn .swatch { width: 14px; height: 14px; border-radius: 50%; }
 

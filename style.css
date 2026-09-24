@@ -147,6 +147,18 @@
   }
   button { font-family: inherit; }
   :focus-visible { outline: 2.5px solid var(--accent); outline-offset: 2px; }
+  /* Survol (round du 24.09.2026, suite 18 — Lionel : « En mode tactile le
+     bouton appuyé reste en surbrillance blanche, comme au passage de la
+     souris ») : au doigt, le navigateur laisse le "pointeur" là où l'on a
+     appuyé, et le bouton garde son :hover jusqu'au prochain appui
+     ailleurs. Toutes les règles :hover de ce fichier (et de
+     style-mobile.css) sont donc posées sous `@media (hover: hover) and
+     (pointer: fine)` : souris ou pavé tactile seulement — téléphones et
+     tablettes (hover: none, pointer: coarse) n'y entrent jamais. Chaque
+     règle reste à sa place (même ordre dans la cascade qu'avant) ; une
+     règle qui partageait son :hover avec un autre sélecteur (.ouvert,
+     .actif) est coupée en deux, l'autre sélecteur restant hors du @media.
+     Toute nouvelle règle :hover suit le même modèle. */
   body.en-glissement .bulle:not(.dragging) { pointer-events: none; }
 
   /* ---------- chargement / erreur (repris de V2) ---------- */
@@ -268,7 +280,7 @@
     border-radius: 8px; padding: 6px 11px; font-size: 12px; font-weight: 600; cursor: pointer;
     font-family: 'Archivo', sans-serif; transition: background .12s, border-color .12s;
   }
-  .topbar button:hover { background: var(--accent-soft); border-color: var(--accent); }
+  @media (hover: hover) and (pointer: fine) { .topbar button:hover { background: var(--accent-soft); border-color: var(--accent); } }
 
   /* Round du 12.09.2026 — Lionel : « beaucoup de place vide autour de l'écran
      sur desktop. » .wrap ne bornait la page Planning qu'à 1180px alors que
@@ -296,14 +308,14 @@
     border-radius: 9px; padding: 8px 13px; font-size: 12.5px; font-weight: 600; cursor: pointer;
     transition: background .12s, border-color .12s;
   }
-  .btn-reset:hover { background: var(--accent-soft); border-color: var(--accent); }
+  @media (hover: hover) and (pointer: fine) { .btn-reset:hover { background: var(--accent-soft); border-color: var(--accent); } }
   .btn-ajout-st {
     flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px;
     background: var(--accent-soft); border: 1px solid var(--accent); color: var(--accent);
     border-radius: 9px; padding: 8px 13px; font-size: 12.5px; font-weight: 700; cursor: pointer;
     transition: filter .12s;
   }
-  .btn-ajout-st:hover { filter: brightness(1.05); }
+  @media (hover: hover) and (pointer: fine) { .btn-ajout-st:hover { filter: brightness(1.05); } }
 
   .glisse-groupe { opacity: .4; }
   .fantome-glisse {
@@ -454,7 +466,7 @@
     background: none; color: var(--ink-muted); cursor: pointer; transition: background .12s, color .12s; flex-shrink: 0;
     font-family: inherit;
   }
-  .toolbar-btn:hover:not(:disabled) { background: var(--surface-2); color: var(--ink); }
+  @media (hover: hover) and (pointer: fine) { .toolbar-btn:hover:not(:disabled) { background: var(--surface-2); color: var(--ink); } }
   .toolbar-btn:disabled { opacity: .32; cursor: default; }
   .toolbar-btn svg { width: 16px; height: 16px; }
   /* Chantier par défaut des formulaires (round du 03.09.2026, ré-habillé en
@@ -480,7 +492,8 @@
     font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 700; color: var(--ink);
     transition: background .12s, border-color .12s, color .12s;
   }
-  .select-chantier-btn:hover, .select-chantier.ouvert .select-chantier-btn { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .select-chantier.ouvert .select-chantier-btn { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  @media (hover: hover) and (pointer: fine) { .select-chantier-btn:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); } }
   .select-chantier-btn .swatch { width: 12px; height: 12px; border-radius: 4px; flex-shrink: 0; }
   .select-chantier-btn .nom-chantier { width: 25ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
   .select-chantier-btn .caret { font-size: 12px; }
@@ -494,7 +507,7 @@
     display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 8px; border-radius: 7px;
     border: none; background: none; cursor: pointer; font: inherit; font-size: 12.5px; color: var(--ink); text-align: left;
   }
-  .select-chantier-item:hover { background: var(--accent-soft); }
+  @media (hover: hover) and (pointer: fine) { .select-chantier-item:hover { background: var(--accent-soft); } }
   .select-chantier-item .swatch { width: 12px; height: 12px; border-radius: 4px; flex-shrink: 0; }
   .select-chantier-item.actif { font-weight: 700; color: var(--accent); }
   .select-chantier-item .coche { margin-left: auto; color: var(--accent); font-size: 12px; visibility: hidden; }
@@ -525,7 +538,7 @@
     transition: background .12s, color .12s, opacity .12s;
   }
   .toolbar-toggle svg { width: 16px; height: 16px; }
-  .toolbar-toggle:hover { background: var(--surface-2); }
+  @media (hover: hover) and (pointer: fine) { .toolbar-toggle:hover { background: var(--surface-2); } }
   .toolbar-toggle.actif[data-affichage-cible="jalon"] { background: var(--jalon-bg); color: #4a3d78; }
   .toolbar-toggle.actif[data-affichage-cible="note"] { background: var(--note-bg); color: #7a5d00; }
   /* Round du 23.09.2026 (suite ×3) — Lionel : les boutons de masquage
@@ -567,14 +580,14 @@
     display: flex; align-items: center; gap: 9px; width: 100%; padding: 7px 8px; border-radius: 7px;
     border: none; background: none; cursor: pointer; font: inherit; font-size: 12.5px; color: var(--ink); text-align: left;
   }
-  .outil-menu-item:hover { background: var(--accent-soft); color: var(--accent); }
+  @media (hover: hover) and (pointer: fine) { .outil-menu-item:hover { background: var(--accent-soft); color: var(--accent); } }
   .outil-menu-item svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--ink-muted); }
-  .outil-menu-item:hover svg { color: var(--accent); }
+  @media (hover: hover) and (pointer: fine) { .outil-menu-item:hover svg { color: var(--accent); } }
   .outil-menu-retour {
     display: flex; align-items: center; gap: 6px; width: 100%; padding: 6px 8px; margin-bottom: 2px; border-radius: 7px;
     border: none; background: none; cursor: pointer; font: inherit; font-size: 11.5px; font-weight: 700; color: var(--ink-muted); text-align: left;
   }
-  .outil-menu-retour:hover { background: var(--surface); color: var(--ink); }
+  @media (hover: hover) and (pointer: fine) { .outil-menu-retour:hover { background: var(--surface); color: var(--ink); } }
 
   /* Case de zoom façon Sheets, en bout de groupe entre Imprimer et le
      chantier par défaut (Lionel, retour sur le mockup : « place le zoom
@@ -588,14 +601,14 @@
     width: 24px; height: 24px; display: grid; place-items: center; border-radius: 6px; border: none;
     background: none; color: var(--ink-muted); cursor: pointer; font-size: 15px; font-weight: 700; font-family: inherit; line-height: 1;
   }
-  .zoom-btn:hover { background: var(--surface-2); color: var(--ink); }
+  @media (hover: hover) and (pointer: fine) { .zoom-btn:hover { background: var(--surface-2); color: var(--ink); } }
   .zoom-pill {
     min-width: 58px; padding: 5px 8px; border-radius: 7px; border: 1px solid var(--border); background: var(--case-fixe-bg);
     font: inherit; font-size: 12px; font-weight: 700; color: var(--ink); cursor: pointer; text-align: center;
     font-family: 'IBM Plex Mono', monospace; transition: background .12s, border-color .12s, color .12s;
     white-space: nowrap;
   }
-  .zoom-pill:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  @media (hover: hover) and (pointer: fine) { .zoom-pill:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); } }
   .zoom-panneau { min-width: 90px; }
 
   /* Bouton "pressé"/actif générique (§87, round du 17.09.2026, suite×2) —
@@ -626,7 +639,7 @@
      l'état actif au repos) via color-mix, plutôt que de répéter exactement
      le même accent-soft qu'au repos. */
   .toolbar-btn.actif { background: var(--accent-soft); color: var(--accent); border: 1.5px solid var(--accent); }
-  .toolbar-btn.actif:hover { background: color-mix(in srgb, var(--accent-soft) 55%, var(--accent) 20%); }
+  @media (hover: hover) and (pointer: fine) { .toolbar-btn.actif:hover { background: color-mix(in srgb, var(--accent-soft) 55%, var(--accent) 20%); } }
 
   /* Case "Sem. N" (§87, round du 17.09.2026, suite×2) — #btnSemainePill
      réutilise .zoom-pill telle quelle (Lionel : « dans le style visuel du
@@ -711,7 +724,7 @@
   }
   .panneau-selection[hidden] { display: none; }
   .panneau-selection .toolbar-btn { width: 34px; height: 34px; color: var(--accent); }
-  .panneau-selection .toolbar-btn:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
+  @media (hover: hover) and (pointer: fine) { .panneau-selection .toolbar-btn:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); } }
   .panneau-selection .toolbar-btn.actif { background: var(--accent); color: var(--accent-ink); border: none; }
   .panneau-selection .sel-compte {
     min-width: 2.2em; padding: 0 4px; text-align: center; font-family: 'IBM Plex Mono', monospace;
@@ -721,14 +734,14 @@
   .panneau-selection .sel-fleches[hidden], .panneau-selection .toolbar-btn[hidden] { display: none; }
   .panneau-selection .sel-sep { width: 1px; height: 20px; background: color-mix(in srgb, var(--accent) 35%, transparent); margin: 0 4px; flex-shrink: 0; }
   .panneau-selection .sel-supprimer { color: var(--danger); }
-  .panneau-selection .sel-supprimer:hover:not(:disabled) { background: var(--interdit-bg); color: var(--danger); }
+  @media (hover: hover) and (pointer: fine) { .panneau-selection .sel-supprimer:hover:not(:disabled) { background: var(--interdit-bg); color: var(--danger); } }
   /* ⚑ important (suite 14) : du groupe de couleur erreur/suppression, comme
      le drapeau des fiches (§117) ; plein quand toute la sélection est
      importante, exactement comme .important-toggle.actif des fiches. */
   .panneau-selection .sel-important { color: var(--important-ink); }
-  .panneau-selection .sel-important:hover:not(:disabled) { background: var(--interdit-bg); color: var(--important-ink); }
+  @media (hover: hover) and (pointer: fine) { .panneau-selection .sel-important:hover:not(:disabled) { background: var(--interdit-bg); color: var(--important-ink); } }
   .panneau-selection .sel-important.actif,
-  .panneau-selection .sel-important.actif:hover:not(:disabled) { background: var(--important-toggle-bg); color: var(--important-toggle-ink); }
+  @media (hover: hover) and (pointer: fine) { .panneau-selection .sel-important.actif:hover:not(:disabled) { background: var(--important-toggle-bg); color: var(--important-toggle-ink); } }
   /* Trait horizontal entre 2 groupes du panneau (pendant du .sep-avant
      vertical de la barre) — le DOM du panneau suit l'ordre visuel
      (insererAuRang), le sélecteur de voisin suffit. */
@@ -1220,7 +1233,8 @@
   .poignee-g::after { left: 3px; }
   .poignee-d { right: 0; border-radius: 0 9px 9px 0; }
   .poignee-d::after { right: 3px; }
-  .poignee:hover::after, .poignee.actif::after { opacity: .55; }
+  .poignee.actif::after { opacity: .55; }
+  @media (hover: hover) and (pointer: fine) { .poignee:hover::after { opacity: .55; } }
   .poignee.actif { background: rgba(0, 0, 0, .08); }
   /* Round du 23.09.2026 (suite ×13, puis suite 14 — correctif ci-dessous) —
      Lionel : « Intègre un vrai mode 1 jour, avec bulle sur le jour actif
@@ -1316,9 +1330,9 @@
     border-radius: 8px; padding: 7px 10px; font-size: 12.5px; font-weight: 600; cursor: pointer;
     transition: background .12s, border-color .12s;
   }
-  .pop button:hover { background: var(--accent-soft); border-color: var(--accent); }
+  @media (hover: hover) and (pointer: fine) { .pop button:hover { background: var(--accent-soft); border-color: var(--accent); } }
   .pop button.danger { color: var(--important-ink); }
-  .pop button.danger:hover { background: #f6dcd7; border-color: var(--important-ink); }
+  @media (hover: hover) and (pointer: fine) { .pop button.danger:hover { background: #f6dcd7; border-color: var(--important-ink); } }
 
   .voile-confirm { position: fixed; inset: 0; background: rgba(15, 21, 27, .38); z-index: 95; }
   .confirm-pop { position: fixed; z-index: 96; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 260px; text-align: center; }
@@ -1375,7 +1389,7 @@
   .form-pop .form-actions { display: flex; gap: 6px; margin-top: 2px; }
   .form-pop .form-actions button { flex: 1; text-align: center; }
   .form-pop .f-ok { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-  .form-pop .f-ok:hover { filter: brightness(1.06); }
+  @media (hover: hover) and (pointer: fine) { .form-pop .f-ok:hover { filter: brightness(1.06); } }
   .form-pop .f-ok:disabled, .pop button:disabled { opacity: .55; cursor: default; }
 
   /* ============ Cartes tâche/absence/note/jalon — nouveau formulaire
@@ -1452,7 +1466,7 @@
      cablerCalendrierDate), rendu invisible ici (opacity 0) puisque seul son
      calendrier natif (.showPicker()) doit apparaître, jamais son propre
      encart texte qui doublonnerait .date-val en dessous. */
-  .carte-item .date-nav .date-val-cliquable:hover { background: var(--accent-soft); color: var(--accent); }
+  @media (hover: hover) and (pointer: fine) { .carte-item .date-nav .date-val-cliquable:hover { background: var(--accent-soft); color: var(--accent); } }
   /* §88 — bord de plage (jalon/note) dont la vraie date est hors de la
      semaine actuellement affichée à l'écran (cf. appliquerDateChoisieFormulaire) :
      italique + soulignage pointillé, pour rester lisible que ce jour-là n'est
@@ -1495,7 +1509,7 @@
     flex: 1; height: 48px; border-radius: 12px; background: var(--accent); border: none; color: var(--accent-ink); display: flex;
     align-items: center; justify-content: center; gap: 8px; font-weight: 700; font-size: 13.5px; cursor: pointer; font-family: inherit; padding: 0;
   }
-  .carte-item .pied-principal .f-ok:hover { filter: brightness(1.06); }
+  @media (hover: hover) and (pointer: fine) { .carte-item .pied-principal .f-ok:hover { filter: brightness(1.06); } }
   .carte-item .pied-principal .f-ok svg { width: 16px; height: 16px; stroke: #fff; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
   /* -- éditeur du descriptif : même balisage desktop/mobile, seule la CSS
@@ -1655,7 +1669,7 @@
     font-family: 'IBM Plex Mono', monospace; cursor: pointer; margin-right: 12px;
     transition: background .12s, border-color .12s, color .12s;
   }
-  .avatar-nav:hover { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  @media (hover: hover) and (pointer: fine) { .avatar-nav:hover { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); } }
   /* Onglets en pilules (au lieu du trait sous le texte) — même mockup,
      langage visuel du bandeau Nolio pris en référence par Lionel. */
   .onglet {
@@ -1670,7 +1684,7 @@
      que l'œil fasse tout de suite le lien entre l'onglet et son contrôle de
      masquage dans la barre d'outils. */
   .onglet svg { width: 14px; height: 14px; flex-shrink: 0; }
-  .onglet:hover { background: var(--surface-2); color: var(--ink); }
+  @media (hover: hover) and (pointer: fine) { .onglet:hover { background: var(--surface-2); color: var(--ink); } }
   .onglet.actif { background: var(--accent-soft); color: var(--accent); }
   /* Round du 22.09.2026 (suite ×5) — Lionel : « je ne veux pas 2 types
      d'onglets ». Les 9 pages (avant : 4 "principales" + 5 "secondaires" en
@@ -1691,7 +1705,7 @@
     max-width: 540px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 10px;
     background: var(--surface-2); cursor: pointer; transition: border-color .12s; margin-bottom: 10px;
   }
-  .reglage-ligne:hover { border-color: var(--accent); }
+  @media (hover: hover) and (pointer: fine) { .reglage-ligne:hover { border-color: var(--accent); } }
   .reglage-texte { display: flex; flex-direction: column; gap: 3px; }
   .reglage-texte b { font-size: 13.5px; font-weight: 700; }
   .reglage-texte span { font-size: 12px; color: var(--ink-muted); line-height: 1.4; }
@@ -1714,7 +1728,7 @@
   .reglage-couleurs-entete { display: flex; align-items: center; justify-content: space-between; max-width: 540px; margin: 22px 0 6px; }
   .reglage-couleurs-entete h2 { font-size: 14px; font-weight: 700; margin: 0; }
   .lien-reset-tout { border: none; background: none; color: var(--accent); font-size: 12px; font-weight: 600; cursor: pointer; padding: 4px 0; }
-  .lien-reset-tout:hover { text-decoration: underline; }
+  @media (hover: hover) and (pointer: fine) { .lien-reset-tout:hover { text-decoration: underline; } }
   .reglage-couleurs-groupe {
     display: flex; align-items: center; justify-content: space-between; gap: 16px;
     max-width: 540px; padding: 12px 16px; border: 1px solid var(--border); border-radius: 10px;
@@ -1728,7 +1742,7 @@
     border: none; background: var(--surface); color: var(--ink-faint); font-size: 15px; cursor: pointer;
     width: 28px; height: 28px; border-radius: 7px; line-height: 1; flex-shrink: 0;
   }
-  .reglage-couleur-reset:hover { color: var(--accent); }
+  @media (hover: hover) and (pointer: fine) { .reglage-couleur-reset:hover { color: var(--accent); } }
 
   .liste-intervenants { display: flex; flex-direction: column; gap: 8px; max-width: 520px; }
   .ligne-intervenant { display: flex; align-items: center; padding: 11px 14px; border: 1px solid var(--border); border-radius: 10px; font-size: 13px; background: var(--surface-2); }
@@ -1757,7 +1771,7 @@
     padding: 11px 14px; border: 1.5px dashed var(--accent); border-radius: 10px;
     font-size: 13px; font-weight: 700; color: var(--accent); background: none; cursor: pointer; font-family: inherit;
   }
-  .ligne-ajouter:hover { background: var(--accent-soft); }
+  @media (hover: hover) and (pointer: fine) { .ligne-ajouter:hover { background: var(--accent-soft); } }
 
   /* Tri (↑/↓) + Actif/désactivés — round du 14.09.2026, Lionel : « j'aimerais
      pouvoir trier et désactiver mes entrées dans les listes personnel,
@@ -1777,7 +1791,7 @@
     background: none; border: none; color: var(--ink-faint); cursor: pointer;
     font-size: 12px; padding: 2px 5px; font-family: inherit; border-radius: 5px;
   }
-  .ligne-intervenant .cf-actions button:hover:not(:disabled) { color: var(--accent); background: var(--bg); }
+  @media (hover: hover) and (pointer: fine) { .ligne-intervenant .cf-actions button:hover:not(:disabled) { color: var(--accent); background: var(--bg); } }
   .ligne-intervenant .cf-actions button:disabled { opacity: .3; cursor: default; }
   /* Interrupteur "Actif" par ligne : même patron que .interrupteur ci-dessus
      (déjà utilisé pour "Afficher les week-ends"), même classes — un seul
@@ -1790,7 +1804,7 @@
   .ligne-desactivee { opacity: .62; }
   .ligne-desactivee b { font-weight: 700; text-decoration: line-through; text-decoration-color: var(--ink-faint); }
   .lien-reactiver { font-size: 12px; font-weight: 700; color: var(--accent); cursor: pointer; background: none; border: none; font-family: inherit; padding: 0; }
-  .lien-reactiver:hover { text-decoration: underline; }
+  @media (hover: hover) and (pointer: fine) { .lien-reactiver:hover { text-decoration: underline; } }
   /* Suppression définitive (irréversible, cascade sur l'historique côté
      personnes — cf. supprimerPersonnePermanenceServeur) : uniquement
      proposée sur une ligne déjà désactivée, jamais sur une ligne active
@@ -1800,14 +1814,14 @@
     display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600;
     color: var(--important-ink); cursor: pointer; background: none; border: none; font-family: inherit; padding: 0;
   }
-  .lien-supprimer-def:hover { text-decoration: underline; }
+  @media (hover: hover) and (pointer: fine) { .lien-supprimer-def:hover { text-decoration: underline; } }
   .lien-supprimer-def svg { flex-shrink: 0; }
   .repli-desactives {
     display: flex; align-items: center; gap: 6px; margin-top: 10px; padding: 8px 4px; max-width: 520px;
     font-size: 11.5px; font-weight: 700; color: var(--ink-faint); cursor: pointer; background: none; border: none;
     font-family: 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: .04em;
   }
-  .repli-desactives:hover { color: var(--ink-muted); }
+  @media (hover: hover) and (pointer: fine) { .repli-desactives:hover { color: var(--ink-muted); } }
   .repli-desactives .chevron { display: inline-block; transition: transform .15s; }
   .repli-desactives.ouvert .chevron { transform: rotate(90deg); }
   .groupe-desactives { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; max-width: 520px; }
@@ -1821,9 +1835,9 @@
   .badge-type-absence { font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: var(--absence-bg); color: var(--ink); white-space: nowrap; }
   .carte-form .droite { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
   .lien-modifier, .lien-renommer { font-size: 12px; font-weight: 600; color: var(--ink-muted); cursor: pointer; background: none; border: none; font-family: inherit; padding: 0; }
-  .lien-modifier:hover, .lien-renommer:hover { color: var(--accent); }
+  @media (hover: hover) and (pointer: fine) { .lien-modifier:hover, .lien-renommer:hover { color: var(--accent); } }
   .lien-supprimer { font-size: 12px; font-weight: 600; color: var(--ink-faint); cursor: pointer; background: none; border: none; font-family: inherit; padding: 0; }
-  .lien-supprimer:hover { color: var(--important-ink); }
+  @media (hover: hover) and (pointer: fine) { .lien-supprimer:hover { color: var(--important-ink); } }
   .panneau-nouveau-form { margin-top: 16px; padding: 16px 18px; border: 1.5px dashed var(--border); border-radius: 12px; background: var(--surface); max-width: 420px; }
   .panneau-nouveau-form h3 { font-size: 12px; font-weight: 700; margin: 0 0 12px; color: var(--ink-muted); text-transform: uppercase; letter-spacing: .04em; }
   .champ-ligne { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
@@ -1839,7 +1853,7 @@
   .ligne-champ-form .cf-label { font-size: 12.5px; font-weight: 700; }
   .ligne-champ-form .cf-type { font-size: 11px; color: var(--ink-faint); font-family: 'IBM Plex Mono', monospace; flex: 1; margin: 0 8px; }
   .ligne-champ-form .cf-suppr { background: none; border: none; color: var(--ink-faint); cursor: pointer; font-size: 13px; padding: 2px 4px; font-family: inherit; }
-  .ligne-champ-form .cf-suppr:hover { color: var(--important-ink); }
+  @media (hover: hover) and (pointer: fine) { .ligne-champ-form .cf-suppr:hover { color: var(--important-ink); } }
   /* Actions par champ : monter / descendre / modifier / retirer (round du
      02.09.2026 — avant, seul le retrait existait). */
   .ligne-champ-form .cf-actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
@@ -1847,7 +1861,7 @@
     background: none; border: none; color: var(--ink-faint); cursor: pointer;
     font-size: 12px; padding: 2px 5px; font-family: inherit; border-radius: 5px;
   }
-  .ligne-champ-form .cf-actions button:hover:not(:disabled) { color: var(--accent); background: var(--surface); }
+  @media (hover: hover) and (pointer: fine) { .ligne-champ-form .cf-actions button:hover:not(:disabled) { color: var(--accent); background: var(--surface); } }
   .ligne-champ-form .cf-actions button:disabled { opacity: .3; cursor: default; }
   .ligne-champ-form .cf-modifier { font-weight: 600; }
   /* Jalon / note / tâche / absence posé sur une demi-journée : occupe
@@ -1861,7 +1875,7 @@
   .bulle-demi-matin::after { left: 2px; }
   .bulle-demi-aprem::after { right: 2px; }
   .lien-ajouter-champ { font-size: 12px; font-weight: 700; color: var(--accent); background: none; border: none; cursor: pointer; font-family: inherit; padding: 4px 0; text-align: left; }
-  .lien-ajouter-champ:hover { text-decoration: underline; }
+  @media (hover: hover) and (pointer: fine) { .lien-ajouter-champ:hover { text-decoration: underline; } }
   .constructeur-champ { margin-top: 8px; padding: 12px; border: 1px solid var(--border); border-radius: 9px; background: var(--bg); display: flex; flex-direction: column; gap: 8px; }
   .constructeur-champ input[type="text"] { font: inherit; font-size: 12.5px; padding: 8px 10px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface-2); color: var(--ink); width: 100%; }
 
@@ -1870,9 +1884,9 @@
   .actions-feries { display: flex; gap: 8px; flex-wrap: wrap; }
   .btn-calculer, .btn-effacer, .btn-enregistrer { border-radius: 8px; padding: 8px 14px; font-size: 12.5px; font-weight: 700; cursor: pointer; font-family: inherit; }
   .btn-calculer { background: var(--surface-2); border: 1.5px solid var(--accent); color: var(--accent); }
-  .btn-calculer:hover { background: var(--accent-soft); }
+  @media (hover: hover) and (pointer: fine) { .btn-calculer:hover { background: var(--accent-soft); } }
   .btn-effacer { background: var(--surface-2); border: 1.5px solid var(--important-ink); color: var(--important-ink); }
-  .btn-effacer:hover { background: var(--interdit-bg); }
+  @media (hover: hover) and (pointer: fine) { .btn-effacer:hover { background: var(--interdit-bg); } }
   .btn-enregistrer { background: var(--accent); border: 1.5px solid var(--accent); color: var(--accent-ink); }
   .btn-enregistrer:disabled { opacity: .55; cursor: default; }
 
@@ -1898,7 +1912,7 @@
   .calendrier th.coin { background: var(--surface-2); }
   .calendrier td.mois { background: var(--surface); font-weight: 700; text-align: left; padding: 0 8px; color: var(--ink); white-space: nowrap; }
   .calendrier td.jour { height: 24px; cursor: pointer; position: relative; background: var(--surface-2); }
-  .calendrier td.jour:hover { box-shadow: inset 0 0 0 1.5px var(--accent); }
+  @media (hover: hover) and (pointer: fine) { .calendrier td.jour:hover { box-shadow: inset 0 0 0 1.5px var(--accent); } }
   /* Round du 23.09.2026 (suite) — Lionel : « les week-ends de la page
      Fériés sont passés en blanc, mets-les dans le groupe week-end ». Cette
      case utilisait --bg (fond général, dans le groupe "Fond" des réglages
@@ -1909,7 +1923,7 @@
      suivent toujours le même réglage. */
   .calendrier td.jour.weekend { background: var(--weekend-bg); }
   .calendrier td.jour.vide { background: var(--border-strong); cursor: default; }
-  .calendrier td.jour.vide:hover { box-shadow: none; }
+  @media (hover: hover) and (pointer: fine) { .calendrier td.jour.vide:hover { box-shadow: none; } }
   .calendrier td.jour.coloree { background: var(--jour-couleur) !important; }
   .legende-feries { margin-top: 12px; font-size: 11.5px; color: var(--ink-faint); max-width: 68ch; line-height: 1.5; }
 
@@ -1924,7 +1938,7 @@
      ============================================================ */
 
   .pop button.btn-primaire { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-  .pop button.btn-primaire:hover { filter: brightness(1.06); }
+  @media (hover: hover) and (pointer: fine) { .pop button.btn-primaire:hover { filter: brightness(1.06); } }
   .pop button.btn-primaire:disabled { opacity: .55; cursor: default; }
 
   .impression-modal { width: 900px; max-width: calc(100vw - 32px); max-height: calc(100vh - 40px); text-align: left; padding: 20px 22px; }
