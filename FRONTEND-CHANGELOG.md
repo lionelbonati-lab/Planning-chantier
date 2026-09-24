@@ -6641,3 +6641,17 @@ Test étendu à 19 vérifications (ajouts : pas d'intitulé "Semaine", ‹ cliqu
 - **Imprimer** et **Ajouter une ligne > Personnel/Intervenant** referment le menu (ils ouvrent une fenêtre par-dessus) ; tous les autres boutons du menu le laissent ouvert.
 
 Test à 21 vérifications (ajouts : "⋮" devient "✕" menu ouvert puis redevient "⋮", ‹ Sem. N › aligné à gauche, Imprimer et Ajouter une ligne referment le menu ; retrait de celles de l'ancienne croix du panneau) — 21/21 OK.
+
+## 112. Round du 24.09.2026 (suite 4) — Barre d'outils et en-tête de la grille qui remontaient de quelques pixels au défilement
+
+Lionel, 2 captures téléphone à l'appui (au repos, puis en cours de défilement) : « Sur mobile la partie au dessus de note doit rester fixe. Actuellement elle monte de quelques pixel lors d'un défilement contre le haut. »
+
+**Root cause.** Reproduit en local (Playwright) en mesurant la position de `#legendeBarre` et de `.entete-planning-figee` pour un défilement de 0, 3, 8, 40 et 300 px : sur téléphone, barre à 6 px puis 3, puis 0 (et l'en-tête de 46 à 40) ; sur desktop/tablette, de 47 à 37 px — **6 px** de remontée sur téléphone, **10 px** sur desktop. `ajusterEnteteFixe()` posait comme `top` sticky de la barre la hauteur de `.onglets-nav` seule (0 sur téléphone, où elle est masquée). Or, au repos, la barre est posée plus bas : `padding-top` de `.page-scroll` (6 px), plus le `margin-bottom` de `.onglets-nav` (4 px) sur desktop. Dès les premiers pixels de défilement, barre et en-tête remontaient donc de cet écart avant de se coller.
+
+**Fix.**
+- `ajusterEnteteFixe()` (`js/grille-rendu.js`) mesure la position **naturelle** de la barre dans `#app` (le seul conteneur qui défile). Pour cela, elle la décolle un instant (`position: relative`), sans aucun repaint entre les deux, avec la correction de `scrollTop` pour rester juste même si la page est déjà défilée. Elle en fait son `top` sticky : collée exactement là où elle est au repos, la barre ne bouge plus d'un pixel, et l'en-tête de la grille non plus (son `top` en découle).
+- L'écart au-dessus de la barre laisserait maintenant voir la grille défiler dessous : il est masqué par un bandeau couleur de fond (`.toolbar-sheets::before`, hauteur `--ecart-haut` posée par la même fonction), qui couvre aussi les coins laissés par les bords arrondis de la pilule. Même rôle que le `background` + `padding-top` de `.entete-planning-figee` juste en dessous.
+- Le fond « pilule » (`--accent-soft`) passe de `.toolbar-sheets` à `.toolbar-sheets::after`. Un pseudo-élément en `z-index:-1` se peint au-dessus du fond propre de son parent : laissé sur la barre, ce fond aurait été recouvert par le bandeau. Repéré en testant : la barre était devenue blanche. Rendu visuel identique à avant.
+- Même correction sur desktop/tablette, touché par le même bug (10 px).
+
+Vérifié en local (Playwright) : `test_toolbar_chevauchement.js` passe à 23 vérifications. Deux nouvelles contrôlent, à 390 px et à 1200 px, que la barre et l'en-tête restent au pixel près à la même position pour un défilement de 0 à 300 px. Toutes deux échouent sur l'ancien code (6 et 10 px de remontée) et passent sur le nouveau, avec les 21 vérifications précédentes. Captures en position défilée, avec la grille colorée pour la rendre visible : aucune trace de grille au-dessus de la barre ni dans ses coins, pilule toujours bleue.
