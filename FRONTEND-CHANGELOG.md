@@ -6948,3 +6948,29 @@ Sur le code d'avant, le test échoue dès la première vérification ordinateur.
 - barre 27/27, défilement mobile 20/20, sélection 43/43 ;
 - important 14/14, aperçu de dépôt 9/9, hors semaine 16/16 ;
 - les tests de logique pure.
+
+## 125. Round du 24.09.2026 (suite 17) — Téléphone : calendrier retiré du menu ⋮, « ‹ Sem. N › » de retour, icône « 1 semaine » centrée
+
+Lionel : « Sur mobile, le calendrier se retrouve dans la toolbar et dans le menu 3 points. L'enlever du menu 3 points. Les icônes sont mal centrées dans le menu 3 points. Remettre dans le menu 3 points l'affichage et le défilement des semaines comme avant. »
+
+**Calendrier** : `#btnCalendrierMenu` disparaît du menu ⋮. Seule reste l'icône de la barre (`#btnCalendrierBarre`, §123-124), collée à Aujourd'hui. `.ligne-vue-mobile` ne contient plus que « 1 semaine », en icône seule comme demandé au §123.
+
+**« ‹ Sem. N › » comme avant** : en vue « 1 jour », la navigation reste affichée dans le menu, comme en vue « 1 semaine ».
+- La classe `.mode-jour` (posée par `majSemaineAffichage`) est supprimée, avec la règle de `style-mobile.css` qui masquait `.nav-semaine-ligne`.
+- ‹ et › passent à la semaine précédente ou suivante, sur le même jour de la semaine. La pilule ouvre la liste des semaines, comme avant le §123.
+
+**Icône centrée** : dans le menu, l'icône de « 1 semaine » (et, avant son retrait, celle du calendrier) était collée à 1 px du bord gauche de son bouton de 36 px.
+- **Cause** : `justify-content: flex-start` vient de la règle « ligne pleine largeur » de `.toolbar-secondaire .toolbar-btn` (`style.css`). Il calait la colonne de la grille contre le bord gauche. `place-items: center` centrait l'icône dans cette colonne, pas dans le bouton.
+- **Correction** : `place-content: center` ajouté à `.toolbar-secondaire .ligne-vue-mobile .toolbar-btn`.
+
+Vérifié en local (Playwright) : `test_calendrier_mobile.js` passe à **28 vérifications**, toutes OK. Les choix de date du téléphone passent désormais tous par la barre. Nouvelles vérifications :
+- en vue 1 jour, le menu affiche ‹ Sem. 39 › et aucune icône calendrier ;
+- « 1 semaine » est en icône seule, centrée à moins d'un pixel près ;
+- ›, puis ‹, depuis le menu en vue 1 jour : jeudi 1er octobre (semaine 40), puis retour au jeudi 24 ;
+- une date choisie dans la barre, menu ouvert, referme le menu ;
+- de retour en vue 1 jour, ‹ Sem. N › reste affiché.
+
+Sur le code d'avant, le test échoue dès les deux premières vérifications (écart de l'icône : −8,5 px). Les autres tests qui fonctionnent passent tous :
+- barre 27/27, défilement mobile 20/20, sélection 43/43 ;
+- important 14/14, aperçu de dépôt 9/9, hors semaine 16/16 ;
+- les tests de logique pure.

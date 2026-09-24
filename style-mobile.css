@@ -229,19 +229,26 @@
        même ligne que le bouton afficher une semaine. Cette icône
        calendrier sera aussi affichée dans la toolbar à côté de
        aujourd'hui. 1 semaine seulement l'icône ».
-       - menu ⋮ : ligne « calendrier + 1 semaine » en icônes seules, au
-         gabarit des masquages (36px) ; « 1 semaine » teinté quand actif ;
-       - vue "1 jour" : ‹ Sem. N › disparaît (.mode-jour suit vueJourMobile,
-         majSemaineAffichage) ; en vue "1 semaine", il revient ;
+       - menu ⋮ : « 1 semaine » en icône seule, au gabarit des masquages
+         (36px), teinté quand actif ;
        - barre : calendrier collé à Aujourd'hui, même gabarit que lui —
          affiché aussi sur ordinateur et tablette depuis la suite 16
-         (règle commune, style.css). */
+         (règle commune, style.css).
+       Suite 17 — Lionel : « Sur mobile, le calendrier se retrouve dans la
+       toolbar et dans le menu 3 points. L'enlever du menu 3 points. Les
+       icônes sont mal centrées dans le menu 3 points. Remettre dans le
+       menu 3 points l'affichage et le défilement des semaines comme
+       avant » : plus de calendrier dans le menu, ‹ Sem. N › de nouveau
+       affiché en vue "1 jour" (plus de .mode-jour), et l'icône centrée —
+       justify-content: flex-start, hérité de la règle "ligne pleine
+       largeur" de `.toolbar-secondaire .toolbar-btn` (style.css), calait
+       la colonne de la grille, donc l'icône, contre le bord gauche du
+       bouton ; place-content la recentre. */
     .ligne-vue-mobile { display: flex; align-items: center; gap: 6px; padding: 6px 8px; }
     .toolbar-secondaire .ligne-vue-mobile .toolbar-btn {
-      display: grid; place-items: center; width: 36px; height: 36px; padding: 0; gap: 0;
+      display: grid; place-items: center; place-content: center; width: 36px; height: 36px; padding: 0; gap: 0;
       border: 1px solid var(--border); background: var(--case-fixe-bg); color: var(--ink);
     }
     .toolbar-secondaire .ligne-vue-mobile .toolbar-btn.actif { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
     .toolbar-secondaire .ligne-vue-mobile .toolbar-btn svg { width: 17px; height: 17px; }
-    #groupeNavSemaine.mode-jour .nav-semaine-ligne { display: none; }
   }

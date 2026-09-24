@@ -843,8 +843,8 @@
     assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); majBarreSelection(); });
   }
   // Round du 24.09.2026 (suite 15) — date choisie dans un calendrier
-  // (.btn-calendrier : barre, partout depuis la suite 16, et menu "⋮" du
-  // téléphone, cf. js/coquille.js).
+  // (.btn-calendrier de la barre, partout depuis la suite 16, cf.
+  // js/coquille.js).
   // Vue "1 jour" : même chemin qu'Aujourd'hui (allerAujourdhui plus haut)
   // avec une autre date — semaine et jour affichés, fenêtre de 2 semaines
   // recalculée autour, rendu calé sur ce jour (cibleApresRendu l'impose,
@@ -881,7 +881,7 @@
     bullesSelectionnees = {};
     assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); majBarreSelection(); });
   }
-  // Jour sur lequel s'ouvrent les calendriers : le jour affiché en vue
+  // Jour sur lequel s'ouvre le calendrier : le jour affiché en vue
   // "1 jour" ; sinon aujourd'hui s'il est dans la semaine affichée, ou son
   // lundi. Bornes : toutes les semaines connues du planning.
   function majCalendrierJour(input) {

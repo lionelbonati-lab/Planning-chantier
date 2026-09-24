@@ -434,9 +434,9 @@
   .toolbar-groupe { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
   /* Round du 23.09.2026 (suite 4) — #btnVueJourMobile ("1 semaine") :
      masqué ici (desktop/tablette, où #btnDeuxSemaines garde seul son rôle).
-     Round du 24.09.2026 (suite 15) : il vit désormais dans .ligne-vue-mobile
-     (avec l'icône calendrier), masquée ici en bloc et affichée ≤600px par
-     style-mobile.css — plus besoin de règle propre au bouton. */
+     Round du 24.09.2026 (suite 15) : il vit désormais dans .ligne-vue-mobile,
+     masquée ici en bloc et affichée ≤600px par style-mobile.css — plus
+     besoin de règle propre au bouton. */
   /* Séparateur vertical — round du 24.09.2026 (suite 3) : porté par le
      groupe qui le suit (.sep-avant) plutôt qu'un élément .toolbar-separateur
      à part, pour qu'il parte AVEC son groupe quand celui-ci est replié dans
@@ -763,13 +763,14 @@
   .nav-semaine-ligne { display: flex; align-items: center; gap: 2px; }
   .toolbar-secondaire .zoom-ctrl,
   .toolbar-secondaire .nav-semaine-ligne { width: 100%; padding: 6px 8px; gap: 6px; }
-  /* Icônes calendrier (round du 24.09.2026, suite 15) — barre et menu ⋮.
-     #btnCalendrierBarre, collé à Aujourd'hui, est affiché partout depuis
-     le round du 24.09.2026 (suite 16 — Lionel : « oui, ajoute aussi
-     l'icône sur ordinateur et tablette ») : .toolbar-btn ordinaire, dans
-     #groupeAujourdhui qui ne se replie jamais. .ligne-vue-mobile, la ligne
-     du menu ⋮ « calendrier + 1 semaine » en icônes seules, reste au
-     téléphone (cf. style-mobile.css) : jamais affichée ici.
+  /* Icône calendrier (round du 24.09.2026, suite 15) — #btnCalendrierBarre,
+     collé à Aujourd'hui, est affiché partout depuis le round du 24.09.2026
+     (suite 16 — Lionel : « oui, ajoute aussi l'icône sur ordinateur et
+     tablette ») : .toolbar-btn ordinaire, dans #groupeAujourdhui qui ne se
+     replie jamais ; seul calendrier depuis la suite 17 (plus de double
+     dans le menu ⋮). .ligne-vue-mobile, la ligne du menu ⋮ « 1 semaine »
+     en icône seule, reste au téléphone (cf. style-mobile.css) : jamais
+     affichée ici.
      .date-picker-jour : le calendrier natif, invisible, couvre toute
      l'icône et reçoit l'appui (cf. .btn-calendrier, js/coquille.js) ; le
      survol passe donc par l'icône elle-même (:hover d'un parent). 16px :

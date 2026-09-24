@@ -1586,16 +1586,13 @@
     // jour" — même logique que btn2s juste au-dessus.
     var btnVJM = document.getElementById("btnVueJourMobile");
     if (btnVJM) btnVJM.classList.toggle("actif", !vueJourMobile);
-    // Round du 24.09.2026 (suite 15) — vue "1 jour" : "‹ Sem. N ›" quitte
-    // le menu ⋮ (.mode-jour, qui n'agit que sous 600px, cf.
-    // style-mobile.css) ; "1 semaine" (icône seule) dit son état par
-    // aria-pressed en plus de sa teinte. Les calendriers (.btn-calendrier,
-    // barre et menu) s'ouvrent sur le jour affiché : valeur tenue à jour
-    // à chaque rendu et à l'arrêt d'un swipe (cf. defilementArrete,
+    // Round du 24.09.2026 (suite 15) — "1 semaine" (icône seule) dit son
+    // état par aria-pressed en plus de sa teinte. Le calendrier de la
+    // barre (.btn-calendrier) s'ouvre sur le jour affiché : valeur tenue à
+    // jour à chaque rendu et à l'arrêt d'un swipe (cf. defilementArrete,
     // grille-rendu.js), pas seulement à l'appui — selon le téléphone, le
-    // calendrier peut s'ouvrir avant le "click".
-    var groupeNav = document.getElementById("groupeNavSemaine");
-    if (groupeNav) groupeNav.classList.toggle("mode-jour", vueJourMobile);
+    // calendrier peut s'ouvrir avant le "click". (Suite 17 : "‹ Sem. N ›"
+    // ne quitte plus le menu ⋮ en vue "1 jour" — plus de .mode-jour.)
     if (btnVJM) btnVJM.setAttribute("aria-pressed", vueJourMobile ? "false" : "true");
     document.querySelectorAll(".btn-calendrier .date-picker-jour").forEach(majCalendrierJour);
   }

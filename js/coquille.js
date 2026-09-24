@@ -213,12 +213,12 @@
         // que la navigation est dans la barre.
         // #btnCalendrierBarre (round du 24.09.2026, suite 15 — Lionel :
         // « Cette icône calendrier sera aussi affichée dans la toolbar à
-        // côté de aujourd'hui ») : même calendrier que celui du menu ⋮ du
-        // téléphone (.btn-calendrier, cf. le commentaire de
-        // #groupeNavSemaine juste en dessous). D'abord au téléphone
-        // seulement, puis partout (suite 16 — Lionel : « oui, ajoute aussi
-        // l'icône sur ordinateur et tablette ») : là, la date choisie
-        // amène sa semaine (allerAuJour, js/grille-rendu.js).
+        // côté de aujourd'hui ») : d'abord au téléphone seulement, puis
+        // partout (suite 16 — Lionel : « oui, ajoute aussi l'icône sur
+        // ordinateur et tablette ») : là, la date choisie amène sa semaine
+        // (allerAuJour, js/grille-rendu.js). Seul calendrier depuis la
+        // suite 17 — Lionel : « Sur mobile, le calendrier se retrouve dans
+        // la toolbar et dans le menu 3 points. L'enlever du menu 3 points ».
         '<div class="toolbar-groupe sep-avant" id="groupeAujourdhui" data-rang="40">' +
           '<button type="button" class="toolbar-btn" id="btnAujourdhui" title="Aller à aujourd’hui" aria-label="Aller à aujourd’hui">' + ICONS.aujourdhui + '</button>' +
           '<span class="toolbar-btn btn-calendrier" id="btnCalendrierBarre" title="Choisir un jour dans le calendrier">' + ICONS.choisirJour +
@@ -240,10 +240,13 @@
         // dans le calendrier », puis « tu ajoutes une icône calendrier où on
         // pourra sélectionner un jour, sur la même ligne que le bouton
         // afficher une semaine [...] 1 semaine seulement l'icône ».
-        // .ligne-vue-mobile (téléphone seulement) : icône calendrier
-        // (.btn-calendrier) puis "1 semaine" réduit à son icône. En vue
-        // "1 jour", "‹ Sem. N ›" disparaît (.mode-jour posée par
-        // majSemaineAffichage, échange en CSS dans style-mobile.css).
+        // .ligne-vue-mobile (téléphone seulement) : "1 semaine" réduit à
+        // son icône. Round du 24.09.2026 (suite 17) — Lionel : « L'enlever
+        // du menu 3 points [le calendrier] [...] Remettre dans le menu 3
+        // points l'affichage et le défilement des semaines comme avant » :
+        // plus d'icône calendrier ici (celle de la barre suffit), et
+        // "‹ Sem. N ›" reste affiché en vue "1 jour" comme en vue
+        // "1 semaine".
         '<div class="toolbar-groupe" id="groupeNavSemaine" data-rang="50" data-rang-menu="30">' +
           '<div class="nav-semaine-ligne">' +
             '<button type="button" class="toolbar-btn" id="btnSemainePrec" title="Semaine précédente" aria-label="Semaine précédente">' + ICONS.chevronGauche + '</button>' +
@@ -255,9 +258,6 @@
           '</div>' +
           '<button type="button" class="toolbar-btn" id="btnDeuxSemaines" title="Afficher 2 semaines à la fois" aria-label="Afficher 2 semaines à la fois">' + ICONS.deuxSemaines + '<span class="toolbar-btn-label">Afficher 2 semaines</span><span class="toolbar-btn-coche">✓</span></button>' +
           '<div class="ligne-vue-mobile">' +
-            '<span class="toolbar-btn btn-calendrier" id="btnCalendrierMenu" title="Choisir un jour dans le calendrier">' + ICONS.choisirJour +
-              '<input type="date" class="date-picker-jour" aria-label="Choisir un jour dans le calendrier">' +
-            '</span>' +
             '<button type="button" class="toolbar-btn" id="btnVueJourMobile" title="Afficher la semaine complète" aria-label="Afficher la semaine complète" aria-pressed="false">' + ICONS.semaineMobile + '</button>' +
           '</div>' +
         '</div>' +
@@ -858,8 +858,9 @@
     document.getElementById("selFermer").addEventListener("click", function () { quitterModeSelection(); render(false); });
     if (btnDeuxSemainesBarre) btnDeuxSemainesBarre.addEventListener("click", basculerDeuxSemaines);
     if (btnVueJourMobileBarre) btnVueJourMobileBarre.addEventListener("click", basculerVueJourMobile);
-    // Icônes calendrier (round du 24.09.2026, suite 15) — barre (partout
-    // depuis la suite 16) et menu ⋮ du téléphone : un <input type="date">
+    // Icône calendrier de la barre (round du 24.09.2026, suite 15 ;
+    // partout depuis la suite 16 ; plus de double dans le menu ⋮ du
+    // téléphone depuis la suite 17) : un <input type="date">
     // natif, invisible, couvre EN PERMANENCE l'icône (.btn-calendrier, cf.
     // style.css) — au doigt, l'appui tombe directement sur lui et le
     // téléphone/la tablette ouvre son propre calendrier ; à la souris ou au
@@ -873,9 +874,8 @@
     // .showPicker() ne donne pas le focus). Valeur = jour affiché (vue "1
     // jour") ou jour de la semaine affichée (vue "1 semaine"), tenue à jour
     // par majSemaineAffichage, et bornes = semaines connues du planning.
-    // Dans le menu, l'appui reste un clic dans le panneau, qui ne se
-    // referme pas ; une date choisie referme tout, comme "1 semaine" : la
-    // grille entière change (allerAuJour, js/grille-rendu.js).
+    // Une date choisie referme tout menu encore ouvert, comme "1 semaine" :
+    // la grille entière change (allerAuJour, js/grille-rendu.js).
     document.querySelectorAll(".btn-calendrier .date-picker-jour").forEach(function (input) {
       input.addEventListener("click", function (e) {
         majCalendrierJour(input);
