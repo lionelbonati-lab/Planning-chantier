@@ -6974,3 +6974,28 @@ Sur le code d'avant, le test échoue dès les deux premières vérifications (é
 - barre 27/27, défilement mobile 20/20, sélection 43/43 ;
 - important 14/14, aperçu de dépôt 9/9, hors semaine 16/16 ;
 - les tests de logique pure.
+
+## 126. Round du 24.09.2026 (suite 18) — Tactile : plus de surbrillance qui reste sur le bouton appuyé
+
+Lionel : « En mode tactile le bouton appuyé reste en surveillance blanche, comme au passage de la souris ».
+
+**Cause** : au doigt, le navigateur laisse le « pointeur » là où l'on a appuyé. Le bouton garde donc son `:hover` (fond `--surface-2`, ou teinte d'accent selon le bouton) jusqu'au prochain appui ailleurs. Reproduit sur téléphone simulé : après un appui sur Aujourd'hui, le bouton est `:hover` avec un fond `rgb(223, 223, 223)`.
+
+**Correction** (`style.css`, `style-mobile.css`) : chacune des 44 règles `:hover` (43 + 1) est désormais sous `@media (hover: hover) and (pointer: fine)`.
+- **Qui voit encore le survol** : la souris et le pavé tactile. Les téléphones et tablettes (`hover: none`, `pointer: coarse`) n'entrent jamais dans ce `@media`.
+- **Ordre inchangé** : chaque règle reste à sa place, donc la cascade est la même qu'avant pour la souris.
+- **Règles mixtes** : une règle qui partageait son `:hover` avec un autre sélecteur est coupée en deux, et l'autre sélecteur reste hors du `@media`. C'est le cas de `.select-chantier.ouvert .select-chantier-btn` (sur les deux feuilles) et de `.poignee.actif::after`.
+- **Règle générale** : le commentaire en tête de `style.css` (après `:focus-visible`) la donne pour toute nouvelle règle `:hover`.
+
+Vérifié en local (Playwright) avec le nouveau test `test_survol_tactile.js`, **15 vérifications**, toutes OK :
+- **Téléphone** (390 px, tactile) : le téléphone simulé est bien en `hover: none` et `pointer: coarse`. Après un appui, le bouton est encore `:hover`, mais son fond reste celui d'avant l'appui, pour :
+  - Aujourd'hui, le calendrier, et ⋮ ouvert puis refermé ;
+  - zoom + et −, et ‹, dans le menu ⋮.
+- **Tablette** (820 px, tactile) : même résultat pour Aujourd'hui et ›.
+- **Ordinateur** (1300 px, souris) : le survol colore toujours Aujourd'hui, le calendrier, la pilule Sem. N et ›.
+- **Feuilles de style** : aucune règle `:hover` hors du `@media`. Cette vérification garde les prochaines règles.
+
+Sur le code d'avant, le test échoue sur 9 vérifications : les 8 tactiles et celle des feuilles de style. Les vérifications à la souris passent, comme maintenant. Les autres tests qui fonctionnent passent tous :
+- calendrier 28/28, barre 27/27, défilement mobile 20/20 ;
+- sélection 43/43, important 14/14, aperçu de dépôt 9/9, hors semaine 16/16 ;
+- les tests de logique pure.
