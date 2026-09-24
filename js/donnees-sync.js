@@ -332,11 +332,21 @@
       // du §6bis) — tant que Lionel ne l'a pas encore collée dans l'Éditeur
       // SQL, cette requête échoue seule ("relation does not exist"), sans
       // empêcher le reste de l'appli de démarrer (cf. plus bas).
-      sbClient.from("categories_feries").select("id, nom, couleur")
+      sbClient.from("categories_feries").select("id, nom, couleur"),
+      // Round du 24.09.2026 — Lionel : « Les couleurs devrait être les
+      // mêmes sur tous les appareils du même compte. Comme les chantiers. »
+      // `couleurs_perso` (sql, table créée directement via l'outil Supabase
+      // de cette session, pas d'étape manuelle pour Lionel cette fois)
+      // remplace le localStorage "planning.couleurs" comme SOURCE DE
+      // VÉRITÉ — cf. js/page-couleurs.js. Non-bloquante comme
+      // categories_feries juste au-dessus, pour la même raison (ne jamais
+      // empêcher le reste de l'appli de démarrer si cette table a un souci).
+      sbClient.from("couleurs_perso").select("id, clair, sombre")
     ]).then(function (r) {
       r.slice(0, 4).forEach(function (res) { if (res.error) throw res.error; }); // ces 4-là restent bloquantes, comme avant
       var personnesBrutes = r[0].data || [], chantiersBruts = r[1].data || [], statutsBruts = r[2].data || [], feriesBruts = r[3].data || [];
       var categoriesFeriesBrutes = (r[4] && !r[4].error) ? (r[4].data || []) : [];
+      var couleursPersoBrutes = (r[5] && !r[5].error) ? (r[5].data || []) : null; // null = requête en échec, cf. plus bas (page-couleurs.js retombe alors sur le cache local)
 
       etat.personnesActives = personnesBrutes;
 
@@ -364,6 +374,19 @@
       // commentaire de la requête ci-dessus.
       etat.categoriesFeriesServeur = categoriesFeriesBrutes.map(function (c) { return { id: c.id, nom: c.nom, couleur: c.couleur }; });
       reconstruireFeriesParIso();
+
+      // etat.couleursPerso : null tant que le serveur n'a pas répondu (page-
+      // couleurs.js retombe alors sur son cache localStorage, cf. son
+      // commentaire) — objet (même vide) une fois la réponse reçue, pour
+      // que ce dernier devienne la SOURCE DE VÉRITÉ (comme etat.chantiers)
+      // dès que possible, y compris si la table est vide (aucune couleur
+      // encore choisie sur aucun appareil : {} est le bon résultat, pas
+      // "pas encore su").
+      if (couleursPersoBrutes) {
+        etat.couleursPerso = {};
+        couleursPersoBrutes.forEach(function (c) { etat.couleursPerso[c.id] = { clair: c.clair || null, sombre: c.sombre || null }; });
+        if (typeof appliquerCouleursPersonnalisees === "function") appliquerCouleursPersonnalisees();
+      }
 
       etat.cache = {}; etat.cacheTs = {};
       etat.semaines = genererSemaines(etat.aujourdhui, FENETRE_SEMAINES, FENETRE_SEMAINES);

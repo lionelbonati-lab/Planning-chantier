@@ -593,7 +593,19 @@
     cell.className = "cell cell-personne";
     cell.dataset.kind = "personne"; cell.dataset.jour = String(gi);
     cell.dataset.personne = extra.personne; cell.dataset.demi = extra.demi;
-    if (!estGiWeekend(gi) && gi > 0 && gi % 5 === 0) cell.classList.add("sem-frontiere");
+    // Round du 24.09.2026 — Lionel : « en mode 2 semaines, j'ai une mauvaise
+    // bordure au niveau du lundi midi. » En mode compact (toujours actif,
+    // cf. modeCompact dans core.js), une ligne Personnel/Intervenants pose 2
+    // cellules DOM par jour (matin + aprem, cf. ligneGroupePersonnesCompact) —
+    // cette fonction est donc appelée 2 fois par jour, une fois par demi.
+    // "sem-frontiere" marque la frontière de SEMAINE (bordure gauche plus
+    // marquée) et ne doit exister QUE sur la colonne du matin, premier bord
+    // visuel du jour ; sans le test `extra.demi !== "aprem"`, la cellule
+    // aprem du 1er jour de chaque semaine la recevait ELLE AUSSI, ce qui
+    // dessinait une 2e bordure — visuellement une frontière de semaine en
+    // plein milieu du lundi (entre ses 2 demi-journées) plutôt qu'à son bord
+    // gauche.
+    if (!estGiWeekend(gi) && gi > 0 && gi % 5 === 0 && extra.demi !== "aprem") cell.classList.add("sem-frontiere");
     if (estGiWeekend(gi)) cell.classList.add("case-weekend");
     appliquerTeinteFerie(cell, gi);
     cablerAjoutCellule(cell);
@@ -993,19 +1005,47 @@
     // indépendamment de scrollLeft, et on ne déclenche le changement de
     // semaine qu'au relâchement (touchend) si le doigt a continué à glisser
     // d'au moins seuilBordSemaine px au-delà du bord ALORS QUE le défilement,
-    // lui, est déjà à sa butée — identique sur les 2 plateformes. Inerte
-    // hors mode "1 jour" mobile (enModeJourMobile, capturé par fermeture —
-    // valeur du rendu en cours) : en mode "1 semaine" mobile, un swipe au
-    // bord ne fait rien de plus qu'avant (défilement natif borné) — desktop/
-    // tablette ont leur propre équivalent à la molette/trackpad, cf.
-    // l'écouteur "wheel" juste plus bas.
+    // lui, est déjà à sa butée — identique sur les 2 plateformes.
+    //
+    // Round du 24.09.2026 — Lionel : « le changement de semaine en suivant
+    // gauche/droite ne fonctionne pas sur ordinateur et tablettes,
+    // fonctionne sur mobile. » Ce détecteur était réservé au mode "1 jour"
+    // mobile (enModeJourMobile) : le raisonnement de la suite ×11 ci-dessous
+    // supposait qu'un écran plus large que 600px (tablette/desktop) dispose
+    // toujours d'une molette/trackpad pour l'équivalent — faux pour une
+    // tablette purement tactile (iPad sans trackpad, écran tactile de
+    // bureau) : là, un doigt qui glisse ne déclenche aucun événement
+    // "wheel", et le swipe restait donc sans effet en vue "1 semaine"/"2
+    // semaines". Le détecteur tactile n'a lui-même aucune raison d'être
+    // limité au mode "1 jour" : il ne regarde que le déplacement réel du
+    // doigt et la butée de scroll, peu importe combien de jours sont
+    // affichés — actif dans tous les modes désormais, en plus (jamais à la
+    // place) du détecteur "wheel" ci-dessous qui reste nécessaire pour les
+    // dispositifs à souris/trackpad sans écran tactile.
+    //
+    // Garde-fou "en-glissement" (ajouté avec cette généralisation) : en vue
+    // "1 semaine"/"2 semaines", une tâche peut s'étaler sur plusieurs jours
+    // ENTIERS déjà tous visibles à l'écran (donc maxScroll=0, "à la butée"
+    // en permanence des DEUX côtés à la fois) — un glissé de sélection
+    // multi-jours tout à fait normal (ex. Lundi -> Vendredi pour poser une
+    // tâche sur la semaine) dépasse alors très facilement seuilBordSemaine
+    // en déplacement horizontal brut, et aurait donc, sans ce garde-fou,
+    // déclenché un changement de semaine EN PLUS de la sélection au
+    // relâchement. document.body.classList "en-glissement" est déjà posée
+    // par cablerAjoutCellule/onPointerDownGroupeSelection/cablerPoigneeRedim
+    // dès qu'un geste est reconnu comme une sélection/un redimensionnement/
+    // un déplacement de bulle (jamais pour un panoramique — cf. leurs
+    // commentaires respectifs) : un signal déjà fiable pour distinguer "ce
+    // doigt est en train de faire autre chose" d'un vrai swipe de
+    // navigation, sans dupliquer leur propre logique de détection ici.
     var seuilBordSemaine = 46, toucheDebutX = null, toucheBord = null;
     scroller.addEventListener("touchstart", function (e) {
-      toucheDebutX = (enModeJourMobile && e.touches.length === 1) ? e.touches[0].clientX : null;
+      toucheDebutX = (e.touches.length === 1) ? e.touches[0].clientX : null;
       toucheBord = null;
     }, { passive: true });
     scroller.addEventListener("touchmove", function (e) {
       if (toucheDebutX === null || e.touches.length !== 1) return;
+      if (document.body.classList.contains("en-glissement")) { toucheBord = null; return; }
       var dx = e.touches[0].clientX - toucheDebutX;
       var maxScroll = scroller.scrollWidth - scroller.clientWidth;
       // "<= 1"/">= maxScroll - 1", pas une comparaison stricte à 0/maxScroll :
@@ -1017,6 +1057,7 @@
       else if (scroller.scrollLeft >= maxScroll - 1 && dx < -seuilBordSemaine) toucheBord = "fin";
     }, { passive: true });
     scroller.addEventListener("touchend", function () {
+      if (document.body.classList.contains("en-glissement")) { toucheDebutX = null; toucheBord = null; return; }
       if (toucheBord === "debut") naviguerSemaineDepuisBordJour(-1);
       else if (toucheBord === "fin") naviguerSemaineDepuisBordJour(1);
       toucheDebutX = null; toucheBord = null;
@@ -1025,25 +1066,43 @@
     // Round du 23.09.2026 (suite ×11) — Lionel : « L'action de swiper d'une
     // semaine à l'autre est intéressante et pourrait être portée aux
     // versions tablette et desktop. » Équivalent du détecteur tactile
-    // ci-dessus pour un dispositif à molette/trackpad, jamais actif en même
-    // temps (enModeJourMobile→return, exactement l'inverse de la condition
-    // qui garde le détecteur tactile inerte hors mode "1 jour"). deltaX
-    // (molette horizontale native, trackpad) OU deltaY avec Maj enfoncée
-    // (convention historique du défilement horizontal à la molette
-    // verticale, cf. la plupart des tableurs/calendriers web) — jamais les
-    // deux à la fois : on prend le plus significatif des deux pour éviter
-    // qu'un simple défilement vertical de la page (deltaY sans Maj) ne
-    // déclenche quoi que ce soit ici.
+    // ci-dessus pour un dispositif à molette/trackpad — désormais actif EN
+    // PLUS du détecteur tactile (round du 24.09.2026, cf. son commentaire
+    // plus haut), pas à sa place : un ordinateur/une tablette à trackpad
+    // profite de celui-ci, un écran tactile sans trackpad profite de
+    // l'autre, les deux peuvent coexister sur un même appareil hybride sans
+    // se marcher dessus (deux gestes différents). Toujours inerte en mode
+    // "1 jour" mobile (enModeJourMobile→return) : là, seul le détecteur
+    // tactile agit. deltaX (molette horizontale native, trackpad) OU deltaY
+    // avec Maj enfoncée (convention historique du défilement horizontal à
+    // la molette verticale, cf. la plupart des tableurs/calendriers web) —
+    // jamais les deux à la fois : on prend le plus significatif des deux
+    // pour éviter qu'un simple défilement vertical de la page (deltaY sans
+    // Maj) ne déclenche quoi que ce soit ici.
     // Cumul (accumulMolette) plutôt qu'un seul événement : un trackpad émet
     // de nombreux petits événements "wheel" pendant un seul geste physique
     // (parfois quelques unités chacun) — un seuil unitaire les raterait
     // presque tous. Remis à zéro après un silence (resetAccumulMolette,
     // 400ms) ou dès que le défilement s'écarte du bord concerné — un simple
     // aller-retour de la molette sans rester au bord ne doit rien
-    // déclencher. e.preventDefault() seulement au moment du déclenchement
-    // réel (pas à chaque événement à la butée) : un utilisateur qui
-    // s'arrête pile au bord sans vouloir changer de semaine garde un
-    // défilement natif tout à fait normal.
+    // déclencher.
+    //
+    // Round du 24.09.2026 — Lionel : « ne fonctionne pas sur ordinateur ».
+    // e.preventDefault() se déclenchait auparavant seulement au moment du
+    // franchissement du seuil, pas à chaque événement "wheel" reçu à la
+    // butée pendant l'accumulation. Or Chrome/Edge interprètent un swipe
+    // horizontal à 2 doigts qui dépasse la butée d'un conteneur SANS
+    // preventDefault() comme un geste de navigation d'historique (retour
+    // page précédente/suivante, avec son animation) — le trackpad ne
+    // produit alors plus d'événements "wheel" pour la suite du geste,
+    // l'accumulation n'atteint jamais seuilMolette et la semaine ne change
+    // jamais (symptôme exact de Lionel : ça ne marche que sur mobile, où le
+    // détecteur tactile ci-dessus n'a pas ce problème). Corrigé en appelant
+    // preventDefault() dès qu'on est à la butée dans le sens du geste,
+    // avant même de savoir si le seuil sera atteint — sans incidence sur le
+    // défilement normal (loin de la butée, on retourne avant d'y arriver).
+    // Complété côté CSS par overscroll-behavior-x:contain sur .scroller
+    // (cf. style.css) en filet de sécurité supplémentaire.
     var seuilMolette = 60, accumulMolette = 0, resetAccumulMolette = null;
     scroller.addEventListener("wheel", function (e) {
       if (enModeJourMobile) return;
@@ -1052,11 +1111,12 @@
       var maxScrollW = scroller.scrollWidth - scroller.clientWidth;
       var auDebut = scroller.scrollLeft <= 1, aLaFin = scroller.scrollLeft >= maxScrollW - 1;
       if (dx < 0 ? !auDebut : !aLaFin) { accumulMolette = 0; return; }
+      e.preventDefault();
       accumulMolette += dx;
       clearTimeout(resetAccumulMolette);
       resetAccumulMolette = setTimeout(function () { accumulMolette = 0; }, 400);
-      if (accumulMolette <= -seuilMolette) { accumulMolette = 0; e.preventDefault(); naviguerSemaineDepuisBordJour(-1); }
-      else if (accumulMolette >= seuilMolette) { accumulMolette = 0; e.preventDefault(); naviguerSemaineDepuisBordJour(1); }
+      if (accumulMolette <= -seuilMolette) { accumulMolette = 0; naviguerSemaineDepuisBordJour(-1); }
+      else if (accumulMolette >= seuilMolette) { accumulMolette = 0; naviguerSemaineDepuisBordJour(1); }
     }, { passive: false });
 
     function poserDans(cibleGrille) {

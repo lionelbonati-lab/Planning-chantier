@@ -551,9 +551,31 @@
      pour un bouton à 2 états qui ne sont PAS "visible/masqué" (auquel cas
      .toolbar-toggle.desactive, atténué à 50%, est le bon choix) mais 2 modes
      également valides (ici : 1 semaine / 2 semaines) — donc jamais atténué,
-     seulement teinté quand actif. Utilisé par #btnDeuxSemaines. */
-  .toolbar-btn.actif { background: var(--accent-soft); color: var(--accent); }
-  .toolbar-btn.actif:hover { background: var(--accent-soft); }
+     seulement teinté quand actif. Utilisé par #btnDeuxSemaines (et son
+     pendant mobile #btnVueJourMobile, cf. majSemaineAffichage).
+     Round du 24.09.2026 — Lionel : « le bouton 2 semaine [...] quand actif
+     doit se colorer de la même manière que les autres boutons actifs
+     (onglet) » + « le contour [...] ne se colore plus en passant la
+     souris ». Root cause des 2 : le fond de #legendeBarre/.toolbar-sheets
+     est passé à var(--accent-soft) au round du 23.09.2026 (suite ×8,
+     ci-dessus) — exactement la même teinte que celle utilisée ICI pour
+     "actif". Le remplissage restait bien appliqué (classList suit
+     deuxSemaines) mais devenait invisible, fondu dans le fond de la barre :
+     plus aucune différence visible avec .onglet.actif, dont le fond
+     (.onglets-nav) reste lui différent de sa propre surbrillance. Un contour
+     à la teinte PLEINE --accent (jamais fondue, contrairement à
+     --accent-soft) reste lisible même posé sur un fond --accent-soft — même
+     principe que .zoom-pill/-hover juste au-dessus, réutilisé ici plutôt
+     qu'inventé. Contour ajouté seulement à .actif (jamais à .toolbar-btn de
+     base, qui reste border:none comme avant, aucun autre bouton de la barre
+     n'étant concerné) ; box-sizing:border-box (reset en tête de fichier)
+     garantit que son apparition/disparition ne bouge jamais le pictogramme
+     de 30×30. Le survol reçoit à son tour un VRAI changement de teinte
+     (retour de Lionel : le survol ne colorait plus rien de plus qu'à
+     l'état actif au repos) via color-mix, plutôt que de répéter exactement
+     le même accent-soft qu'au repos. */
+  .toolbar-btn.actif { background: var(--accent-soft); color: var(--accent); border: 1.5px solid var(--accent); }
+  .toolbar-btn.actif:hover { background: color-mix(in srgb, var(--accent-soft) 55%, var(--accent) 20%); }
 
   /* Case "Sem. N" (§87, round du 17.09.2026, suite×2) — #btnSemainePill
      réutilise .zoom-pill telle quelle (Lionel : « dans le style visuel du
@@ -789,7 +811,14 @@
      désormais séparé et fixe) — les deux panneaux se touchent pile, sans
      espace, pour ne former qu'un seul cadre visuel continu. */
   .grille-cadre { border: 1px solid var(--border); border-top: none; border-radius: 0 0 12px 12px; overflow: hidden; }
-  .scroller { overflow-x: auto; padding-bottom: 4px; }
+  /* overscroll-behavior-x:contain (round du 24.09.2026, cf. le commentaire
+     de l'écouteur "wheel" dans js/grille-rendu.js) : filet de sécurité pour
+     qu'un swipe/molette horizontal qui dépasse la butée de .scroller ne
+     soit jamais récupéré par le navigateur comme un geste de navigation
+     d'historique (retour page précédente/suivante) — même si un
+     preventDefault() venait à manquer un événement (ex. wheel très rapide,
+     autre navigateur). */
+  .scroller { overflow-x: auto; overscroll-behavior-x: contain; padding-bottom: 4px; }
   /* Round du 23.09.2026 (suite ×10) — Lionel, retour sur la vue mobile
      "1 jour" (§99) : « La case du jour doit être aimantée pour qu'elle
      rentre sur l'écran. A l'heure actuelle je peux afficher 2 demi journée

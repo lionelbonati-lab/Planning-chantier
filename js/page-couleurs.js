@@ -9,13 +9,23 @@
 // CSS (--accent, --bg, etc.) avec UNE SEULE couleur choisie par Lionel —
 // c'est le regroupement qu'il a demandé. Tant qu'il n'a rien choisi pour un
 // groupe, rien ne change (les variables gardent leur valeur d'origine
-// posée dans style.css) : seuls les groupes explicitement enregistrés dans
-// localStorage sont appliqués, en clair et en sombre séparément.
+// posée dans style.css) : seuls les groupes explicitement enregistrés sont
+// appliqués, en clair et en sombre séparément.
 //
-// Portée volontairement locale à cet appareil (même choix que "Afficher
-// les week-ends" sur cette page) : ce ne sont pas des couleurs "métier"
-// partagées comme celles des chantiers/statuts, mais une préférence
-// d'affichage.
+// Round du 24.09.2026 — Lionel : « Les couleurs devrait être les mêmes sur
+// tous les appareils du même compte. Comme les chantiers. » Portée
+// initialement locale à cet appareil (localStorage), changée d'avis ici :
+// la table `couleurs_perso` (sql, RLS "connecte_tout" comme chantiers/
+// statuts/etc.) est désormais la SOURCE DE VÉRITÉ, partagée par tout le
+// monde connecté — cf. window.etat.couleursPerso, peuplé par
+// js/donnees-sync.js (fetch parallèle au démarrage, comme chantiers/
+// statuts/fériés). localStorage n'est PAS retiré : il redevient un simple
+// CACHE local anti-flash (peindre les bonnes couleurs tout de suite au
+// chargement du script, avant même que core.js/donnees-sync.js aient eu le
+// temps de s'exécuter et de répondre au réseau — cf. lireReglages/
+// appliquerCouleursPersonnalisees plus bas), resynchronisé sur le serveur à
+// chaque réponse réussie et à chaque écriture de cet appareil, pour rester
+// représentatif même hors-ligne.
 (function () {
   var CLE_STOCKAGE = "planning.couleurs";
 
@@ -177,14 +187,33 @@
   ];
   window.GROUPES_COULEURS = GROUPES_COULEURS;
 
-  function lireReglages() {
+  // window.etat.couleursPerso : accès défensif, sans jamais lever — ce
+  // script s'exécute AVANT core.js (qui déclare `etat`) dans index.html, et
+  // avant que donnees-sync.js ait fini son premier aller-retour réseau. Un
+  // accès à la propriété d'un objet existant (window.etat) ne lève jamais,
+  // contrairement à la variable globale nue `etat` qui lèverait un
+  // ReferenceError tant que core.js n'a pas encore tourné — d'où
+  // window.etat plutôt que etat ici.
+  function couleursPersoServeur_() {
+    return (window.etat && window.etat.couleursPerso) || null;
+  }
+  function lireCacheLocal_() {
     try {
       var brut = localStorage.getItem(CLE_STOCKAGE);
       return brut ? JSON.parse(brut) : {};
     } catch (e) { return {}; }
   }
-  function ecrireReglages(reglages) {
+  function ecrireCacheLocal_(reglages) {
     try { localStorage.setItem(CLE_STOCKAGE, JSON.stringify(reglages)); } catch (e) {}
+  }
+  // lireReglages() : le serveur (couleursPersoServeur_) l'emporte dès qu'il
+  // a répondu — y compris s'il répond {} (aucune couleur choisie sur AUCUN
+  // appareil : un résultat à part entière, différent de "pas encore su",
+  // donc {} ne doit PAS retomber sur le cache local). Seul `null` (script
+  // tout juste chargé, ou requête réseau pas encore résolue/en échec)
+  // retombe sur le dernier cache local connu.
+  function lireReglages() {
+    return couleursPersoServeur_() || lireCacheLocal_();
   }
 
   function hexVersRgb(hex) {
@@ -193,11 +222,19 @@
     return { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) };
   }
 
-  // Construit/actualise <style id="couleursPerso"> à partir de localStorage.
-  // Appelée au tout début du chargement (avant construireCoquille) puis à
-  // chaque changement d'un sélecteur de couleur.
+  // Construit/actualise <style id="couleursPerso"> à partir de
+  // lireReglages() (serveur si connu, sinon cache local). Appelée au tout
+  // début du chargement (avant construireCoquille), puis de nouveau dès que
+  // le serveur répond (js/donnees-sync.js) et à chaque changement d'un
+  // sélecteur de couleur sur cet appareil.
   function appliquerCouleursPersonnalisees() {
     var reglages = lireReglages();
+    // Cache local tenu à jour à CHAQUE application des données serveur, pas
+    // seulement lors d'une écriture locale : si un AUTRE appareil a changé
+    // une couleur, le prochain chargement de CET appareil doit repeindre
+    // dès son cache (avant même la réponse réseau) avec cette valeur-là,
+    // pas avec l'ancienne.
+    if (couleursPersoServeur_()) ecrireCacheLocal_(reglages);
     var lignesClair = [];
     var lignesSombre = [];
     GROUPES_COULEURS.forEach(function (groupe) {
@@ -273,6 +310,65 @@
   }
   window.htmlReglagesCouleurs = htmlReglagesCouleurs;
 
+  // ---- Synchronisation serveur (round du 24.09.2026) ---------------------
+  // Même schéma que majCouleurChantierServeur/etc. (js/page-chantiers.js) :
+  // écriture directe côté client, RLS "connecte_tout" (comme chantiers/
+  // statuts), pas besoin d'Edge Function dédiée pour un simple upsert/
+  // delete. upsert ne fournit QUE le champ modifié (`clair` OU `sombre`,
+  // jamais les deux) : PostgREST ne réécrit alors QUE cette colonne sur ON
+  // CONFLICT (id), laissant l'autre thème intact sur la ligne existante —
+  // ou NULL sur une toute nouvelle ligne, exactement comme un thème "jamais
+  // choisi" pour ce groupe.
+  function enregistrerCouleurServeur_(groupeId, theme, hex) {
+    var payload = { id: groupeId };
+    payload[theme] = hex;
+    return sbClient.from("couleurs_perso").upsert(payload, { onConflict: "id" }).then(function (res) {
+      if (res.error) throw res.error;
+    });
+  }
+  function reinitialiserCouleurServeur_(groupeId) {
+    return sbClient.from("couleurs_perso").delete().eq("id", groupeId).then(function (res) {
+      if (res.error) throw res.error;
+    });
+  }
+  function reinitialiserToutesCouleursServeur_(ids) {
+    if (!ids.length) return Promise.resolve();
+    return sbClient.from("couleurs_perso").delete().in("id", ids).then(function (res) {
+      if (res.error) throw res.error;
+    });
+  }
+  function notifierEchecSync_(err) {
+    if (typeof toast === "function") toast("Couleur enregistrée sur cet appareil, mais pas synchronisée avec les autres : " + (err && err.message ? err.message : err));
+  }
+  // marquerCommeSourceDeVerite_ : si window.etat.couleursPerso n'existe pas
+  // encore (cas limite — la page Couleurs ouverte avant même que le tout
+  // premier chargement réseau ait fini, en pratique quasi jamais puisque le
+  // reste de l'appli attend derrière l'écran de chargement), le fait
+  // basculer sur l'objet qu'on vient de construire depuis le cache local,
+  // pour que les lectures suivantes (y compris dans ce même appel) le
+  // traitent déjà comme la source de vérité plutôt que de repartir du
+  // localStorage à chaque fois.
+  function marquerCommeSourceDeVerite_(r) {
+    if (window.etat && !window.etat.couleursPerso) window.etat.couleursPerso = r;
+  }
+
+  // Un <input type="color"> émet un évènement "input" en continu pendant
+  // qu'on fait glisser le sélecteur (potentiellement des dizaines par
+  // seconde) — l'aperçu (appliquerCouleursPersonnalisees) reste immédiat à
+  // chaque évènement, mais l'écriture réseau est différée de 400ms sans
+  // nouveau changement sur ce même champ, pour ne pas bombarder Supabase
+  // pendant un glissé et pour que 2 champs changés à la suite (clair ET
+  // sombre, ou 2 groupes différents) ne s'annulent pas l'un l'autre.
+  var attenteEcritureServeur_ = {};
+  function planifierEcritureServeur_(groupeId, theme, hex) {
+    var cle = groupeId + ":" + theme;
+    clearTimeout(attenteEcritureServeur_[cle]);
+    attenteEcritureServeur_[cle] = setTimeout(function () {
+      delete attenteEcritureServeur_[cle];
+      enregistrerCouleurServeur_(groupeId, theme, hex).catch(notifierEchecSync_);
+    }, 400);
+  }
+
   function initReglagesCouleurs() {
     var reglages = lireReglages();
     GROUPES_COULEURS.forEach(function (groupe) {
@@ -282,12 +378,17 @@
       if (champClair) champClair.value = choix.clair || groupe.defautClair;
       if (champSombre) champSombre.value = choix.sombre || groupe.defautSombre;
     });
+    // enregistrerChamp : mise à jour OPTIMISTE (cache local + application
+    // CSS immédiate, comme avant ce round) suivie d'une écriture serveur
+    // différée (planifierEcritureServeur_) en arrière-plan.
     function enregistrerChamp(groupeId, theme, hex) {
       var r = lireReglages();
       if (!r[groupeId]) r[groupeId] = {};
       r[groupeId][theme] = hex;
-      ecrireReglages(r);
+      marquerCommeSourceDeVerite_(r);
+      ecrireCacheLocal_(r);
       appliquerCouleursPersonnalisees();
+      planifierEcritureServeur_(groupeId, theme, hex);
     }
     document.querySelectorAll(".rc-clair").forEach(function (input) {
       input.addEventListener("input", function () { enregistrerChamp(input.dataset.groupe, "clair", input.value); });
@@ -302,20 +403,25 @@
         if (!groupe) return;
         var r = lireReglages();
         delete r[groupeId];
-        ecrireReglages(r);
+        marquerCommeSourceDeVerite_(r);
+        ecrireCacheLocal_(r);
         appliquerCouleursPersonnalisees();
         var champClair = document.querySelector('.rc-clair[data-groupe="' + groupeId + '"]');
         var champSombre = document.querySelector('.rc-sombre[data-groupe="' + groupeId + '"]');
         if (champClair) champClair.value = groupe.defautClair;
         if (champSombre) champSombre.value = groupe.defautSombre;
+        reinitialiserCouleurServeur_(groupeId).catch(notifierEchecSync_);
       });
     });
     var btnTout = document.getElementById("btnResetToutesCouleurs");
     if (btnTout) {
       btnTout.addEventListener("click", function () {
-        ecrireReglages({});
+        var idsAvant = Object.keys(lireReglages());
+        if (window.etat) window.etat.couleursPerso = {};
+        ecrireCacheLocal_({});
         appliquerCouleursPersonnalisees();
         initReglagesCouleurs();
+        reinitialiserToutesCouleursServeur_(idsAvant).catch(notifierEchecSync_);
       });
     }
   }
