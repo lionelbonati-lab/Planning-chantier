@@ -1018,6 +1018,18 @@
     CHANTIERS = {};
     etat.chantiers.forEach(function (c) { CHANTIERS[c.nom] = { nom: c.nom, couleur: c.couleur, ligne: c.ligne, actif: c.actif !== false }; });
 
+    // Sélection à reporter (round du 24.09.2026, suite 7) : les id des
+    // bulles ("b" + idc) sont régénérés à chaque reconstruction — après un
+    // décalage par la barre « ‹ › » (decalerSelection), la synchronisation
+    // recharge et reconstruit, et la sélection se perdrait alors qu'elle
+    // doit rester pour appuyer de nouveau. On mémorise les bulles
+    // sélectionnées par leur CONTENU (empreinteBulle_) avant de tout
+    // reconstruire, puis on re-sélectionne celles qui correspondent.
+    var empreintesSelection = {};
+    Object.keys(bullesSelectionnees).forEach(function (id) {
+      var p = itemParId(id);
+      if (p) empreintesSelection[empreinteBulle_(p.item)] = true;
+    });
     TACHES = []; JALONS = []; NOTES = [];
     var nJoursFenetre = donnees.length * 5;
 
@@ -1274,7 +1286,20 @@
       });
     });
 
+    if (Object.keys(empreintesSelection).length) {
+      bullesSelectionnees = {};
+      [TACHES, JALONS, NOTES].forEach(function (liste) {
+        liste.forEach(function (it) { if (empreintesSelection[empreinteBulle_(it)]) bullesSelectionnees[it.id] = true; });
+      });
+    }
     syncBaseline = calculerEtatLocal();
+  }
+  // Empreinte d'une bulle indépendante de son id (cf. construireVueDepuisCache
+  // ci-dessus) : ce qui la distingue à l'écran, position comprise — après
+  // un décalage synchronisé, la bulle rechargée a la position mutée
+  // localement, donc la même empreinte.
+  function empreinteBulle_(it) {
+    return [it.personneId !== undefined ? "p" + it.personneId : it.type, it.type, it.texte, it.giDebut, it.duree, it.demiDebut || "", it.demiFin || ""].join("\u0000");
   }
   function trouverPersonneDonnees(data, ancre) {
     var a = String(ancre);

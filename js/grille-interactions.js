@@ -360,13 +360,15 @@
     if (plage && plage.liste === TACHES) ouvrirEdition(null, itemData, null, x, y);
     else if (plage) ouvrirEditionPlage(itemData.type, itemData, null, null, x, y);
   }
-  function resoudreClicBulle(id, itemData, plage, x, y) {
+  // cumuler (round du 24.09.2026, suite 7) : Ctrl/Cmd enfoncé au clic —
+  // ajoute à la sélection au lieu de la remplacer, cf. basculerSelection.
+  function resoudreClicBulle(id, itemData, plage, x, y, cumuler) {
     var maintenant = Date.now();
     var estDouble = dernierClicBulle === id && (maintenant - dernierClicTemps) < DELAI_DOUBLE_CLIC;
     dernierClicBulle = estDouble ? null : id;
     dernierClicTemps = maintenant;
     if (estDouble) ouvrirBulle(itemData, plage, x, y);
-    else basculerSelection(id);
+    else basculerSelection(id, cumuler);
   }
 
   function onPointerDownGroupeSelection(e) {
@@ -953,7 +955,7 @@
       var celluleCible = cibleActuelle, surSuppr = surBoutonSuppr;
       detacher();
       if (enDefilement) { nettoyerFantomes(); return; }
-      if (!arme || !bouge) { nettoyerFantomes(); resoudreClicBulle(idClic, itemClic, plageClic, e2.clientX, e2.clientY); return; }
+      if (!arme || !bouge) { nettoyerFantomes(); resoudreClicBulle(idClic, itemClic, plageClic, e2.clientX, e2.clientY, !tactile && (e2.ctrlKey || e2.metaKey)); return; }
       if (surSuppr) { supprimerGroupeConfirme(); return; }
       resoudreCibleGroupe(celluleCible, e2.clientX);
     }
@@ -1390,9 +1392,13 @@
       });
     }
     ramasser(TACHES); ramasser(JALONS); ramasser(NOTES);
+    var n = Object.keys(bullesSelectionnees).length;
+    // Une sélection par zone est une sélection MULTIPLE par nature (round du
+    // 24.09.2026, suite 7) : elle allume le mode, pour que les clics suivants
+    // s'y ajoutent et que la barre « ‹ › » soit disponible.
+    if (n) modeSelectionMultiple = true;
     render(false);
     majBarreSelection();
-    var n = Object.keys(bullesSelectionnees).length;
     toast(n ? ("Sélectionné (" + n + ").") : "Rien à sélectionner dans cette zone.");
   }
 

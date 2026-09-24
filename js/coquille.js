@@ -282,6 +282,27 @@
             '</div>' +
           '</div>' +
         '</div>' +
+        // Sélection multiple (round du 24.09.2026, suite 7 — Lionel : « un
+        // petit bouton dans la toolbar que j'appuie quand je voudrais
+        // sélectionner plusieurs [bulles] […] un espèce de petit menu sous ce
+        // bouton […] des flèches gauche-droite et guillemets gauche,
+        // guillemets droite »). Jamais replié dans "⋮" (pas de data-rang-menu :
+        // un mode qu'on active pendant qu'on manipule la grille doit rester
+        // sous la main), sur téléphone aussi. #panneauSelection reste affiché
+        // tant que le mode est actif (Lionel : « Reste affiché ») — ce n'est
+        // pas un .outil-menu, le clic extérieur ne le ferme donc jamais ;
+        // chevron simple = demi-journée, double = jour entier (cf.
+        // decalerSelection, formulaires-communs.js).
+        '<div class="toolbar-groupe sep-avant" id="groupeSelection" data-rang="85">' +
+          '<button type="button" class="toolbar-btn" id="btnSelectionMultiple" title="Sélection multiple — cliquer plusieurs bulles, puis les décaler avec les flèches" aria-label="Sélection multiple">' + ICONS.selectionMultiple + '</button>' +
+          '<div class="panneau-selection" id="panneauSelection" hidden>' +
+            '<button type="button" class="toolbar-btn" data-decal="-2" title="Décaler d’un jour vers la gauche (Maj+←)" aria-label="Décaler d’un jour vers la gauche">' + ICONS.chevronDoubleGauche + '</button>' +
+            '<button type="button" class="toolbar-btn" data-decal="-1" title="Décaler d’une demi-journée vers la gauche (←)" aria-label="Décaler d’une demi-journée vers la gauche">' + ICONS.chevronGauche + '</button>' +
+            '<span class="sel-compte" title="Bulles sélectionnées">0</span>' +
+            '<button type="button" class="toolbar-btn" data-decal="1" title="Décaler d’une demi-journée vers la droite (→)" aria-label="Décaler d’une demi-journée vers la droite">' + ICONS.chevronDroite + '</button>' +
+            '<button type="button" class="toolbar-btn" data-decal="2" title="Décaler d’un jour vers la droite (Maj+→)" aria-label="Décaler d’un jour vers la droite">' + ICONS.chevronDoubleDroite + '</button>' +
+          '</div>' +
+        '</div>' +
         // Masquages : icônes seules partout, y compris dans le panneau où
         // elles restent sur UNE ligne (Lionel : « 4 icones sur la même ligne
         // suffisent ») — plus de libellé ni de coche, l'état reste lisible
@@ -782,6 +803,13 @@
     if (btnSemainePrec) btnSemainePrec.addEventListener("click", function () { naviguerSemaine(-1); });
     if (btnSemaineSuiv) btnSemaineSuiv.addEventListener("click", function () { naviguerSemaine(1); });
     if (btnAujourdhuiBarre) btnAujourdhuiBarre.addEventListener("click", allerAujourdhui);
+    // Sélection multiple (round du 24.09.2026, suite 7) — cf. #groupeSelection
+    // dans htmlPagePlanning ; logique dans formulaires-communs.js.
+    var btnSelectionMultiple = document.getElementById("btnSelectionMultiple");
+    if (btnSelectionMultiple) btnSelectionMultiple.addEventListener("click", basculerModeSelectionMultiple);
+    document.querySelectorAll("#panneauSelection [data-decal]").forEach(function (b) {
+      b.addEventListener("click", function () { decalerSelection(+b.dataset.decal); });
+    });
     if (btnDeuxSemainesBarre) btnDeuxSemainesBarre.addEventListener("click", basculerDeuxSemaines);
     if (btnVueJourMobileBarre) btnVueJourMobileBarre.addEventListener("click", basculerVueJourMobile);
     // #menuSemaine/#btnSemainePill remplacent ouvrirAllerSemaine() (popup

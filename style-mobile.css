@@ -148,6 +148,14 @@
        le pousse à l'extrémité droite de l'écran (règle ci-dessus), ce
        panneau de 190px de large débordait hors du viewport à droite. */
     .toolbar-groupe-droite .outil-menu-panneau { left: auto; right: 0; }
+    /* Même ancrage à droite pour la barre « ‹ › » de la sélection multiple
+       (round du 24.09.2026, suite 7) : son bouton est lui aussi tout à
+       droite sur téléphone. */
+    .panneau-selection { left: auto; right: 0; }
+    /* Pas de trait devant #btnSelectionMultiple sur téléphone (collé au "+",
+       2 actions voisines) : avec, la barre débordait de ~15px à 320px de
+       large — repéré par test_toolbar_chevauchement.js. */
+    #legendeBarre > #groupeSelection::before { display: none; }
     /* Chantier réduit à sa seule pastille de couleur (Lionel : « chantier
        visible mais seulement la pastille de couleur ») — .nom-chantier/
        .caret restent dans le HTML (construireSelectChantier les cible à

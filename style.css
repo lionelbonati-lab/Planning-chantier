@@ -699,6 +699,25 @@
   #btnPlusOutils .icone-menu-fermer, #btnPlusOutils.ouvert .icone-menu-ouvrir { display: none; }
   #btnPlusOutils.ouvert .icone-menu-fermer { display: grid; }
   .toolbar-btn.ouvert { background: var(--surface-2); color: var(--ink); }
+  /* Barre « ‹ › » de la sélection multiple (#panneauSelection, round du
+     24.09.2026, suite 7) : petit panneau flottant sous #btnSelectionMultiple,
+     affiché tant que le mode est actif (hidden géré par
+     majModeSelectionMultiple, formulaires-communs.js). Même habillage que
+     .outil-menu-panneau mais en LIGNE ; #groupeSelection est son bloc de
+     référence (position:relative). z-index 41 = au-dessus du panneau "⋮" et
+     de l'en-tête figée de la grille, sous les fiches (.form-pop). */
+  #groupeSelection { position: relative; }
+  .panneau-selection {
+    position: absolute; top: calc(100% + 6px); left: 0; z-index: 41;
+    display: flex; align-items: center; gap: 2px; padding: 4px;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: 0 6px 20px var(--shadow-lg);
+  }
+  .panneau-selection[hidden] { display: none; }
+  .panneau-selection .sel-compte {
+    min-width: 2.2em; padding: 0 4px; text-align: center; font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px; font-weight: 700; color: var(--ink-muted);
+  }
   /* Trait horizontal entre 2 groupes du panneau (pendant du .sep-avant
      vertical de la barre) — le DOM du panneau suit l'ordre visuel
      (insererAuRang), le sélecteur de voisin suffit. */

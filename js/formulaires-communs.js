@@ -27,12 +27,98 @@
     baCopierEl.addEventListener("click", function () { if (onCopierActuel) onCopierActuel(); });
     baDeplacerEl.addEventListener("click", function () { if (onDeplacerActuel) onDeplacerActuel(); });
   }
-  function basculerSelection(id) {
-    var activer = !bullesSelectionnees[id];
+  // Round du 24.09.2026 (suite 7) — Lionel : « quand je clique une bulle,
+  // elle soit sélectionnée. Mais si j'en clique une autre, la bulle que
+  // j'avais cliquée est désélectionnée et la nouvelle est sélectionnée. »
+  // Sélection SIMPLE par défaut : un clic remplace la sélection (recliquer
+  // la seule bulle sélectionnée la désélectionne). L'ancien comportement
+  // (chaque clic ajoute/retire) ne vaut plus qu'en mode multiple
+  // (modeSelectionMultiple, bouton de la barre) ou avec Ctrl/Cmd+clic sur
+  // ordinateur (`cumuler`, réponse de Lionel : « Ctrl+clic ») — qui allume
+  // aussi le mode, pour que la barre « ‹ › » apparaisse et que le bouton
+  // reflète l'état.
+  function basculerSelection(id, cumuler) {
+    var deja = !!bullesSelectionnees[id];
+    var activer;
+    if (modeSelectionMultiple || cumuler) {
+      activer = !deja;
+      if (cumuler && !modeSelectionMultiple) { modeSelectionMultiple = true; }
+    } else {
+      var autres = Object.keys(bullesSelectionnees).filter(function (k) { return k !== id; });
+      autres.forEach(function (k) {
+        delete bullesSelectionnees[k];
+        var d = document.querySelector('.bulle[data-id="' + k + '"]');
+        if (d) d.classList.remove("selectionnee");
+      });
+      activer = !(deja && !autres.length);
+    }
     if (activer) bullesSelectionnees[id] = true; else delete bullesSelectionnees[id];
     var dom = document.querySelector('.bulle[data-id="' + id + '"]');
     if (dom) dom.classList.toggle("selectionnee", activer);
     majBarreSelection();
+  }
+  // Bouton #btnSelectionMultiple : allume/éteint le mode. L'éteindre vide
+  // aussi la sélection (comme Échap) — sinon des bulles resteraient cochées
+  // sans plus aucun moyen visible d'en ajouter d'autres.
+  function basculerModeSelectionMultiple() {
+    if (modeSelectionMultiple) { quitterModeSelectionMultiple(); return; }
+    modeSelectionMultiple = true;
+    majBarreSelection();
+  }
+  function quitterModeSelectionMultiple() {
+    modeSelectionMultiple = false;
+    quitterModeSelection();
+  }
+  // Apparence du bouton + barre « ‹ › » (#panneauSelection) : appelée par
+  // majBarreSelection, donc à chaque rendu et à chaque changement de
+  // sélection — flèches grisées tant que rien n'est sélectionné, compteur
+  // de bulles au milieu.
+  function majModeSelectionMultiple() {
+    var btn = document.getElementById("btnSelectionMultiple"), panneau = document.getElementById("panneauSelection");
+    if (!btn || !panneau) return;
+    var n = Object.keys(bullesSelectionnees).length;
+    btn.classList.toggle("actif", modeSelectionMultiple);
+    panneau.hidden = !modeSelectionMultiple;
+    panneau.querySelectorAll("button").forEach(function (b) { b.disabled = !n; });
+    var compte = panneau.querySelector(".sel-compte");
+    if (compte) compte.textContent = String(n);
+  }
+  // Décale toute la sélection de `deltaHalf` demi-journées (±1) ou jours
+  // (±2), en gardant la forme de chaque bulle (modèle demi-slot de
+  // demiSlotsDepuisBornes/bornesDepuisDemiSlots, le même que le glisser à la
+  // souris) : une journée entière décalée d'une demi-journée devient
+  // "aprem + matin du lendemain", comme au glisser. Tout ou rien : si UNE
+  // bulle butait sur le bord de la fenêtre affichée, rien ne bouge (sinon
+  // les bulles perdraient leurs positions relatives). Les cases de week-end
+  // (isolées, jamais déplaçables) restent en place. La sélection est
+  // conservée après le décalage — pour pouvoir appuyer plusieurs fois.
+  function decalerSelection(deltaHalf) {
+    var ids = Object.keys(bullesSelectionnees);
+    if (!ids.length) { toast("Aucune bulle sélectionnée."); return; }
+    var maxHalf = nbJoursAffiches() * 2 - 1, plages = [], weekend = 0;
+    ids.forEach(function (id) {
+      var p = itemParId(id);
+      if (!p) return;
+      if (estGiWeekend(p.item.giDebut)) { weekend++; return; }
+      plages.push(p);
+    });
+    if (!plages.length) { toast(weekend ? "Une case de week-end ne se décale pas." : "Aucune bulle sélectionnée."); return; }
+    var bloque = plages.some(function (p) {
+      var b = demiSlotsDepuisBornes(p.item.giDebut, p.item.duree, p.item.demiDebut || null, p.item.demiFin || null);
+      return b.halfStart + deltaHalf < 0 || b.halfFinIncl + deltaHalf > maxHalf;
+    });
+    if (bloque) { toast(deltaHalf < 0 ? "Déjà au début de la semaine affichée." : "Déjà à la fin de la semaine affichée."); return; }
+    sauvegarderUndo();
+    plages.forEach(function (p) {
+      var it = p.item;
+      var b = demiSlotsDepuisBornes(it.giDebut, it.duree, it.demiDebut || null, it.demiFin || null);
+      var nb = bornesDepuisDemiSlots(b.halfStart + deltaHalf, b.halfFinIncl + deltaHalf);
+      it.giDebut = nb.giDebut; it.duree = nb.duree; it.demiDebut = nb.demiDebut; it.demiFin = nb.demiFin;
+      it.dateDebutIso = isoDeGi(it.giDebut);
+    });
+    render();
+    majBarreSelection();
+    toast("Décalé (" + plages.length + ")" + (weekend ? " — " + weekend + " case(s) de week-end laissée(s) en place." : "."));
   }
   // Remet la barre d'action dans son état "au repos" : Supprimer (rouge)
   // seul visible, caché s'il n'y a rien de sélectionné. Sert aussi à
@@ -46,6 +132,7 @@
     baCopierEl.hidden = true;
     baDeplacerEl.hidden = true;
     barreActionEl.hidden = !(n > 0);
+    majModeSelectionMultiple();
   }
   // Affiche, à la même place, "Copier" + "Déplacer" (bleus) à la place de
   // "Supprimer" — utilisé pour le choix Déplacer/Copier/Annuler après un
@@ -133,7 +220,8 @@
 
     if (e.key === "Escape") {
       if (popFermerActuel) { popFermerActuel(); e.preventDefault(); return; }
-      if (Object.keys(bullesSelectionnees).length > 0) { quitterModeSelection(); render(false); e.preventDefault(); }
+      // Échap éteint aussi le mode multiple (round du 24.09.2026, suite 7).
+      if (Object.keys(bullesSelectionnees).length > 0 || modeSelectionMultiple) { quitterModeSelectionMultiple(); render(false); e.preventDefault(); }
       return;
     }
     if (e.key === "Enter" && popValiderActuel) { popValiderActuel(); e.preventDefault(); return; }
@@ -143,6 +231,14 @@
       if (Object.keys(bullesSelectionnees).length === 0) return;
       e.preventDefault();
       supprimerSelection();
+      return;
+    }
+    // ← → (round du 24.09.2026, suite 7) : équivalent clavier des flèches de
+    // #panneauSelection — demi-journée, jour entier avec Maj. En mode
+    // multiple seulement, comme la barre elle-même (réponse de Lionel).
+    if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && modeSelectionMultiple && Object.keys(bullesSelectionnees).length) {
+      e.preventDefault();
+      decalerSelection((e.key === "ArrowLeft" ? -1 : 1) * (e.shiftKey ? 2 : 1));
       return;
     }
     if (e.key === "Enter") {

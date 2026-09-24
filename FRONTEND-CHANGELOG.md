@@ -6730,3 +6730,27 @@ Vérifié en local (Playwright) avec le nouveau test `test_defilement_jour_mobil
 - semaines voisines préchargées.
 
 Contrôle complémentaire avec de vrais gestes tactiles (événements touch envoyés via le protocole Chrome) : 7 swipes vers l'avant du jeudi 24 au lundi 5 oct., puis 4 vers l'arrière. Chaque swipe avance d'un jour, et la fenêtre glisse au bon moment. `test_tache_hors_semaine.js` (16/16) et `test_toolbar_chevauchement.js` (23/23, une vérification adaptée : ses lignes de test sont ajoutées après le changement de largeur, puisque franchir 600 px reconstruit désormais la grille) toujours verts.
+
+## 115. Round du 24.09.2026 (suite 7) — Sélection simple par défaut, bouton « sélection multiple » et flèches de décalage
+
+Lionel : « quand je clique une bulle, elle vient sélectionner. Et si j'en clique une deuxième, une troisième, etc., elles viennent toutes sélectionner. J'aimerais qu'à la place, quand je clique une bulle, elle soit sélectionnée. Mais si j'en clique une autre, la bulle que j'avais cliquée est désélectionnée et la nouvelle est sélectionnée. Pour faire une sélection multiple, j'aimerais un petit bouton dans la toolbar […] quand plusieurs sont sélectionnés, j'aimerais pouvoir les déplacer d'un demi-jour ou d'un jour, contre la gauche ou la droite […] un espèce de petit menu sous ce bouton de la toolbar qui ouvrirait des flèches gauche-droite et guillemets gauche, guillemets droite. »
+
+Réponses de Lionel aux questions posées avant de coder : le menu des flèches **reste affiché** tant que le mode est actif ; **Ctrl+clic** garde un raccourci de sélection multiple sur ordinateur ; les flèches n'existent **qu'en mode multiple** (pas pour une bulle seule).
+
+**Sélection simple par défaut** (`basculerSelection`, `js/formulaires-communs.js`) : un clic sélectionne la bulle et désélectionne les autres ; recliquer la seule bulle sélectionnée la désélectionne. Double-clic (ouvrir la fiche), glisser, clic droit/double-tap sur les cases : inchangés.
+
+**Mode « sélection multiple »** (`modeSelectionMultiple`, `js/core.js`) :
+- nouveau bouton `#btnSelectionMultiple` dans la barre d'outils (groupe `#groupeSelection`, entre « + » et les masquages), jamais replié dans « ⋮ », sur téléphone aussi. Allumé, il est teinté comme un bouton actif, et chaque clic **ajoute ou retire** la bulle (l'ancien comportement).
+- **Ctrl/Cmd+clic** sur une bulle (ordinateur) ajoute à la sélection et allume le mode, pour que la barre de flèches apparaisse et que l'état soit visible sur le bouton.
+- Une **sélection par zone** (clic droit ou double-tap puis glisser sur les cases) allume aussi le mode : c'est une sélection multiple par nature.
+- Sortie : nouvel appui sur le bouton ou Échap (sélection vidée dans les deux cas). Un clic sur une case vide vide la sélection comme avant, sans éteindre le mode.
+
+**Barre de flèches** (`#panneauSelection`) : petit panneau flottant sous le bouton, affiché tant que le mode est actif — ce n'est pas un `.outil-menu`, un clic dans la grille ne le ferme jamais. De gauche à droite : « (un jour), ‹ (une demi-journée), compteur de bulles, › et ». Flèches grisées tant que rien n'est sélectionné. Au clavier, en mode multiple : ← → pour une demi-journée, Maj+← → pour un jour.
+
+**Décalage** (`decalerSelection`) : toute la sélection glisse d'un nombre entier de demi-journées, chaque bulle gardant sa forme, avec le modèle de demi-cases déjà utilisé par le glisser à la souris (`demiSlotsDepuisBornes`/`bornesDepuisDemiSlots`). Une journée entière décalée d'une demi-journée devient « après-midi + matin du lendemain », comme au glisser. **Tout ou rien** : si une bulle bute sur le bord de la semaine affichée, rien ne bouge et un message le dit (les bulles gardent leurs positions relatives). Les cases de week-end restent en place. Chaque décalage est annulable (Ctrl+Z).
+
+**La sélection survit au décalage** pour pouvoir appuyer plusieurs fois de suite. Ce n'était pas acquis : après la synchronisation, la grille est reconstruite depuis le cache et chaque bulle reçoit un **nouvel identifiant** (`"b" + idc`), ce qui aurait perdu la sélection. `construireVueDepuisCache` mémorise désormais les bulles sélectionnées par leur contenu (`empreinteBulle_` : personne ou type, texte, position, durée, demi-journées) et re-sélectionne celles qui correspondent après reconstruction. Cette limite existait déjà pour tout ce qui gardait une sélection après une écriture (coller, par exemple) ; elle est levée pour tous.
+
+**Téléphone** : bouton collé au « + » sans trait de séparation (avec, la barre débordait de ~15 px à 320 px de large, repéré par `test_toolbar_chevauchement.js`) ; panneau de flèches ancré à droite.
+
+Vérifié en local (Playwright) avec le nouveau test `test_selection_bulles.js` : 20 vérifications, toutes OK. Sélection simple (remplacement, désélection par re-clic), Ctrl+clic, Échap, bouton (mode, compteur, flèches grisées puis actives), décalage d'une demi-journée et d'un jour avec vérification de la forme des bulles et de la table `taches` relue, sélection conservée après synchronisation, butée tout ou rien, clavier, extinction, pile Annuler. Captures contrôlées à 1200, 390 et 320 px. `test_toolbar_chevauchement.js` 23/23 (attentes mises à jour pour le nouveau bouton), `test_tache_hors_semaine.js` 16/16, `test_defilement_jour_mobile.js` 20/20.
