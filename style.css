@@ -725,6 +725,13 @@
   .panneau-selection .sel-sep { width: 1px; height: 20px; background: color-mix(in srgb, var(--accent) 35%, transparent); margin: 0 4px; flex-shrink: 0; }
   .panneau-selection .sel-supprimer { color: var(--danger); }
   .panneau-selection .sel-supprimer:hover:not(:disabled) { background: var(--interdit-bg); color: var(--danger); }
+  /* ⚑ important (suite 14) : du groupe de couleur erreur/suppression, comme
+     le drapeau des fiches (§117) ; plein quand toute la sélection est
+     importante, exactement comme .important-toggle.actif des fiches. */
+  .panneau-selection .sel-important { color: var(--important-ink); }
+  .panneau-selection .sel-important:hover:not(:disabled) { background: var(--interdit-bg); color: var(--important-ink); }
+  .panneau-selection .sel-important.actif,
+  .panneau-selection .sel-important.actif:hover:not(:disabled) { background: var(--important-toggle-bg); color: var(--important-toggle-ink); }
   /* Trait horizontal entre 2 groupes du panneau (pendant du .sep-avant
      vertical de la barre) — le DOM du panneau suit l'ordre visuel
      (insererAuRang), le sélecteur de voisin suffit. */
@@ -1529,6 +1536,12 @@
     max-width: 86vw; text-align: center;
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  /* Round du 24.09.2026 (suite 14) : pendant une sélection, le message
+     s'affiche AU-DESSUS de la pilule (.panneau-selection, même bas: 22px,
+     ~48px de haut) au lieu de la recouvrir — avec le ⚑ important, le
+     message suivait l'appui et masquait justement le bouton dont l'état
+     venait de changer. Sur téléphone : style-mobile.css. */
+  body.selection-active .toast { bottom: 82px; }
 
   .note-bas { margin-top: 22px; padding: 12px 14px; border: 1.5px dashed var(--border); border-radius: 12px; color: var(--ink-muted); font-size: 12px; line-height: 1.6; max-width: 780px; }
   .note-bas b { color: var(--ink); }

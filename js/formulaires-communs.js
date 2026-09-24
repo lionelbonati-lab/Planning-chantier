@@ -134,6 +134,49 @@
     panneau.querySelector(".sel-compte").textContent = String(n);
     document.getElementById("selModifier").hidden = n !== 1;
     document.getElementById("selCopier").classList.toggle("actif", copieSelectionActive);
+    // ⚑ (suite 14) : caché si rien de la sélection ne porte le drapeau
+    // depuis la grille (que des jalons), teinté quand TOUT ce qui le porte
+    // est déjà important — un appui le retire alors.
+    var marquables = plagesImportantSelection_();
+    var btnImportant = document.getElementById("selImportant");
+    var tousImportants = marquables.length > 0 && marquables.every(function (p) { return !!p.item.important; });
+    btnImportant.hidden = !marquables.length;
+    btnImportant.classList.toggle("actif", tousImportants);
+    btnImportant.setAttribute("aria-pressed", tousImportants ? "true" : "false");
+  }
+  // Bulles de la sélection qui peuvent porter le drapeau "important" depuis
+  // la grille : tâches, absences, notes. Pas les jalons : leur drapeau se
+  // règle sur la page Jalons, la grille ne le charge ni ne l'envoie (cf.
+  // diffsJalons, js/donnees-sync.js) — le poser ici ne tiendrait pas au
+  // rechargement.
+  function plagesImportantSelection_() {
+    var out = [];
+    Object.keys(bullesSelectionnees).forEach(function (id) {
+      var p = itemParId(id);
+      if (p && p.item.type !== "jalon") out.push(p);
+    });
+    return out;
+  }
+  // ⚑ de la pilule (round du 24.09.2026, suite 14 — Lionel : « Ajoutez le
+  // flag important à la pilule de sélection simple et multiple afin de
+  // pouvoir mettre un texte important sur une ou plusieurs cases en même
+  // temps »). Même règle qu'une case à cocher de groupe : si TOUTES les
+  // bulles marquables sont déjà importantes, le drapeau est retiré à
+  // toutes ; sinon il est posé sur toutes. Une seule étape d'annulation.
+  // Enregistrement par le trajet habituel : mutation des items puis
+  // render() -> synchroniser(), comme le décalage par les flèches — une
+  // bulle d'une série ne change que pour cette occurrence, comme au
+  // décalage. La sélection reste en place pour enchaîner une autre action.
+  function basculerImportantSelection() {
+    var plages = plagesImportantSelection_();
+    var jalons = Object.keys(bullesSelectionnees).length - plages.length;
+    if (!plages.length) { toast("Le drapeau d'un jalon se règle sur la page Jalons."); return; }
+    var poser = !plages.every(function (p) { return !!p.item.important; });
+    sauvegarderUndo();
+    plages.forEach(function (p) { p.item.important = poser; });
+    render();
+    majBarreSelection();
+    toast((poser ? "Marqué important (" : "Important retiré (") + plages.length + ")" + (jalons ? " — jalon(s) : drapeau sur la page Jalons." : "."));
   }
   // Crayon : ouvre la fiche de LA bulle sélectionnée (même geste qu'Entrée).
   function modifierSelection() {

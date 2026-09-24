@@ -157,10 +157,25 @@
     .panneau-selection {
       left: 10px; right: 10px; transform: none;
       bottom: calc(8px + env(safe-area-inset-bottom, 0px));
-      justify-content: space-around; gap: 4px;
+      justify-content: space-around; gap: 4px; padding: 6px 8px;
     }
-    .panneau-selection .toolbar-btn { width: 36px; height: 36px; }
+    /* Round du 24.09.2026 (suite 14) — le ⚑ important porte la pilule
+       multiple à 9 éléments (⧉ ⚑ 🗑 « ‹ n › » ✕) : 8 × 36px + compteur +
+       écarts ≈ 346px, trop large pour un téléphone de 320px (282px utiles),
+       les derniers boutons sortaient de la pilule. Les boutons gardent 36px
+       quand la place existe (390px et plus) et rétrécissent TOUS d'autant
+       jusqu'à 26px sinon (flex-shrink) ; hauteur inchangée = cible tactile
+       toujours 36px de haut. .sel-fleches devient transparent pour la mise
+       en page (display: contents) : ses 4 flèches et le compteur sont
+       alors des éléments de la pilule comme les autres — sinon le bloc
+       rétrécissait d'un seul tenant, plus que ses flèches ne le pouvaient,
+       et « » passait sous le ✕. */
+    .panneau-selection .toolbar-btn { width: auto; height: 36px; flex: 0 1 36px; min-width: 26px; }
+    .panneau-selection .sel-fleches:not([hidden]) { display: contents; }
     .panneau-selection .sel-sep { display: none; }
+    /* Message au-dessus de la pilule (cf. body.selection-active .toast,
+       style.css) : pilule ici à 8px du bas (+ zone sûre), 50px de haut. */
+    body.selection-active .toast { bottom: calc(70px + env(safe-area-inset-bottom, 0px)); }
     /* Chantier réduit à sa seule pastille de couleur (Lionel : « chantier
        visible mais seulement la pastille de couleur ») — .nom-chantier/
        .caret restent dans le HTML (construireSelectChantier les cible à

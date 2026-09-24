@@ -6853,3 +6853,29 @@ Le survol par cases reste pour le week-end, qui n'a qu'une case par personne, et
 Le glisser d'une bulle seule à la souris garde son comportement à la demi-journée, inchangé. Au doigt, le déplacement reste par jours entiers.
 
 Vérifié en local (Playwright) avec le nouveau test `test_apercu_depot.js`, **9 vérifications**, toutes OK. Sur tablette simulée, au doigt, il vérifie un seul rectangle d'aperçu, sans case isolée, aux colonnes exactes de la bulle après dépôt. La bulle suit le doigt, avec la table relue. Vers la ligne d'une autre personne, l'aperçu est sur sa ligne. À la souris, un glisser groupé donne un rectangle par bulle, chacun là où sa bulle arrive, et la bulle seule garde l'aperçu à la demi-journée. Sur l'ancien code, les 9 échouent : la première reproduit la capture, avec deux cases isolées et aucun rectangle. Les autres tests qui fonctionnent passent tous : sélection 43/43, barre 27/27, hors semaine 16/16, défilement mobile 20/20, et les tests de logique pure.
+
+## 122. Round du 24.09.2026 (suite 14) — ⚑ « important » dans la pilule de sélection
+
+Lionel : « Ajoutez le flag important à la pilule de sélection simple et multiple afin de pouvoir mettre un texte important sur une ou plusieurs cases en même temps. »
+
+**Bouton ⚑** (`#selImportant`, `js/coquille.js`), entre ⧉ et la corbeille. Il est affiché en sélection simple comme en sélection multiple, dans la couleur du drapeau des fiches (groupe erreur/suppression, §117). Il est **plein** quand toute la sélection est déjà importante, **creux** sinon (`aria-pressed` suit).
+
+**Un appui** (`basculerImportantSelection`, `js/formulaires-communs.js`) marque toute la sélection. Quand tout est déjà marqué, il retire le drapeau partout. Une sélection mélangée (certaines bulles importantes, d'autres non) est donc d'abord entièrement marquée. La sélection reste en place et un message dit combien de bulles ont changé. Un seul Ctrl+Z annule le tout.
+
+Le drapeau s'applique aux tâches (table `taches`, par le moteur de diff habituel) et aux notes (`enregistrer-plage`, `important` envoyé). **Les jalons sont laissés de côté.** Leur drapeau se règle sur la page Jalons, et la grille ne l'envoie jamais (`diffsJalons`, pour ne pas écraser ce que la page Jalons a posé). Un jalon seul n'affiche donc pas le ⚑. Dans un mélange, il est ignoré et le message le signale.
+
+**Bug d'annulation corrigé au passage** (`diffsNotes`, `js/donnees-sync.js`). Un Ctrl+Z restaure les notes avec leurs identités d'avant le dernier enregistrement. La note revient donc comme une création plus une suppression. Quand seul le drapeau différait, la création partait la première, et le serveur l'écartait comme doublon : même texte, même jour (`dejaLa`, `planPlage`). La suppression retirait ensuite la seule ligne restante, et **la note disparaissait**. Le cas existait déjà avec le drapeau des fiches ; le ⚑ de la pilule le rendait courant. Les suppressions partent maintenant en premier.
+
+**Téléphone** (`style-mobile.css`). Avec le ⚑, la pilule multiple compte 9 éléments, environ 346 px, et débordait à 320 px de large. Les boutons gardent 36 px quand la place existe et rétrécissent tous d'autant, jusqu'à 26 px, sinon. La hauteur reste de 36 px. Le bloc des flèches passe en `display: contents` pour rétrécir comme les autres boutons.
+
+**Message au-dessus de la pilule** (`style.css`, `style-mobile.css`). Pendant une sélection, le toast s'affiche au-dessus de la pilule au lieu de la recouvrir. Avant, il masquait le ⚑ juste après l'appui. Vaut pour tous les messages affichés pendant une sélection.
+
+Vérifié en local (Playwright) avec le nouveau test `test_important_selection.js`, **14 vérifications**, toutes OK :
+- bulle seule : ⚑ posé puis retiré, table relue ;
+- sélection de deux tâches, dont une déjà importante, et d'une note : tout marqué, puis tout retiré, note envoyée au serveur avec le bon drapeau ;
+- Ctrl+Z en une étape, note comprise ;
+- jalon seul, puis jalon dans un mélange ;
+- téléphone 390 et 320 px : pilule dans l'écran, sans chevauchement ;
+- message au-dessus de la pilule, sur ordinateur et téléphone.
+
+Le faux serveur du test applique les règles de `planPlage` (origine retrouvée par texte et drapeau, pas de doublon). Sur l'ancien ordre d'envoi, la vérification Ctrl+Z échoue (note perdue). Sans le nouveau CSS, les 3 vérifications de position du message échouent. Les autres tests qui fonctionnent passent tous : sélection 43/43, aperçu de dépôt 9/9, barre 27/27, hors semaine 16/16, défilement mobile 20/20, et les tests de logique pure.

@@ -323,12 +323,17 @@
         // double-clic), ⧉ copier-au-prochain-déplacement (bascule, cf.
         // copieSelectionActive), 🗑 supprimer, puis les flèches (mode
         // multiple seulement — appui long, Ctrl+clic ou sélection par
-        // zone), puis ✕. Placée ici, dans #page-planning, pour disparaître
+        // zone), puis ✕. Suite 14 — ⚑ important (Lionel : « Ajoutez le flag
+        // important à la pilule de sélection simple et multiple afin de
+        // pouvoir mettre un texte important sur une ou plusieurs cases en
+        // même temps »), entre ⧉ et la corbeille, cf. basculerImportantSelection.
+        // Placée ici, dans #page-planning, pour disparaître
         // avec l'onglet ; hors de #legendeBarre pour ne jamais compter dans
         // la mesure de débordement de la barre d'outils.
         '<div class="panneau-selection" id="panneauSelection" hidden>' +
           '<button type="button" class="toolbar-btn" id="selModifier" title="Modifier (Entrée)" aria-label="Modifier">' + ICONS.pencil + '</button>' +
           '<button type="button" class="toolbar-btn" id="selCopier" title="Copier au prochain déplacement (flèches ou glisser) au lieu de déplacer" aria-label="Copier au prochain déplacement">' + ICONS.copy + '</button>' +
+          '<button type="button" class="toolbar-btn sel-important" id="selImportant" title="Important : marquer ou retirer" aria-label="Important" aria-pressed="false">' + ICONS.flag + '</button>' +
           '<button type="button" class="toolbar-btn sel-supprimer" id="selSupprimer" title="Supprimer (Suppr)" aria-label="Supprimer">' + ICONS.trash + '</button>' +
           '<span class="sel-fleches" hidden>' +
             '<span class="sel-sep"></span>' +
@@ -822,6 +827,7 @@
     });
     document.getElementById("selModifier").addEventListener("click", modifierSelection);
     document.getElementById("selCopier").addEventListener("click", basculerCopieSelection);
+    document.getElementById("selImportant").addEventListener("click", basculerImportantSelection);
     document.getElementById("selSupprimer").addEventListener("click", supprimerSelection);
     document.getElementById("selFermer").addEventListener("click", function () { quitterModeSelection(); render(false); });
     if (btnDeuxSemainesBarre) btnDeuxSemainesBarre.addEventListener("click", basculerDeuxSemaines);
