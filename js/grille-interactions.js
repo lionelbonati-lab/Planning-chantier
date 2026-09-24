@@ -1586,5 +1586,25 @@
     // jour" — même logique que btn2s juste au-dessus.
     var btnVJM = document.getElementById("btnVueJourMobile");
     if (btnVJM) btnVJM.classList.toggle("actif", !vueJourMobile);
+    // Round du 24.09.2026 (suite 15) — vue "1 jour" : la date du jour
+    // affiché remplace "‹ Sem. N ›" dans le menu ⋮ (.mode-jour, qui n'agit
+    // que sous 600px, cf. style-mobile.css). Son libellé suit le jour
+    // affiché : rendu, et arrêt du défilement (cf. defilementArrete,
+    // grille-rendu.js). jourMobileCourant n'est lu qu'en vue "1 jour"
+    // réelle (il fixe jourMobileIso au passage).
+    var groupeNav = document.getElementById("groupeNavSemaine");
+    if (groupeNav) groupeNav.classList.toggle("mode-jour", vueJourMobile);
+    var btnDate = document.getElementById("btnDateJourMobile");
+    var jourAff = btnDate && modeJourMobileActif() ? jourMobileCourant() : null;
+    if (jourAff) btnDate.textContent = libelleDateCourteIso(jourAff) + " " + jourAff.slice(0, 4) + " ▾";
+    // Le calendrier posé sur la pilule s'ouvre sur ce même jour : valeur
+    // tenue à jour ici aussi (pas seulement à l'appui, cf. coquille.js —
+    // selon le téléphone, le calendrier peut s'ouvrir avant le "click").
+    var inputDate = document.getElementById("inputDateJourMobile");
+    if (jourAff && inputDate && document.activeElement !== inputDate) {
+      inputDate.value = jourAff;
+      inputDate.min = etat.semaines[0].debut;
+      inputDate.max = etat.semaines[etat.semaines.length - 1].fin;
+    }
   }
 

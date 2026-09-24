@@ -842,6 +842,36 @@
     bullesSelectionnees = {};
     assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); majBarreSelection(); });
   }
+  // Round du 24.09.2026 (suite 15) — date choisie dans le calendrier de la
+  // vue "1 jour" (pilule date du menu "⋮", cf. #btnDateJourMobile dans
+  // js/coquille.js) : même chemin qu'Aujourd'hui (allerAujourdhui plus
+  // haut) avec une autre date — semaine et jour affichés, fenêtre de 2
+  // semaines recalculée autour, rendu calé sur ce jour (cibleApresRendu
+  // l'impose, cf. le relevé de l'ancienne grille dans construireGrille).
+  // Samedi/dimanche alors que le week-end est masqué : la grille n'a pas
+  // de colonne pour eux, on prend le jour ouvré le plus proche (samedi ->
+  // vendredi, dimanche -> lundi), en le disant.
+  function allerAuJourMobile(iso) {
+    var idx = -1;
+    for (var i = 0; i < etat.semaines.length; i++) {
+      if (iso >= etat.semaines[i].debut && iso <= etat.semaines[i].fin) { idx = i; break; }
+    }
+    if (idx < 0) { toast("Date hors du planning."); return; }
+    var js = jourSemaineIso_(iso);
+    if (js >= 5 && !afficherWeekends) {
+      var d = new Date(iso + "T00:00:00");
+      d.setDate(d.getDate() + (js === 5 ? -1 : 1));
+      iso = isoDeDate(d);
+      if (js === 6) idx = Math.min(idx + 1, etat.semaines.length - 1);
+      toast("Week-end masqué : " + libelleDateCourteIso(iso) + " affiché.");
+    }
+    etat.indexSemaine = idx;
+    jourMobileIso = iso;
+    debutFenetreMobile = null;
+    cibleApresRendu = "aujourdhui";
+    bullesSelectionnees = {};
+    assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); majBarreSelection(); });
+  }
   // Largeur d'écran qui passe au-dessus/au-dessous de 600px (rotation d'un
   // téléphone, fenêtre redimensionnée) : la vue "1 jour" s'active ou se
   // désactive, et avec elle la fenêtre chargée change (2 semaines <-> 1).
@@ -1760,10 +1790,13 @@
         for (var iSem = 0; iSem < etat.semaines.length; iSem++) {
           var sem = etat.semaines[iSem];
           if (isoJour >= sem.debut && isoJour <= sem.fin) {
-            if (iSem !== etat.indexSemaine) { etat.indexSemaine = iSem; majSemaineAffichage(); }
+            etat.indexSemaine = iSem;
             break;
           }
         }
+        // Pilule Sem. N et, depuis la suite 15, date du jour du menu ⋮ :
+        // à chaque arrêt, plus seulement au changement de semaine.
+        majSemaineAffichage();
         var rangJour = estGiWeekend(giJour) ? semaineDuGiWeekend(giJour) * 5 + 4 : giJour;
         if (rangJour >= 2 && rangJour <= n - 3) return;
         recentrerFenetreJourMobile();

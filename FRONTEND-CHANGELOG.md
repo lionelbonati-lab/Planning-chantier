@@ -6879,3 +6879,33 @@ Vérifié en local (Playwright) avec le nouveau test `test_important_selection.j
 - message au-dessus de la pilule, sur ordinateur et téléphone.
 
 Le faux serveur du test applique les règles de `planPlage` (origine retrouvée par texte et drapeau, pas de doublon). Sur l'ancien ordre d'envoi, la vérification Ctrl+Z échoue (note perdue). Sans le nouveau CSS, les 3 vérifications de position du message échouent. Les autres tests qui fonctionnent passent tous : sélection 43/43, aperçu de dépôt 9/9, barre 27/27, hors semaine 16/16, défilement mobile 20/20, et les tests de logique pure.
+
+## 123. Round du 24.09.2026 (suite 15) — Téléphone, vue « 1 jour » : la date du jour remplace la navigation par semaine
+
+Lionel : « Dans le menu 3 point sur mobile, en mode un jour, la navigation par semaine doit être remplacée par la date du jour aller sélectionner une autre date dans le calendrier. »
+
+**Menu ⋮, vue « 1 jour »** : la ligne « ‹ Sem. N ▾ › » laisse la place à une pilule qui affiche la date du jour affiché, par exemple « Jeu. 24 sept. 2026 ▾ ». Un appui ouvre le calendrier du téléphone sur ce jour. Une date choisie referme le menu et affiche ce jour.
+
+Le libellé suit le jour affiché : au rendu comme à l'arrêt d'un swipe (`defilementArrete`, qui rafraîchit maintenant l'affichage à chaque arrêt, plus seulement au changement de semaine). En vue « 1 semaine », « ‹ Sem. N › » revient. Ordinateur et tablette ne changent pas.
+
+**Calendrier** (`#inputDateJourMobile`, `js/coquille.js`) : un `<input type="date">` natif, invisible, posé en permanence sur la pilule.
+- **Au doigt**, l'appui tombe directement sur ce champ et le téléphone ouvre son propre calendrier. À la souris (fenêtre étroite sur ordinateur), il passe par `.showPicker()`.
+- **Pourquoi un champ permanent** et pas créé à l'appui comme dans les fiches : un calendrier refermé sans choix y laissait un champ périmé sur la pilule. `.showPicker()` ne donne pas le focus, donc aucun « blur » ne le retirait.
+- **Bornes** : les semaines connues du planning.
+- **Menu** : le champ est dans le panneau ⋮, donc l'appui ne referme pas le menu sous le doigt.
+
+**Aller au jour choisi** (`allerAuJourMobile`, `js/grille-rendu.js`) : même chemin qu'« Aujourd'hui », avec une autre date. La semaine et le jour sont fixés, la fenêtre de 2 semaines est recalculée autour, puis le rendu est calé sur ce jour.
+- **Samedi ou dimanche, week-end masqué** : la grille n'a pas de colonne pour eux. Le samedi affiche le vendredi, le dimanche le lundi, avec un message.
+- **Week-end affiché** : le samedi ou le dimanche est affiché tel quel.
+
+Vérifié en local (Playwright) avec le nouveau test `test_date_jour_mobile.js`, **12 vérifications**, toutes OK, sur téléphone simulé (390 px, tactile) :
+- dans le menu, la date remplace ‹ Sem. N › ;
+- l'appui tombe sur le calendrier, réglé sur le jour affiché et borné, et le menu reste ouvert ;
+- choix d'une date dans une autre semaine, dans la même semaine et lointaine (mars 2027) : menu refermé, jour affiché, libellé et pilule Sem. N à jour ;
+- samedi et dimanche masqués : vendredi et lundi ;
+- samedi avec le week-end affiché ;
+- le libellé et le calendrier suivent un swipe ;
+- « 1 semaine » et retour ;
+- ordinateur inchangé.
+
+Sur l'ancien code, le test s'arrête dès la première vérification (pas de date dans le menu). Les autres tests qui fonctionnent passent tous : défilement mobile 20/20, barre 27/27, sélection 43/43, important 14/14, aperçu de dépôt 9/9, hors semaine 16/16, et les tests de logique pure.

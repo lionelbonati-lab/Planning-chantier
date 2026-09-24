@@ -223,6 +223,13 @@
         // semaines" sur sa propre ligne en dessous. #btnVueJourMobile
         // ("1 semaine", round du 23.09.2026 suite 4) remplace #btnDeuxSemaines
         // sur téléphone seulement (échange en CSS, cf. style-mobile.css).
+        // .nav-jour-ligne (round du 24.09.2026, suite 15 — Lionel : « Dans
+        // le menu 3 point sur mobile, en mode un jour, la navigation par
+        // semaine doit être remplacée par la date du jour aller sélectionner
+        // une autre date dans le calendrier ») : date du jour affiché, qui
+        // ouvre le calendrier ; remplace "‹ Sem. N ›" sur téléphone en vue
+        // "1 jour" seulement (.mode-jour posée par majSemaineAffichage,
+        // échange en CSS dans style-mobile.css), jamais visible ailleurs.
         '<div class="toolbar-groupe" id="groupeNavSemaine" data-rang="50" data-rang-menu="30">' +
           '<div class="nav-semaine-ligne">' +
             '<button type="button" class="toolbar-btn" id="btnSemainePrec" title="Semaine précédente" aria-label="Semaine précédente">' + ICONS.chevronGauche + '</button>' +
@@ -231,6 +238,12 @@
               '<div class="outil-menu-panneau semaine-panneau" id="panneauSemaine"></div>' +
             '</div>' +
             '<button type="button" class="toolbar-btn" id="btnSemaineSuiv" title="Semaine suivante" aria-label="Semaine suivante">' + ICONS.chevronDroite + '</button>' +
+          '</div>' +
+          '<div class="nav-jour-ligne">' +
+            '<span class="date-jour-pilule">' +
+              '<span class="zoom-pill" id="btnDateJourMobile" aria-hidden="true">— ▾</span>' +
+              '<input type="date" class="date-picker-jour" id="inputDateJourMobile" title="Choisir une autre date dans le calendrier" aria-label="Jour affiché — choisir une autre date">' +
+            '</span>' +
           '</div>' +
           '<button type="button" class="toolbar-btn" id="btnDeuxSemaines" title="Afficher 2 semaines à la fois" aria-label="Afficher 2 semaines à la fois">' + ICONS.deuxSemaines + '<span class="toolbar-btn-label">Afficher 2 semaines</span><span class="toolbar-btn-coche">✓</span></button>' +
           '<button type="button" class="toolbar-btn" id="btnVueJourMobile" title="Afficher la semaine complète" aria-label="Afficher la semaine complète">' + ICONS.semaineMobile + '<span class="toolbar-btn-label">1 semaine</span><span class="toolbar-btn-coche">✓</span></button>' +
@@ -832,6 +845,35 @@
     document.getElementById("selFermer").addEventListener("click", function () { quitterModeSelection(); render(false); });
     if (btnDeuxSemainesBarre) btnDeuxSemainesBarre.addEventListener("click", basculerDeuxSemaines);
     if (btnVueJourMobileBarre) btnVueJourMobileBarre.addEventListener("click", basculerVueJourMobile);
+    // Date du jour affiché (vue "1 jour", round du 24.09.2026, suite 15) :
+    // un <input type="date"> natif invisible, posé EN PERMANENCE sur la
+    // pilule (.date-jour-pilule, cf. style.css) — au doigt, l'appui tombe
+    // directement sur lui et le téléphone ouvre son propre calendrier ; à la
+    // souris (fenêtre étroite sur ordinateur), .showPicker(). Permanent
+    // plutôt que créé à l'appui comme dans les fiches (cablerCalendrierDate,
+    // formulaires-communs.js) : un calendrier refermé sans choix laissait
+    // sinon un champ périmé sur la pilule (aucun "blur" : .showPicker() ne
+    // donne pas le focus). Valeur tenue à jour avec le jour affiché
+    // (majSemaineAffichage), bornes = semaines connues du planning. Dans le
+    // panneau "⋮" : l'appui reste un clic dans le panneau, qui ne se
+    // referme pas. Une date choisie referme le menu, comme "1 semaine" : la
+    // grille entière change.
+    var inputDateJourMobile = document.getElementById("inputDateJourMobile");
+    if (inputDateJourMobile) {
+      inputDateJourMobile.addEventListener("click", function (e) {
+        inputDateJourMobile.value = jourMobileCourant() || etat.aujourdhui;
+        inputDateJourMobile.min = etat.semaines[0].debut;
+        inputDateJourMobile.max = etat.semaines[etat.semaines.length - 1].fin;
+        if (e.pointerType === "mouse" && inputDateJourMobile.showPicker) { try { inputDateJourMobile.showPicker(); } catch (ex) {} }
+      });
+      inputDateJourMobile.addEventListener("change", function () {
+        var iso = inputDateJourMobile.value;
+        if (!iso) return;
+        fermerAutresMenusOutils(null);
+        inputDateJourMobile.blur();
+        allerAuJourMobile(iso);
+      });
+    }
     // #menuSemaine/#btnSemainePill remplacent ouvrirAllerSemaine() (popup
     // centrée avec un <select>, supprimée avec son unique déclencheur
     // .lien-aller) par un dropdown façon Sheets, cohérent avec zoom/ligne+/+

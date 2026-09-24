@@ -223,4 +223,11 @@
        qui l'emportent sur `.toolbar-secondaire .toolbar-btn` de style.css. */
     #btnDeuxSemaines { display: none; }
     #btnVueJourMobile { display: flex; }
+    /* Round du 24.09.2026 (suite 15) — Lionel : « Dans le menu 3 point sur
+       mobile, en mode un jour, la navigation par semaine doit être
+       remplacée par la date du jour aller sélectionner une autre date dans
+       le calendrier ». .mode-jour suit vueJourMobile (majSemaineAffichage) ;
+       en vue "1 semaine", ‹ Sem. N › revient. */
+    #groupeNavSemaine.mode-jour .nav-semaine-ligne { display: none; }
+    #groupeNavSemaine.mode-jour .nav-jour-ligne { display: flex; }
   }

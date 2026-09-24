@@ -765,7 +765,20 @@
      règle "ligne pleine largeur" de .toolbar-btn juste au-dessus). */
   .nav-semaine-ligne { display: flex; align-items: center; gap: 2px; }
   .toolbar-secondaire .zoom-ctrl,
-  .toolbar-secondaire .nav-semaine-ligne { width: 100%; padding: 6px 8px; gap: 6px; }
+  .toolbar-secondaire .nav-semaine-ligne,
+  .toolbar-secondaire .nav-jour-ligne { width: 100%; padding: 6px 8px; gap: 6px; }
+  /* Date du jour affiché (round du 24.09.2026, suite 15) : téléphone en
+     vue "1 jour" seulement, à la place de ‹ Sem. N › (cf. style-mobile.css) ;
+     jamais affichée ici. Calée à gauche comme la navigation qu'elle
+     remplace. .date-picker-jour : le calendrier natif, invisible, couvre
+     toute la pilule et reçoit l'appui (cf. #inputDateJourMobile,
+     js/coquille.js) — le survol de la pilule passe donc par son conteneur.
+     16px : en dessous, Safari (iPhone) zoome la page quand le champ prend
+     le focus. */
+  .nav-jour-ligne { display: none; align-items: center; }
+  .date-jour-pilule { position: relative; display: inline-flex; }
+  .date-picker-jour { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: none; padding: 0; margin: 0; cursor: pointer; font-size: 16px; }
+  .date-jour-pilule:hover .zoom-pill { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
   .toolbar-secondaire .libelle-panneau { display: inline; margin-right: auto; font-size: 13.5px; font-weight: 600; color: var(--ink); }
   .toolbar-secondaire .zoom-btn,
   .toolbar-secondaire .nav-semaine-ligne .toolbar-btn {
