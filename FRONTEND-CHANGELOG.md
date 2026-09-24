@@ -6915,3 +6915,36 @@ Vérifié en local (Playwright) avec le nouveau test `test_calendrier_mobile.js`
 - ordinateur sans icône.
 
 Sur le code d'avant, le test s'arrête dès la première vérification. Les autres tests qui fonctionnent passent tous : défilement mobile 20/20, barre 27/27, sélection 43/43, important 14/14, aperçu de dépôt 9/9, hors semaine 16/16, et les tests de logique pure.
+
+## 124. Round du 24.09.2026 (suite 16) — Icône calendrier aussi sur ordinateur et tablette
+
+Lionel : « oui, ajoute aussi l'icône sur ordinateur et tablette ».
+
+**Barre** : `#btnCalendrierBarre` (§123) s'affiche maintenant sur tous les écrans, collé à droite d'Aujourd'hui, au même gabarit que lui.
+- C'est un `.toolbar-btn` ordinaire dans `#groupeAujourdhui`, un groupe qui ne se replie jamais dans le menu ⋮.
+- `style.css` ne masque plus que `.ligne-vue-mobile`. La règle propre au téléphone qui le réaffichait (`style-mobile.css`) disparaît.
+- La ligne « calendrier + 1 semaine » du menu ⋮ reste au téléphone : ailleurs, « 1 semaine » n'existe pas et « ‹ Sem. N › » reste dans la barre.
+
+**Choix d'une date** : sur ordinateur et tablette, `allerAuJour` (§123) affiche la semaine qui contient la date, comme un choix dans la pilule « Sem. N ». Cela vaut aussi en mode 2 semaines : la semaine choisie passe en tête.
+
+**Jour d'ouverture** : aujourd'hui s'il est dans la semaine affichée, sinon le lundi de cette semaine. Il suit Aujourd'hui, les flèches et la pilule.
+
+**Ouverture du calendrier** (`js/coquille.js`) : `.showPicker()` est désormais appelé pour tout sauf le doigt (`pointerType !== "touch"`), au lieu de la souris seulement.
+- **Souris et stylet** : sans `.showPicker()`, Chrome et Firefox n'ouvrent le calendrier d'un champ date qu'au clic sur sa propre icône, invisible ici.
+- **`pointerType` vide** : c'est ce qu'envoient les anciens Safari et Firefox sur un clic, d'où le test sur le doigt plutôt que sur la souris.
+- **Au doigt** (tablette et téléphone), l'appui tombe sur le champ et le système ouvre son propre calendrier, sans changement.
+
+Vérifié en local (Playwright) : `test_calendrier_mobile.js` passe de 15 à **25 vérifications**, toutes OK. La section « ordinateur sans icône » est remplacée par :
+- **Ordinateur** (1300 px, souris) :
+  - calendrier collé à droite d'Aujourd'hui, même gabarit, rien dans le menu ⋮, barre sans chevauchement ;
+  - un clic appelle `.showPicker()`, sur aujourd'hui et borné ;
+  - 11.11.2026 → semaine 46 ; même semaine → rien ne bouge ;
+  - en 2 semaines, 03.12.2026 → semaine 49 en tête ;
+  - Aujourd'hui ramène la semaine 39 et le calendrier au 24.09.
+- **Tablette** (820 px, tactile) : même disposition. L'appui tombe sur le champ, sans `.showPicker()`, et le 21.10.2026 mène à la semaine 43.
+- **601 px** (juste au-dessus du téléphone) : icône présente, barre sans chevauchement.
+
+Sur le code d'avant, le test échoue dès la première vérification ordinateur. Les autres tests qui fonctionnent passent tous :
+- barre 27/27, défilement mobile 20/20, sélection 43/43 ;
+- important 14/14, aperçu de dépôt 9/9, hors semaine 16/16 ;
+- les tests de logique pure.

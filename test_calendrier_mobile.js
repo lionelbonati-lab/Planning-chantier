@@ -20,7 +20,15 @@ const path = require('path');
 //   - les calendriers suivent le swipe ;
 //   - vue "1 semaine" : ‹ Sem. N › revient, « 1 semaine » teinté, une date
 //     choisie mène à sa semaine sans quitter la vue ;
-//   - barre à 320px sans chevauchement ; ordinateur : pas d'icône.
+//   - barre à 320px sans chevauchement.
+// Suite 16 — Lionel : « oui, ajoute aussi l'icône sur ordinateur et
+// tablette ». Ordinateur (1300px, souris) puis tablette (820px, tactile) :
+//   - calendrier collé à Aujourd'hui dans la barre, jamais de ligne
+//     « calendrier + 1 semaine » dans le menu ⋮ ; barre sans chevauchement ;
+//   - à la souris, un clic ouvre le calendrier (.showPicker()) ; au doigt,
+//     l'appui tombe sur le champ lui-même (sans .showPicker()) ;
+//   - une date choisie amène sa semaine (1 ou 2 semaines affichées), le
+//     calendrier suit (Aujourd'hui compris).
 //
 // Lancer : node test_calendrier_mobile.js
 
@@ -77,16 +85,26 @@ const FAUX_SUPABASE = '(' + function () {
 
 (async () => {
   const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
-  const page = await browser.newPage({ viewport: { width: 390, height: 800 }, hasTouch: true, isMobile: true });
   const erreurs = [];
-  page.on('pageerror', (e) => erreurs.push('pageerror: ' + String(e && e.stack || e)));
-  await page.clock.setFixedTime(new Date('2026-09-24T10:00:00'));
-  await page.route(/fonts\.googleapis|fonts\.gstatic/, (r) => r.abort());
-  await page.route(/supabase-js/, (r) => r.fulfill({ contentType: 'application/javascript', body: FAUX_SUPABASE }));
-  await page.addInitScript(() => { window.__TACHES_INITIALES = []; });
-  await page.goto('file://' + path.join(__dirname, 'index.html'));
-  await page.waitForSelector('#legendeBarre');
-  await page.waitForTimeout(500);
+  // .showPicker() remplacé par un compteur : seul son appel compte ici (le
+  // vrai calendrier, en headless, garderait le focus du champ).
+  async function nouvellePage(options) {
+    const p = await browser.newPage(options);
+    p.on('pageerror', (e) => erreurs.push('pageerror: ' + String(e && e.stack || e)));
+    await p.clock.setFixedTime(new Date('2026-09-24T10:00:00'));
+    await p.route(/fonts\.googleapis|fonts\.gstatic/, (r) => r.abort());
+    await p.route(/supabase-js/, (r) => r.fulfill({ contentType: 'application/javascript', body: FAUX_SUPABASE }));
+    await p.addInitScript(() => {
+      window.__TACHES_INITIALES = [];
+      window.__showPicker = 0;
+      HTMLInputElement.prototype.showPicker = function () { window.__showPicker++; };
+    });
+    await p.goto('file://' + path.join(__dirname, 'index.html'));
+    await p.waitForSelector('#legendeBarre');
+    await p.waitForTimeout(500);
+    return p;
+  }
+  let page = await nouvellePage({ viewport: { width: 390, height: 800 }, hasTouch: true, isMobile: true });
 
   let total = 0, echecs = 0;
   function verifier(cond, message) {
@@ -235,11 +253,84 @@ const FAUX_SUPABASE = '(' + function () {
   });
   verifier(barre.dedans && !barre.chev, '320 px : barre (' + barre.n + ' boutons, calendrier compris) sans chevauchement ni débordement');
 
-  // 10) Ordinateur : pas d'icône calendrier.
-  await page.setViewportSize({ width: 1300, height: 800 });
-  await page.waitForTimeout(600);
-  v = await etatVue();
-  verifier(!v.calBarre && !v.calMenu && v.navVisible, 'ordinateur : ‹ Sem. N › dans la barre, pas d\'icône calendrier');
+  // 10) Ordinateur (souris) puis tablette (tactile) : icône dans la barre,
+  //     collée à Aujourd'hui ; une date choisie amène sa semaine.
+  const barreSansChevauchement = () => page.evaluate(() => {
+    const b = document.getElementById('legendeBarre'), rb = b.getBoundingClientRect();
+    const el = Array.from(b.querySelectorAll('.toolbar-btn, .select-chantier-btn, .zoom-pill')).filter((e) => !e.closest('.toolbar-secondaire') && e.getBoundingClientRect().width > 0).map((e) => e.getBoundingClientRect());
+    let chev = 0;
+    for (let i = 0; i < el.length; i++) for (let j = i + 1; j < el.length; j++) if (el[i].left < el[j].right - 1 && el[j].left < el[i].right - 1 && el[i].top < el[j].bottom - 1 && el[j].top < el[i].bottom - 1) chev++;
+    return el.every((r) => r.left >= rb.left - 1 && r.right <= rb.right + 1) && !chev;
+  });
+  const dispositionBarre = () => page.evaluate(() => {
+    const auj = document.getElementById('btnAujourdhui').getBoundingClientRect(), cal = document.getElementById('btnCalendrierBarre').getBoundingClientRect();
+    const i = document.querySelector('#btnCalendrierBarre .date-picker-jour');
+    return {
+      collee: cal.width > 0 && Math.abs((auj.top + auj.height / 2) - (cal.top + cal.height / 2)) < 1 && cal.left >= auj.right && cal.left - auj.right < 6 && Math.abs(cal.width - auj.width) < 1,
+      groupe: document.getElementById('btnCalendrierBarre').parentElement.id,
+      dessus: document.elementFromPoint(cal.left + cal.width / 2, cal.top + cal.height / 2) === i,
+      ligneMenu: document.querySelector('.ligne-vue-mobile').getBoundingClientRect().width > 0
+    };
+  });
+  const semaine = () => page.evaluate(() => ({
+    pilule: document.getElementById('btnSemainePill').textContent.trim(),
+    valeur: document.querySelector('#btnCalendrierBarre .date-picker-jour').value,
+    menu: document.getElementById('toolbarSecondaire').classList.contains('ouvert'),
+    picker: window.__showPicker
+  }));
+  async function choisirDateBarre(iso, geste) {
+    if (geste === 'tap') await page.tap(BARRE); else await page.click(BARRE);
+    await page.waitForTimeout(80);
+    await page.evaluate((d) => {
+      const input = document.querySelector('#btnCalendrierBarre .date-picker-jour');
+      input.value = d;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    }, iso);
+    await page.waitForTimeout(500);
+  }
+
+  await page.close();
+  page = await nouvellePage({ viewport: { width: 1300, height: 800 } });
+  let d = await dispositionBarre();
+  verifier(d.collee && d.groupe === 'groupeAujourdhui' && d.dessus && !d.ligneMenu, 'ordinateur : calendrier collé à droite d\'Aujourd\'hui, même gabarit, rien dans le menu ⋮');
+  verifier(await barreSansChevauchement(), 'ordinateur : barre sans chevauchement ni débordement');
+  await page.click(BARRE);
+  await page.waitForTimeout(80);
+  let sem = await semaine();
+  const bornes = await page.evaluate(() => { const i = document.querySelector('#btnCalendrierBarre .date-picker-jour'); return [i.min, i.max]; });
+  verifier(sem.picker === 1 && sem.valeur === '2026-09-24' && bornes[0] < '2022-01-01' && bornes[1] > '2031-01-01', 'ordinateur, clic : calendrier ouvert (.showPicker) sur aujourd\'hui, borné (' + bornes + ')');
+  await page.evaluate(() => { const i = document.querySelector('#btnCalendrierBarre .date-picker-jour'); i.value = '2026-11-11'; i.dispatchEvent(new Event('change', { bubbles: true })); });
+  await page.waitForTimeout(500);
+  sem = await semaine();
+  verifier(sem.pilule.indexOf('Sem. 46') === 0 && sem.valeur === '2026-11-09', 'ordinateur, 11.11.2026 : semaine 46 affichée (' + sem.pilule + ', calendrier sur ' + sem.valeur + ')');
+  await choisirDateBarre('2026-11-13');
+  sem = await semaine();
+  verifier(sem.pilule.indexOf('Sem. 46') === 0, 'ordinateur, même semaine : rien ne bouge (' + sem.pilule + ')');
+  await page.click('#btnDeuxSemaines');
+  await page.waitForTimeout(500);
+  await choisirDateBarre('2026-12-03');
+  sem = await semaine();
+  const deux = await page.evaluate(() => Array.from(document.querySelectorAll('.entete-planning-figee .th[data-gi]')).length);
+  verifier(sem.pilule.indexOf('Sem. 49') === 0 && deux >= 10, 'ordinateur, 2 semaines, 03.12.2026 : semaine 49 en tête (' + sem.pilule + ', ' + deux + ' jours)');
+  await page.click('#btnAujourdhui');
+  await page.waitForTimeout(500);
+  sem = await semaine();
+  verifier(sem.pilule.indexOf('Sem. 39') === 0 && sem.valeur === '2026-09-24', 'ordinateur, Aujourd\'hui : semaine 39, calendrier de nouveau sur le 24.09');
+  if (process.env.CAPTURE) await page.screenshot({ path: process.env.CAPTURE + '-1300.png', clip: { x: 0, y: 0, width: 1300, height: 160 } });
+
+  await page.close();
+  page = await nouvellePage({ viewport: { width: 820, height: 1180 }, hasTouch: true, isMobile: true });
+  d = await dispositionBarre();
+  verifier(d.collee && d.groupe === 'groupeAujourdhui' && d.dessus && !d.ligneMenu, 'tablette : calendrier collé à droite d\'Aujourd\'hui, l\'appui tombe sur le champ, rien dans le menu ⋮');
+  verifier(await barreSansChevauchement(), 'tablette : barre sans chevauchement ni débordement');
+  await choisirDateBarre('2026-10-21', 'tap');
+  sem = await semaine();
+  verifier(sem.picker === 0 && sem.pilule.indexOf('Sem. 43') === 0 && sem.valeur === '2026-10-19' && !sem.menu, 'tablette, appui puis 21.10.2026 : calendrier du système (pas de .showPicker), semaine 43 (' + sem.pilule + ')');
+  if (process.env.CAPTURE) await page.screenshot({ path: process.env.CAPTURE + '-820.png', clip: { x: 0, y: 0, width: 820, height: 160 } });
+  await page.setViewportSize({ width: 601, height: 900 });
+  await page.waitForTimeout(500);
+  d = await dispositionBarre();
+  verifier(d.collee && await barreSansChevauchement(), '601 px (au-dessus du téléphone) : calendrier présent, barre sans chevauchement');
 
   if (erreurs.length) { echecs++; console.error('ERREURS JS : ' + JSON.stringify(erreurs, null, 2)); }
   console.log((total - echecs) + '/' + total + ' vérifications' + (echecs ? ' — ' + echecs + ' ÉCHEC(S)' : ' — OK'));

@@ -213,9 +213,12 @@
         // que la navigation est dans la barre.
         // #btnCalendrierBarre (round du 24.09.2026, suite 15 — Lionel :
         // « Cette icône calendrier sera aussi affichée dans la toolbar à
-        // côté de aujourd'hui ») : téléphone seulement (style-mobile.css),
-        // même calendrier que celui du menu ⋮ (.btn-calendrier, cf. le
-        // commentaire de #groupeNavSemaine juste en dessous).
+        // côté de aujourd'hui ») : même calendrier que celui du menu ⋮ du
+        // téléphone (.btn-calendrier, cf. le commentaire de
+        // #groupeNavSemaine juste en dessous). D'abord au téléphone
+        // seulement, puis partout (suite 16 — Lionel : « oui, ajoute aussi
+        // l'icône sur ordinateur et tablette ») : là, la date choisie
+        // amène sa semaine (allerAuJour, js/grille-rendu.js).
         '<div class="toolbar-groupe sep-avant" id="groupeAujourdhui" data-rang="40">' +
           '<button type="button" class="toolbar-btn" id="btnAujourdhui" title="Aller à aujourd’hui" aria-label="Aller à aujourd’hui">' + ICONS.aujourdhui + '</button>' +
           '<span class="toolbar-btn btn-calendrier" id="btnCalendrierBarre" title="Choisir un jour dans le calendrier">' + ICONS.choisirJour +
@@ -855,13 +858,17 @@
     document.getElementById("selFermer").addEventListener("click", function () { quitterModeSelection(); render(false); });
     if (btnDeuxSemainesBarre) btnDeuxSemainesBarre.addEventListener("click", basculerDeuxSemaines);
     if (btnVueJourMobileBarre) btnVueJourMobileBarre.addEventListener("click", basculerVueJourMobile);
-    // Icônes calendrier (round du 24.09.2026, suite 15) — barre et menu ⋮,
-    // téléphone : un <input type="date"> natif, invisible, couvre
-    // EN PERMANENCE l'icône (.btn-calendrier, cf. style.css) — au doigt,
-    // l'appui tombe directement sur lui et le téléphone ouvre son propre
-    // calendrier ; à la souris (fenêtre étroite sur ordinateur),
-    // .showPicker(). Permanent plutôt que créé à l'appui comme dans les
-    // fiches (cablerCalendrierDate, formulaires-communs.js) : un calendrier
+    // Icônes calendrier (round du 24.09.2026, suite 15) — barre (partout
+    // depuis la suite 16) et menu ⋮ du téléphone : un <input type="date">
+    // natif, invisible, couvre EN PERMANENCE l'icône (.btn-calendrier, cf.
+    // style.css) — au doigt, l'appui tombe directement sur lui et le
+    // téléphone/la tablette ouvre son propre calendrier ; à la souris ou au
+    // stylet, .showPicker() (sans lui, Chrome et Firefox n'ouvrent le
+    // calendrier d'un champ date qu'au clic sur son icône à lui, invisible
+    // ici). Pas "=== 'mouse'" : Safari/Firefox anciens laissent pointerType
+    // vide sur un clic — seul le doigt s'en passe. Permanent plutôt que
+    // créé à l'appui comme dans les fiches (cablerCalendrierDate,
+    // formulaires-communs.js) : un calendrier
     // refermé sans choix y laissait sinon un champ périmé (aucun "blur" :
     // .showPicker() ne donne pas le focus). Valeur = jour affiché (vue "1
     // jour") ou jour de la semaine affichée (vue "1 semaine"), tenue à jour
@@ -872,7 +879,7 @@
     document.querySelectorAll(".btn-calendrier .date-picker-jour").forEach(function (input) {
       input.addEventListener("click", function (e) {
         majCalendrierJour(input);
-        if (e.pointerType === "mouse" && input.showPicker) { try { input.showPicker(); } catch (ex) {} }
+        if (e.pointerType !== "touch" && input.showPicker) { try { input.showPicker(); } catch (ex) {} }
       });
       input.addEventListener("change", function () {
         var iso = input.value;

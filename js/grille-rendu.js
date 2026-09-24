@@ -843,7 +843,8 @@
     assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); majBarreSelection(); });
   }
   // Round du 24.09.2026 (suite 15) — date choisie dans un calendrier
-  // (.btn-calendrier : barre et menu "⋮" du téléphone, cf. js/coquille.js).
+  // (.btn-calendrier : barre, partout depuis la suite 16, et menu "⋮" du
+  // téléphone, cf. js/coquille.js).
   // Vue "1 jour" : même chemin qu'Aujourd'hui (allerAujourdhui plus haut)
   // avec une autre date — semaine et jour affichés, fenêtre de 2 semaines
   // recalculée autour, rendu calé sur ce jour (cibleApresRendu l'impose,
