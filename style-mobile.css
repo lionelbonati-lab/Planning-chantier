@@ -216,11 +216,31 @@
        des 2 boutons "Afficher 2 semaines"/"1 semaine" est visible.
        #btnDeuxSemaines : son rôle usuel (1/2 semaines) ne fait plus sens
        une fois la largeur de colonnes pilotée par vueJourMobile sur
-       téléphone — remplacé ici par #btnVueJourMobile (display:flex, même
-       ligne icône—libellé—coche que les autres boutons du panneau "⋮").
-       Round du 24.09.2026 (suite 3) : 2 boutons du même groupe
-       (#groupeNavSemaine) au lieu de 2 groupes voisins — sélecteurs d'id,
-       qui l'emportent sur `.toolbar-secondaire .toolbar-btn` de style.css. */
+       téléphone — remplacé ici par #btnVueJourMobile, icône seule depuis
+       le round du 24.09.2026 (suite 15), sur la ligne .ligne-vue-mobile
+       ci-dessous. Round du 24.09.2026 (suite 3) : 2 boutons du même groupe
+       (#groupeNavSemaine) au lieu de 2 groupes voisins — sélecteur d'id,
+       qui l'emporte sur `.toolbar-secondaire .toolbar-btn` de style.css. */
     #btnDeuxSemaines { display: none; }
-    #btnVueJourMobile { display: flex; }
+    /* Round du 24.09.2026 (suite 15) — Lionel : « Dans le menu 3 point sur
+       mobile, en mode un jour, la navigation par semaine doit être
+       remplacée par la date du jour aller sélectionner une autre date dans
+       le calendrier », puis « tu ajoutes une icône calendrier [...] sur la
+       même ligne que le bouton afficher une semaine. Cette icône
+       calendrier sera aussi affichée dans la toolbar à côté de
+       aujourd'hui. 1 semaine seulement l'icône ».
+       - menu ⋮ : ligne « calendrier + 1 semaine » en icônes seules, au
+         gabarit des masquages (36px) ; « 1 semaine » teinté quand actif ;
+       - vue "1 jour" : ‹ Sem. N › disparaît (.mode-jour suit vueJourMobile,
+         majSemaineAffichage) ; en vue "1 semaine", il revient ;
+       - barre : calendrier collé à Aujourd'hui, même gabarit que lui. */
+    .ligne-vue-mobile { display: flex; align-items: center; gap: 6px; padding: 6px 8px; }
+    .toolbar-secondaire .ligne-vue-mobile .toolbar-btn {
+      display: grid; place-items: center; width: 36px; height: 36px; padding: 0; gap: 0;
+      border: 1px solid var(--border); background: var(--case-fixe-bg); color: var(--ink);
+    }
+    .toolbar-secondaire .ligne-vue-mobile .toolbar-btn.actif { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+    .toolbar-secondaire .ligne-vue-mobile .toolbar-btn svg { width: 17px; height: 17px; }
+    #groupeNavSemaine.mode-jour .nav-semaine-ligne { display: none; }
+    #btnCalendrierBarre { display: grid; }
   }

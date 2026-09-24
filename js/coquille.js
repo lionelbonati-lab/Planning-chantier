@@ -211,8 +211,16 @@
         // de séparateur entre les deux, cf. #groupeNavSemaine sans
         // .sep-avant) pour se lire comme un seul bloc "📅 ‹ Sem. N ›" tant
         // que la navigation est dans la barre.
+        // #btnCalendrierBarre (round du 24.09.2026, suite 15 — Lionel :
+        // « Cette icône calendrier sera aussi affichée dans la toolbar à
+        // côté de aujourd'hui ») : téléphone seulement (style-mobile.css),
+        // même calendrier que celui du menu ⋮ (.btn-calendrier, cf. le
+        // commentaire de #groupeNavSemaine juste en dessous).
         '<div class="toolbar-groupe sep-avant" id="groupeAujourdhui" data-rang="40">' +
           '<button type="button" class="toolbar-btn" id="btnAujourdhui" title="Aller à aujourd’hui" aria-label="Aller à aujourd’hui">' + ICONS.aujourdhui + '</button>' +
+          '<span class="toolbar-btn btn-calendrier" id="btnCalendrierBarre" title="Choisir un jour dans le calendrier">' + ICONS.choisirJour +
+            '<input type="date" class="date-picker-jour" aria-label="Choisir un jour dans le calendrier">' +
+          '</span>' +
         '</div>' +
         // Navigation semaine + "Afficher 2 semaines" collé derrière (Lionel :
         // « Collé à la navigation ») — un SEUL groupe, replié d'un bloc. Dans
@@ -223,6 +231,16 @@
         // semaines" sur sa propre ligne en dessous. #btnVueJourMobile
         // ("1 semaine", round du 23.09.2026 suite 4) remplace #btnDeuxSemaines
         // sur téléphone seulement (échange en CSS, cf. style-mobile.css).
+        // Round du 24.09.2026 (suite 15) — Lionel : « Dans le menu 3 point
+        // sur mobile, en mode un jour, la navigation par semaine doit être
+        // remplacée par la date du jour aller sélectionner une autre date
+        // dans le calendrier », puis « tu ajoutes une icône calendrier où on
+        // pourra sélectionner un jour, sur la même ligne que le bouton
+        // afficher une semaine [...] 1 semaine seulement l'icône ».
+        // .ligne-vue-mobile (téléphone seulement) : icône calendrier
+        // (.btn-calendrier) puis "1 semaine" réduit à son icône. En vue
+        // "1 jour", "‹ Sem. N ›" disparaît (.mode-jour posée par
+        // majSemaineAffichage, échange en CSS dans style-mobile.css).
         '<div class="toolbar-groupe" id="groupeNavSemaine" data-rang="50" data-rang-menu="30">' +
           '<div class="nav-semaine-ligne">' +
             '<button type="button" class="toolbar-btn" id="btnSemainePrec" title="Semaine précédente" aria-label="Semaine précédente">' + ICONS.chevronGauche + '</button>' +
@@ -233,7 +251,12 @@
             '<button type="button" class="toolbar-btn" id="btnSemaineSuiv" title="Semaine suivante" aria-label="Semaine suivante">' + ICONS.chevronDroite + '</button>' +
           '</div>' +
           '<button type="button" class="toolbar-btn" id="btnDeuxSemaines" title="Afficher 2 semaines à la fois" aria-label="Afficher 2 semaines à la fois">' + ICONS.deuxSemaines + '<span class="toolbar-btn-label">Afficher 2 semaines</span><span class="toolbar-btn-coche">✓</span></button>' +
-          '<button type="button" class="toolbar-btn" id="btnVueJourMobile" title="Afficher la semaine complète" aria-label="Afficher la semaine complète">' + ICONS.semaineMobile + '<span class="toolbar-btn-label">1 semaine</span><span class="toolbar-btn-coche">✓</span></button>' +
+          '<div class="ligne-vue-mobile">' +
+            '<span class="toolbar-btn btn-calendrier" id="btnCalendrierMenu" title="Choisir un jour dans le calendrier">' + ICONS.choisirJour +
+              '<input type="date" class="date-picker-jour" aria-label="Choisir un jour dans le calendrier">' +
+            '</span>' +
+            '<button type="button" class="toolbar-btn" id="btnVueJourMobile" title="Afficher la semaine complète" aria-label="Afficher la semaine complète" aria-pressed="false">' + ICONS.semaineMobile + '</button>' +
+          '</div>' +
         '</div>' +
         '<div class="toolbar-groupe sep-avant" id="groupeZoom" data-rang="60" data-rang-menu="20">' +
           '<div class="zoom-ctrl" id="zoomCtrl">' +
@@ -832,6 +855,33 @@
     document.getElementById("selFermer").addEventListener("click", function () { quitterModeSelection(); render(false); });
     if (btnDeuxSemainesBarre) btnDeuxSemainesBarre.addEventListener("click", basculerDeuxSemaines);
     if (btnVueJourMobileBarre) btnVueJourMobileBarre.addEventListener("click", basculerVueJourMobile);
+    // Icônes calendrier (round du 24.09.2026, suite 15) — barre et menu ⋮,
+    // téléphone : un <input type="date"> natif, invisible, couvre
+    // EN PERMANENCE l'icône (.btn-calendrier, cf. style.css) — au doigt,
+    // l'appui tombe directement sur lui et le téléphone ouvre son propre
+    // calendrier ; à la souris (fenêtre étroite sur ordinateur),
+    // .showPicker(). Permanent plutôt que créé à l'appui comme dans les
+    // fiches (cablerCalendrierDate, formulaires-communs.js) : un calendrier
+    // refermé sans choix y laissait sinon un champ périmé (aucun "blur" :
+    // .showPicker() ne donne pas le focus). Valeur = jour affiché (vue "1
+    // jour") ou jour de la semaine affichée (vue "1 semaine"), tenue à jour
+    // par majSemaineAffichage, et bornes = semaines connues du planning.
+    // Dans le menu, l'appui reste un clic dans le panneau, qui ne se
+    // referme pas ; une date choisie referme tout, comme "1 semaine" : la
+    // grille entière change (allerAuJour, js/grille-rendu.js).
+    document.querySelectorAll(".btn-calendrier .date-picker-jour").forEach(function (input) {
+      input.addEventListener("click", function (e) {
+        majCalendrierJour(input);
+        if (e.pointerType === "mouse" && input.showPicker) { try { input.showPicker(); } catch (ex) {} }
+      });
+      input.addEventListener("change", function () {
+        var iso = input.value;
+        if (!iso) return;
+        input.blur();
+        fermerAutresMenusOutils(null);
+        allerAuJour(iso);
+      });
+    });
     // #menuSemaine/#btnSemainePill remplacent ouvrirAllerSemaine() (popup
     // centrée avec un <select>, supprimée avec son unique déclencheur
     // .lien-aller) par un dropdown façon Sheets, cohérent avec zoom/ligne+/+

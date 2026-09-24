@@ -6879,3 +6879,39 @@ Vérifié en local (Playwright) avec le nouveau test `test_important_selection.j
 - message au-dessus de la pilule, sur ordinateur et téléphone.
 
 Le faux serveur du test applique les règles de `planPlage` (origine retrouvée par texte et drapeau, pas de doublon). Sur l'ancien ordre d'envoi, la vérification Ctrl+Z échoue (note perdue). Sans le nouveau CSS, les 3 vérifications de position du message échouent. Les autres tests qui fonctionnent passent tous : sélection 43/43, aperçu de dépôt 9/9, barre 27/27, hors semaine 16/16, défilement mobile 20/20, et les tests de logique pure.
+
+## 123. Round du 24.09.2026 (suite 15) — Téléphone : icône calendrier pour choisir un jour, dans la barre et dans le menu ⋮
+
+Lionel, en deux temps : « Dans le menu 3 point sur mobile, en mode un jour, la navigation par semaine doit être remplacée par la date du jour aller sélectionner une autre date dans le calendrier. », puis, après une première version où la date du jour remplaçait « ‹ Sem. N › » : « Modification, en fait, tu ajoutes une icône calendrier où on pourra sélectionner un jour, sur la même ligne que le bouton afficher une semaine. Cette icône calendrier sera aussi affichée dans la toolbar à côté de aujourd'hui. 1 semaine seulement l'icône ».
+
+**Où est l'icône** (`ICONS.choisirJour`, `js/core.js`). C'est un calendrier dont la grille des jours est pointillée, distinct d'Aujourd'hui, dont le gros point marque le jour même. Elle est placée à deux endroits, sur téléphone seulement :
+- **Barre** (`#btnCalendrierBarre`) : collée à droite d'Aujourd'hui, dans le même groupe.
+- **Menu ⋮** (`.ligne-vue-mobile`) : sur une ligne « calendrier + 1 semaine ». Les deux sont des icônes seules, au gabarit des masquages (36 px). « 1 semaine » perd son libellé et sa coche : il est teinté quand il est actif, et `aria-pressed` suit son état.
+
+**Vue « 1 jour »** : « ‹ Sem. N › » disparaît du menu (`.mode-jour`, `style-mobile.css`). En vue « 1 semaine », il revient au-dessus de la ligne calendrier. Ordinateur et tablette ne changent pas : ni icône, ni ligne.
+
+**Calendrier** : un `<input type="date">` natif, invisible, couvre en permanence chaque icône (`.btn-calendrier`, `js/coquille.js`).
+- **Au doigt**, l'appui tombe directement sur ce champ et le téléphone ouvre son propre calendrier. À la souris (fenêtre étroite sur ordinateur), il passe par `.showPicker()`.
+- **Pourquoi un champ permanent**, et pas créé à l'appui comme dans les fiches : un calendrier refermé sans choix y laissait un champ périmé. `.showPicker()` ne donne pas le focus, donc aucun « blur » ne le retirait.
+- **Jour d'ouverture** (`majCalendrierJour`) : le jour affiché en vue « 1 jour ». En vue « 1 semaine », aujourd'hui s'il est dans la semaine affichée, sinon son lundi.
+- **Mise à jour** : à chaque rendu et à chaque arrêt d'un swipe (`defilementArrete`, qui rafraîchit maintenant l'affichage à chaque arrêt et plus seulement au changement de semaine).
+- **Bornes** : les semaines connues du planning.
+- **Taille 16 px** : en dessous, Safari sur iPhone zoome la page quand le champ prend le focus.
+- **Menu** : l'appui reste dans le panneau, qui ne se referme pas sous le doigt. Une date choisie referme tout, comme « 1 semaine ».
+
+**Aller à la date** (`allerAuJour`, `js/grille-rendu.js`).
+- **Vue « 1 jour »** : même chemin qu'Aujourd'hui. Le jour et sa semaine sont fixés, la fenêtre de 2 semaines est recalculée autour, puis le rendu est calé sur ce jour.
+- **Samedi ou dimanche, week-end masqué** : le samedi affiche le vendredi, le dimanche le lundi, avec un message. Si le week-end est affiché, le jour choisi est affiché tel quel.
+- **Vue « 1 semaine »** : la semaine qui contient la date, sans quitter la vue.
+
+Vérifié en local (Playwright) avec le nouveau test `test_calendrier_mobile.js`, **15 vérifications**, toutes OK, sur téléphone simulé (390 px, tactile) :
+- dans le menu en vue 1 jour : plus de ‹ Sem. N ›, et calendrier + « 1 semaine » en icônes seules sur la même ligne ;
+- dans la barre : calendrier collé à Aujourd'hui ;
+- l'appui tombe sur le calendrier, réglé sur le jour affiché et borné, et le menu reste ouvert ;
+- choix depuis le menu et depuis la barre : autre semaine, même semaine, samedi et dimanche masqués, samedi avec le week-end affiché, date lointaine ;
+- les calendriers suivent un swipe ;
+- en vue 1 semaine : ‹ Sem. N › revient, « 1 semaine » est teinté, et une date mène à sa semaine sans quitter la vue ;
+- barre à 320 px sans chevauchement ;
+- ordinateur sans icône.
+
+Sur le code d'avant, le test s'arrête dès la première vérification. Les autres tests qui fonctionnent passent tous : défilement mobile 20/20, barre 27/27, sélection 43/43, important 14/14, aperçu de dépôt 9/9, hors semaine 16/16, et les tests de logique pure.
