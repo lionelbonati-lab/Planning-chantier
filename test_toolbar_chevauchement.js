@@ -207,6 +207,23 @@ function mesurer() {
   await page.waitForTimeout(150);
   verifier(!(await ouvert()), 'Ajouter une ligne > Personnel referme le menu');
   await page.keyboard.press('Escape');
+  // "1 semaine" referme le menu, dans les deux sens (suite 12 — Lionel :
+  // « Je veux que le menu se ferme lors de l'appui sur la vue 1 semaine »),
+  // alors qu'un masquage le laisse ouvert.
+  await ouvrirMenu();
+  await page.evaluate(() => document.querySelector('#controlesAffichage [data-affichage-cible="note"]').click());
+  await page.waitForTimeout(100);
+  verifier(await ouvert(), 'téléphone : un masquage laisse le menu ouvert');
+  await page.evaluate(() => document.querySelector('#controlesAffichage [data-affichage-cible="note"]').click());
+  const vues = [await page.evaluate(() => vueJourMobile)];
+  for (const sens of ['1 jour -> 1 semaine', '1 semaine -> 1 jour']) {
+    await ouvrirMenu();
+    await page.evaluate(() => document.getElementById('btnVueJourMobile').click());
+    await page.waitForTimeout(300);
+    vues.push(await page.evaluate(() => vueJourMobile));
+    verifier(!(await ouvert()) && await page.evaluate(() => !document.getElementById('btnPlusOutils').classList.contains('ouvert')), '"1 semaine" referme le menu (' + sens + ')');
+  }
+  verifier(JSON.stringify(vues) === JSON.stringify([true, false, true]), '"1 semaine" a bien basculé la vue, puis l\'a remise : ' + JSON.stringify(vues));
   await ouvrirMenu();
   await page.evaluate(() => document.getElementById('btnImprimerTitre').click());
   await page.waitForTimeout(150);

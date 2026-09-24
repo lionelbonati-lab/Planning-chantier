@@ -6823,3 +6823,11 @@ Trois cas précisés au passage :
 - **Glisser après l'appui long** : le glisser emporte la sélection telle qu'elle est affichée, avec la même règle qu'au pointerdown. Les fantômes créés pour l'ancien groupe sont retirés à l'appui long (la bulle apparaît alors pleinement, entourée) et reconstruits au premier vrai déplacement pour le nouveau groupe. `armer()` est scindée en `armer()` + `creerFantomes()` pour ça.
 
 Vérifié en local (Playwright) : `test_selection_bulles.js` étendu à **43 vérifications**, toutes OK. Les nouvelles relèvent l'état **bouton encore enfoncé** : rien avant le délai, bulle entourée et pilule visible après, rien de changé au relâchement ; appui long sur la bulle déjà sélectionnée ; C choisie puis appui long sur B et glisser d'un jour, qui fait reculer B et C ensemble avec 2 fantômes, annulé d'un seul Ctrl+Z ; appui long **au doigt** sur téléphone (vrais pointeurs tactiles, émulation Chromium), pilule affichée avant de lever le doigt. Sur l'ancien code, 6 de ces vérifications échouent.
+
+## 120. Round du 24.09.2026 (suite 12) — « 1 semaine » referme le menu ⋮
+
+Lionel : « Je veux que le menu se ferme lors de l'appui sur la vue 1 semaine ».
+
+Sur téléphone, le bouton « 1 semaine » du menu ⋮ (`#btnVueJourMobile`) referme désormais le menu, comme Imprimer et Ajouter une ligne (§111). Changer de vue remplace toute la grille : le menu n'a plus rien à faire ouvert par-dessus. Vaut dans les deux sens, de la vue 1 jour à la semaine et retour. Les autres boutons du menu le laissent ouvert, comme avant : ‹ ›, masquages, zoom. Le changement tient dans l'écouteur de clic du panneau (`cablerPagePlanning`, `js/coquille.js`), qui traite `#btnVueJourMobile` comme `#btnImprimerTitre`.
+
+Vérifié en local (Playwright) : `test_toolbar_chevauchement.js` étendu à **27 vérifications**, toutes OK. Les nouvelles couvrent un masquage qui laisse le menu ouvert sur téléphone, « 1 semaine » qui le referme dans les deux sens, et la vue réellement basculée puis remise. Sur l'ancien code, les deux vérifications de fermeture échouent. `test_selection_bulles.js` 43/43, `test_tache_hors_semaine.js` 16/16, `test_defilement_jour_mobile.js` 20/20.
