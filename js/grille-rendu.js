@@ -1876,9 +1876,15 @@
     el.className = "bulle bulle-" + it.type + (it.important ? " important" : "") + " bulle-plage"
       + (bullesSelectionnees[it.id] ? " selectionnee" : "");
     el.dataset.id = it.id;
+    // Jalon rattaché à un chantier (revue du 24.09.2026, suite 22 — Lionel :
+    // « Les jalons de la page jalons et les jalons affichée sur la grille ne
+    // semblent pas bien synchronisée ») : la page Jalons le peint de la
+    // couleur de son chantier (c'est même la raison d'être de ce champ, cf.
+    // son en-tête), la grille le laissait en violet — même couleur désormais.
+    var chJalon = it.type === "jalon" && it.chantierId != null ? CHANTIERS[etat.chantiersParId[it.chantierId]] : null;
     var bg = it.type === "tache" ? (it.chantier && CHANTIERS[it.chantier] ? CHANTIERS[it.chantier].couleur : "#e5e5e5")
       : it.type === "absence" ? "var(--absence-bg)"
-      : it.type === "jalon" ? "var(--jalon-bg)" : "var(--note-bg)";
+      : it.type === "jalon" ? (chJalon ? chJalon.couleur : "var(--jalon-bg)") : "var(--note-bg)";
     // Étiquette (nom de chantier / "Absence"/"Jalon"/"Note") : n'est plus
     // affichée dans la bulle elle-même depuis le round du 02.09.2026 (retour
     // de Lionel : "on peut réduire les hauteurs de ligne en enlevant les
@@ -1888,7 +1894,7 @@
     // forçait une ligne de plus par bulle. Gardée en mémoire (`tag`) pour
     // l'infobulle au survol (title ci-dessous), qui garde l'info accessible.
     var tag = it.type === "tache" ? (it.chantier && CHANTIERS[it.chantier] ? CHANTIERS[it.chantier].nom : "")
-      : it.type === "absence" ? "Absence" : it.type === "jalon" ? "Jalon" : "Note";
+      : it.type === "absence" ? "Absence" : it.type === "jalon" ? "Jalon" + (chJalon ? " · " + chJalon.nom : "") : "Note";
     // Round du 23.09.2026 (suite 14) — .b-carte : nouvel enveloppe interne
     // portant tout le VISUEL (fond, coins arrondis, ombre — cf. son
     // commentaire CSS pour le bug Chromium que ça contourne). .bulle reste

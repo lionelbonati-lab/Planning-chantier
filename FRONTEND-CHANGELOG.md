@@ -7142,3 +7142,95 @@ Vérifié en local (Playwright) :
   - échec identique sur `main`, sans lien avec ce round :
     - 8 anciens tests qui cherchent des fonctions dans `index.html` (`test_aller_a`, `test_chantier_defaut`, `test_grille_compacte`…) ;
     - 4 tests qui ouvrent un chemin fixe absent de cet environnement (`/home/claude/work/testenv/index.html`) : bordure lundi, couleurs, multijour tablette, swipe tablette. Rectificatif au §128 : ils ne passaient pas non plus en exécution séquentielle. Même avec ce chemin recréé, ils s'arrêtent sur un objet interne qui n'existe plus.
+
+## 130. Revue du 24.09.2026 (suite 22) — Relecture du code : Ctrl+Z qui effaçait des jalons, jalons en double, page Jalons ↔ grille désynchronisées
+
+Lionel : « Passe en revu le code à la recherche de bugs et d'améliorations », puis en cours de route : « Les jalons de la page jalons et les jalons affichée sur la grille ne semblent pas bien synchronisée ».
+
+Chaque bug ci-dessous a d'abord été reproduit (faux Supabase qui exécute la vraie logique `planPlage` de `functions/enregistrer-plage/logic.js`), puis corrigé.
+
+### A. Grille : annuler, recharger, naviguer (`js/donnees-sync.js`)
+
+**1. Ctrl+Z après une synchronisation effaçait des jalons et sortait des notes de leur série** :
+- cause : chaque reconstruction de la vue (`construireVueDepuisCache`) donnait à toutes les bulles un nouvel objet et un nouvel id (`"b" + idc`). Or jalons et notes sont comparés PAR ID par le moteur de synchro (`jalonsParId`, `notesParId`). L'instantané restauré par Ctrl+Z portait les anciens ids : chaque note et chaque jalon de la fenêtre passait pour « supprimé puis recréé » et était réécrit. Un jalon réécrit ainsi était effacé en base (création puis suppression du même jour). Une note de série réécrite perdait son `serie_id` ;
+- correctif (`reprendreObjetsBulles_`) : sur la même fenêtre, une bulle qui ressort à l'identique (même empreinte `empreinteBulle_`) garde son objet et son id. Seules les bulles réellement changées côté serveur reçoivent un nouvel objet. Ctrl+Z juste après une synchro n'envoie donc plus rien au serveur.
+
+**2. Fiche ouverte pendant un rechargement : enregistrement perdu sans message** :
+- même cause : juste après un déplacement, le temps que la synchro revienne, la fiche modifiait l'ancien objet, déjà sorti des listes ;
+- le correctif 1 le règle aussi : l'objet est gardé.
+
+**3. Ctrl+Z après un changement de semaine recopiait l'ancienne semaine dans la nouvelle** :
+- cause : un instantané ne connaît que des `gi`, relatifs à la fenêtre affichée ;
+- correctif : la pile Ctrl+Z / Ctrl+Y est vidée dès que la fenêtre change (navigation, 1/2 semaines, vue téléphone).
+
+**4. Boîte « événement récurrent » ouverte pendant un rechargement** (`differerSiEnGlissement`) :
+- avant : la grille pouvait être redessinée sous la boîte ; la bulle revenait à son ancienne place et « Annuler » restaurait un instantané aux ids périmés ;
+- désormais, le rechargement attend que la boîte soit fermée, comme il attend déjà la fin d'un glisser.
+
+**5. Retour sur l'appli après une longue absence : semaine jamais relue** :
+- risque : une tablette restée ouverte des heures gardait la vue du matin. Une case de personne s'écrit en entier (`enregistrerCellulePersonneServeur`), donc la moindre modification effaçait ce qu'un autre appareil y avait ajouté entre-temps ;
+- correctif : écouteur `visibilitychange`. Quand l'onglet redevient visible et que la fenêtre a plus de `FRAICHEUR_MS`, elle est relue. Exceptions : une écriture en cours (elle relira elle-même), ou une fiche / une boîte ouverte (la relecture attendra le prochain retour).
+
+### B. Jalons : grille ↔ page Jalons
+
+**6. Jalon déplacé dans la grille : en double s'il avait un ⚑ ou un chantier ; ⚑ de la fiche jalon jamais enregistré** (`synchroniser`, `construireDonneesSemaine`) :
+- cause : ni `important` ni `chantierId` n'étaient envoyés. Deux effets :
+  - le jalon déplacé arrivait sur un jour vide, sans son drapeau ni son chantier ;
+  - son origine, comparée avec important=false / chantier=null, ne correspondait plus à la ligne en base : l'ancien jour n'était pas libéré ;
+- correctif : les deux champs sont lus jusqu'à la bulle et renvoyés dans la plage ET dans l'origine. Le diff compare aussi `important`, donc un ⚑ posé dans la fiche part bien au serveur ;
+- ordre des écritures : les suppressions de jalons partent d'abord (texte vide = efface le jour, quel que soit le jalon). Une suppression dont toute la plage est réécrite par une création du même lot est omise.
+
+**7. Page Jalons : jamais relue après sa première ouverture** (`js/coquille.js`) :
+- avant : les déplacements faits ensuite dans la grille n'y apparaissaient pas ;
+- désormais, la liste est rechargée à chaque ouverture de la page.
+
+**8. La grille ne voyait pas les écritures de la page Jalons** (`rafraichirGrilleApresJalons_`, `js/page-jalons.js`) :
+- avant : un jalon supprimé sur la page restait affiché au retour sur Planning, et un déplacement fait ensuite dans la grille partait de cette donnée périmée ;
+- désormais, après une suppression ou un enregistrement, la grille est relue (même principe que les pages Chantiers et Personnel).
+
+**9. Page Jalons : demi-journées ignorées** (`fusionnerJalonsTous`, enregistrement) :
+- avant : modifier un jalon « après-midi » le repassait en journée entière. Le déplacer laissait l'ancien en double : l'origine envoyée sans `demi` ne correspondait plus ;
+- désormais, la fusion suit la règle de la grille : seul le 1er jour peut porter une demi-journée sans couper la plage. `demiDebut` / `demiFin` sont gardés et renvoyés, dans la plage comme dans l'origine ;
+- un bord dont la date change sur cette page (elle ne propose pas matin / après-midi) redevient une journée entière. La forme canonique est appliquée (1 jour : deux bords identiques ou null ; plusieurs jours : début « matin » et fin « après-midi » valent null).
+
+**10. Couleur des jalons rattachés à un chantier** (`bulleEl`, `js/grille-rendu.js`) :
+- avant : la page Jalons les peignait de la couleur du chantier, la grille les laissait en violet ;
+- désormais, même couleur dans la grille, avec l'étiquette « Jalon · <chantier> ».
+
+### C. Séries (`js/series.js`)
+
+**11. Chantier retiré d'une occurrence de série : non enregistré** :
+- cause : la condition `&& ap.chantier` ignorait sans rien dire le passage à « aucun chantier » ;
+- correctif : `chantier_id` est écrit à null dans ce cas.
+
+### Vérifié en local (Playwright)
+
+- **`test_revue_suite22.js`** (nouveau), 19 vérifications, toutes OK. Son faux Supabase exécute la vraie logique `planPlage`. Il couvre :
+  - Ctrl+Z après une synchro : 0 appel d'écriture, jalons et notes de série intacts ;
+  - jalon ⚑ + chantier déplacé dans la grille : pas de doublon, drapeau et chantier gardés, puis Ctrl+Z ;
+  - ⚑ posé dans la fiche jalon, boîte de série validée ;
+  - fiche ouverte pendant un rechargement ;
+  - Ctrl+Z après un changement de semaine ;
+  - retour sur l'onglet 5 min plus tard : la tâche ajoutée par un autre appareil apparaît ;
+  - couleur de chantier ;
+  - page Jalons rouverte qui montre le déplacement fait dans la grille ;
+  - jalon « après-midi » renommé sur la page : l'après-midi est gardé et la grille est relue ;
+  - puis déplacé au lundi avec les flèches : plus de doublon le vendredi ;
+  - sur l'ancien code, le test échoue dès la 1ʳᵉ section (jalons effacés, note sortie de sa série).
+- **Suite complète** : mêmes 12 échecs que sur `main`, sans lien avec ce round (cf. §129 : 8 anciens tests qui cherchent des fonctions dans `index.html`, 4 tests au chemin fixe `/home/claude/work/testenv/`).
+
+### Relevé mais PAS corrigé dans ce round (à décider)
+
+- **Écriture d'une case de personne non atomique** (`enregistrerCellulePersonneServeur`) : suppression puis insertion en deux requêtes. Une coupure réseau entre les deux vide la case. À terme : une fonction SQL (RPC) qui fait les deux dans une transaction.
+- **Ctrl+Z d'une note de série supprimée** : elle revient sans `serie_id` (la fonction `enregistrer-plage` ne connaît pas les séries).
+- **Couper (Ctrl+X) une bulle de série** : passe sans la boîte « événement récurrent ».
+- **Coller** : pose la copie au même `gi` que l'original. Coller après un changement de semaine ne propose pas d'autre emplacement, et une copie hors fenêtre est perdue.
+- **Copie de jalon** : perd son chantier.
+- **Série quotidienne** : ses occurrences contiguës s'affichent en une seule bulle fusionnée.
+- **Fichiers morts servis par GitHub Pages** : `core-1.js`, `coquille-1.js`, `style-1.css`, `style-mobile-1.css`, `FRONTEND-CHANGELOG-1.md`, `MAJ-a-pousser-23-09-2026/` et son `.zip`.
+- **Migrations manquantes dans `sql/`** : `taches.chantier_id`, `formulaires_rapides.assigne_a` / `type_entree` existent en base sans fichier ; deux migrations portent le numéro 0010.
+- **Supabase** :
+  - activer la protection contre les mots de passe divulgués (Auth) ;
+  - les règles RLS autorisent tout utilisateur connecté, donc vérifier que les inscriptions publiques sont désactivées ;
+  - clés étrangères sans index (ex. `taches.serie_id`, utilisée par `series.js`).
+- **4 tests périmés** au chemin fixe `/home/claude/work/testenv/` : à réécrire ou à supprimer.

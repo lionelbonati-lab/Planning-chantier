@@ -243,7 +243,11 @@
       // demi (round du 08.09.2026, suite — sql/0006_jalons_demi.sql) : un
       // jalon porte désormais lui aussi sa propre demi-journée, exactement
       // comme une note (cf. n.demi juste en dessous).
-      return { texte: j ? j.texte : "", serieId: j ? (j.serie_id || null) : null, demi: j ? (j.demi || null) : null };
+      // important / chantierId (revue du 24.09.2026, suite 22) : portés
+      // jusqu'à la bulle pour être RENVOYÉS tels quels quand la grille
+      // déplace le jalon — cf. le commentaire de dJal dans synchroniser().
+      return { texte: j ? j.texte : "", serieId: j ? (j.serie_id || null) : null, demi: j ? (j.demi || null) : null,
+        important: j ? !!j.important : false, chantierId: j ? (j.chantier_id || null) : null };
     });
     var notes = infos.isoDates.map(function (iso) {
       return (notesParDate[iso] || []).map(function (n) {
@@ -1039,6 +1043,34 @@
       var p = itemParId(id);
       if (p) selectionAvant.push({ cle: cleBulle_(p.item), empreinte: empreinteBulle_(p.item), giDebut: p.item.giDebut });
     });
+    // Revue du 24.09.2026 (suite 22) — deux bugs de la même famille : chaque
+    // reconstruction redonnait à TOUTES les bulles un nouvel objet et un
+    // nouvel id ("b" + idc).
+    //   1) Ctrl+Z après une synchronisation : l'instantané restauré portait
+    //      les anciens ids, le moteur de diff (jalons/notes comparés PAR ID)
+    //      voyait donc chaque note et chaque jalon de la fenêtre « supprimé
+    //      puis recréé » et les réécrivait tous — un jalon ainsi réécrit était
+    //      effacé en base (« créer » puis « supprimer » le même jour), une
+    //      note de série sortait de sa série.
+    //   2) Fiche ouverte pendant un rechargement (juste après un déplacement,
+    //      le temps que la synchro revienne) : la fiche modifiait l'ANCIEN
+    //      objet, sorti des listes — l'enregistrement était perdu sans
+    //      message.
+    // Désormais, une bulle qui ressort à l'identique (même empreinte : ligne,
+    // texte, position, forme) garde son objet et son id : seules les bulles
+    // qui ont réellement changé côté serveur en reçoivent de nouveaux.
+    // Uniquement sur la MÊME fenêtre : `gi` est relatif à la fenêtre
+    // affichée, une empreinte d'une autre semaine ne désigne pas la même
+    // bulle.
+    var cleFenetre = fenetreLabGs().join(",");
+    var anciennes = cleFenetre === cleFenetreVue_ ? { TACHES: TACHES, JALONS: JALONS, NOTES: NOTES } : null;
+    // 3) La pile Ctrl+Z est liée à la fenêtre : un instantané ne connaît que
+    //    des `gi` (positions relatives à la semaine affichée). Restauré après
+    //    un changement de semaine, il recopiait la semaine précédente dans
+    //    la semaine affichée (tâches réécrites case par case). Vidée dès que
+    //    la fenêtre change (navigation, 1/2 semaines, vue téléphone).
+    if (cleFenetreVue_ !== null && cleFenetre !== cleFenetreVue_) { pileUndo = []; pileRedo = []; }
+    cleFenetreVue_ = cleFenetre;
     TACHES = []; JALONS = []; NOTES = [];
     var nJoursFenetre = donnees.length * 5;
 
@@ -1066,12 +1098,13 @@
           while (fin + 1 < nJoursFenetre) {
             if (fin !== gi && demiCourantJ !== null) break;
             var jsuiv = jalonAuGi(donnees, fin + 1);
-            if (!jsuiv || jsuiv.texte !== txt) break;
+            if (!jsuiv || jsuiv.texte !== txt || !!jsuiv.important !== !!jd.important || (jsuiv.chantierId || null) !== (jd.chantierId || null)) break;
             fin++;
             demiCourantJ = jsuiv.demi || null;
           }
-          var it = itemPlage("jalon", txt, gi, fin - gi + 1, { demiDebut: demiJ, demiFin: demiCourantJ });
+          var it = itemPlage("jalon", txt, gi, fin - gi + 1, { demiDebut: demiJ, demiFin: demiCourantJ, important: jd.important });
           it.serieId = jd.serieId || null;
+          it.chantierId = jd.chantierId || null;
           it.dateDebutIso = isoDeGiFenetre(donnees, gi);
           JALONS.push(it);
         }
@@ -1295,6 +1328,11 @@
       });
     });
 
+    if (anciennes) {
+      TACHES = reprendreObjetsBulles_(anciennes.TACHES, TACHES);
+      JALONS = reprendreObjetsBulles_(anciennes.JALONS, JALONS);
+      NOTES = reprendreObjetsBulles_(anciennes.NOTES, NOTES);
+    }
     if (selectionAvant.length) {
       bullesSelectionnees = {};
       var toutes = TACHES.concat(JALONS, NOTES), prises = {};
@@ -1307,6 +1345,30 @@
       });
     }
     syncBaseline = calculerEtatLocal();
+  }
+  // Fenêtre de la dernière reconstruction (cf. construireVueDepuisCache).
+  var cleFenetreVue_ = null;
+  // Reprend, pour chaque bulle reconstruite, l'ANCIEN objet de même
+  // empreinte (cf. construireVueDepuisCache) : ses champs sont remplacés par
+  // ceux relus du serveur, mais l'objet et son id restent — les fiches
+  // ouvertes et la pile Ctrl+Z continuent de le désigner. Chaque ancien
+  // objet ne sert qu'une fois (deux bulles identiques peuvent coexister).
+  function reprendreObjetsBulles_(anciens, nouveaux) {
+    var parEmpreinte = {};
+    anciens.forEach(function (it) {
+      var k = empreinteBulle_(it);
+      (parEmpreinte[k] = parEmpreinte[k] || []).push(it);
+    });
+    return nouveaux.map(function (nv) {
+      var dispo = parEmpreinte[empreinteBulle_(nv)];
+      var ancien = dispo && dispo.shift();
+      if (!ancien) return nv;
+      var id = ancien.id;
+      Object.keys(ancien).forEach(function (k) { if (!(k in nv)) delete ancien[k]; });
+      Object.assign(ancien, nv);
+      ancien.id = id;
+      return ancien;
+    });
   }
   // Clé (ligne + type + texte) et empreinte (clé + position + forme) d'une
   // bulle, indépendantes de son id — cf. construireVueDepuisCache ci-dessus.
@@ -1438,7 +1500,7 @@
   }
   function jalonsParId() {
     var out = {};
-    JALONS.forEach(function (j) { out[j.id] = { texte: j.texte, giDebut: j.giDebut, duree: j.duree, dateDebutIso: j.dateDebutIso, demiDebut: j.demiDebut || null, demiFin: j.demiFin || null }; });
+    JALONS.forEach(function (j) { out[j.id] = { texte: j.texte, giDebut: j.giDebut, duree: j.duree, dateDebutIso: j.dateDebutIso, demiDebut: j.demiDebut || null, demiFin: j.demiFin || null, important: !!j.important, chantierId: j.chantierId || null }; });
     return out;
   }
   function notesParId() {
@@ -1487,7 +1549,7 @@
     var out = [];
     Object.keys(local.jalonsById).forEach(function (id) {
       var a = local.jalonsById[id], b = base.jalonsById[id];
-      if (b && a.texte === b.texte && a.giDebut === b.giDebut && a.duree === b.duree && (a.demiDebut || null) === (b.demiDebut || null) && (a.demiFin || null) === (b.demiFin || null)) return;
+      if (b && a.texte === b.texte && !!a.important === !!b.important && a.giDebut === b.giDebut && a.duree === b.duree && (a.demiDebut || null) === (b.demiDebut || null) && (a.demiFin || null) === (b.demiFin || null)) return;
       out.push({ action: b ? "modifier" : "creer", id: id, avant: b || null, apres: a });
     });
     Object.keys(base.jalonsById).forEach(function (id) {
@@ -1643,10 +1705,41 @@
   // grille sous les pieds d'un geste en cours. Sans effet sur le geste
   // lui-même (qui continue de suivre le pointeur normalement) ; le
   // rechargement finit par s'appliquer dès que le geste se termine.
+  //
+  // Boîte « événement récurrent » ouverte (revue du 24.09.2026, suite 22) :
+  // même attente. Pendant la question, la grille montre le résultat du
+  // geste SANS l'avoir écrit (cf. rendreAvecPorteeSerie, series.js) ; un
+  // rechargement arrivé à ce moment (synchro d'un geste précédent qui
+  // revient) remettait la bulle à son ancienne place sous la boîte, et
+  // « Annuler » restaurait ensuite un instantané dont les bulles n'avaient
+  // plus les mêmes ids.
   function differerSiEnGlissement(rechargerVue) {
-    if (!document.body.classList.contains("en-glissement")) { rechargerVue(); return; }
+    if (!document.body.classList.contains("en-glissement") && !document.querySelector(".confirm-pop-serie")) { rechargerVue(); return; }
     setTimeout(function () { differerSiEnGlissement(rechargerVue); }, 120);
   }
+  // Retour sur l'appli (revue du 24.09.2026, suite 22) : la semaine
+  // affichée n'était relue qu'à la navigation ou après une écriture. Une
+  // tablette restée ouverte des heures gardait donc la vue du matin — et
+  // comme une case de personne s'écrit en ENTIER (enregistrerCellulePersonneServeur
+  // remplace toutes ses tâches), la moindre modification faite ensuite sur
+  // une case effaçait ce qu'un autre appareil y avait ajouté entre-temps.
+  // Désormais, quand l'onglet redevient visible et que la fenêtre a plus de
+  // FRAICHEUR_MS, elle est relue — sauf si une écriture est en cours (elle
+  // relira elle-même) ou si une fiche/boîte est ouverte (elle travaille sur
+  // les bulles affichées ; la relecture attendra le prochain retour).
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState !== "visible" || !syncBaseline || syncEnCours || syncRelance || popFermerActuel) return;
+    var perimee = fenetreLabGs().some(function (lg) { var ts = etat.cacheTs[lg]; return !ts || (Date.now() - ts) >= FRAICHEUR_MS; });
+    if (!perimee) return;
+    differerSiEnGlissement(function () {
+      assurerFenetreChargee(function () {
+        if (syncEnCours || syncRelance || popFermerActuel) return;
+        construireVueDepuisCache();
+        render(false);
+        majBarreSelection();
+      });
+    });
+  });
   function synchroniser() {
     if (!fenetrePrete() || !syncBaseline) return;
     if (syncEnCours) { syncRelance = true; return; }
@@ -1674,28 +1767,53 @@
     // qui écrasait sans condition la cellule entière — une seule ligne
     // possible par jour, contrairement aux notes qui peuvent être plusieurs
     // sur le même jour).
-    // Ni `important` ni `chantierId` ne sont envoyés ici (round du 12.09.2026
-    // — page « Jalons », sql/0007_jalons_chantier.sql) : la grille ne
-    // connaît/n'édite ni l'un ni l'autre pour un jalon (seul le texte l'est
-    // ici), et planPlage() (functions/enregistrer-plage/logic.js) reconduit
-    // alors tel quel ce qui existe déjà en base plutôt que de l'écraser à
-    // false/null — un chantier ou un "important" posé depuis la nouvelle
-    // page Jalons survit donc à une simple modif de texte faite ici.
-    dJal.forEach(function (d) {
+    // `important` / `chantierId` (revue du 24.09.2026, suite 22) : envoyés
+    // désormais, tels que relus du serveur (cf. construireDonneesSemaine),
+    // dans la plage ET dans l'origine. AVANT, ni l'un ni l'autre ne
+    // l'étaient (round du 12.09.2026) : planPlage() reconduisait bien ce
+    // qu'il trouvait SUR LE JOUR ÉCRIT, mais un jalon DÉPLACÉ arrivait sur un
+    // jour vide (drapeau et chantier perdus) et son origine, comparée avec
+    // important=false / chantier=null, ne correspondait plus à la ligne
+    // d'origine dès que celle-ci avait un drapeau ou un chantier — l'ancien
+    // jour n'était pas libéré : le jalon se retrouvait EN DOUBLE. Même cause
+    // pour le ⚑ de la fiche jalon de la grille, jamais enregistré.
+    //
+    // Ordre (même revue) : les suppressions d'abord, comme pour les notes
+    // ci-dessous. Un jalon « supprimé » est écrit avec un texte vide, ce qui
+    // efface la ligne du jour quelle qu'elle soit : passé APRÈS une création
+    // sur le même jour (instantané Ctrl+Z restauré, par exemple), il
+    // effaçait le jalon qu'on venait d'écrire. Une suppression dont toute la
+    // plage est de toute façon réécrite par une création du même lot est
+    // simplement omise (une seule ligne par jour : la création remplace).
+    var dJalEcritures = dJal.filter(function (d) { return d.action !== "supprimer"; });
+    var bornesJal = function (it) { return { debut: it.dateDebutIso || isoDeGi(it.giDebut), fin: isoDeApres(it) }; };
+    var dJalOrdonnes = dJal.filter(function (d) {
+      if (d.action !== "supprimer") return false;
+      var b = bornesJal(d.avant);
+      return !dJalEcritures.some(function (w) { var bw = bornesJal(w.apres); return bw.debut <= b.debut && bw.fin >= b.fin; });
+    }).concat(dJalEcritures);
+    dJalOrdonnes.forEach(function (d) {
       chaine = chaine.then(function () {
         var dateDeb, dateFin, texte, origine;
         var demiDebJalon = d.apres ? (d.apres.demiDebut || null) : null;
         var demiFinJalon = d.apres ? (d.apres.demiFin || null) : null;
+        var origineDe = function (av) {
+          return { dateDebut: av.dateDebutIso, dateFin: isoDeApres(av), texte: av.texte, demiDebut: av.demiDebut || null, demiFin: av.demiFin || null, important: !!av.important, chantierId: av.chantierId || null };
+        };
         if (d.action === "supprimer") {
           dateDeb = d.avant.dateDebutIso; dateFin = isoDeApres(d.avant); texte = "";
-          origine = { dateDebut: dateDeb, dateFin: dateFin, texte: d.avant.texte, demiDebut: d.avant.demiDebut || null, demiFin: d.avant.demiFin || null };
-        } else {
-          dateDeb = d.apres.dateDebutIso || isoDeGi(d.apres.giDebut); dateFin = isoDeApres(d.apres); texte = d.apres.texte;
-          origine = d.avant ? { dateDebut: d.avant.dateDebutIso, dateFin: isoDeApres(d.avant), texte: d.avant.texte, demiDebut: d.avant.demiDebut || null, demiFin: d.avant.demiFin || null } : null;
+          origine = origineDe(d.avant);
+          return invoquerFonctionServeur("enregistrer-plage", {
+            kind: "jalon", dateDebut: dateDeb, dateFin: dateFin, demiDebut: null, demiFin: null,
+            texte: texte, mode: "remplacement", origine: origine
+          });
         }
+        dateDeb = d.apres.dateDebutIso || isoDeGi(d.apres.giDebut); dateFin = isoDeApres(d.apres); texte = d.apres.texte;
+        origine = d.avant ? origineDe(d.avant) : null;
         return invoquerFonctionServeur("enregistrer-plage", {
           kind: "jalon", dateDebut: dateDeb, dateFin: dateFin, demiDebut: demiDebJalon, demiFin: demiFinJalon,
-          texte: texte, mode: "remplacement", origine: origine
+          texte: texte, important: !!d.apres.important, chantierId: d.apres.chantierId || null,
+          mode: "remplacement", origine: origine
         });
       });
     });

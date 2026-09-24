@@ -59,15 +59,27 @@
     var tri = lignes.slice().sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
     var items = [];
     var courant = null;
+    // Demi-journées (revue du 24.09.2026, suite 22) : un jalon posé dans la
+    // grille peut commencer l'après-midi ou finir le matin (colonne `demi`,
+    // sql/0006_jalons_demi.sql) — cette page les ignorait. Deux effets :
+    // modifier un tel jalon ici le repassait en journées entières, et le
+    // déplacer laissait l'ancien EN DOUBLE (l'origine envoyée, sans demi, ne
+    // correspondait plus à la ligne en base). Même règle de fusion que la
+    // grille (construireVueDepuisCache) : seul le 1er jour peut porter une
+    // demi-journée sans couper la plage, un jour suivant qui en porte une la
+    // termine. demiDebut/demiFin sont gardés pour être renvoyés tels quels.
     tri.forEach(function (l) {
       var chantierId = l.chantier_id != null ? l.chantier_id : null;
       var important = !!l.important;
+      var demi = l.demi || null;
       if (courant && l.texte === courant.texte && important === courant.important &&
-          chantierId === courant.chantierId && isoJourOuvreVoisin(courant.dateFin, 1) === l.date) {
+          chantierId === courant.chantierId && isoJourOuvreVoisin(courant.dateFin, 1) === l.date &&
+          (courant.dateFin === courant.dateDebut || courant.demiFin === null)) {
         courant.dateFin = l.date;
         courant.idFin = l.id;
+        courant.demiFin = demi;
       } else {
-        courant = { idDebut: l.id, idFin: l.id, dateDebut: l.date, dateFin: l.date, texte: l.texte, important: important, chantierId: chantierId };
+        courant = { idDebut: l.id, idFin: l.id, dateDebut: l.date, dateFin: l.date, texte: l.texte, important: important, chantierId: chantierId, demiDebut: demi, demiFin: demi };
         items.push(courant);
       }
     });
@@ -107,6 +119,16 @@
       '<button type="button" class="lien-modifier">Modifier</button>' +
       '<button type="button" class="lien-supprimer">Supprimer</button></span></div>';
   }
+  // Revue du 24.09.2026 (suite 22) : cette page écrit les jalons sans
+  // passer par la grille, qui gardait donc sa vue d'avant (jusqu'à la
+  // prochaine navigation) — jalon supprimé encore affiché au retour sur
+  // Planning, et un déplacement fait ensuite dans la grille partait de
+  // cette donnée périmée. Même relecture que les pages Chantiers et
+  // Personnel après leurs écritures.
+  function rafraichirGrilleApresJalons_() {
+    oublierCache();
+    assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); });
+  }
   function supprimerJalonServeur(j, apresChangement) {
     demanderConfirmation("Supprimer « " + j.texte + " » ?", function () {
       occupe(true);
@@ -115,6 +137,7 @@
       }).then(function () {
         occupe(false);
         JALONS_TOUS = null;
+        rafraichirGrilleApresJalons_();
         apresChangement();
         toast("Supprimé.");
       }).catch(function (err) { occupe(false); toast("Échec de la suppression : " + (err && err.message ? err.message : err)); });
@@ -307,11 +330,24 @@
     pop.querySelector(".f-ok").addEventListener("click", function () {
       var texte = pop.querySelector(".f-nom-jalon").value.trim();
       if (!texte) { fermer(); return; }
+      // Demi-journées (cf. fusionnerJalonsTous) : un bord dont la date n'a
+      // pas changé garde sa demi-journée ; un bord déplacé ici (pas de
+      // matin/après-midi sur cette page) redevient une journée entière.
+      var demiDebut = itemExisting && state.debutIso === itemExisting.dateDebut ? (itemExisting.demiDebut || null) : null;
+      var demiFin = itemExisting && state.finIso === itemExisting.dateFin ? (itemExisting.demiFin || null) : null;
+      // Forme canonique (comme la grille, cf. bornesDepuisDemiSlots) : sur 1
+      // jour, les 2 bords portent la même demi-journée ou aucune ; sur
+      // plusieurs, un début « matin » ou une fin « après-midi » valent une
+      // journée entière.
+      if (state.debutIso === state.finIso) { if (demiDebut !== demiFin) { demiDebut = null; demiFin = null; } }
+      else { if (demiDebut === "matin") demiDebut = null; if (demiFin === "aprem") demiFin = null; }
       var payload = {
         kind: "jalon", dateDebut: state.debutIso, dateFin: state.finIso, texte: texte,
+        demiDebut: demiDebut, demiFin: demiFin,
         important: state.important, chantierId: state.chantierId, mode: "remplacement",
         origine: itemExisting ? {
           dateDebut: itemExisting.dateDebut, dateFin: itemExisting.dateFin, texte: itemExisting.texte,
+          demiDebut: itemExisting.demiDebut || null, demiFin: itemExisting.demiFin || null,
           important: itemExisting.important, chantierId: itemExisting.chantierId
         } : null
       };
@@ -320,6 +356,7 @@
       invoquerFonctionServeur("enregistrer-plage", payload).then(function () {
         occupe(false);
         JALONS_TOUS = null;
+        rafraichirGrilleApresJalons_();
         renderJalons();
         toast(itemExisting ? "Modifié." : "Ajouté.");
       }).catch(function (err) {
