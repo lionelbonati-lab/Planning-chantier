@@ -102,7 +102,7 @@ function mesurer() {
   //    partent dans "⋮" un par un, de droite à gauche (round du 24.09.2026,
   //    suite 3 — Lionel : Masquages, Zoom, Navigation, Imprimer).
   const ORDRE_REPLI = ['controlesAffichage', 'groupeZoom', 'groupeNavSemaine', 'groupeImprimer'];
-  const TOUJOURS_BARRE = ['groupeAnnulerRefaire', 'groupeChantier', 'groupeAujourdhui', 'groupeAjoutElement'];
+  const TOUJOURS_BARRE = ['groupeAnnulerRefaire', 'groupeChantier', 'groupeAujourdhui', 'groupeAjoutElement', 'groupeSelection'];
   let largeursOk = 0, nbLargeurs = 0, replis = [], ordreRespecte = true, toujoursLa = true;
   for (let w = 1400; w >= 320; w -= 10) {
     await largeur(w);
@@ -126,7 +126,7 @@ function mesurer() {
   //    Chantier | navigation semaines | Zoom | Insertions | Masquages ».
   await largeur(1400);
   let e = await etatBarre();
-  verifier(JSON.stringify(e.barre) === JSON.stringify(['groupeAnnulerRefaire', 'groupeImprimer', 'groupeChantier', 'groupeAujourdhui', 'groupeNavSemaine', 'groupeZoom', 'groupeAjoutLigne', 'groupeAjoutElement', 'controlesAffichage']) && e.menu.length === 0,
+  verifier(JSON.stringify(e.barre) === JSON.stringify(['groupeAnnulerRefaire', 'groupeImprimer', 'groupeChantier', 'groupeAujourdhui', 'groupeNavSemaine', 'groupeZoom', 'groupeAjoutLigne', 'groupeAjoutElement', 'groupeSelection', 'controlesAffichage']) && e.menu.length === 0,
     'barre complète dans l\'ordre demandé, menu vide : ' + e.barre);
   verifier(await page.evaluate(() => getComputedStyle(document.getElementById('btnPlusOutils')).display === 'none'), '"⋮" masqué quand rien n\'est replié');
 
@@ -195,7 +195,7 @@ function mesurer() {
     return Array.from(b.children).filter((c) => c !== p && c.getBoundingClientRect().width > 0)
       .sort((a, c) => a.getBoundingClientRect().left - c.getBoundingClientRect().left).map((c) => c.id);
   });
-  verifier(JSON.stringify(ordreVisuel) === JSON.stringify(['groupeAnnulerRefaire', 'groupeAujourdhui', 'groupeChantier', 'groupeAjoutElement', 'btnPlusOutils']), 'barre téléphone inchangée : ' + ordreVisuel);
+  verifier(JSON.stringify(ordreVisuel) === JSON.stringify(['groupeAnnulerRefaire', 'groupeAujourdhui', 'groupeChantier', 'groupeAjoutElement', 'groupeSelection', 'btnPlusOutils']), 'barre téléphone (+ sélection multiple, round suite 7) : ' + ordreVisuel);
   verifier(JSON.stringify(e.menu) === JSON.stringify(['groupeImprimer', 'groupeZoom', 'groupeNavSemaine', 'groupeAjoutLigne', 'controlesAffichage']), 'menu téléphone : ' + e.menu);
   // Imprimer et Ajouter une ligne referment le menu (Lionel : « Bonne idée
   // de fermer le menu avec imprimé et ajouter ligne »). Clics via le DOM :

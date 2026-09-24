@@ -185,6 +185,18 @@
     // masquage, juste un autre mode d'affichage, toujours valide).
     chevronGauche: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M12.5 4.5 7 10l5.5 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     chevronDroite: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M7.5 4.5 13 10l-5.5 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    // Round du 24.09.2026 (suite 7) — barre « ‹ › » de la sélection
+    // multiple (Lionel : « des flèches gauche-droite et guillemets gauche,
+    // guillemets droite ») : chevron simple = une demi-journée, double =
+    // un jour entier. selectionMultiple : 2 cases superposées + coche,
+    // pour le bouton qui active le mode (cf. #btnSelectionMultiple).
+    chevronDoubleGauche: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M9.5 4.5 4 10l5.5 5.5M15.5 4.5 10 10l5.5 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    chevronDoubleDroite: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M4.5 4.5 10 10l-5.5 5.5M10.5 4.5 16 10l-5.5 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    selectionMultiple: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="2.5" y="2.5" width="9" height="9" rx="1.6" stroke="currentColor" stroke-width="1.5"/><rect x="8.5" y="8.5" width="9" height="9" rx="1.6" stroke="currentColor" stroke-width="1.5"/><path d="m10.8 13 1.6 1.6 2.8-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    // Barre de sélection (round du 24.09.2026, suite 8) : crayon (modifier,
+    // remplace le double-clic) et copier (2 feuilles).
+    pencil: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M3.5 16.5l3.6-.8 8.6-8.6a1.6 1.6 0 0 0 0-2.3l-.5-.5a1.6 1.6 0 0 0-2.3 0L4.3 12.9l-.8 3.6z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M11.8 5.4l2.8 2.8" stroke="currentColor" stroke-width="1.5"/></svg>',
+    copy: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="7" y="7" width="10" height="10" rx="1.8" stroke="currentColor" stroke-width="1.5"/><path d="M13 7V4.8A1.8 1.8 0 0 0 11.2 3H4.8A1.8 1.8 0 0 0 3 4.8v6.4A1.8 1.8 0 0 0 4.8 13H7" stroke="currentColor" stroke-width="1.5"/></svg>',
     aujourdhui: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="2.5" y="3.5" width="15" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 7.5h15" stroke="currentColor" stroke-width="1.5"/><path d="M6 2v3M14 2v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="10" cy="12.6" r="2" fill="currentColor"/></svg>',
     deuxSemaines: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="2" y="4" width="7" height="12" rx="1.3" stroke="currentColor" stroke-width="1.5"/><rect x="11" y="4" width="7" height="12" rx="1.3" stroke="currentColor" stroke-width="1.5"/></svg>',
     // Round du 23.09.2026 (suite 4) — semaineMobile : 5 colonnes fines
@@ -734,12 +746,21 @@
   // qui reste l'élément sticky non zoomé, cf. son commentaire).
   var niveauZoomPlanning = 100;
   var bullesSelectionnees = {};
+  // Round du 24.09.2026 (suite 7) — Lionel : « quand je clique une bulle,
+  // elle soit sélectionnée. Mais si j'en clique une autre, la bulle que
+  // j'avais cliquée est désélectionnée et la nouvelle est sélectionnée.
+  // Pour faire une sélection multiple, j'aimerais un petit bouton dans la
+  // toolbar ». modeSelectionMultiple : tant qu'il est actif (#btnSelectionMultiple,
+  // ou Ctrl+clic sur ordinateur), chaque clic AJOUTE/RETIRE la bulle à la
+  // sélection (l'ancien comportement) et une petite barre « ‹ › » sous le
+  // bouton permet de décaler la sélection (cf. decalerSelection,
+  // formulaires-communs.js). Inactif : un clic remplace la sélection.
+  var modeSelectionMultiple = false;
   var pressePapier = [];
   var pileUndo = [], pileRedo = [];
   var LIMITE_UNDO = 50;
   var popFermerActuel = null, popValiderActuel = null;
-  var choixDeplacerCopierEnCours = false;
-  var DELAI_SELECTION = 300, SEUIL_DEFILEMENT = 10, DELAI_DOUBLE_CLIC = 400;
+  var DELAI_SELECTION = 300, SEUIL_DEFILEMENT = 10;
   var PALETTE_STATUTS = ["#e2e6ea", "#dbe6f7", "#cdf1ea", "#f6dcd7", "#f7e6ab", "#d7cdf0", "#f8c8b5", "#cdeccb"];
 
   // Comparaison en chaîne partout : dataset.* (DOM) est toujours une chaîne,

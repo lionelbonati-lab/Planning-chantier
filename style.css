@@ -313,23 +313,9 @@
     white-space: nowrap;
   }
   .zone-planning { position: relative; }
-  .barre-action {
-    position: sticky; bottom: 22px; width: 100%;
-    display: flex; align-items: center; justify-content: center; gap: 10px; z-index: 97;
-    flex-wrap: wrap; margin-top: 14px;
-  }
-  .barre-action[hidden] { display: none; }
-  .barre-action button {
-    font: inherit; font-size: 13px; font-weight: 700; padding: 9px 22px; border-radius: 999px;
-    cursor: pointer; box-shadow: 0 8px 18px var(--shadow-lg); transition: opacity .12s, background .12s, border-color .12s, transform .12s;
-  }
-  .barre-action .ovale-neutre { border: 1.5px solid var(--border); background: var(--surface); color: var(--ink); }
-  .barre-action .ovale-neutre:hover { background: var(--accent-soft); border-color: var(--accent); }
-  .barre-action .ovale-danger { border: 1.5px solid var(--important-ink); background: var(--important-ink); color: #fff; }
-  .barre-action .ovale-danger:hover { opacity: .88; }
-  .barre-action .ovale-danger.cible-suppr { transform: scale(1.12); box-shadow: 0 0 0 4px var(--interdit-bg); }
-  .barre-action .ovale-bleu { border: 1.5px solid var(--accent); background: var(--accent); color: var(--accent-ink); }
-  .barre-action .ovale-bleu:hover { opacity: .88; }
+  /* .barre-action (Annuler/Supprimer/Copier/Déplacer, sticky en bas de la
+     grille) et ses .ovale-* ont disparu au round du 24.09.2026 (suite 8) —
+     remplacés par .panneau-selection dans la barre d'outils (cf. plus bas). */
 
   /* .barre-undo (case vide à gauche des jours) et sa CSS ont vécu : §83
      (round du 16.09.2026, encore un autre, suite×7) — Lionel, mockup
@@ -699,6 +685,35 @@
   #btnPlusOutils .icone-menu-fermer, #btnPlusOutils.ouvert .icone-menu-ouvrir { display: none; }
   #btnPlusOutils.ouvert .icone-menu-fermer { display: grid; }
   .toolbar-btn.ouvert { background: var(--surface-2); color: var(--ink); }
+  /* Barre « ‹ › » de la sélection multiple (#panneauSelection, round du
+     24.09.2026, suite 7) : petit panneau flottant sous #btnSelectionMultiple,
+     affiché tant que le mode est actif (hidden géré par
+     majModeSelectionMultiple, formulaires-communs.js). Même habillage que
+     .outil-menu-panneau mais en LIGNE ; #groupeSelection est son bloc de
+     référence (position:relative). z-index 41 = au-dessus du panneau "⋮" et
+     de l'en-tête figée de la grille, sous les fiches (.form-pop). */
+  #groupeSelection { position: relative; }
+  .panneau-selection {
+    position: absolute; top: calc(100% + 6px); left: 0; z-index: 41;
+    display: flex; align-items: center; gap: 2px; padding: 4px;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: 0 6px 20px var(--shadow-lg);
+  }
+  .panneau-selection[hidden] { display: none; }
+  .panneau-selection .sel-compte {
+    min-width: 2.2em; padding: 0 4px; text-align: center; font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px; font-weight: 700; color: var(--ink-muted);
+  }
+  /* Round du 24.09.2026 (suite 8) — actions de l'ancienne barre du bas dans
+     cette même barre : .sel-fleches (bloc des flèches, mode multiple
+     seulement), .sel-sep (trait vertical entre les groupes), corbeille
+     teintée en rouge comme l'ancien "Supprimer". [hidden] sur un span/bouton
+     display:flex/grid doit être redit explicitement. */
+  .panneau-selection .sel-fleches { display: flex; align-items: center; gap: 2px; }
+  .panneau-selection .sel-fleches[hidden], .panneau-selection .toolbar-btn[hidden] { display: none; }
+  .panneau-selection .sel-sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; flex-shrink: 0; }
+  .panneau-selection .sel-supprimer { color: var(--important-ink); }
+  .panneau-selection .sel-supprimer:hover:not(:disabled) { background: var(--interdit-bg); color: var(--important-ink); }
   /* Trait horizontal entre 2 groupes du panneau (pendant du .sep-avant
      vertical de la barre) — le DOM du panneau suit l'ordre visuel
      (insererAuRang), le sélecteur de voisin suffit. */
