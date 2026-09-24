@@ -843,6 +843,19 @@
   .lbl-speciale { background: var(--surface); }
   .lbl-speciale b { color: var(--ink-muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
   .th.coin, .lbl, .lbl-speciale { position: sticky; left: 0; z-index: 2; }
+  /* Round du 24.09.2026 — Lionel : « ajoute un bordure à droite de la
+     première colonne. » La colonne d'étiquette (116px, sticky left:0)
+     n'avait pour seule séparation que le gap de grille de 1px habituel
+     (.grille { gap:1px; background:var(--border) }) — visible entre 2
+     cases NORMALES côte à côte, mais cette colonne-ci reste figée AU-DESSUS
+     (z-index:2) du contenu qui défile dessous en continu (surtout notable
+     en mode "1 jour" mobile, où une case de jour arrive quasiment collée à
+     son bord droit) : le repère de séparation devenait peu visible dans ce
+     cas précis. border-right dédié, même couleur que le gap de grille
+     (var(--border), pas --border-strong qui est réservé aux frontières de
+     semaine, cf. .sem-frontiere juste au-dessus — un trait plus discret
+     ici, ce n'est qu'un repère de colonne, pas une frontière temporelle). */
+  .th.coin, .lbl, .lbl-speciale { border-right: 1px solid var(--border); }
   .th.sem-frontiere, .cell.sem-frontiere, .lbl.sem-frontiere { border-left: 2px solid var(--border-strong); }
   .th-weekend { min-width: 46px; }
   .cell.case-weekend { background: var(--weekend-bg); }
@@ -1199,6 +1212,18 @@
      tâche, ce qui n'a pas de sens dès lors qu'on ne voit justement plus
      qu'un seul jour à la fois — modifier la durée reste possible depuis la
      fiche (tap sur la bulle). */
+  /* Round du 24.09.2026 : max-width ci-dessous n'est plus que la valeur de
+     secours avant le premier calcul JS (ou si, pour une raison quelconque,
+     il n'a jamais lieu) — ajusterLargeurBullesJourMobile() (js/grille-
+     rendu.js, dans construireGrille) pose désormais un style INLINE sur
+     chaque .b-carte, recalculé à chaque défilement, qui prime toujours sur
+     cette règle de classe. Nécessaire car --largeur-visible-bulle est une
+     SEULE valeur globale (une journée entière) alors que la largeur
+     correcte dépend de CE QUE cette bulle précise occupe sur le jour
+     ACTUELLEMENT affiché (jour entier, demi-journée de début, demi-journée
+     de fin...) — cf. le commentaire JS pour l'historique complet (bulle qui
+     débordait sur un dernier jour en demi-journée, ou qui ne remplissait
+     pas un jour entier). */
   .scroller.snap-jour-mobile .bulle > .b-carte {
     position: sticky; left: 116px; align-self: flex-start; max-width: var(--largeur-visible-bulle, calc(100vw - 132px));
   }

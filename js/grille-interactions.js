@@ -142,6 +142,24 @@
     etat.snapDesactive = false;
     if (scroller) scroller.style.scrollSnapType = etat.snapTypeOrigine || "";
   }
+  // app.scrollTop (pas window.scrollBy) — round du 24.09.2026. Lionel :
+  // « défilement gauche/droite ok sur la grille mais je n'arrive pas
+  // haut/bas. » Cause : le panoramique vertical manuel (nécessaire ici
+  // exactement pour la même raison que le panoramique horizontal, cf. le
+  // commentaire de creerDefilementManuel plus haut — touch-action:none sur
+  // .cell/.bulle/.poignee désactive aussi le défilement natif VERTICAL)
+  // appelait `window.scrollBy(0, -dy)`. Or `html, body { overflow: hidden }`
+  // (style.css) : le document ne défile JAMAIS, par construction (cf. le
+  // commentaire de #app, "#app se retrouvait donc systématiquement...") —
+  // seul `#app` (`overflow-y: auto`) est le vrai conteneur qui défile.
+  // `window.scrollBy` ne faisait donc rigoureusement rien, confirmé en
+  // instrumentant `#app.scrollTop`/`window.scrollY` autour d'un glissé
+  // tactile simulé (test_scroll_vertical_mobile.js) : aucun des deux ne
+  // bouge d'un pixel. `app` (var partagée depuis js/core.js, comme
+  // `vueJourMobile`) est déjà la bonne référence — remplace `window` aux 3
+  // sites concernés (l'inertie de tick() ci-dessous, le suivi direct du
+  // geste dans suivre(), et l'ancien demarrerDefilementSimple, mort mais
+  // corrigé par cohérence).
   function creerDefilementManuel(scroller) {
     var vx = 0, vy = 0, raf = null;
     var etatSnap = { snapDesactive: false, snapTypeOrigine: "" };
@@ -160,7 +178,7 @@
         var maxScroll = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
         if (scroller.scrollLeft <= 0 || scroller.scrollLeft >= maxScroll) vx = 0;
       }
-      if (vy) window.scrollBy(0, -vy * dt);
+      if (vy && app) app.scrollTop -= vy * dt;
       vx *= Math.pow(FRICTION_INERTIE, dt);
       vy *= Math.pow(FRICTION_INERTIE, dt);
       if (Math.abs(vx) < VITESSE_MINI_INERTIE && Math.abs(vy) < VITESSE_MINI_INERTIE) { finirSurRepere(); return; }
@@ -173,7 +191,7 @@
       suivre: function (dx, dy, dt) {
         desactiverSnapSiBesoin_(scroller, etatSnap);
         if (scroller) scroller.scrollLeft -= dx;
-        if (dy) window.scrollBy(0, -dy);
+        if (dy && app) app.scrollTop -= dy;
         if (dt > 0) { vx = vx * 0.7 + (dx / dt) * 0.3; vy = vy * 0.7 + (dy / dt) * 0.3; }
       },
       relacher: function () {
@@ -1420,7 +1438,7 @@
     var pointerId = e.pointerId;
     var dernierX = e.clientX, dernierY = e.clientY;
     var scroller = trouverScroller(cell);
-    function onMove(e2) { if (e2.pointerId !== pointerId) return; if (scroller) scroller.scrollLeft -= (e2.clientX - dernierX); window.scrollBy(0, -(e2.clientY - dernierY)); dernierX = e2.clientX; dernierY = e2.clientY; }
+    function onMove(e2) { if (e2.pointerId !== pointerId) return; if (scroller) scroller.scrollLeft -= (e2.clientX - dernierX); if (app) app.scrollTop -= (e2.clientY - dernierY); dernierX = e2.clientX; dernierY = e2.clientY; }
     function onEnd(e2) { if (e2.pointerId !== pointerId) return; detacher(); }
     function detacher() {
       document.removeEventListener("pointermove", onMove);

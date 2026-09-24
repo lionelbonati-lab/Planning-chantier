@@ -907,7 +907,80 @@
     scroller.appendChild(grilleCorps);
     cadre.appendChild(scroller);
     racineEl.appendChild(cadre);
-    scroller.addEventListener("scroll", function () { enteteScroll.scrollLeft = scroller.scrollLeft; });
+    // ajusterLargeurBullesJourMobile() — round du 24.09.2026. Lionel,
+    // capture d'écran à l'appui : « les bulles doivent s'adapter aux
+    // cellules où elles sont attribuées. La tâche décoffrage balcon est
+    // planifiée du 22 matin au 23 midi. Le 22 la bulle doit faire les 2
+    // cases et le 23 la case du matin. » Deux symptômes du même problème :
+    // sur le dernier jour d'une bulle qui se termine en demi-journée, le
+    // texte débordait hors-cadre à gauche (max-width trop large) ; sur un
+    // jour où la bulle occupe la journée ENTIÈRE, la carte ne remplissait
+    // que la moitié de la largeur (max-width trop étroite, la valeur unique
+    // --largeur-visible-bulle posée plus haut est un compromis figé au
+    // moment du rendu, pas au moment du scroll). Cause commune : la
+    // LARGEUR du bord visible d'une bulle multi-jours doit s'adapter en
+    // continu au jour réellement affiché, exactement comme sa POSITION
+    // (déjà gérée par le sticky CSS natif, cf. le commentaire de .b-carte
+    // dans style.css) — mais sticky ne fait que repositionner, jamais
+    // rétrécir/agrandir. Aucune valeur figée une seule fois par bulle (au
+    // rendu) ne peut être juste à la fois sur son premier jour (en général
+    // une journée entière) ET sur un dernier jour en demi-journée : il faut
+    // recalculer à chaque défilement.
+    // Calcul GEOMÉTRIQUE (intersection entre la boîte de la bulle, fixe
+    // dans le référentiel de la grille, et la fenêtre visible actuelle du
+    // scroller) plutôt qu'une déduction à partir de demiDebut/demiFin :
+    // correct quel que soit le jour affiché ET quelle que soit la forme de
+    // la bulle (jour entier, demi-jour, milieu d'une plage de plusieurs
+    // jours), sans avoir besoin de savoir à l'avance quel jour précis sera
+    // visible. offsetLeft/offsetWidth de chaque .bulle sont relatifs à leur
+    // offsetParent (grilleCorps ou grilleEntete pour Jalons/Notes, cf.
+    // trouverScroller) — sans rapport avec le scroll, donc stables entre 2
+    // appels tant que la grille elle-même n'est pas reconstruite.
+    function ajusterLargeurBullesJourMobile() {
+      if (!enModeJourMobile) return;
+      var debutVisible = scroller.scrollLeft + 116;
+      var finVisible = scroller.scrollLeft + scroller.clientWidth;
+      var bulles = grilleCorps.querySelectorAll(".bulle");
+      var bullesEntete = grilleEntete.querySelectorAll(".bulle");
+      for (var i = 0; i < bulles.length + bullesEntete.length; i++) {
+        var b = i < bulles.length ? bulles[i] : bullesEntete[i - bulles.length];
+        var carte = b.querySelector(".b-carte");
+        if (!carte) continue;
+        var g = Math.max(debutVisible, b.offsetLeft);
+        var d = Math.min(finVisible, b.offsetLeft + b.offsetWidth);
+        // width (pas seulement max-width) : .b-carte a align-self:flex-start
+        // (rétrécit à son contenu, cf. son commentaire CSS) — livré seul,
+        // max-width borne le débordement mais ne fait JAMAIS grandir la
+        // carte au-delà du texte qu'elle contient. Lionel veut au contraire
+        // que la carte COLORE toute la cellule qui lui est assignée même si
+        // son texte n'a pas besoin de toute la largeur (« le 22 la bulle
+        // doit faire les 2 cases », pas juste "ne pas déborder des 2
+        // cases") — une largeur explicite force ce remplissage, le texte
+        // continuant de s'enrouler sur 2 lignes si besoin (line-clamp
+        // existant sur .b-txt, inchangé).
+        //
+        // display:none quand d<=g (aucun recouvrement réel avec la fenêtre
+        // visible, ex. une bulle entièrement défilée hors champ) plutôt que
+        // width:0px — trouvé en régressant test_regression_bulles_stacking_
+        // vendredi.js : .b-carte garde son padding horizontal (14px+8px)
+        // même en box-sizing:border-box dès que la largeur demandée passe
+        // sous ce plancher (le contenu ne peut pas descendre en dessous de
+        // 0, donc le rendu réel plafonne à ~22px de padding pur) — une bulle
+        // censée être totalement hors écran redevenait visible avec un
+        // bandeau vide de 22px. display:none n'a pas ce plancher.
+        if (d <= g) { carte.style.display = "none"; }
+        else { carte.style.display = ""; carte.style.width = (d - g) + "px"; }
+      }
+    }
+    // rAF-throttlé : "scroll" peut se déclencher plusieurs fois par frame
+    // pendant un glissé — recalculer pour toutes les bulles à chaque
+    // événement brut serait inutilement coûteux.
+    var rafAjustLargeurBulles = null;
+    function planifierAjustLargeurBulles() {
+      if (rafAjustLargeurBulles) return;
+      rafAjustLargeurBulles = requestAnimationFrame(function () { rafAjustLargeurBulles = null; ajusterLargeurBullesJourMobile(); });
+    }
+    scroller.addEventListener("scroll", function () { enteteScroll.scrollLeft = scroller.scrollLeft; planifierAjustLargeurBulles(); });
     // Round du 23.09.2026 (suite 5) — Lionel : « Swipper un vendredi permet
     // de passer au lundi de la semaine suivante ? ». Réattaché à chaque
     // rendu (comme le mirroir de scroll juste au-dessus) puisque .scroller
@@ -1405,6 +1478,12 @@
     // instant les mauvaises colonnes après un changement de semaine/mode qui
     // conserve le défilement horizontal.
     enteteScroll.scrollLeft = cibleScrollLeft;
+    // Premier calcul explicite (pas d'attente du prochain événement
+    // "scroll", qui ne se déclenche pas forcément après une simple
+    // affectation programmatique de scrollLeft identique à la position déjà
+    // en cours, ex. re-rendu sans changement de semaine/jour) — cf. le
+    // commentaire de ajusterLargeurBullesJourMobile plus haut.
+    ajusterLargeurBullesJourMobile();
     majBoutonsUndo();
     majBarreSelection();
     majControlesAffichage();
@@ -1451,7 +1530,15 @@
     if (it.serieId) html += '<span class="b-serie" title="Fait partie d\'une série">↻ série</span>';
     html += '</div>';
     el.innerHTML = html;
-    el.querySelector(".b-carte").style.background = bg;
+    var carte = el.querySelector(".b-carte");
+    carte.style.background = bg;
+    // Round du 24.09.2026 — la largeur de .b-carte en mode "1 jour" mobile
+    // est désormais ajustée dynamiquement au scroll par
+    // ajusterLargeurBullesJourMobile() (cf. son commentaire dans
+    // construireGrille) plutôt qu'ici au moment de la création — cf.
+    // FRONTEND-CHANGELOG.md pour le pourquoi (une valeur figée par bulle ne
+    // peut pas être juste à la fois sur son premier jour, en général une
+    // journée entière, ET sur un dernier jour en demi-journée).
     el.title = (tag ? tag + " — " : "") + it.texte;
     el.addEventListener("pointerdown", onPointerDownBulle);
     cablerPoigneeRedim(el.querySelector('[data-poignee="gauche"]'), el, it, "gauche");
