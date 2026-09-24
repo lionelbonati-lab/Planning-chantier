@@ -7,11 +7,10 @@
      l'interruption précédente, cf. FRONTEND-CHANGELOG.md. (La barre du bas
      #barreAction, câblée ici par cablerBarreAction(), a disparu au round du
      24.09.2026 suite 8 — cf. le commentaire juste en dessous.) Adaptation serveur : supprimer une bulle qui porte un
-     serieId passe par apiSupprimerSerie (portée "unique" — seule cette
-     occurrence ; pour une portée plus large, éditer l'item seul, qui
-     propose le choix à 3 portées comme d'habitude) ; les autres bulles
-     sont retirées localement et laissées au moteur de diff générique
-     (render() -> synchroniser()), comme le reste du fichier. ============ */
+     serieId demande la portée (cet événement / les suivants / tous — cf.
+     supprimerSelection et series.js, round du 24.09.2026, suite 20) ; les
+     autres bulles sont retirées localement et laissées au moteur de diff
+     générique (render() -> synchroniser()), comme le reste du fichier. ============ */
   // Round du 24.09.2026 (suite 8) — la barre du bas (#barreAction :
   // Annuler / Supprimer, et Copier / Déplacer après un glisser tactile) a
   // disparu. Lionel : « retravailler au passage les deux boutons annuler et
@@ -114,9 +113,11 @@
       bullesSelectionnees = {};
       nouveaux.forEach(function (id) { bullesSelectionnees[id] = true; });
     }
-    render();
+    var msgDecale = (copie ? "Copié (" : "Décalé (") + plages.length + ")" + (weekend ? " — " + weekend + " case(s) de week-end laissée(s) en place." : ".");
+    // Bulle de série décalée : boîte « événement récurrent » (series.js).
+    var enAttente = rendreAvecPorteeSerie("deplacer", msgDecale);
     majBarreSelection();
-    toast((copie ? "Copié (" : "Décalé (") + plages.length + ")" + (weekend ? " — " + weekend + " case(s) de week-end laissée(s) en place." : "."));
+    if (!enAttente) toast(msgDecale);
   }
   // Pilule de sélection (#panneauSelection) : appelée à chaque rendu et à
   // chaque changement de sélection. Visible dès qu'une bulle est
@@ -164,9 +165,11 @@
   // bulles marquables sont déjà importantes, le drapeau est retiré à
   // toutes ; sinon il est posé sur toutes. Une seule étape d'annulation.
   // Enregistrement par le trajet habituel : mutation des items puis
-  // render() -> synchroniser(), comme le décalage par les flèches — une
-  // bulle d'une série ne change que pour cette occurrence, comme au
-  // décalage. La sélection reste en place pour enchaîner une autre action.
+  // render() -> synchroniser(), comme le décalage par les flèches. Une
+  // bulle de série ouvre la boîte « événement récurrent » (suite 20, cf.
+  // rendreAvecPorteeSerie, series.js) : le drapeau peut alors aller sur
+  // cette occurrence, les suivantes ou toute la série. La sélection reste
+  // en place pour enchaîner une autre action.
   function basculerImportantSelection() {
     var plages = plagesImportantSelection_();
     var jalons = Object.keys(bullesSelectionnees).length - plages.length;
@@ -174,9 +177,10 @@
     var poser = !plages.every(function (p) { return !!p.item.important; });
     sauvegarderUndo();
     plages.forEach(function (p) { p.item.important = poser; });
-    render();
+    var msg = (poser ? "Marqué important (" : "Important retiré (") + plages.length + ")" + (jalons ? " — jalon(s) : drapeau sur la page Jalons." : ".");
+    var enAttente = rendreAvecPorteeSerie("modifier", msg);
     majBarreSelection();
-    toast((poser ? "Marqué important (" : "Important retiré (") + plages.length + ")" + (jalons ? " — jalon(s) : drapeau sur la page Jalons." : "."));
+    if (!enAttente) toast(msg);
   }
   // Crayon : ouvre la fiche de LA bulle sélectionnée (même geste qu'Entrée).
   function modifierSelection() {
@@ -214,39 +218,32 @@
     majBarreSelection();
   }
   // Suppression groupée depuis la sélection : toujours confirmée avant
-  // d'agir. Les bulles "de série" sont supprimées côté serveur une à une
-  // (apiSupprimerSerie, portée "unique") ; les autres sont retirées
-  // localement, le moteur de diff générique (render()) s'occupe du reste.
+  // d'agir. Sans bulle de série : confirmation simple, retrait local, le
+  // moteur de diff générique (render()) s'occupe du reste. Avec au moins
+  // une bulle de série (round du 24.09.2026, suite 20) : la boîte
+  // « Supprimer l’événement récurrent » tient lieu de confirmation, comme
+  // dans un agenda — cet événement, celui-ci et les suivants, ou tous
+  // (supprimerAvecPorteeSerie, series.js). Avant, la portée était imposée
+  // en dur à « cet élément seul ».
   function supprimerSelection() {
     var ids = Object.keys(bullesSelectionnees);
     if (!ids.length) return;
+    var plages = ids.map(function (id) { return itemParId(id); }).filter(Boolean);
+    var msgOk = "Supprimé (" + ids.length + ").";
+    if (plages.some(function (p) { return p.item.serieId; })) {
+      supprimerAvecPorteeSerie(plages, quitterModeSelection, msgOk);
+      return;
+    }
     var texte = "Supprimer " + ids.length + " bulle" + (ids.length > 1 ? "s" : "") + " sélectionnée" + (ids.length > 1 ? "s" : "") + " ?";
     demanderConfirmation(texte, function () {
-      var chaine = Promise.resolve();
       sauvegarderUndo();
-      ids.forEach(function (id) {
-        // itemParId, pas de lookup DOM : résolution par id pure, plus
-        // simple et plus sûre qu'un document.querySelector.
-        var plage = itemParId(id);
-        if (!plage) return;
-        if (plage.item.serieId) {
-          var sid = plage.item.serieId, refIso = plage.item.dateDebutIso;
-          chaine = chaine.then(function () {
-            return invoquerFonctionServeur("gerer-serie", { action: "supprimer", portee: "unique", serieId: sid, dateRefIso: refIso });
-          }).then(function () { apresEcritureSerie(); });
-        } else {
-          var i = plage.liste.indexOf(plage.item);
-          if (i >= 0) plage.liste.splice(i, 1);
-        }
+      plages.forEach(function (plage) {
+        var i = plage.liste.indexOf(plage.item);
+        if (i >= 0) plage.liste.splice(i, 1);
       });
       quitterModeSelection();
-      chaine.then(function () {
-        render();
-        toast("Supprimé (" + ids.length + ").");
-      }).catch(function (err) {
-        toast("Échec de la suppression : " + (err && err.message ? err.message : err));
-        render(false);
-      });
+      render();
+      toast(msgOk);
     });
   }
 
@@ -866,28 +863,69 @@
      règle "live" — le calcul des dates se fait côté serveur (pasCalendaire_),
      jamais en espace `gi` côté client (contrairement au prototype V3 isolé).
      ============ */
-  function demanderPorteeSerie(titre, callback) {
+  // Round du 24.09.2026 (suite 20) — Lionel : « j'aimerai qu'elles se
+  // comporte comme sur un calendrier avant suppression, déplacement ou
+  // modification. proposer de modifier toute la série, les événements à
+  // venir ou uniquement celui-ci. » Boîte calquée sur celle d'un agenda :
+  // titre « Modifier/Déplacer/Supprimer l’événement récurrent », 3 choix
+  // en boutons radio (« Cet événement » coché d'office), Annuler / OK.
+  // Entrée valide, Échap / clic à côté / Annuler appellent opts.onAnnuler
+  // (le geste qui a ouvert la boîte y remet la grille en l'état — cf.
+  // rendreAvecPorteeSerie, series.js). opts.seulementUnique grise les 2
+  // autres choix (case de week-end, cf. changementSerie_) ; opts.message
+  // s'affiche sous le titre.
+  function demanderPorteeSerie(titre, callback, opts) {
+    opts = opts || {};
     var overlay = document.createElement("div");
     overlay.className = "voile-confirm";
     var pop = document.createElement("div");
     pop.className = "pop confirm-pop confirm-pop-serie";
-    pop.innerHTML = '<div class="cp-titre">' + esc(titre) + ' — série</div>' +
-      '<p class="confirm-texte">Cet élément fait partie d’une série.</p>' +
-      '<div class="confirm-boutons-serie">' +
-      '<button type="button" class="cs-unique">Cet élément seul</button>' +
-      '<button type="button" class="cs-suivant">Cet élément et les suivants</button>' +
-      '<button type="button" class="cs-serie">Toute la série</button>' +
+    pop.setAttribute("role", "dialog");
+    pop.setAttribute("aria-label", titre);
+    var choix = [
+      { valeur: "unique", classe: "cs-unique", libelle: "Cet événement" },
+      { valeur: "suivant", classe: "cs-suivant", libelle: "Cet événement et les suivants" },
+      { valeur: "serie", classe: "cs-serie", libelle: "Tous les événements" }
+    ];
+    pop.innerHTML = '<div class="cs-titre">' + esc(titre) + '</div>' +
+      (opts.message ? '<p class="confirm-texte cs-message">' + esc(opts.message) + '</p>' : '') +
+      '<div class="confirm-boutons-serie" role="radiogroup">' +
+      choix.map(function (c, i) {
+        var off = opts.seulementUnique && i > 0;
+        return '<label class="cs-choix ' + c.classe + (off ? ' desactive' : '') + '">' +
+          '<input type="radio" name="porteeSerie" value="' + c.valeur + '"' + (i === 0 ? ' checked' : '') + (off ? ' disabled' : '') + '>' +
+          '<span>' + c.libelle + '</span></label>';
+      }).join("") +
       '</div>' +
-      '<button type="button" class="c-annuler cs-annuler">Annuler</button>';
+      '<div class="confirm-boutons cs-pied">' +
+      '<button type="button" class="c-annuler cs-annuler">Annuler</button>' +
+      '<button type="button" class="c-ok cs-ok">OK</button>' +
+      '</div>';
     document.body.appendChild(overlay);
     document.body.appendChild(pop);
-    function nettoyer() { overlay.remove(); pop.remove(); if (popFermerActuel === nettoyer) popFermerActuel = null; }
-    overlay.addEventListener("pointerdown", nettoyer);
-    pop.querySelector(".cs-annuler").addEventListener("click", nettoyer);
-    pop.querySelector(".cs-unique").addEventListener("click", function () { nettoyer(); callback("unique"); });
-    pop.querySelector(".cs-suivant").addEventListener("click", function () { nettoyer(); callback("suivant"); });
-    pop.querySelector(".cs-serie").addEventListener("click", function () { nettoyer(); callback("serie"); });
-    popFermerActuel = nettoyer;
+    var fini = false;
+    function nettoyer() {
+      fini = true;
+      overlay.remove(); pop.remove();
+      if (popFermerActuel === annuler) popFermerActuel = null;
+      if (popValiderActuel === valider) popValiderActuel = null;
+    }
+    function annuler() { if (fini) return; nettoyer(); if (opts.onAnnuler) opts.onAnnuler(); }
+    function valider() {
+      if (fini) return;
+      var coche = pop.querySelector('input[name="porteeSerie"]:checked');
+      nettoyer();
+      callback(coche ? coche.value : "unique");
+    }
+    overlay.addEventListener("pointerdown", annuler);
+    pop.querySelector(".cs-annuler").addEventListener("click", annuler);
+    pop.querySelector(".cs-ok").addEventListener("click", valider);
+    // Double clic sur un choix = choisir et valider d'un coup.
+    pop.querySelectorAll(".cs-choix input").forEach(function (r) { r.addEventListener("dblclick", valider); });
+    popFermerActuel = annuler;
+    popValiderActuel = valider;
+    var premier = pop.querySelector('input[name="porteeSerie"]');
+    if (premier) premier.focus();
   }
   function serieChampsHTML() {
     return '<label class="chk"><input type="checkbox" class="f-serie"> Série (se répète)</label>' +
@@ -914,7 +952,7 @@
   // ci-dessus) : rend visible, avant même de cliquer "Enregistrer", que la
   // modification proposera un choix de portée.
   function serieInfoExistanteHTML() {
-    return '<div class="serie-info-existante"><span class="icone-serie">↻</span><span>Fait partie d’une série. En enregistrant, un choix sera proposé : cet élément seul, celui-ci et les suivants, ou toute la série.</span></div>';
+    return '<div class="serie-info-existante"><span class="icone-serie">↻</span><span>Événement récurrent. En enregistrant ou en supprimant, un choix sera proposé : cet événement, cet événement et les suivants, ou tous les événements.</span></div>';
   }
   // Renvoie une fonction lireChoixSerie() -> null (pas coché) ou
   // {frequence, intervalle, finType, finValeur} — finValeur est un ISO

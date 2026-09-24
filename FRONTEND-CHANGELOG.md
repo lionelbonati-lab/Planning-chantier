@@ -7020,3 +7020,73 @@ Sur l'ancien CSS, les 4 nouvelles vérifications du ⚑ échouent (⚑ actif ble
 - calendrier 28/28, barre 27/27, défilement mobile 20/20 ;
 - sélection 43/43, aperçu de dépôt 9/9, hors semaine 16/16 ;
 - les tests de logique pure.
+
+## 128. Round du 24.09.2026 (suite 20) — Séries : « cet événement / les suivants / tous », comme dans un agenda
+
+Lionel : « J'aimerai améliorer mes séries. j'aimerai qu'elles se comporte comme sur un calendrier avant suppression, déplacement ou modification. proposer de modifier toute la série, les événements à venir ou uniquement celui-ci. »
+
+**Avant ce round** :
+- seules la fiche et la suppression demandaient quelque chose. La pilule 🗑 et la touche Suppr imposaient « cet élément seul » ;
+- les dates changées dans la fiche d'une occurrence étaient ignorées : `gerer-serie` « modifier » ne réécrit que texte, drapeau, statut et chantier ;
+- glisser, étirer, décaler aux flèches ou poser le ⚑ ne demandait rien. Une note ou un jalon y perdait même son `serie_id`, car `enregistrer-plage` ne le connaît pas : l'occurrence sortait de sa série sans prévenir.
+
+**La boîte « événement récurrent »** (`demanderPorteeSerie`, refaite) :
+- titre « Supprimer / Déplacer / Modifier l’événement récurrent » ;
+- 3 choix en boutons radio : « Cet événement » (coché d'office), « Cet événement et les suivants », « Tous les événements » ;
+- pied Annuler / OK. Entrée valide ; Échap, clic à côté ou Annuler remettent la grille en l'état, sans rien écrire.
+
+Elle s'ouvre pour tout geste qui touche une bulle de série :
+- glisser à la souris ou au doigt, étirer par la poignée, flèches de la pilule ou ← → du clavier ;
+- ⚑ de la pilule ;
+- fiche tâche, absence, note ou jalon (Enregistrer et Supprimer) ;
+- pilule 🗑 et touche Suppr. La boîte tient alors lieu de confirmation. Une sélection sans bulle de série garde la confirmation simple.
+
+Pendant la question, la grille montre déjà le résultat du geste, comme un agenda.
+
+**Écriture** : nouveau fichier `js/series.js`, directement sur les tables (`sbClient`), comme `enregistrerTacheEnDatesServeur`. Les Edge Functions ne sont ni modifiées ni redéployées.
+- **Lecture des lignes de la série** (`serie_id`), filtrée par portée. « Cet événement » = les dates de la bulle, plus sa personne pour une tâche. « Les suivants » = à partir de sa date de début. « Tous » = sans filtre. Lecture paginée par 1000 lignes.
+- **Modification** (texte, drapeau, statut, chantier) : UPDATE des lignes.
+- **Déplacement, durée ou personne** : les lignes sont retirées puis reposées, `serie_id` conservé. Une tâche reposée va en bout de sa case (ordre = max + 1).
+  - Unité : la demi-journée ouvrée, celle du glisser. Un vendredi décalé d'un jour passe au lundi, et chaque occurrence de la portée bouge d'autant.
+  - Une durée changée s'applique à chaque occurrence de la portée.
+  - Les occurrences se retrouvent par la règle de fusion des bulles (demi-journées consécutives au même contenu), recoupées à la durée d'origine. Ainsi, une série hebdomadaire « toute la semaine » (vendredi puis lundi jointifs) n'est pas prise pour une seule longue occurrence.
+- **Suppression** : DELETE des lignes.
+- **Plusieurs occurrences d'une même série dans une sélection** (vue 2 semaines) : un seul passage par série pour « les suivants » et « tous », depuis la plus ancienne. Pas de double décalage.
+- **Bulles hors série du même geste** : elles repassent par la synchronisation habituelle, avant l'écriture de la série.
+- **Rechargement** de la fenêtre ensuite (`apresEcritureSerie`).
+
+**Fiche** :
+- les dates de la fiche sont maintenant appliquées ;
+- une occurrence envoyée hors de la semaine affichée reste dans sa série (avant : détachée) ;
+- le bandeau devient « Événement récurrent… ». Il s'affiche aussi pour un jalon en série.
+
+**Copies** (Maj + glisser, ⧉ puis flèche) : elles sortent de la série, comme la copie d'un événement d'agenda. Le coller le faisait déjà.
+
+**Annuler (Ctrl+Z)** :
+- conservé après « Cet événement » ;
+- vidé après « les suivants » et « tous », qui touchent des semaines absentes de l'instantané local (même raison que la fiche hors fenêtre du §113) ;
+- vidé aussi après une fiche envoyée hors de la fenêtre.
+
+**Limites connues** :
+- une bulle posée un samedi ou un dimanche n'a pas de rang ouvré : si le geste la déplace, seul « Cet événement » est proposé, avec l'explication ;
+- dans une série « tous les jours », les cases de week-end se décalent du même nombre de demi-journées en calendaire, sans changer de durée ;
+- la ligne `series` (paramètres de création) n'est pas réécrite : seules les occurrences matérialisées changent.
+
+Vérifié en local (Playwright) :
+- **`test_series_agenda.js`** (nouveau), 33 vérifications, toutes OK. Faux Supabase avec 4 séries (tâche, note, jalon, tâche du matin) :
+  - la boîte : titre, 3 choix, « Cet événement » coché, Annuler/OK ;
+  - Échap : bulle revenue, rien d'écrit ;
+  - flèches → « Tous » : série décalée d'un jour, `serie_id` gardé, pile vidée ;
+  - flèches → « les suivants » −½ jour : l'occurrence d'avant ne bouge pas ;
+  - ⚑ → « Tous » sur une note : écrit sans `enregistrer-plage` ;
+  - note déplacée « Cet événement » : toujours en série ;
+  - fiche → « les suivants » : dates appliquées ;
+  - vrai glisser souris → « Cet événement » ;
+  - copie sans `serie_id` ;
+  - Suppr → « Cet événement », puis 🗑 → « les suivants » avec une bulle hors série ; confirmation simple conservée hors série ;
+  - moteur pur : semaines jointives recoupées, vendredi + 1 jour = lundi, week-end ;
+  - boîte dans l'écran à 320 px.
+- **Suite complète** :
+  - OK : sélection, ⚑ de la pilule, aperçu de dépôt, hors semaine, calendrier, survol tactile, décalage en masse, logique pure, entre autres ;
+  - OK aussi en exécution séquentielle (échec seulement en parallèle, comme sur `main`) : bordure lundi, couleurs, multijour tablette, swipe tablette ;
+  - échec identique sur `main`, sans lien avec ce round : 8 anciens tests qui cherchent des fonctions dans `index.html` (`test_aller_a`, `test_chantier_defaut`, `test_edge_functions`…).

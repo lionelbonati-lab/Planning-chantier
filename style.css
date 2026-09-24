@@ -1344,10 +1344,24 @@
   .confirm-texte { margin: 0; padding: 2px 2px 4px; font-size: 13px; color: var(--ink); line-height: 1.5; }
   .confirm-boutons { display: flex; gap: 8px; }
   .confirm-boutons button { flex: 1; text-align: center; }
-  .confirm-pop-serie { width: 280px; }
-  .confirm-boutons-serie { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
-  .confirm-boutons-serie button { text-align: center; }
-  .cs-annuler { width: 100%; margin-top: 8px; }
+  /* Boîte « événement récurrent » (round du 24.09.2026, suite 20 — cf.
+     demanderPorteeSerie) : comme dans un agenda, titre, 3 choix en boutons
+     radio alignés à gauche, puis Annuler / OK. Chaque choix est une ligne
+     entière cliquable (label), assez haute pour le doigt sur téléphone. */
+  .confirm-pop-serie { width: 300px; max-width: calc(100vw - 32px); text-align: left; padding: 14px; gap: 8px; }
+  .confirm-pop-serie .cs-titre { font-size: 15px; font-weight: 700; color: var(--ink); padding: 0 2px; }
+  .confirm-pop-serie .cs-message { font-size: 12.5px; color: var(--ink-muted); padding: 0 2px; }
+  .confirm-boutons-serie { display: flex; flex-direction: column; gap: 2px; margin: 2px 0 4px; }
+  .cs-choix { display: flex; align-items: center; gap: 10px; min-height: 38px; padding: 4px 6px; border-radius: 8px; font-size: 13.5px; color: var(--ink); cursor: pointer; }
+  .cs-choix input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); cursor: pointer; flex: none; }
+  .cs-choix input:focus-visible { border-radius: 50%; }
+  .cs-choix.desactive { opacity: .45; cursor: default; }
+  .cs-choix.desactive input { cursor: default; }
+  @media (hover: hover) and (pointer: fine) { .cs-choix:not(.desactive):hover { background: var(--accent-soft); } }
+  .confirm-pop-serie .cs-pied { justify-content: flex-end; }
+  .confirm-pop-serie .cs-pied button { flex: 0 0 auto; min-width: 84px; }
+  .confirm-pop-serie .cs-ok { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  @media (hover: hover) and (pointer: fine) { .confirm-pop-serie .cs-ok:hover { background: var(--accent); border-color: var(--accent); filter: brightness(1.08); } }
   .form-pop { width: 280px; }
   .form-pop input[type=text], .form-pop input[type=date], .form-pop select {
     font: inherit; font-size: 13.5px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border);

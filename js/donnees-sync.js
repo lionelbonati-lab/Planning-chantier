@@ -1924,8 +1924,9 @@
   // déjà posées ce jour-là — contrairement à enregistrerCellulePersonneServeur,
   // qui réécrit la case entière depuis l'état complet connu de la grille
   // (état qu'on n'a justement pas hors de la fenêtre). serie_id toujours null :
-  // une occurrence de série déplacée hors de la fenêtre en est détachée
-  // (gerer-serie ne sait pas déplacer une occurrence, cf. ouvrirEdition).
+  // seules les tâches HORS série passent ici — une occurrence de série,
+  // même envoyée hors de la fenêtre, passe par series.js (round du
+  // 24.09.2026, suite 20) et y garde son serie_id.
   function enregistrerTacheEnDatesServeur(personneId, idsASupprimer, slots, champs) {
     var chaine = idsASupprimer.length
       ? sbClient.from("taches").delete().in("id", idsASupprimer).then(function (res) { if (res.error) throw res.error; })

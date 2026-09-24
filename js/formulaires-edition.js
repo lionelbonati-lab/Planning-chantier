@@ -590,9 +590,10 @@
   // déjà un serieId (constaté depuis le cache, cf. tacheSlotAuGi/
   // construireVueDepuisCache — le serveur renvoie taches[].serieId) passe
   // systématiquement, quelle que soit la portée choisie ("unique" compris),
-  // par apiModifierSerie/apiSupprimerSerie : ces items vivent dans une case
-  // matérialisée côté feuille, jamais localement — on ne les "splice" plus
-  // dans TACHES par optimisme (cf. FRONTEND-CHANGELOG.md). Un item SANS
+  // par la boîte « événement récurrent » puis l'écriture directe de
+  // series.js (round du 24.09.2026, suite 20 — avant : gerer-serie, qui
+  // ignorait les dates) : on ne les "splice" pas dans TACHES par optimisme
+  // (cf. FRONTEND-CHANGELOG.md). Un item SANS
   // serieId se comporte exactement comme dans le prototype : mutation locale
   // de TACHES + render() (qui synchronise ensuite via le moteur de diff).
   function ouvrirEdition(cell, itemExisting, typeIfNew, x, y, plageInit, demiDebutArg, demiFinArg) {
@@ -820,15 +821,11 @@
           toast("Échec de la suppression : " + (err && err.message ? err.message : err));
         });
       }
+      // Bulle de série (round du 24.09.2026, suite 20) : fiche fermée, puis
+      // boîte « Supprimer l’événement récurrent » (series.js).
       if (itemExisting.serieId) {
-        demanderPorteeSerie("Supprimer", function (portee) {
-          fermer();
-          invoquerFonctionServeur("gerer-serie", { action: "supprimer", portee: portee, serieId: itemExisting.serieId, dateRefIso: itemExisting.dateDebutIso }).then(function () {
-            apresEcritureSerie(); toast("Supprimé.");
-          }).catch(function (err) {
-            toast("Échec de la suppression : " + (err && err.message ? err.message : err));
-          });
-        });
+        fermer();
+        supprimerAvecPorteeSerie([{ item: itemExisting, liste: TACHES }], null, "Supprimé.");
         return;
       }
       supprimerUnique();
@@ -880,55 +877,40 @@
           itemExisting.dateDebutIso = isoDeGi(giDebutFinal);
           fermer(); render(); toast("Modifié.");
         }
-        // Occurrence de série envoyée hors de la fenêtre : déplacée seule,
-        // détachée de sa série (serie_id null, cf. enregistrerTacheEnDatesServeur),
-        // sans demander la portée — gerer-serie ne sait déplacer aucune
-        // occurrence (cf. plus bas), "Cet élément seul" est la seule
-        // réponse possible.
-        if (horsFenetre || !itemExisting.serieId) {
-          // Champs absents de la fiche (pas de sélecteur de statut pour un
-          // salarié, pas de chantier pour une absence) : ceux de la tâche
-          // d'origine, comme le fait appliquerModifUnique en ne les touchant pas.
-          champsTache.chantier = chantier || itemExisting.chantier;
-          champsTache.statut = statutRow ? statutActuel : (itemExisting.statut || null);
-          enregistrementEnCours = true;
-          (horsFenetre ? (promesseOrigine || lignesTacheServeur(itemExisting)).then(function (r) { return r.lignes; }) : debordementOrigine()).then(function (lignes) {
-            if (!lignes) { appliquerModifUnique(); return; }
-            ecrireHorsFenetre(function () {
-              return enregistrerTacheEnDatesServeur(ancreDe(itemExisting.personneId), lignes.map(function (l) { return l.id; }), slotsNouveaux, champsTache);
-            }, (typeAffiche === "absence" ? "Absence enregistrée " : "Tâche enregistrée ") + libellePlage(isoDebutFinal, isoFinFinal) + (itemExisting.serieId ? " — détachée de sa série" : ""));
-          }).catch(function (err) {
-            enregistrementEnCours = false;
-            toast("Échec de l’enregistrement : " + (err && err.message ? err.message : err));
-          });
-          return;
-        }
+        // Bulle de série (round du 24.09.2026, suite 20) : boîte « Modifier
+        // l’événement récurrent » (cet événement / les suivants / tous), puis
+        // écriture directe par series.js — dates comprises, même hors de la
+        // fenêtre, et l'occurrence reste dans sa série. Avant : gerer-serie
+        // « modifier » (dates ignorées en silence) ou, hors fenêtre, une
+        // occurrence détachée de sa série sans rien demander.
         if (itemExisting.serieId) {
-          demanderPorteeSerie("Modifier", function (portee) {
-            fermer();
-            var chantierAppl = chantier || itemExisting.chantier;
-            // gerer-serie veut des id (chantierId/statutId), la vue ne connaît
-            // que le nom/la clé — traduction via les lookups du bootstrap,
-            // mêmes que creerSerieServeur ci-dessus. Ni les dates ni la
-            // demi-journée ne sont envoyées ici : gerer-serie ne sait pas
-            // (encore) déplacer une série entière — déplacer une occurrence
-            // en série passe par "Cet élément seul" (portee=unique), qui la
-            // détache déjà de la série côté vue, exactement comme avant
-            // cette refonte.
-            var modifs = {
-              texte: texte, important: important,
-              chantierId: chantierAppl ? ((etat.chantierParNom[chantierAppl] && etat.chantierParNom[chantierAppl].ligne) || null) : null,
-              statutId: statutFinal ? (etat.statutIdParCle[statutFinal] || null) : null
-            };
-            invoquerFonctionServeur("gerer-serie", { action: "modifier", portee: portee, serieId: itemExisting.serieId, dateRefIso: itemExisting.dateDebutIso, modifs: modifs }).then(function () {
-              apresEcritureSerie(); toast("Modifié.");
-            }).catch(function (err) {
-              toast("Échec de la modification : " + (err && err.message ? err.message : err));
-            });
+          var apresSerie = Object.assign({}, itemExisting, {
+            texte: texte, important: important,
+            chantier: chantier || itemExisting.chantier,
+            statut: statutRow ? statutActuel : (itemExisting.statut || null)
           });
+          fermer();
+          enregistrerFicheSerie("TACHES", itemExisting, apresSerie,
+            { debut: isoDebutFinal, fin: isoFinFinal, demiDebut: demiDebutFinal, demiFin: demiFinFinal }, horsFenetre);
           return;
         }
-        appliquerModifUnique();
+        // Hors série : hors fenêtre (ou tâche d'origine qui déborde déjà de
+        // la fenêtre), écriture en vraies dates ; sinon appliquerModifUnique.
+        // Champs absents de la fiche (pas de sélecteur de statut pour un
+        // salarié, pas de chantier pour une absence) : ceux de la tâche
+        // d'origine, comme le fait appliquerModifUnique en ne les touchant pas.
+        champsTache.chantier = chantier || itemExisting.chantier;
+        champsTache.statut = statutRow ? statutActuel : (itemExisting.statut || null);
+        enregistrementEnCours = true;
+        (horsFenetre ? (promesseOrigine || lignesTacheServeur(itemExisting)).then(function (r) { return r.lignes; }) : debordementOrigine()).then(function (lignes) {
+          if (!lignes) { appliquerModifUnique(); return; }
+          ecrireHorsFenetre(function () {
+            return enregistrerTacheEnDatesServeur(ancreDe(itemExisting.personneId), lignes.map(function (l) { return l.id; }), slotsNouveaux, champsTache);
+          }, (typeAffiche === "absence" ? "Absence enregistrée " : "Tâche enregistrée ") + libellePlage(isoDebutFinal, isoFinFinal));
+        }).catch(function (err) {
+          enregistrementEnCours = false;
+          toast("Échec de l’enregistrement : " + (err && err.message ? err.message : err));
+        });
         return;
       }
       if (horsFenetre) {
@@ -985,17 +967,12 @@
     });
   }
 
-  // ---- ouvrirEditionPlage (jalon/note) — même adaptation, avec une limite
-  // documentée (cf. FRONTEND-CHANGELOG.md) : apiEnregistrerJalonNote et
-  // apiEnregistrerPlage (contrat inchangé) ne renvoient/ne stockent aucun
-  // serieId pour les jalons/notes (contrairement aux tâches, dont la cellule
-  // porte taches[].serieId) — un jalon/note créé "en série" est bien
-  // matérialisé sur chaque semaine touchée, mais une fois rechargé depuis le
-  // cache, chaque occurrence redevient un jalon/note indépendant : la
-  // branche demanderPorteeSerie ci-dessous ne peut donc jamais s'activer
-  // pour un jalon/note dans l'état actuel du schéma serveur ; elle est
-  // conservée pour rester symétrique avec ouvrirEdition et pour ne rien
-  // casser si le schéma gagne un jour un vrai suivi de série.
+  // ---- ouvrirEditionPlage (jalon/note) — même adaptation. Un jalon/une
+  // note en série porte bien son serieId depuis le cache (serie_id, cf.
+  // construireDonneesSemaine) : modifier ou supprimer une occurrence ouvre
+  // la boîte « événement récurrent » (series.js, round du 24.09.2026,
+  // suite 20), dont l'écriture directe conserve le serie_id — ce que le
+  // trajet habituel (enregistrer-plage) ne sait pas faire.
   function ouvrirEditionPlage(kind, itemExisting, giDebut, duree, x, y, celluleSurbrillance, demiDebutArg, demiFinArg) {
     var liste = kind === "jalon" ? JALONS : NOTES;
     var giDebutReel = itemExisting ? itemExisting.giDebut : giDebut;
@@ -1023,12 +1000,10 @@
     // "Série sur Notes, tâches et absences", jalon volontairement exclu).
     // Round D — pour une NOTE déjà en série, affiche le même bandeau
     // d'information que ouvrirEdition (serieInfoExistanteHTML, cf. son
-    // commentaire) plutôt que rien du tout ; le cas ne se présente
-    // actuellement jamais en pratique (une note en série redevient
-    // indépendante après rechargement, cf. commentaire plus haut sur
-    // apiEnregistrerJalonNote/apiEnregistrerPlage), mais le bandeau reste
-    // correct si cette limitation serveur est un jour levée.
-    var champSerie = kind === "jalon" ? "" : (itemExisting ? (itemExisting.serieId ? serieInfoExistanteHTML() : "") : serieChampsHTML());
+    // commentaire) plutôt que rien du tout. Suite 20 : aussi pour un jalon
+    // en série (créé ailleurs, page Jalons ou ancienne donnée) — la boîte de
+    // portée s'ouvre pour lui aussi.
+    var champSerie = itemExisting ? (itemExisting.serieId ? serieInfoExistanteHTML() : "") : (kind === "jalon" ? "" : serieChampsHTML());
 
     pop.innerHTML =
       bandeauHTML({ clair: true, fondStyle: "background:var(--" + kind + "-bg)", important: state.important, chantierHTML: "", nomGrand: libelles[kind] }) +
@@ -1075,15 +1050,10 @@
         if (idx >= 0) liste.splice(idx, 1);
         fermer(); render(); toast("Supprimé.");
       }
+      // Même boîte « Supprimer l’événement récurrent » que la fiche tâche.
       if (itemExisting.serieId) {
-        demanderPorteeSerie("Supprimer", function (portee) {
-          fermer();
-          invoquerFonctionServeur("gerer-serie", { action: "supprimer", portee: portee, serieId: itemExisting.serieId, dateRefIso: itemExisting.dateDebutIso }).then(function () {
-            apresEcritureSerie(); toast("Supprimé.");
-          }).catch(function (err) {
-            toast("Échec de la suppression : " + (err && err.message ? err.message : err));
-          });
-        });
+        fermer();
+        supprimerAvecPorteeSerie([{ item: itemExisting, liste: liste }], null, "Supprimé.");
         return;
       }
       supprimerUnique();
@@ -1120,23 +1090,15 @@
           itemExisting.dateDebutIso = isoDebutVrai;
           fermer(); render(); toast("Modifié.");
         }
+        // Même trajet que la fiche tâche (round du 24.09.2026, suite 20) :
+        // boîte de portée, puis écriture directe par series.js — dates
+        // comprises, l'occurrence reste dans sa série.
         if (itemExisting.serieId) {
-          demanderPorteeSerie("Modifier", function (portee) {
-            fermer();
-            // Jalon/note : pas de chantierId/statutId, ces champs n'existent
-            // pas sur ces tables (cf. sql/0001_schema.sql) — modifs se limite
-            // à texte/important, exactement comme l'ancien apiModifierSerie
-            // ici (jamais de champ chantier/statut envoyé pour ces types) ;
-            // les dates/demi-journée ne sont pas envoyées non plus, gerer-
-            // serie ne sachant pas déplacer une série entière (même limite
-            // que côté tâche, cf. ouvrirEdition ci-dessus).
-            var modifs = { texte: texte, important: important };
-            invoquerFonctionServeur("gerer-serie", { action: "modifier", portee: portee, serieId: itemExisting.serieId, dateRefIso: itemExisting.dateDebutIso, modifs: modifs }).then(function () {
-              apresEcritureSerie(); toast("Modifié.");
-            }).catch(function (err) {
-              toast("Échec de la modification : " + (err && err.message ? err.message : err));
-            });
-          });
+          fermer();
+          enregistrerFicheSerie(kind === "jalon" ? "JALONS" : "NOTES", itemExisting,
+            Object.assign({}, itemExisting, { texte: texte, important: important }),
+            { debut: isoDebutVrai, fin: isoFinVrai, demiDebut: demiDebutFinal, demiFin: demiFinFinal },
+            !!(state.debutHorsFenetreIso || state.finHorsFenetreIso));
           return;
         }
         appliquerModifUnique();
