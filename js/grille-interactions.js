@@ -336,7 +336,9 @@
         // mutation de giDebut, jamais laissé en l'état.
         it.dateDebutIso = isoDeGi(it.giDebut);
         it.demiDebut = demiDebutPrevisu; it.demiFin = demiFinPrevisu;
-        render(); toast("Étendu.");
+        // Bulle de série (round du 24.09.2026, suite 20) : la boîte « événement
+        // récurrent » s'ouvre à la place du render() direct, cf. series.js.
+        if (!rendreAvecPorteeSerie("modifier", "Étendu.")) toast("Étendu.");
       }
       function onCancel(e2) {
         if (e2.pointerId !== pointerId) return;
@@ -790,7 +792,7 @@
           // bulle démarrant/finissant en demi-journée par glissement
           // (Maj+glisser) donnait une copie en journée entière — la
           // demi-journée de l'originale disparaissait en silence.
-          if (plage.liste === TACHES) plage.liste.push(itemPlageTache(it.type, it.texte, it.personneId, ni, it.duree, { important: it.important, chantier: it.chantier, statut: it.statut, demiDebut: it.demiDebut, demiFin: it.demiFin, serieId: it.serieId }));
+          if (plage.liste === TACHES) plage.liste.push(itemPlageTache(it.type, it.texte, it.personneId, ni, it.duree, { important: it.important, chantier: it.chantier, statut: it.statut, demiDebut: it.demiDebut, demiFin: it.demiFin }));
           else plage.liste.push(itemPlage(it.type, it.texte, ni, it.duree, { important: it.important, demiDebut: it.demiDebut, demiFin: it.demiFin }));
         } else {
           it.giDebut = ni;
@@ -814,8 +816,12 @@
         nb++;
       });
       quitterModeSelection();
-      render();
-      toast((copieFinale ? "Copié (" : "Déplacé (") + nb + ").");
+      // Une copie sort de la série (round du 24.09.2026, suite 20 — plus de
+      // serieId repris ci-dessus, comme la copie d'un événement d'agenda) ;
+      // un déplacement de bulle de série ouvre la boîte « événement
+      // récurrent » (cf. rendreAvecPorteeSerie, series.js).
+      var msgDelta = (copieFinale ? "Copié (" : "Déplacé (") + nb + ").";
+      if (!rendreAvecPorteeSerie("deplacer", msgDelta)) toast(msgDelta);
     }
     // NOTE seule, glissée à la souris (round du 03.09.2026, signalé par
     // Lionel : "les notes sont toujours pas extensible ni déplaçable en
@@ -838,8 +844,7 @@
       if (copieFinale) plage.liste.push(itemPlage(it.type, it.texte, ni, it.duree, { important: it.important, demiDebut: bordsCible.demiDebut, demiFin: bordsCible.demiFin }));
       else { it.giDebut = ni; it.demiDebut = bordsCible.demiDebut; it.demiFin = bordsCible.demiFin; it.dateDebutIso = isoDeGi(it.giDebut); }
       quitterModeSelection();
-      render();
-      toast(copieFinale ? "Copié." : "Déplacé.");
+      if (!rendreAvecPorteeSerie("deplacer", copieFinale ? "Copié." : "Déplacé.")) toast(copieFinale ? "Copié." : "Déplacé.");
     }
     // NOTE de PLUSIEURS jours (duree > 1), glissée à la souris en mode
     // compact (round du 07.09.2026, suite — Lionel : « je veux le déplacer
@@ -867,8 +872,7 @@
         it.dateDebutIso = isoDeGi(it.giDebut);
       }
       quitterModeSelection();
-      render();
-      toast(copieFinale ? "Copié." : "Déplacé.");
+      if (!rendreAvecPorteeSerie("deplacer", copieFinale ? "Copié." : "Déplacé.")) toast(copieFinale ? "Copié." : "Déplacé.");
     }
     function estBulleUnitaireDeplacable() { return groupeIds.length === 1 && plageClic.liste === TACHES; }
     function celluleValidePourUnitaire(celluleCible) {
@@ -883,15 +887,14 @@
       if (!plage) { quitterModeSelection(); render(false); return; }
       var it = plage.item;
       if (copieFinale) {
-        plage.liste.push(itemPlageTache(it.type, it.texte, cible.personneId, cible.giDebut, cible.duree, { important: it.important, chantier: it.chantier, statut: it.statut, demiDebut: cible.demiDebut, demiFin: cible.demiFin, serieId: it.serieId }));
+        plage.liste.push(itemPlageTache(it.type, it.texte, cible.personneId, cible.giDebut, cible.duree, { important: it.important, chantier: it.chantier, statut: it.statut, demiDebut: cible.demiDebut, demiFin: cible.demiFin }));
       } else {
         it.personneId = cible.personneId; it.giDebut = cible.giDebut; it.duree = cible.duree;
         it.demiDebut = cible.demiDebut; it.demiFin = cible.demiFin;
         it.dateDebutIso = isoDeGi(it.giDebut);
       }
       quitterModeSelection();
-      render();
-      toast(copieFinale ? "Copié." : "Déplacé.");
+      if (!rendreAvecPorteeSerie("deplacer", copieFinale ? "Copié." : "Déplacé.")) toast(copieFinale ? "Copié." : "Déplacé.");
     }
     function resoudreCibleGroupe(celluleCible, clientXFinal) {
       if (!celluleCible) { nettoyerFantomes(); render(false); return; }
