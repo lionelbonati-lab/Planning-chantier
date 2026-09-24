@@ -7090,3 +7090,55 @@ Vérifié en local (Playwright) :
   - OK : sélection, ⚑ de la pilule, aperçu de dépôt, hors semaine, calendrier, survol tactile, décalage en masse, logique pure, entre autres ;
   - OK aussi en exécution séquentielle (échec seulement en parallèle, comme sur `main`) : bordure lundi, couleurs, multijour tablette, swipe tablette ;
   - échec identique sur `main`, sans lien avec ce round : 8 anciens tests qui cherchent des fonctions dans `index.html` (`test_aller_a`, `test_chantier_defaut`, `test_edge_functions`…).
+
+## 129. Round du 24.09.2026 (suite 21) — Trait résiduel des demi-journées, glisser groupé par demi-journée, poignée d'une bulle posée l'après-midi, faux anneaux de sélection
+
+Lionel : « j'ai une bordure résiduelle sur le bord gauche des note, uniquement quand elles font une demi journée. Lors d'une sélection multiple je ne peux pas glisser déposer par demi-journée. Raccourcir une bulle d'un jour posé un lundi après-midi avec la poignée la décale contre la gauche au lundi matin et sa grandeur reste de 1 jour complet. J'ai réussi a produire un bug ou des cellules paraissent sélectionné alors que non. Plusieurs déplacement avec les boutons gauche/droite de la barre de sélection ont causé ce bug. »
+
+**1. Trait gris sur le bord d'une bulle d'une demi-journée** (`style.css`) :
+- cause : le petit repère `.bulle-demi::after` (trait de 2 px, à gauche pour le matin, à droite pour l'après-midi). Il datait de l'époque où la bulle remplissait toute la case ; depuis le §49, elle occupe sa vraie demi-colonne et le repère ne sert plus à rien ;
+- correctif : règles CSS retirées. Les classes `.bulle-demi-*` restent posées, sans style.
+
+**2. Glisser une sélection multiple par demi-journée** (`js/grille-interactions.js`) :
+- avant : un groupe ne se décalait que de jours entiers (`appliquerDelta`), alors qu'une bulle seule suit le pointeur demi-journée par demi-journée ;
+- désormais, à la souris : la bulle tenue calcule sa nouvelle position exactement comme une bulle seule (`bordsDeplacementNoteMultiJours`, même point de prise). L'écart obtenu en demi-journées s'applique à toutes les bulles du groupe (`deltaDemisGroupe`, `appliquerDeltaDemisGroupe`), comme les flèches de la pilule ;
+- chaque bulle retombe sur sa forme canonique : une journée entière décalée d'une demi-journée devient « après-midi → matin du lendemain » ;
+- butée : l'écart est réduit pour qu'aucune bulle ne sorte de la fenêtre, le groupe garde donc sa forme ;
+- aperçu : une surbrillance par bulle, à sa future place ;
+- inchangés :
+  - au doigt, le groupe se déplace toujours par jours entiers ;
+  - un pointeur ou une bulle tenue sur un week-end garde aussi les jours entiers ;
+  - les bulles de week-end du groupe restent en place (même règle que les flèches) ;
+  - Maj + glisser copie ;
+  - la boîte « événement récurrent » s'ouvre pour les bulles de série.
+
+**3. Raccourcir par la poignée une bulle d'un jour posée l'après-midi** (`demiPourRedimNote`, `js/grille-rendu.js`) :
+- cause : quand il ne restait qu'un jour, la règle ne regardait que le pointeur et oubliait le bord fixe. Une bulle « lundi après-midi → mardi matin » raccourcie jusqu'au lundi devenait « lundi entier » (null/null), calée sur le matin ;
+- désormais, le bord que la poignée ne tient pas garde sa demi-journée, et le pointeur ne peut pas le dépasser :
+  - poignée droite : le début reste « après-midi », la fin suit le pointeur, au pire une seule demi-journée → lundi après-midi seul ;
+  - poignée gauche : même règle, dans l'autre sens ;
+- sur plusieurs jours, un début « matin » ou une fin « après-midi » sont ramenés à null (équivalence déjà utilisée par `colonneEtSpanDemi`) ;
+- l'aperçu en direct (`appliquerPrevisu`) dessine exactement les bords calculés, donc ce que le lâcher enregistre.
+
+**4. Déplacements perdus et faux anneaux bleus après plusieurs clics sur les flèches** (`synchroniser`, `js/donnees-sync.js`) :
+- cause : un 2ᵉ clic tombait pendant l'écriture du 1er, ce qui notait une relance (`syncRelance`). À la fin de l'écriture, la grille relisait le serveur (`construireVueDepuisCache`) **avant** la relance. Deux conséquences :
+  - l'état local des clics suivants était écrasé par ce que savait le serveur (1er clic seulement) ;
+  - la relance ne trouvait plus rien à écrire et ne redessinait jamais la grille. Le DOM gardait donc des bulles aux anciens ids encore marquées `.selectionnee`, alors que `bullesSelectionnees` venait d'être vidé : les anneaux bleus sans pilule de la capture de Lionel ;
+- désormais :
+  - ce qui vient d'être écrit devient la nouvelle référence (`syncBaseline = local`), et la relance n'envoie que les changements faits entre-temps ;
+  - le serveur n'est relu qu'une fois plus rien ne reste à écrire ;
+  - une écriture repartie pendant cette relecture n'est pas écrasée : c'est elle qui relira ensuite.
+
+Vérifié en local (Playwright) :
+- **`test_corrections_suite21.js`** (nouveau), 15 vérifications, toutes OK. Faux Supabase dont les réponses peuvent être retardées (120 ms, comme un vrai réseau) :
+  - note du matin : `::after` = none ;
+  - vrai glisser de la poignée droite d'une bulle « lundi après-midi → mardi matin » sur la moitié droite du lundi : lundi après-midi seul, en base comme dans l'aperçu ;
+  - règles pures des 2 poignées ;
+  - 2 bulles sélectionnées (Ctrl + clic) glissées à la souris jusqu'au mardi après-midi : les 2 passent à « mardi après-midi → mercredi matin », avec 2 surbrillances pendant le geste ;
+  - 3 clics rapides sur → avec serveur lent : les 3 décalages sont appliqués et enregistrés, anneaux bleus = sélection réelle, aucune bulle orpheline, plus rien de sélectionné après Échap ;
+  - sur l'ancien code, le même test échoue sur 10 des 15 vérifications (les 4 bugs reproduits).
+- **Suite complète** :
+  - OK : séries, sélection, ⚑ de la pilule, aperçu de dépôt, hors semaine, calendrier, survol tactile, décalage en masse, logique pure, entre autres ;
+  - échec identique sur `main`, sans lien avec ce round :
+    - 8 anciens tests qui cherchent des fonctions dans `index.html` (`test_aller_a`, `test_chantier_defaut`, `test_grille_compacte`…) ;
+    - 4 tests qui ouvrent un chemin fixe absent de cet environnement (`/home/claude/work/testenv/index.html`) : bordure lundi, couleurs, multijour tablette, swipe tablette. Rectificatif au §128 : ils ne passaient pas non plus en exécution séquentielle. Même avec ce chemin recréé, ils s'arrêtent sur un objet interne qui n'existe plus.

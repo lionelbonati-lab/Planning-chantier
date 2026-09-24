@@ -553,13 +553,33 @@
   //   dureePrevisu > 1, poignée "gauche" : symétrique sur demiDebut (moitié
   //     droite = rogné -> "aprem" seul ; moitié gauche = pas rogné ->
   //     journée entière) ; demiFin ne bouge pas.
+  //
+  // Round du 24.09.2026 (suite 21) — Lionel : « Raccourcir une bulle d'un
+  // jour posé un lundi après-midi avec la poignée la décale contre la
+  // gauche au lundi matin et sa grandeur reste de 1 jour complet. » La
+  // règle « dureePrevisu === 1 » ci-dessus oubliait que le bord FIXE (celui
+  // que la poignée ne tient pas) peut lui-même être une demi-journée : une
+  // bulle « lundi après-midi -> mardi matin » raccourcie par la droite
+  // jusqu'au lundi gardait bien lundi, mais le pointeur sur la moitié droite
+  // de lundi rendait null/null — journée ENTIÈRE, calée sur le lundi matin.
+  // Désormais le bord fixe reste là où il était : poignée droite, le début
+  // garde sa demi-journée d'origine et la fin suit le pointeur sans jamais
+  // passer avant lui (au pire, 1 seule demi-journée) ; poignée gauche,
+  // symétrique. Les 2 bords retombent ensuite sur la forme canonique d'un
+  // jour (même demi des 2 côtés, ou null/null pour la journée entière).
+  // Sur plusieurs jours, un début "matin" ou une fin "aprem" sont ramenés à
+  // null (même équivalence que colonneEtSpanDemi/demisOccupeesTache).
   function demiPourRedimNote(cote, dureePrevisu, demiDebutOrig, demiFinOrig, demiAuPoint) {
+    var pointAprem = demiAuPoint === "aprem" ? 1 : 0;
     if (dureePrevisu === 1) {
-      var demiUnique = cote === "droite" ? (demiAuPoint === "matin" ? "matin" : null) : (demiAuPoint === "aprem" ? "aprem" : null);
+      var s, f;
+      if (cote === "droite") { s = demiDebutOrig === "aprem" ? 1 : 0; f = Math.max(s, pointAprem); }
+      else { f = demiFinOrig === "matin" ? 0 : 1; s = Math.min(f, pointAprem); }
+      var demiUnique = s === f ? (s ? "aprem" : "matin") : null;
       return { demiDebut: demiUnique, demiFin: demiUnique };
     }
-    if (cote === "droite") return { demiDebut: demiDebutOrig, demiFin: demiAuPoint === "matin" ? "matin" : null };
-    return { demiDebut: demiAuPoint === "aprem" ? "aprem" : null, demiFin: demiFinOrig };
+    if (cote === "droite") return { demiDebut: demiDebutOrig === "aprem" ? "aprem" : null, demiFin: pointAprem ? null : "matin" };
+    return { demiDebut: pointAprem ? "aprem" : null, demiFin: demiFinOrig === "matin" ? "matin" : null };
   }
   // Bords {demiDebut, demiFin} cibles d'une NOTE déplacée par glissement
   // (bulle entière, onPointerDownGroupeSelection ci-dessous) — même

@@ -1886,13 +1886,13 @@
   /* Jalon / note / tâche / absence posé sur une demi-journée : occupe
      simplement sa vraie colonne (géométrie gérée par colonneEtSpanDemi/
      colonneDemi, jamais en CSS pur depuis la suppression du mode classique
-     — §49). */
-  .bulle-demi::after {
-    content: ""; position: absolute; top: 3px; bottom: 3px; width: 2px; border-radius: 2px;
-    background: rgba(0, 0, 0, .3);
-  }
-  .bulle-demi-matin::after { left: 2px; }
-  .bulle-demi-aprem::after { right: 2px; }
+     — §49). Round du 24.09.2026 (suite 21) — Lionel : « j'ai une bordure
+     résiduelle sur le bord gauche des note, uniquement quand elles font une
+     demi journée. » C'était le petit trait gris (.bulle-demi::after) qui
+     marquait le côté matin/après-midi du temps où la bulle remplissait
+     toute la case : la bulle occupant désormais sa vraie demi-colonne, ce
+     repère n'avait plus de sens — retiré. Les classes .bulle-demi-* restent
+     posées (grille-rendu.js), sans style. */
   .lien-ajouter-champ { font-size: 12px; font-weight: 700; color: var(--accent); background: none; border: none; cursor: pointer; font-family: inherit; padding: 4px 0; text-align: left; }
   @media (hover: hover) and (pointer: fine) { .lien-ajouter-champ:hover { text-decoration: underline; } }
   .constructeur-champ { margin-top: 8px; padding: 12px; border: 1px solid var(--border); border-radius: 9px; background: var(--bg); display: flex; flex-direction: column; gap: 8px; }
