@@ -384,10 +384,24 @@
     // 1 item = 1 seule bulle DOM continue de TOUJOURS itemClic.duree jours
     // de large, quel que soit son type — fraction de pixel -> jour, rapportée
     // à itemClic.giDebut.
+    //
+    // Round du 24.09.2026 (suite 13) : la fraction de pixel passe par les
+    // DEMI-journées réellement couvertes (demiSlotsDepuisBornes), plus par
+    // `duree` jours supposés pleins. Une bulle "mardi matin -> mercredi
+    // matin" (duree 2) ne couvre que 3 demi-journées : pressée sur le mardi
+    // après-midi, au milieu, l'ancien calcul (largeur / 2 jours) y voyait
+    // déjà le mercredi — l'aperçu et le dépôt au doigt tombaient alors un
+    // jour derrière le doigt (capture de Lionel sur tablette). Inchangé
+    // pour une bulle de journées entières (2 demi-journées par jour).
     var offsetJoursClic = 0;
     if (itemClic.duree > 1 && !estGiWeekend(itemClic.giDebut)) {
       var rectClic = bulleDom.getBoundingClientRect();
-      if (rectClic.width > 0) offsetJoursClic = Math.max(0, Math.min(itemClic.duree - 1, Math.floor((e.clientX - rectClic.left) / (rectClic.width / itemClic.duree))));
+      if (rectClic.width > 0) {
+        var bornesClic = demiSlotsDepuisBornes(itemClic.giDebut, itemClic.duree, itemClic.demiDebut || null, itemClic.demiFin || null);
+        var nDemisClic = bornesClic.halfFinIncl - bornesClic.halfStart + 1;
+        var demiSousClic = Math.max(0, Math.min(nDemisClic - 1, Math.floor((e.clientX - rectClic.left) / rectClic.width * nDemisClic)));
+        offsetJoursClic = Math.max(0, Math.min(itemClic.duree - 1, Math.floor((bornesClic.halfStart + demiSousClic) / 2) - itemClic.giDebut));
+      }
     }
     // offsetHalvesClic (round du 07.09.2026, suite ; étendu au round du
     // 08.09.2026, suite ; puis §49 — Lionel : "1 tâche ne peux pas etre mise
@@ -476,7 +490,10 @@
     }, DELAI_APPUI_LONG);
     var fantomes = [];
     var cibleActuelle = null, cellulesSurvoleesActuelles = [];
-    var surlignagePrecisEl = null;
+    // surlignagesPrecis (round du 24.09.2026, suite 13) : plus UN seul
+    // élément .survol-precis mais un par bulle déplacée — cf.
+    // previsionsJourEntier plus bas pour un glisser groupé.
+    var surlignagesPrecis = [];
 
     function kindOrigineGeste() { return plageClic.liste === TACHES ? "personne" : itemClic.type; }
     function celluleValidePourGeste(cible) {
@@ -524,8 +541,7 @@
     // FRONTEND-CHANGELOG) : le tactile n'a pas la géométrie pixel-précise
     // par demi-jour (cf. colonneEtSpanDemi), et le week-end n'a qu'une seule
     // case par personne (§2 du spec). Renvoie null dans ces cas : le survol
-    // retombe alors sur le comportement par cellule entière ci-dessous,
-    // inchangé.
+    // retombe alors sur previsionsJourEntier ci-dessous (suite 13).
     function cibleNotePreciseCompacte(cible, clientX) {
       if (tactile || groupeIds.length !== 1 || clientX == null) return null;
       if (!celluleValidePourGeste(cible)) return null;
@@ -536,21 +552,102 @@
       var demiSousPointeurMulti = demiDepuisPointeur(cible, clientX);
       return bordsDeplacementNoteMultiJours(itemClic.giDebut, itemClic.duree, demiDebutActuelNote, demiFinActuelNote, offsetHalvesClic, giCibleBrut, demiSousPointeurMulti, nTotal);
     }
+    // Aperçu EXACT des dépôts "jour entier" (round du 24.09.2026, suite 13
+    // — Lionel, capture sur tablette à l'appui : « J'ai encore un souci au
+    // niveau des cases de sélection. Elles ne correspondent pas à la bulle
+    // sélectionnée. les rectangles bleus sur les cases »).
+    //
+    // Hors du cas précis ci-dessus (souris + bulle seule), le dépôt décale
+    // la bulle de jours ENTIERS en gardant sa forme : au doigt,
+    // resoudreCibleGroupe -> branche "jour entier" d'une tâche seule ; pour
+    // un glisser groupé ou une note/un jalon au doigt, appliquerDelta. Le
+    // survol, lui, surlignait des .cell : cellulesPlagePourSurvol prend la
+    // case de la MÊME demi-journée que celle sous le doigt, jour après jour.
+    // Depuis que la vue compacte est la seule (§49 : une .cell par
+    // demi-journée), une bulle "mardi matin -> mercredi matin" s'affichait
+    // en deux cases disjointes, mardi matin et mercredi matin, sans le mardi
+    // après-midi entre les deux — la capture de Lionel.
+    //
+    // Désormais, chaque bulle qui bougera reçoit son .survol-precis, posé
+    // par colonneEtSpanDemi comme la bulle elle-même, à la position calculée
+    // avec LA MÊME formule que le dépôt (mêmes bornes, même décalage, même
+    // butée sur la fenêtre). Tâche seule : sur la ligne survolée, le dépôt
+    // pouvant changer de personne. Groupe : chaque bulle sur SA ligne,
+    // appliquerDelta ne changeant jamais de ligne. Renvoie null quand le
+    // dépôt n'aurait pas lieu ou vise le week-end (une seule case par
+    // personne) : le survol par cellule, inchangé, reprend la main.
+    //
+    // Les bulles de week-end d'un groupe ne sont pas dessinées.
+    function previsionsJourEntier(cible) {
+      var giBrut = +cible.dataset.jour;
+      if (estGiWeekend(giBrut)) return null;
+      var nTotal = nbJoursAffiches();
+      if (estBulleUnitaireDeplacable()) {
+        if (!celluleValidePourUnitaire(cible)) return null;
+        return [{
+          giDebut: Math.max(0, Math.min(nTotal - itemClic.duree, giBrut - offsetJoursClic)),
+          duree: itemClic.duree, demiDebut: itemClic.demiDebut || null, demiFin: itemClic.demiFin || null,
+          gridRow: cible.style.gridRow, parent: cible.parentElement
+        }];
+      }
+      var delta = giBrut - offsetJoursClic - itemClic.giDebut;
+      var out = [];
+      groupeIds.forEach(function (id) {
+        var plage = itemParId(id);
+        if (!plage || estGiWeekend(plage.item.giDebut)) return;
+        var ligne = ligneDeBulle(id);
+        if (!ligne) return;
+        var it = plage.item;
+        out.push({
+          giDebut: Math.max(0, Math.min(nTotal - it.duree, it.giDebut + delta)),
+          duree: it.duree, demiDebut: it.demiDebut || null, demiFin: it.demiFin || null,
+          gridRow: ligne.gridRow, parent: ligne.parent
+        });
+      });
+      return out.length ? out : null;
+    }
+    // Ligne de grille (celle de ses .cell, toutes pistes comprises) d'une
+    // bulle du groupe : la bulle elle-même est posée sur UNE piste
+    // (row + _piste), la surbrillance doit couvrir toute la ligne comme dans
+    // le cas précis. Mémorisée pour la durée du geste : les lignes ne
+    // bougent pas pendant un glisser.
+    var lignesBulles = {};
+    function ligneDeBulle(id) {
+      if (lignesBulles[id] !== undefined) return lignesBulles[id];
+      var res = null;
+      var dom = document.querySelector('.grille .bulle[data-id="' + id + '"]');
+      if (dom) {
+        var rang = parseInt(dom.style.gridRow, 10);
+        var cells = dom.parentElement.querySelectorAll(".cell");
+        for (var i = 0; i < cells.length && !res; i++) {
+          var m = /^\s*(\d+)(?:\s*\/\s*span\s+(\d+))?/.exec(cells[i].style.gridRow);
+          if (m && rang >= +m[1] && rang < +m[1] + (+m[2] || 1)) res = { gridRow: cells[i].style.gridRow, parent: dom.parentElement };
+        }
+      }
+      lignesBulles[id] = res;
+      return res;
+    }
+    function poserSurlignagePrecis(bornes, gridRow, parent) {
+      var el = document.createElement("div");
+      el.className = "survol-precis";
+      el.style.pointerEvents = "none";
+      var cs = colonneEtSpanDemi(bornes.giDebut, bornes.duree, bornes.demiDebut, bornes.demiFin);
+      el.style.gridColumn = cs[0] + " / span " + cs[1];
+      el.style.gridRow = gridRow;
+      parent.appendChild(el);
+      surlignagesPrecis.push(el);
+    }
     function nettoyerSurvol() {
       cellulesSurvoleesActuelles.forEach(function (c) { c.classList.remove("drop-hover", "cell-interdite"); });
       cellulesSurvoleesActuelles = [];
-      if (surlignagePrecisEl) { surlignagePrecisEl.remove(); surlignagePrecisEl = null; }
+      surlignagesPrecis.forEach(function (el) { el.remove(); });
+      surlignagesPrecis = [];
     }
     function survolerCible(cible, clientX) {
       nettoyerSurvol();
       if (!cible) return;
       var precis = cibleNotePreciseCompacte(cible, clientX);
       if (precis) {
-        surlignagePrecisEl = document.createElement("div");
-        surlignagePrecisEl.className = "survol-precis";
-        surlignagePrecisEl.style.pointerEvents = "none";
-        var cs = colonneEtSpanDemi(precis.giDebut, precis.duree, precis.demiDebut, precis.demiFin);
-        surlignagePrecisEl.style.gridColumn = cs[0] + " / span " + cs[1];
         // gridRow = cible.style.gridRow (round du 16.09.2026 ; auparavant
         // bulleDom.style.gridRow, cf. FRONTEND-CHANGELOG) : bulleDom reste
         // affiché (juste estompé, cf. armer()/"glisse-groupe") À SA LIGNE
@@ -562,7 +659,7 @@
         // posée sur la ligne de départ, elle semblait disparaître dès qu'on
         // visait une AUTRE personne. `cible` est la vraie `.cell` survolée
         // (poser() lui a déjà donné le bon gridRow), donc la source correcte.
-        surlignagePrecisEl.style.gridRow = cible.style.gridRow;
+        //
         // Hauteur : plus fixée en JS (cf. le commentaire CSS de
         // .survol-precis, retiré le 16.09.2026) — stretch par défaut de
         // .grille étire maintenant cet élément sur toute la hauteur
@@ -570,7 +667,12 @@
         // précisément ce que Lionel demande (« je préfèrerai que la(les)
         // case cible soient entièrement sur-brillée » plutôt que la taille
         // de la bulle).
-        bulleDom.parentElement.appendChild(surlignagePrecisEl);
+        poserSurlignagePrecis(precis, cible.style.gridRow, bulleDom.parentElement);
+        return;
+      }
+      var previsions = previsionsJourEntier(cible);
+      if (previsions) {
+        previsions.forEach(function (p) { poserSurlignagePrecis(p, p.gridRow, p.parent); });
         return;
       }
       var classe = celluleValidePourGeste(cible) ? "drop-hover" : "cell-interdite";

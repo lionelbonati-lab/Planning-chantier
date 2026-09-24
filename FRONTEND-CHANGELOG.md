@@ -6831,3 +6831,25 @@ Lionel : « Je veux que le menu se ferme lors de l'appui sur la vue 1 semaine »
 Sur téléphone, le bouton « 1 semaine » du menu ⋮ (`#btnVueJourMobile`) referme désormais le menu, comme Imprimer et Ajouter une ligne (§111). Changer de vue remplace toute la grille : le menu n'a plus rien à faire ouvert par-dessus. Vaut dans les deux sens, de la vue 1 jour à la semaine et retour. Les autres boutons du menu le laissent ouvert, comme avant : ‹ ›, masquages, zoom. Le changement tient dans l'écouteur de clic du panneau (`cablerPagePlanning`, `js/coquille.js`), qui traite `#btnVueJourMobile` comme `#btnImprimerTitre`.
 
 Vérifié en local (Playwright) : `test_toolbar_chevauchement.js` étendu à **27 vérifications**, toutes OK. Les nouvelles couvrent un masquage qui laisse le menu ouvert sur téléphone, « 1 semaine » qui le referme dans les deux sens, et la vue réellement basculée puis remise. Sur l'ancien code, les deux vérifications de fermeture échouent. `test_selection_bulles.js` 43/43, `test_tache_hors_semaine.js` 16/16, `test_defilement_jour_mobile.js` 20/20.
+
+## 121. Round du 24.09.2026 (suite 13) — Glisser : l'aperçu de dépôt épouse la bulle, et la bulle suit le doigt
+
+Lionel, capture sur tablette à l'appui : « J'ai encore un souci au niveau des cases de sélection. Elles ne correspondent pas à la bulle sélectionnée. les rectangles bleus sur les cases ».
+
+**Symptôme.** Au doigt, une bulle « mardi matin → mercredi matin » glissée faisait apparaître deux cases disjointes, mardi matin et mercredi matin, sans le mardi après-midi entre les deux. L'aperçu et le dépôt tombaient en plus un jour derrière le doigt. Le même défaut touchait le glisser groupé à la souris.
+
+**Cause 1, l'aperçu.** Seul le glisser à la souris d'une bulle seule avait l'aperçu précis, un rectangle posé comme la bulle elle-même (§39). Les autres cas, doigt ou groupe, surlignaient des cases : celle de la même demi-journée que sous le doigt, jour après jour. Depuis que la vue compacte est la seule (§49, une case par demi-journée), une bulle qui commence ou finit à la demi-journée s'affichait donc en morceaux.
+
+**Correction 1** (`previsionsJourEntier`, `js/grille-interactions.js`). Chaque bulle qui bougera reçoit son rectangle d'aperçu, posé par `colonneEtSpanDemi` comme la bulle elle-même. Sa position est calculée avec la même formule que le dépôt : même décalage en jours entiers, même forme, même butée sur la fenêtre affichée.
+- **Tâche seule au doigt :** sur la ligne survolée, le dépôt pouvant changer de personne.
+- **Groupe, ou note et jalon au doigt :** chaque bulle sur sa propre ligne, le dépôt ne changeant jamais de ligne.
+
+Le survol par cases reste pour le week-end, qui n'a qu'une case par personne, et pour une ligne refusée. Les bulles de week-end d'un groupe ne sont pas dessinées.
+
+**Cause 2, le jour d'accroche.** Le jour pressé dans la bulle (`offsetJoursClic`) se calculait comme si la bulle couvrait `duree` jours pleins. La bulle « mardi matin → mercredi matin » (duree 2) ne couvre que trois demi-journées : pressée au milieu, sur le mardi après-midi, l'ancien calcul y voyait déjà le mercredi.
+
+**Correction 2.** La fraction de pixel passe par les demi-journées réellement couvertes (`demiSlotsDepuisBornes`). Rien ne change pour une bulle faite de journées entières.
+
+Le glisser d'une bulle seule à la souris garde son comportement à la demi-journée, inchangé. Au doigt, le déplacement reste par jours entiers.
+
+Vérifié en local (Playwright) avec le nouveau test `test_apercu_depot.js`, **9 vérifications**, toutes OK. Sur tablette simulée, au doigt, il vérifie un seul rectangle d'aperçu, sans case isolée, aux colonnes exactes de la bulle après dépôt. La bulle suit le doigt, avec la table relue. Vers la ligne d'une autre personne, l'aperçu est sur sa ligne. À la souris, un glisser groupé donne un rectangle par bulle, chacun là où sa bulle arrive, et la bulle seule garde l'aperçu à la demi-journée. Sur l'ancien code, les 9 échouent : la première reproduit la capture, avec deux cases isolées et aucun rectangle. Les autres tests qui fonctionnent passent tous : sélection 43/43, barre 27/27, hors semaine 16/16, défilement mobile 20/20, et les tests de logique pure.
