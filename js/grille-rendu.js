@@ -234,7 +234,7 @@
   // la barre : "⋮" disparaît — ne pas laisser un panneau vide ouvert sans
   // plus aucun bouton pour le refermer.
   function fermerPanneauSiVide(panneau) {
-    if (panneau.children.length) return;
+    if (panneau.querySelector(".toolbar-groupe")) return;
     panneau.classList.remove("ouvert");
     var btn = document.getElementById("btnPlusOutils");
     if (btn) btn.classList.remove("ouvert");

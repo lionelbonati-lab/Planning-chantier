@@ -90,7 +90,7 @@ function mesurer() {
     const b = document.getElementById('legendeBarre'), p = document.getElementById('toolbarSecondaire');
     return {
       barre: Array.from(b.children).filter((c) => c !== p && c.getBoundingClientRect().width > 0).map((c) => c.id),
-      menu: Array.from(p.children).map((c) => c.id)
+      menu: Array.from(p.children).filter((c) => c.classList.contains('toolbar-groupe')).map((c) => c.id)
     };
   });
   async function largeur(w) {
@@ -153,14 +153,31 @@ function mesurer() {
   verifier(new Set(lignes.nav).size === 1, '‹ Sem. N › sur une seule ligne dans le menu');
   verifier(new Set(lignes.masq).size === 1, 'les 4 masquages sur une seule ligne dans le menu');
   verifier(JSON.stringify(lignes.libelles) === JSON.stringify(['Afficher 2 semaines']), 'plus de texte "Semaine précédente/suivante" : ' + JSON.stringify(lignes.libelles));
+  verifier(await page.evaluate(() => !Array.from(document.querySelectorAll('#groupeNavSemaine *')).some((el) => el.children.length === 0 && /^\s*Semaine\s*$/.test(el.textContent) && el.getBoundingClientRect().width > 0)),
+    'pas d\'intitulé "Semaine" devant ‹ Sem. N ›');
+  const ouvert = () => page.evaluate(() => document.getElementById('toolbarSecondaire').classList.contains('ouvert'));
   const semAvant = await page.evaluate(() => etat.indexSemaine);
   await page.click('#btnSemainePrec');
   await page.waitForTimeout(200);
-  verifier(await page.evaluate(() => etat.indexSemaine) === semAvant - 1, '‹ du menu recule bien d\'une semaine');
+  await page.click('#btnSemainePrec');
+  await page.waitForTimeout(200);
+  verifier(await page.evaluate(() => etat.indexSemaine) === semAvant - 2, '‹ cliqué 2 fois depuis le menu recule bien de 2 semaines');
+  await page.click('#controlesAffichage [data-affichage-cible="note"]');
+  await page.waitForTimeout(150);
+  verifier(await ouvert(), 'le menu reste ouvert après des clics sur ses boutons');
+  const croix = await page.evaluate(() => {
+    const x = document.getElementById('btnFermerPlusOutils').getBoundingClientRect();
+    const g = document.querySelector('#toolbarSecondaire > .toolbar-groupe').getBoundingClientRect();
+    const btns = Array.from(document.querySelectorAll('#toolbarSecondaire > .toolbar-groupe:first-of-type button')).map((b) => b.getBoundingClientRect());
+    return { surPremiereLigne: x.top >= g.top - 2 && x.bottom <= g.top + 50, chevauche: btns.some((b) => b.width > 0 && b.left < x.right && x.left < b.right && b.top < x.bottom && x.top < b.bottom) };
+  });
+  verifier(croix.surPremiereLigne && !croix.chevauche, '"✕" sur la 1re ligne du menu, sans recouvrir ses boutons');
+  await page.click('#btnFermerPlusOutils');
+  await page.waitForTimeout(100);
+  verifier(!(await ouvert()), '"✕" ferme le menu');
+  await page.evaluate(() => { if (replierNotes) document.querySelector('#controlesAffichage [data-affichage-cible="note"]').click(); }); // Notes réaffichées
 
   // 5) Ré-élargissement : tout revient dans la barre, menu refermé.
-  await page.click('#btnPlusOutils').catch(() => {});
-  await page.waitForTimeout(100);
   await largeur(1400);
   e = await etatBarre();
   verifier(e.menu.length === 0 && e.barre.includes('controlesAffichage'), 'ré-élargi : tous les groupes revenus dans la barre');
@@ -176,6 +193,13 @@ function mesurer() {
   });
   verifier(JSON.stringify(ordreVisuel) === JSON.stringify(['groupeAnnulerRefaire', 'groupeAujourdhui', 'groupeChantier', 'groupeAjoutElement', 'btnPlusOutils']), 'barre téléphone inchangée : ' + ordreVisuel);
   verifier(JSON.stringify(e.menu) === JSON.stringify(['groupeImprimer', 'groupeZoom', 'groupeNavSemaine', 'groupeAjoutLigne', 'controlesAffichage']), 'menu téléphone : ' + e.menu);
+  await page.click('#btnPlusOutils');
+  await page.waitForTimeout(100);
+  verifier(await page.evaluate(() => {
+    const x = document.getElementById('btnFermerPlusOutils').getBoundingClientRect();
+    const imp = document.getElementById('btnImprimerTitre').getBoundingClientRect();
+    return Math.abs((x.top + x.height / 2) - (imp.top + imp.height / 2)) <= 3;
+  }), 'téléphone : "✕" en face de "Imprimer"');
 
   if (erreurs.length) { echecs++; console.error('ERREURS JS : ' + JSON.stringify(erreurs, null, 2)); }
   console.log((total - echecs) + '/' + total + ' vérifications' + (echecs ? ' — ' + echecs + ' ÉCHEC(S)' : ' — OK'));

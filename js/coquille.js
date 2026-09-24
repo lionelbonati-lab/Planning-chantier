@@ -215,16 +215,15 @@
         '</div>' +
         // Navigation semaine + "Afficher 2 semaines" collé derrière (Lionel :
         // « Collé à la navigation ») — un SEUL groupe, replié d'un bloc. Dans
-        // le panneau : 1re ligne "Semaine ‹ Sem. N ›" (Lionel : « placer "<"
+        // le panneau : 1re ligne "‹ Sem. N ›" seule (Lionel : « placer "<"
         // N° semaine ">" sur la même ligne, plus de texte semaine précédente
-        // et semaine suivante » — le libellé "Semaine" à gauche est le pendant
-        // de celui de la ligne Zoom, pour aligner les 2 lignes de réglage),
-        // puis "Afficher 2 semaines" sur sa propre ligne en dessous. #btnVueJourMobile
+        // et semaine suivante », puis « pas d'intitulé semaine »), calée à
+        // droite sous les contrôles de la ligne Zoom, puis "Afficher 2
+        // semaines" sur sa propre ligne en dessous. #btnVueJourMobile
         // ("1 semaine", round du 23.09.2026 suite 4) remplace #btnDeuxSemaines
         // sur téléphone seulement (échange en CSS, cf. style-mobile.css).
         '<div class="toolbar-groupe" id="groupeNavSemaine" data-rang="50" data-rang-menu="30">' +
           '<div class="nav-semaine-ligne">' +
-            '<span class="libelle-panneau">Semaine</span>' +
             '<button type="button" class="toolbar-btn" id="btnSemainePrec" title="Semaine précédente" aria-label="Semaine précédente">' + ICONS.chevronGauche + '</button>' +
             '<div class="outil-menu" id="menuSemaine">' +
               '<button type="button" class="zoom-pill" id="btnSemainePill" title="Aller à une semaine">Sem. ▾</button>' +
@@ -295,10 +294,20 @@
         '</div>' +
         // "⋮" : visible seulement quand au moins un groupe est replié
         // (#legendeBarre.toolbar-compacte, posée par ajusterDebordementToolbar)
-        // ou sur téléphone. Panneau (#toolbarSecondaire) vide au départ,
-        // rempli par ajusterDebordementToolbar au premier rendu.
+        // ou sur téléphone. Panneau (#toolbarSecondaire) sans aucun groupe au
+        // départ, rempli par ajusterDebordementToolbar au premier rendu.
+        // #btnFermerPlusOutils ("✕") — Lionel : « garde le menu ouvert, une
+        // croix "X" pour fermer le menu en face de imprimer » : le panneau ne
+        // se referme plus à chaque clic sur l'un de ses boutons (cf.
+        // cablerPagePlanning), d'où un moyen explicite de le fermer. Toujours
+        // 1er enfant du panneau (sans data-rang-menu, insererAuRang place
+        // les groupes après lui), positionné en haut à droite en CSS : sur
+        // la ligne Imprimer quand celle-ci est dans le menu (téléphone), sur
+        // la 1re ligne présente sinon (desktop, Imprimer rarement replié).
         '<button type="button" class="toolbar-btn" id="btnPlusOutils" data-rang="100" title="Plus d’outils" aria-label="Plus d’outils">' + ICONS.dots + '</button>' +
-        '<div class="toolbar-secondaire" id="toolbarSecondaire" data-rang="110"></div>' +
+        '<div class="toolbar-secondaire" id="toolbarSecondaire" data-rang="110">' +
+          '<button type="button" class="panneau-fermer" id="btnFermerPlusOutils" title="Fermer le menu" aria-label="Fermer le menu">✕</button>' +
+        '</div>' +
       '</div>' +
       '<div class="zone-planning">' +
         '<div id="racine"></div>' +
@@ -607,6 +616,24 @@
         fermerAutresMenusOutils(null);
         toolbarSecondaire.classList.toggle("ouvert", !etaitOuvert);
         btnPlusOutils.classList.toggle("ouvert", !etaitOuvert);
+      });
+      // Round du 24.09.2026 (suite 3) — Lionel : « garde le menu ouvert ».
+      // Un clic DANS le panneau (‹/›, un masquage, 2 semaines, Imprimer…)
+      // ne remonte plus jusqu'au document, qui refermait tout — on peut
+      // avancer de plusieurs semaines ou basculer plusieurs masquages
+      // d'affilée. Ferme quand même les sous-menus ouverts (pilule Sem. N,
+      // zoom, chantier) : fermerAutresMenusOutils(panneau) épargne le
+      // panneau lui-même (il se "contient"). Les boutons de sous-menu et
+      // leurs listes arrêtent déjà la propagation eux-mêmes, ce listener ne
+      // les voit donc jamais. Fermeture : "✕", "⋮", ou clic hors du panneau.
+      toolbarSecondaire.addEventListener("click", function (e) {
+        e.stopPropagation();
+        fermerAutresMenusOutils(toolbarSecondaire);
+      });
+      var btnFermerPlusOutils = document.getElementById("btnFermerPlusOutils");
+      if (btnFermerPlusOutils) btnFermerPlusOutils.addEventListener("click", function (e) {
+        e.stopPropagation();
+        fermerAutresMenusOutils(null);
       });
     }
     // Ouverture/fermeture des 3 .outil-menu (zoom, ligne+, +) — générique
