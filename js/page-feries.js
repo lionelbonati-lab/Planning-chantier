@@ -169,22 +169,103 @@
     table.innerHTML = html;
     table.querySelectorAll("td.jour:not(.vide)").forEach(function (td) {
       if (td.dataset.weekend === "true") return; // week-end non cliquable (déjà chômé, cf. calculerFeries)
-      td.addEventListener("click", function () {
-        var m = +td.dataset.m, j = +td.dataset.j, key = m + "-" + j;
-        var actuel = feriesAnneeCourante[key];
-        if (actuel && actuel.categorie === ferieCategorieActive) {
-          delete feriesAnneeCourante[key];
-        } else {
-          var catObj = catsFeries().filter(function (c) { return c.id === ferieCategorieActive; })[0];
-          feriesAnneeCourante[key] = {
-            iso: isoFerie(ferieAnnee, m, j),
-            libelle: (actuel && actuel.libelle) || catObj.nom,
-            categorie: ferieCategorieActive
-          };
-        }
-        renderFerieCalendrier();
-      });
+      td.addEventListener("click", function () { basculerJourFerie(+td.dataset.m, +td.dataset.j); });
     });
+    renderFerieMoisMobile();
+    majCompteModifsFeries();
+  }
+  // Clic (ordinateur) ou appui (téléphone) sur un jour : même règle pour les
+  // 2 vues — pose la catégorie active, ou l'efface si le jour l'a déjà.
+  function basculerJourFerie(m, j) {
+    var key = m + "-" + j;
+    var actuel = feriesAnneeCourante[key];
+    if (actuel && actuel.categorie === ferieCategorieActive) {
+      delete feriesAnneeCourante[key];
+    } else {
+      var catObj = catsFeries().filter(function (c) { return c.id === ferieCategorieActive; })[0];
+      feriesAnneeCourante[key] = {
+        iso: isoFerie(ferieAnnee, m, j),
+        libelle: (actuel && actuel.libelle) || catObj.nom,
+        categorie: ferieCategorieActive
+      };
+    }
+    renderFerieCalendrier();
+  }
+  /* Version téléphone (round du 24.09.2026, suite 23 — Lionel : « Propose
+     moi une version mobile de la page des feriés »). Le tableau annuel
+     (12 lignes × 31 colonnes, 760px de large au minimum) obligeait à
+     défiler de côté pour des cases de 24px, trop petites pour un doigt, et
+     le libellé d'un jour n'était lisible qu'au survol (title), qui n'existe
+     pas au doigt. Sur téléphone, il est remplacé par 12 mois l'un sous
+     l'autre, en calendrier classique (lundi → dimanche, cases de ~44px) ;
+     sous chaque mois, la liste de ses jours colorés avec leur libellé
+     (« 25 déc. · Noël »). Les 2 vues sont TOUJOURS construites toutes les
+     deux, à partir du même état (feriesAnneeCourante) ; c'est
+     style-mobile.css qui montre l'une ou l'autre (≤600px) — rien à
+     recalculer si l'écran pivote ou change de taille. */
+  var JOURS_COURTS_FR = ["L", "M", "M", "J", "V", "S", "D"];
+  var JOURS_ABREGES_FR = ["dim.", "lun.", "mar.", "mer.", "jeu.", "ven.", "sam."];
+  function renderFerieMoisMobile() {
+    var zone = document.getElementById("ferieMoisMobile");
+    if (!zone) return;
+    var aujourdHui = new Date();
+    var html = "";
+    for (var m = 0; m < 12; m++) {
+      var nbJours = joursDansMois(ferieAnnee, m);
+      var decalage = (new Date(ferieAnnee, m, 1).getDay() + 6) % 7; // lundi = 0
+      var cases = JOURS_COURTS_FR.map(function (l, i) { return '<span class="jm-entete' + (i >= 5 ? " weekend" : "") + '">' + l + "</span>"; }).join("");
+      for (var v = 0; v < decalage; v++) cases += '<span class="jm-vide"></span>';
+      var liste = [];
+      for (var j = 1; j <= nbJours; j++) {
+        var jourSemaine = new Date(ferieAnnee, m, j).getDay();
+        var estWeekend = jourSemaine === 0 || jourSemaine === 6;
+        var entree = feriesAnneeCourante[m + "-" + j];
+        var cat = entree && catsFeries().filter(function (c) { return c.id === entree.categorie; })[0];
+        var estAujourdHui = ferieAnnee === aujourdHui.getFullYear() && m === aujourdHui.getMonth() && j === aujourdHui.getDate();
+        var classes = "jm" + (estWeekend ? " weekend" : "") + (cat ? " coloree" : "") + (estAujourdHui ? " aujourdhui" : "");
+        cases += '<button type="button" class="' + classes + '" data-m="' + m + '" data-j="' + j + '"' +
+          (cat ? ' style="--jour-couleur:' + cat.couleur + '"' : "") +
+          (estWeekend ? " disabled" : "") +
+          ' aria-label="' + j + " " + MOIS_FR[m] + (entree ? " — " + esc(entree.libelle) : "") + '">' + j + "</button>";
+        if (entree) liste.push('<li><span class="pastille-jour" style="background:' + (cat ? cat.couleur : "var(--border)") + '"></span>' +
+          '<span class="date-jour">' + JOURS_ABREGES_FR[jourSemaine] + " " + j + "</span>" +
+          '<span class="libelle-jour">' + esc(entree.libelle) + "</span></li>");
+      }
+      html += '<section class="mois-carte">' +
+        '<div class="mois-carte-titre"><span>' + MOIS_FR[m] + "</span>" +
+          (liste.length ? '<span class="mois-carte-compte">' + liste.length + (liste.length > 1 ? " jours" : " jour") + "</span>" : "") + "</div>" +
+        '<div class="mois-grille">' + cases + "</div>" +
+        (liste.length ? '<ul class="mois-liste">' + liste.join("") + "</ul>" : "") +
+        "</section>";
+    }
+    zone.innerHTML = html;
+    zone.querySelectorAll("button.jm:not([disabled])").forEach(function (b) {
+      b.addEventListener("click", function () { basculerJourFerie(+b.dataset.m, +b.dataset.j); });
+    });
+  }
+  // Ce qui changerait sur le serveur si on cliquait Enregistrer : utilisé
+  // par Enregistrer lui-même et par le compteur affiché sur le bouton.
+  function diffFeries() {
+    var modifs = [], nouveaux = [], supprimes = [], clesVues = {};
+    Object.keys(feriesAnneeCourante).forEach(function (k) {
+      clesVues[k] = true;
+      var cur = feriesAnneeCourante[k], orig = feriesAnneeOriginal[k];
+      if (!orig) nouveaux.push({ iso: cur.iso, libelle: cur.libelle, categorie: cur.categorie });
+      else if (orig.libelle !== cur.libelle || orig.categorie !== cur.categorie) modifs.push({ iso: cur.iso, libelle: cur.libelle, categorie: cur.categorie });
+    });
+    Object.keys(feriesAnneeOriginal).forEach(function (k) { if (!clesVues[k]) supprimes.push(feriesAnneeOriginal[k].iso); });
+    return { modifs: modifs, nouveaux: nouveaux, supprimes: supprimes };
+  }
+  // Compteur de modifications non enregistrées sur le bouton Enregistrer
+  // (suite 23) : sur téléphone, la barre d'actions reste collée en bas
+  // pendant qu'on fait défiler les 12 mois — le compteur rappelle qu'il
+  // reste quelque chose à envoyer. Affiché aussi sur ordinateur.
+  function majCompteModifsFeries() {
+    var btn = document.getElementById("btnEnregistrerFeries");
+    if (!btn) return;
+    var d = diffFeries(), n = d.modifs.length + d.nouveaux.length + d.supprimes.length;
+    btn.innerHTML = "Enregistrer" + (n ? ' <span class="compte-modifs">' + n + "</span>" : "");
+    btn.classList.toggle("a-enregistrer", n > 0);
   }
   function renderFeries() {
     chargerFeriesAnnee(ferieAnnee);
@@ -225,14 +306,7 @@
     });
     var btnSave = document.getElementById("btnEnregistrerFeries");
     if (btnSave) btnSave.addEventListener("click", function () {
-      var modifs = [], nouveaux = [], supprimes = [], clesVues = {};
-      Object.keys(feriesAnneeCourante).forEach(function (k) {
-        clesVues[k] = true;
-        var cur = feriesAnneeCourante[k], orig = feriesAnneeOriginal[k];
-        if (!orig) nouveaux.push({ iso: cur.iso, libelle: cur.libelle, categorie: cur.categorie });
-        else if (orig.libelle !== cur.libelle || orig.categorie !== cur.categorie) modifs.push({ iso: cur.iso, libelle: cur.libelle, categorie: cur.categorie });
-      });
-      Object.keys(feriesAnneeOriginal).forEach(function (k) { if (!clesVues[k]) supprimes.push(feriesAnneeOriginal[k].iso); });
+      var d = diffFeries(), modifs = d.modifs, nouveaux = d.nouveaux, supprimes = d.supprimes;
       if (!modifs.length && !nouveaux.length && !supprimes.length) { toast("Rien à enregistrer."); return; }
       // Diagnostic (round du 02.09.2026, suite, bug remonté par Lionel —
       // "presque tout est écrasé lors de l'enregistrement"). Round encore

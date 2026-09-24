@@ -1945,6 +1945,15 @@
   @media (hover: hover) and (pointer: fine) { .calendrier td.jour.vide:hover { box-shadow: none; } }
   .calendrier td.jour.coloree { background: var(--jour-couleur) !important; }
   .legende-feries { margin-top: 12px; font-size: 11.5px; color: var(--ink-faint); max-width: 68ch; line-height: 1.5; }
+  /* Version téléphone de la page Fériés (round du 24.09.2026, suite 23) :
+     construite en permanence (cf. renderFerieMoisMobile, page-feries.js),
+     montrée seulement par style-mobile.css (≤600px). Compteur de
+     modifications non enregistrées sur Enregistrer : commun aux 2 vues. */
+  .mois-feries, .page-sous-mobile { display: none; }
+  .btn-enregistrer .compte-modifs {
+    display: inline-block; min-width: 18px; padding: 1px 5px; margin-left: 4px; border-radius: 999px;
+    background: var(--accent-ink); color: var(--accent); font-size: 11px; line-height: 16px; text-align: center; font-variant-numeric: tabular-nums;
+  }
 
   /* ============================================================
      RÉINTÉGRATION V2 — décalage en masse, assignation groupée,

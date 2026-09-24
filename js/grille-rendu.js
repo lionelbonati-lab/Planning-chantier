@@ -365,7 +365,7 @@
   // Round du 12.09.2026 : sur une plage de PLUSIEURS jours, "matin" en 1er
   // jour et "aprem" en dernier jour ne raccourcissent RIEN visuellement
   // (colonneEtSpanDemi plus bas : colDebut === colonneGrille(gi) pour
-  // "matin", colFinExclusif === colonneGrille(gi+duree) pour "aprem" — les 2
+  // "matin", colFinExclusif === fin du dernier jour pour "aprem" — les 2
   // valent exactement une journée entière) ; les compter comme "une seule
   // demi-journée occupée" ici serait donc en contradiction avec ce qui
   // s'affiche réellement (Lionel : *"jeudi 10.09 A, vendredi 11.09 P,
@@ -442,8 +442,21 @@
   // 02.09.2026). colonneGrille(gi) reste valide même pour un gi "virtuel"
   // au tout début de la semaine suivante (aucune case n'y est réellement
   // dessinée) : c'est exactement la borne EXCLUSIVE dont on a besoin ici.
+  //
+  // Round du 24.09.2026 (suite 23) — Lionel : « en affichant les week-end,
+  // les bulles du vendredi sont affichés sur le week-end ». Revers de la
+  // règle ci-dessus : la borne exclusive « début du jour ouvré suivant »
+  // d'une bulle qui FINIT un vendredi est le lundi, posé APRÈS les 2
+  // colonnes Samedi/Dimanche — la bulle les recouvrait donc toujours.
+  // Borne désormais = fin du DERNIER jour de la bulle (colFinDernierJour_) :
+  // toujours juste après sa dernière case, week-end traversé ou pas (un
+  // Vendredi -> Lundi s'étend toujours jusqu'au lundi, puisque la colonne de
+  // ce lundi inclut déjà le décalage du week-end).
+  function colFinDernierJour_(giDebut, dureeVisible) {
+    return colonneGrille(giDebut + Math.max(1, dureeVisible) - 1) + colsParJour();
+  }
   function spanColonnes(giDebut, dureeVisible) {
-    return colonneGrille(giDebut + Math.max(1, dureeVisible)) - colonneGrille(giDebut);
+    return colFinDernierJour_(giDebut, dureeVisible) - colonneGrille(giDebut);
   }
   // Colonne CSS de départ + span d'une bulle jalon/note/tâche compte tenu de
   // sa demi-journée éventuelle (matin/aprem) — UNE SEULE fonction, utilisée
@@ -479,7 +492,7 @@
     // demiPourRedimNote) et ne raccourcit jamais la fin d'une plage
     // multi-jours — il n'y a pas de façon de "commencer le dernier jour à
     // son après-midi" sans creuser un trou non contigu dans la bulle.
-    var colFinExclusif = (demiFin === "matin") ? colonneDemi(giFin, "matin") + 1 : colonneGrille(gi + duree);
+    var colFinExclusif = (demiFin === "matin") ? colonneDemi(giFin, "matin") + 1 : colFinDernierJour_(gi, duree); // cf. spanColonnes (suite 23)
     return [colDebut, Math.max(1, colFinExclusif - colDebut)];
   }
   // Moitié de journée survolée dans une cellule (round du 03.09.2026,
