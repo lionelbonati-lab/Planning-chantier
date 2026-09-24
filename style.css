@@ -735,12 +735,17 @@
   .panneau-selection .sel-sep { width: 1px; height: 20px; background: color-mix(in srgb, var(--accent) 35%, transparent); margin: 0 4px; flex-shrink: 0; }
   .panneau-selection .sel-supprimer { color: var(--danger); }
   @media (hover: hover) and (pointer: fine) { .panneau-selection .sel-supprimer:hover:not(:disabled) { background: var(--interdit-bg); color: var(--danger); } }
-  /* ⚑ important (suite 14) : du groupe de couleur erreur/suppression, comme
-     le drapeau des fiches (§117) ; plein quand toute la sélection est
-     importante, exactement comme .important-toggle.actif des fiches. */
-  .panneau-selection .sel-important { color: var(--important-ink); }
-  @media (hover: hover) and (pointer: fine) { .panneau-selection .sel-important:hover:not(:disabled) { background: var(--interdit-bg); color: var(--important-ink); } }
-  .panneau-selection .sel-important.actif,
+  /* ⚑ important (suite 14) : plein quand toute la sélection est
+     importante. Round du 24.09.2026 (suite 19) — Lionel : « quand inactif
+     et au passage de la souris, visuellement comme un autre bouton ; quand
+     actif rond même visuel que dans les formulaires » : inactif, rien de
+     propre (couleur et survol des autres boutons de la pilule) ; actif,
+     disque plein aux couleurs de .important-toggle.actif des fiches
+     (§117), survol compris. Fin de la règle cassée par la suite 18 : son
+     sélecteur ".sel-important.actif," tenait sur 2 lignes, et seule la
+     2e (le :hover) était passée sous @media — le reste, invalide, faisait
+     tomber toute la règle (plus de fond rouge une fois actif). */
+  .panneau-selection .sel-important.actif { background: var(--important-toggle-bg); color: var(--important-toggle-ink); border-radius: 50%; }
   @media (hover: hover) and (pointer: fine) { .panneau-selection .sel-important.actif:hover:not(:disabled) { background: var(--important-toggle-bg); color: var(--important-toggle-ink); } }
   /* Trait horizontal entre 2 groupes du panneau (pendant du .sep-avant
      vertical de la barre) — le DOM du panneau suit l'ordre visuel

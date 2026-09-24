@@ -13,7 +13,7 @@ const fs = require('fs');
 //   - ordinateur (1300px, souris) : le survol colore toujours les boutons ;
 //   - style.css/style-mobile.css : toute règle :hover est sous
 //     `@media (hover: hover) and (pointer: fine)` (garde pour les
-//     prochaines).
+//     prochaines), et aucun sélecteur n'est coupé par un @media (suite 19).
 //
 // Lancer : node test_survol_tactile.js
 
@@ -144,6 +144,11 @@ const FAUX_SUPABASE = '(' + function () {
   const nues = [];
   for (const f of ['style.css', 'style-mobile.css']) {
     const texte = fs.readFileSync(path.join(__dirname, f), 'utf8').replace(/\/\*[\s\S]*?\*\//g, (c) => c.replace(/[^\n]/g, ' '));
+    // Sélecteur coupé (suite 19) : "a," en fin de ligne puis le @media
+    // sur la ligne suivante rendait toute la règle invalide.
+    texte.split('\n').forEach((l, i, t) => {
+      if (/,\s*$/.test(l) && i + 1 < t.length && /^\s*@media/.test(t[i + 1])) nues.push(f + ':' + (i + 1) + ' (sélecteur coupé)');
+    });
     texte.split('\n').forEach((l, i) => {
       if (l.indexOf(':hover') < 0) return;
       const m = l.indexOf('@media (hover: hover) and (pointer: fine) {');

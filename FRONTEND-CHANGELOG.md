@@ -6999,3 +6999,24 @@ Sur le code d'avant, le test échoue sur 9 vérifications : les 8 tactiles et ce
 - calendrier 28/28, barre 27/27, défilement mobile 20/20 ;
 - sélection 43/43, important 14/14, aperçu de dépôt 9/9, hors semaine 16/16 ;
 - les tests de logique pure.
+
+## 127. Round du 24.09.2026 (suite 19) — ⚑ de la pilule de sélection : comme les autres boutons, disque rouge une fois actif
+
+Lionel : « modification pour le bouton flag de bar de sélection : quand inactif et au passage de la souris, visuellement comme un autre bouton ; quand actif rond même visuel que dans les formulaires ».
+
+**Inactif** : `.sel-important` n'a plus de couleur ni de survol propres (rouge `--important-ink` et fond `--interdit-bg` depuis le §122). Il prend ceux des autres boutons de la pilule : icône `--accent`, et au survol un fond d'accent à 16 %.
+
+**Actif** : c'est maintenant un disque (`border-radius: 50%`) aux couleurs du ⚑ actif des fiches (`.important-toggle.actif`, §117) : `--important-toggle-bg` et `--important-toggle-ink`. Au survol, il reste identique.
+
+**Bug de la suite 18 corrigé** : la règle du ⚑ actif avait un sélecteur sur deux lignes (`.sel-important.actif,` puis `.sel-important.actif:hover…`). Le passage des `:hover` sous `@media` (§126) n'avait déplacé que la 2e ligne. La 1re, restée seule avant le `@media`, rendait la règle invalide : un ⚑ actif s'affichait en bleu (`.toolbar-btn.actif` de la pilule) au lieu de rouge. C'était le seul cas dans les deux feuilles de style.
+
+Vérifié en local (Playwright) :
+- **`test_important_selection.js`**, 18 vérifications (4 nouvelles), toutes OK :
+  - ⚑ inactif : même couleur que ✎, et même fond au survol ;
+  - ⚑ actif, survolé ou non : même fond, même couleur d'icône et forme ronde que le ⚑ actif d'une fiche.
+- **`test_survol_tactile.js`**, 15/15 : sa vérification des feuilles de style repère aussi un sélecteur coupé par un `@media` (une ligne finie par « , » suivie d'un `@media`).
+
+Sur l'ancien CSS, les 4 nouvelles vérifications du ⚑ échouent (⚑ actif bleu, rayon 7 px), ainsi que celle des feuilles de style, qui pointe `style.css:743`. Les autres tests passent tous :
+- calendrier 28/28, barre 27/27, défilement mobile 20/20 ;
+- sélection 43/43, aperçu de dépôt 9/9, hors semaine 16/16 ;
+- les tests de logique pure.
