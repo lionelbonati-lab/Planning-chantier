@@ -14,6 +14,11 @@ const path = require('path');
 //      (elle disparaissait : cf. diffsNotes, suppressions d'abord) ;
 //   3) jalon : ⚑ caché s'il est seul, ignoré dans un mélange ; le message
 //      s'affiche au-dessus de la pilule, pas dessus ;
+//   1 bis) visuel (suite 19 — Lionel : « quand inactif et au passage de
+//      la souris, visuellement comme un autre bouton ; quand actif rond même
+//      visuel que dans les formulaires ») : ⚑ creux = couleur et survol de
+//      ✎ ; ⚑ plein = disque aux couleurs du ⚑ actif des fiches, survolé ou
+//      non ;
 //   4) téléphone 390 et 320 px : la pilule, ⚑ compris, tient dans l'écran
 //      sans chevauchement, mode multiple (flèches) affiché, message au-dessus.
 //
@@ -143,9 +148,33 @@ function lignes(date, demi, texte, extra) {
   await clic('Alpha');
   let d = await drapeau();
   verifier(d.visible && !d.plein && d.pressed === 'false', 'bulle seule : ⚑ dans la pilule, creux');
+  const look = (id) => page.evaluate((i) => { const c = getComputedStyle(document.getElementById(i)); return { fond: c.backgroundColor, couleur: c.color, rayon: c.borderTopLeftRadius }; }, id);
+  const loin = async () => { await page.mouse.move(5, 5); await page.waitForTimeout(120); };
+  await loin();
+  let lModif = await look('selModifier'), lDrap = await look('selImportant');
+  verifier(lDrap.fond === lModif.fond && lDrap.couleur === lModif.couleur, '⚑ creux : même couleur que ✎ (' + lDrap.couleur + ' / ' + lModif.couleur + ')');
+  await page.hover('#selModifier'); await page.waitForTimeout(150);
+  lModif = await look('selModifier');
+  await page.hover('#selImportant'); await page.waitForTimeout(150);
+  lDrap = await look('selImportant');
+  verifier(lDrap.fond === lModif.fond && lDrap.couleur === lModif.couleur, '⚑ creux survolé : même survol que ✎ (' + lDrap.fond + ' / ' + lModif.fond + ')');
+  const fiche = await page.evaluate(() => {
+    const w = document.createElement('div'); w.className = 'carte-item'; w.style.position = 'fixed'; w.style.left = '-500px';
+    w.innerHTML = '<div class="bandeau"><button class="important-toggle actif"></button></div>';
+    document.body.appendChild(w);
+    const c = getComputedStyle(w.querySelector('button')), r = { fond: c.backgroundColor, couleur: c.color, rayon: c.borderTopLeftRadius };
+    w.remove();
+    return r;
+  });
   await page.click('#selImportant');
   await attendreSync();
   d = await drapeau();
+  const rond = (l) => l.rayon === '50%' || parseFloat(l.rayon) >= 17;
+  lDrap = await look('selImportant');
+  verifier(lDrap.fond === fiche.fond && lDrap.couleur === fiche.couleur && rond(lDrap), '⚑ plein survolé : disque aux couleurs du ⚑ des fiches (' + lDrap.fond + ' / ' + fiche.fond + ', rayon ' + lDrap.rayon + ')');
+  await loin();
+  lDrap = await look('selImportant');
+  verifier(lDrap.fond === fiche.fond && lDrap.couleur === fiche.couleur && rond(lDrap), '⚑ plein : disque aux couleurs du ⚑ des fiches (' + lDrap.fond + ')');
   verifier(await importantLocal('Alpha') === true && await bulleRouge('Alpha') && await bdTache('Alpha') === 'oui', '⚑ : Alpha importante (grille, bulle rouge, table relue)');
   verifier(d.plein && d.pressed === 'true' && await selection() === 'Alpha', '⚑ plein, Alpha toujours sélectionnée');
   await page.click('#selImportant');
