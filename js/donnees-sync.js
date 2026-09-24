@@ -1497,15 +1497,25 @@
   }
   // Diff des notes : par identité d'item JS (stable entre deux render()
   // consécutifs tant qu'aucun rechargement serveur n'a eu lieu entre-temps).
+  // Round du 24.09.2026 (suite 14) : les SUPPRESSIONS partent désormais en
+  // premier. Un Ctrl+Z restaure un instantané dont les notes portent les
+  // identités d'AVANT le dernier rechargement serveur (enregistrer-plage
+  // remplace une note par une nouvelle ligne, donc un nouvel id) : la
+  // note revient comme "creer" (ancien id) + "supprimer" (id actuel).
+  // Dans l'ordre inverse, quand seul `important` diffère (⚑ de la pilule
+  // de sélection, ou drapeau de la fiche), le serveur écartait la création
+  // comme doublon (même texte, même jour, même demi — cf. dejaLa dans
+  // planPlage, functions/enregistrer-plage/logic.js), puis la suppression
+  // retirait la seule ligne restante : la note disparaissait.
   function diffsNotes(local, base) {
     var out = [];
+    Object.keys(base.notesById).forEach(function (id) {
+      if (!local.notesById[id]) out.push({ action: "supprimer", id: id, avant: base.notesById[id], apres: null });
+    });
     Object.keys(local.notesById).forEach(function (id) {
       var a = local.notesById[id], b = base.notesById[id];
       if (b && a.texte === b.texte && !!a.important === !!b.important && a.giDebut === b.giDebut && a.duree === b.duree && (a.demiDebut || null) === (b.demiDebut || null) && (a.demiFin || null) === (b.demiFin || null)) return;
       out.push({ action: b ? "modifier" : "creer", id: id, avant: b || null, apres: a });
-    });
-    Object.keys(base.notesById).forEach(function (id) {
-      if (!local.notesById[id]) out.push({ action: "supprimer", id: id, avant: base.notesById[id], apres: null });
     });
     return out;
   }
