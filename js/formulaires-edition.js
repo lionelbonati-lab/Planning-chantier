@@ -64,8 +64,11 @@
   // pour que le serveur puisse retomber sur son ancien comportement à 1
   // seule demi (cible_demi) — cf. le commentaire de champsSerie/
   // construireOccurrencesSerie (enregistrer-serie/logic.js).
-  function creerSerieServeur(type, cibles, giDebut, texte, important, chantier, statut, choixSerie, apresChaqueAppel, duree, demiDebut, demiFin) {
-    var isoDebut = isoDeGi(giDebut);
+  // isoDebutForce (round du 24.09.2026, suite 5) : date de départ réelle
+  // quand elle est hors de la fenêtre chargée (fiche tâche/absence, cf.
+  // ouvrirEdition) — giDebut n'est alors qu'un repère calé sur le bord visible.
+  function creerSerieServeur(type, cibles, giDebut, texte, important, chantier, statut, choixSerie, apresChaqueAppel, duree, demiDebut, demiFin, isoDebutForce) {
+    var isoDebut = isoDebutForce || isoDeGi(giDebut);
     // enregistrer-serie n'a que 3 types ("tache"|"jalon"|"note", cf.
     // champsSerie côté fonction) : "absence" n'a jamais été une vraie
     // catégorie de la table `series`/`taches.type` — traduite ici en "tache",
@@ -610,7 +613,7 @@
     // unique, sans plage précise transmise).
     var demiInit = (!itemExisting && extraCell && (extraCell.demi === "matin" || extraCell.demi === "aprem")) ? extraCell.demi : null;
     var state = {
-      kind: typeAffiche, // §88 — "tache"|"absence" : appliquerDateChoisieFormulaire continue donc à refuser toute date hors fenêtre ici, aucun changement de comportement pour ces 2 types (cf. son commentaire — pas encore de vrai enregistrement en plage côté serveur pour eux).
+      kind: typeAffiche, // "tache"|"absence" — depuis le round du 24.09.2026 (suite 5), une date hors fenêtre est acceptée ici aussi (debutHorsFenetreIso/finHorsFenetreIso), enregistrée par enregistrerHorsFenetre plus bas.
       giDebut: giDebut0, giFin: giDebut0 + duree0 - 1,
       debutHorsFenetreIso: null, finHorsFenetreIso: null,
       demiDebut: itemExisting ? (itemExisting.demiDebut || null) : (demiDebutArg !== undefined ? demiDebutArg : demiInit),
@@ -678,7 +681,7 @@
 
     pop.innerHTML =
       bandeauHTML({ clair: typeAffiche !== "tache", fondStyle: fondStyle, important: state.important, chantierHTML: champChantier, nomGrand: nomGrand }) +
-      datesPlageHTML(state.giDebut, state.giFin, state.demiDebut, state.demiFin) +
+      datesPlageHTML(state.giDebut, state.giFin, state.demiDebut, state.demiFin, state.debutHorsFenetreIso, state.finHorsFenetreIso) +
       '<div class="contenu-carte">' +
       '<div class="corps"><div class="label-champ" style="margin:0 0 6px">Descriptif</div>' +
       '<div class="descriptif-texte" tabindex="0"></div></div>' +
@@ -698,11 +701,42 @@
       state.important = !state.important;
       this.classList.toggle("actif", state.important);
     });
+    // datesModifiees : posé dès que Lionel touche une date/un A-P (tout
+    // passe par rafraichirDates) — cf. l'étendue réelle chargée plus bas,
+    // qui ne doit jamais écraser un choix déjà fait entre-temps.
+    var datesModifiees = false;
     function rafraichirDates() {
-      pop.querySelector(".dates-plage").outerHTML = datesPlageHTML(state.giDebut, state.giFin, state.demiDebut, state.demiFin);
+      datesModifiees = true;
+      pop.querySelector(".dates-plage").outerHTML = datesPlageHTML(state.giDebut, state.giFin, state.demiDebut, state.demiFin, state.debutHorsFenetreIso, state.finHorsFenetreIso);
       cablerDatesPlage(pop, state, rafraichirDates);
     }
     cablerDatesPlage(pop, state, rafraichirDates);
+    // Étendue RÉELLE d'une tâche qui touche un bord de l'écran (round du
+    // 24.09.2026, suite 5) : la grille n'en connaît que la partie visible,
+    // et la fiche l'affichait donc tronquée (ex. "ven. -> ven." pour une
+    // tâche qui continue jusqu'au mardi suivant) — l'enregistrer telle
+    // quelle, même pour changer le seul texte, l'aurait raccourcie à sa
+    // partie visible. Chargée en arrière-plan dès l'ouverture (cf.
+    // lignesTacheServeur), puis reportée dans les dates de la fiche ; la
+    // même promesse sert ensuite à Enregistrer/Supprimer (debordementOrigine),
+    // sans 2e requête.
+    var promesseOrigine = (itemExisting && !itemExisting.serieId && toucheBordFenetre(itemExisting)) ? lignesTacheServeur(itemExisting) : null;
+    if (promesseOrigine) promesseOrigine.then(function (r) {
+      if (!r.debordeFenetre || datesModifiees || !pop.isConnected) return;
+      var dates = r.lignes.map(function (l) { return l.date; }).sort();
+      var premier = dates[0], dernier = dates[dates.length - 1];
+      var demisDe = function (iso) { return r.lignes.filter(function (l) { return l.date === iso; }).map(function (l) { return l.demi; }); };
+      if (premier < isoDeGi(0)) {
+        state.debutHorsFenetreIso = premier;
+        state.demiDebut = demisDe(premier).indexOf("matin") >= 0 ? null : "aprem";
+      }
+      if (dernier > isoDeGi(nbJoursAffiches() - 1)) {
+        state.finHorsFenetreIso = dernier;
+        state.demiFin = demisDe(dernier).indexOf("aprem") >= 0 ? null : "matin";
+      }
+      rafraichirDates();
+      datesModifiees = false;
+    }).catch(function () { /* repli : la fiche garde la partie visible, comme avant */ });
     var texteActuel = texteInit;
     cablerDescriptifEdit(pop, function () { return texteActuel; }, function (v) { texteActuel = v; }, "Cliquer pour ajouter un descriptif…");
 
@@ -717,13 +751,74 @@
     var lireChoixSerie = cablerSerieChamps(pop, itemExisting ? itemExisting.dateDebutIso : isoDeGi(state.giDebut));
     cablerLienPlus(pop);
 
+    // ---- Hors de la fenêtre chargée (round du 24.09.2026, suite 5 —
+    // Lionel : « J'aimerai pouvoir déplacer une tâche en dehors de la
+    // semaine activé »). Cf. le commentaire de section "TÂCHE/ABSENCE HORS
+    // DE LA FENÊTRE CHARGÉE" (donnees-sync.js) pour le principe : écriture
+    // "serveur d'abord" en vraies dates, puis rechargement — jamais une
+    // mutation de TACHES, que le moteur de diff ne saurait écrire qu'à
+    // moitié. Utilisé dans 2 cas :
+    // - une borne de la fiche est hors de la fenêtre (debut/finHorsFenetreIso) ;
+    // - la tâche d'origine DÉBORDE déjà de la fenêtre (étendue réelle trouvée
+    //   sur le serveur, cf. lignesTacheServeur) : même une simple modif de
+    //   texte ou une suppression doit alors toucher aussi la partie hors
+    //   écran, sinon elle resterait orpheline avec l'ancien contenu.
+    // Pile Annuler/Refaire vidée ensuite : elle ne contient que des copies
+    // de la partie VISIBLE (snapshotEtat) — annuler après une écriture hors
+    // fenêtre réécrirait l'ancienne partie visible sans retirer la nouvelle
+    // partie hors écran (doublon), comme le ferait n'importe quel état
+    // antérieur de la pile qui contient encore l'ancienne tâche.
+    function ecrireHorsFenetre(travail, message) {
+      fermer();
+      occupe(true);
+      travail().then(function () {
+        occupe(false);
+        pileUndo = []; pileRedo = [];
+        toast(message);
+        apresEcritureSerie();
+      }).catch(function (err) {
+        occupe(false);
+        toast("Échec de l’enregistrement : " + (err && err.message ? err.message : err) + " — rechargement…");
+        apresEcritureSerie();
+      });
+    }
+    function libellePlage(isoD, isoF) {
+      var l = function (iso) { return libelleDateCourteIso(iso).toLowerCase(); };
+      return isoD === isoF ? ("le " + l(isoD)) : ("du " + l(isoD) + " au " + l(isoF));
+    }
+    // Lignes serveur de la tâche d'origine SI elle déborde de la fenêtre,
+    // sinon null (la voie locale habituelle suffit alors). Une tâche qui ne
+    // touche aucun bord de l'écran ne peut pas déborder : pas de requête.
+    // enregistrementEnCours : ces vérifications passent par le serveur, la
+    // fiche reste ouverte le temps de la réponse — un 2e clic sur
+    // Enregistrer/Supprimer (ou un clic extérieur, qui valide) ne doit pas
+    // relancer l'écriture une seconde fois.
+    var enregistrementEnCours = false;
+    function debordementOrigine() {
+      if (!promesseOrigine) return Promise.resolve(null);
+      return promesseOrigine.then(function (r) { return r.debordeFenetre ? r.lignes : null; });
+    }
+
     var suppr = pop.querySelector(".f-suppr");
     if (suppr) suppr.addEventListener("click", function () {
       function supprimerUnique() {
-        sauvegarderUndo();
-        var i = TACHES.indexOf(itemExisting);
-        if (i >= 0) TACHES.splice(i, 1);
-        fermer(); render(); toast("Supprimé.");
+        if (enregistrementEnCours) return;
+        enregistrementEnCours = true;
+        debordementOrigine().then(function (lignes) {
+          if (lignes) {
+            ecrireHorsFenetre(function () {
+              return enregistrerTacheEnDatesServeur(ancreDe(itemExisting.personneId), lignes.map(function (l) { return l.id; }), [], {});
+            }, "Supprimé (y compris hors de la semaine affichée).");
+            return;
+          }
+          sauvegarderUndo();
+          var i = TACHES.indexOf(itemExisting);
+          if (i >= 0) TACHES.splice(i, 1);
+          fermer(); render(); toast("Supprimé.");
+        }).catch(function (err) {
+          enregistrementEnCours = false;
+          toast("Échec de la suppression : " + (err && err.message ? err.message : err));
+        });
       }
       if (itemExisting.serieId) {
         demanderPorteeSerie("Supprimer", function (portee) {
@@ -739,6 +834,7 @@
       supprimerUnique();
     });
     pop.querySelector(".f-ok").addEventListener("click", function () {
+      if (enregistrementEnCours) return;
       var texte = texteActuel.trim();
       if (!texte) { fermer(); return; }
       var important = state.important;
@@ -753,7 +849,16 @@
       // tout le reste du fichier (demisOccupeesTache, rendu des bulles,
       // glissé/redimensionnement...), qui suppose encore demiDebut ===
       // demiFin dès que la durée vaut 1.
-      if (state.giDebut === state.giFin && demiDebutFinal === "matin" && demiFinFinal === "aprem") { demiDebutFinal = null; demiFinFinal = null; }
+      if (state.giDebut === state.giFin && !state.debutHorsFenetreIso && !state.finHorsFenetreIso && demiDebutFinal === "matin" && demiFinFinal === "aprem") { demiDebutFinal = null; demiFinFinal = null; }
+
+      // Plage en vraies dates (identique à la plage gi quand tout est dans
+      // la fenêtre) — seule base valable dès qu'une borne est hors écran.
+      var horsFenetre = !!(state.debutHorsFenetreIso || state.finHorsFenetreIso);
+      var isoDebutFinal = state.debutHorsFenetreIso || isoDeGi(state.giDebut);
+      var isoFinFinal = state.finHorsFenetreIso || isoDeGi(state.giFin);
+      if (isoDebutFinal === isoFinFinal && demiDebutFinal === "matin" && demiFinFinal === "aprem") { demiDebutFinal = null; demiFinFinal = null; }
+      var champsTache = { texte: texte, important: important, chantier: chantier, statut: statutFinal, absence: typeAffiche === "absence" };
+      var slotsNouveaux = slotsPlageTacheIso(isoDebutFinal, isoFinFinal, demiDebutFinal, demiFinFinal);
 
       if (itemExisting) {
         function appliquerModifUnique() {
@@ -774,6 +879,29 @@
           itemExisting.demiFin = demiFinFinal;
           itemExisting.dateDebutIso = isoDeGi(giDebutFinal);
           fermer(); render(); toast("Modifié.");
+        }
+        // Occurrence de série envoyée hors de la fenêtre : déplacée seule,
+        // détachée de sa série (serie_id null, cf. enregistrerTacheEnDatesServeur),
+        // sans demander la portée — gerer-serie ne sait déplacer aucune
+        // occurrence (cf. plus bas), "Cet élément seul" est la seule
+        // réponse possible.
+        if (horsFenetre || !itemExisting.serieId) {
+          // Champs absents de la fiche (pas de sélecteur de statut pour un
+          // salarié, pas de chantier pour une absence) : ceux de la tâche
+          // d'origine, comme le fait appliquerModifUnique en ne les touchant pas.
+          champsTache.chantier = chantier || itemExisting.chantier;
+          champsTache.statut = statutRow ? statutActuel : (itemExisting.statut || null);
+          enregistrementEnCours = true;
+          (horsFenetre ? (promesseOrigine || lignesTacheServeur(itemExisting)).then(function (r) { return r.lignes; }) : debordementOrigine()).then(function (lignes) {
+            if (!lignes) { appliquerModifUnique(); return; }
+            ecrireHorsFenetre(function () {
+              return enregistrerTacheEnDatesServeur(ancreDe(itemExisting.personneId), lignes.map(function (l) { return l.id; }), slotsNouveaux, champsTache);
+            }, (typeAffiche === "absence" ? "Absence enregistrée " : "Tâche enregistrée ") + libellePlage(isoDebutFinal, isoFinFinal) + (itemExisting.serieId ? " — détachée de sa série" : ""));
+          }).catch(function (err) {
+            enregistrementEnCours = false;
+            toast("Échec de l’enregistrement : " + (err && err.message ? err.message : err));
+          });
+          return;
         }
         if (itemExisting.serieId) {
           demanderPorteeSerie("Modifier", function (portee) {
@@ -803,6 +931,27 @@
         appliquerModifUnique();
         return;
       }
+      if (horsFenetre) {
+        var choixSerieHF = lireChoixSerie();
+        if (choixSerieHF) {
+          fermer();
+          creerSerieServeur(typeAffiche, cibles, giDebutFinal, texte, important, chantier, statutFinal, choixSerieHF, function (r) {
+            apresEcritureSerie(r); toast("Série ajoutée.");
+          }, nbJoursOuvresEntre(isoDebutFinal, isoFinFinal), demiDebutFinal, demiFinFinal, isoDebutFinal).catch(function (err) {
+            toast("Échec de la création de la série : " + (err && err.message ? err.message : err));
+          });
+          return;
+        }
+        ecrireHorsFenetre(function () {
+          var chaine = Promise.resolve();
+          cibles.forEach(function (c) {
+            chaine = chaine.then(function () { return enregistrerTacheEnDatesServeur(ancreDe(c.personne), [], slotsNouveaux, champsTache); });
+          });
+          return chaine;
+        }, (typeAffiche === "absence" ? "Absence ajoutée " : "Tâche ajoutée ") + libellePlage(isoDebutFinal, isoFinFinal));
+        return;
+      }
+
       var choixSerie = lireChoixSerie();
       if (choixSerie) {
         fermer();
@@ -858,7 +1007,7 @@
     // ce round (Lionel : « les surbrillance sont fausse aussi sur les notes
     // et jalons, je les veux case par case »).
     var state = {
-      kind: kind, // §88 — lu par appliquerDateChoisieFormulaire pour savoir si une date hors fenêtre est permise (jalon/note) ou refusée (tâche/absence, cf. ouvrirEdition)
+      kind: kind, // §88 — "jalon"|"note" ; une date hors fenêtre y est permise (comme pour tâche/absence depuis le round du 24.09.2026, suite 5, cf. appliquerDateChoisieFormulaire)
       giDebut: giDebutReel, giFin: giDebutReel + dureeInit - 1,
       debutHorsFenetreIso: null, finHorsFenetreIso: null,
       demiDebut: itemExisting ? (itemExisting.demiDebut || null) : (demiDebutArg !== undefined ? demiDebutArg : null),

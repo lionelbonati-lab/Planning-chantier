@@ -6655,3 +6655,39 @@ Lionel, 2 captures téléphone à l'appui (au repos, puis en cours de défilemen
 - Même correction sur desktop/tablette, touché par le même bug (10 px).
 
 Vérifié en local (Playwright) : `test_toolbar_chevauchement.js` passe à 23 vérifications. Deux nouvelles contrôlent, à 390 px et à 1200 px, que la barre et l'en-tête restent au pixel près à la même position pour un défilement de 0 à 300 px. Toutes deux échouent sur l'ancien code (6 et 10 px de remontée) et passent sur le nouveau, avec les 21 vérifications précédentes. Captures en position défilée, avec la grille colorée pour la rendre visible : aucune trace de grille au-dessus de la barre ni dans ses coins, pilule toujours bleue.
+
+## 113. Round du 24.09.2026 (suite 5) — Déplacer une tâche/absence hors de la semaine affichée
+
+Lionel, capture à l'appui (toast « Cette date sort de la semaine affichée : la durée d'un élément ne peut pas dépasser la fenêtre actuellement chargée » en décalant la fin d'une tâche au-delà du vendredi) : « J'aimerai pouvoir déplacer une tâche en dehors de la semaine activé. »
+
+Réponses de Lionel aux questions posées avant de coder :
+- après l'enregistrement, **la grille reste sur la semaine affichée**, et un message confirme les nouvelles dates (« le planning ne doit pas suivre en arrière-plan », déjà demandé le 12.09.2026) ;
+- **via le formulaire seulement** : le glisser-déposer dans la grille reste limité à la semaine visible.
+
+**Pourquoi ce n'était pas qu'un toast à retirer.** Une tâche n'existe côté serveur que sous forme de lignes `taches` par (personne, date, demi-journée), et le moteur de diff (`calculerEtatLocal`/`synchroniser`) ne sait écrire QUE les jours de la fenêtre chargée. Le §88 l'avait noté comme « un chantier séparé à faire » pour les tâches et absences, alors que les jalons et les notes passaient déjà par `enregistrer-plage` en vraies dates.
+
+**Ce qui change.**
+- **Fiche tâche/absence** (`ouvrirEdition`) : Début et Fin acceptent n'importe quelle date, avec les flèches ‹ › comme avec le calendrier. Une borne hors écran s'affiche avec le style « hors fenêtre » déjà utilisé pour les jalons et les notes. `appliquerDateChoisieFormulaire` ne refuse plus rien.
+- **Écriture en vraies dates, « serveur d'abord »** (nouvelle section « TÂCHE/ABSENCE HORS DE LA FENÊTRE CHARGÉE », `js/donnees-sync.js`), comme les séries :
+  - les lignes de la tâche d'origine sont supprimées ;
+  - une ligne est insérée par demi-journée de la nouvelle plage, **en bout de case** (ordre = max + 1), pour ne jamais écraser ni réordonner les tâches déjà posées ce jour-là ;
+  - la fenêtre est ensuite rechargée. Même règle de bords que `demisOccupeesTache`, jours ouvrés seulement.
+- **Étendue réelle de la tâche d'origine** (`lignesTacheServeur`). La grille ne connaît d'une tâche à cheval sur 2 semaines que sa partie visible. Si cette partie touche le bord de l'écran (lundi matin ou vendredi après-midi), la fiche va chercher le reste sur le serveur dès son ouverture : même texte, même type, même chantier, demi-journées contiguës, jusqu'à 10 semaines de part et d'autre.
+  - La fiche affiche alors les vraies dates, par exemple « ven. 25 sept. → mar. 29 sept. ».
+  - Enregistrer ou Supprimer depuis n'importe quelle semaine traite la tâche entière, même pour ne changer que le texte. Sans ça, la partie hors écran restait orpheline, ou la tâche était raccourcie à sa partie visible (cas trouvé en écrivant le test).
+- **Tâche qui ne touche aucun bord de l'écran et reste dans la semaine** : aucune requête en plus, la voie locale habituelle est inchangée (Annuler compris).
+- **Pile Annuler/Refaire vidée après une écriture hors fenêtre.** Elle ne contient que des copies de la partie visible : annuler réécrirait l'ancienne partie visible sans retirer la nouvelle partie hors écran, ce qui créerait un doublon.
+- **Occurrence de série envoyée hors de la semaine** : déplacée seule et détachée de sa série (`gerer-serie` ne sait déplacer aucune occurrence), sans demander la portée ; le message le précise. Une **nouvelle série** peut démarrer hors de la semaine (`creerSerieServeur` accepte une date de départ réelle).
+- Double clic sur Enregistrer/Supprimer bloqué pendant la réponse du serveur (`enregistrementEnCours`).
+
+**Limites connues** : le glisser et le redimensionnement d'une bulle dans la grille ne touchent toujours que sa partie visible (choix de Lionel : formulaire seulement) ; une tâche qui déborde de plus de 10 semaines au-delà de l'écran resterait tronquée.
+
+Vérifié en local (Playwright) avec le nouveau test `test_tache_hors_semaine.js` : 16 vérifications, toutes OK. Il utilise un faux Supabase qui applique vraiment les filtres, insertions et suppressions sur des tables en mémoire, et la date est figée au jeudi 24.09.2026. Scénarios vérifiés en relisant la table `taches` :
+1. tâche déplacée entièrement sur la semaine suivante : anciennes lignes supprimées, tâche déjà présente ce jour-là gardant sa place, message, grille restée sur la semaine ;
+2. tâche étendue du vendredi au mardi suivant ;
+3. fiche ouverte depuis la 1re semaine montrant l'étendue réelle, et renommage de la tâche entière ;
+4. suppression de la tâche entière depuis la 1re semaine ;
+5. tâche au milieu de la semaine toujours modifiée par la voie locale, avec Annuler disponible ;
+6. nouvelle absence créée directement sur le lundi suivant.
+
+`test_toolbar_chevauchement.js` toujours à 23/23.
