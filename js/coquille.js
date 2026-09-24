@@ -147,93 +147,127 @@
       // Zoom, 2 semaines, Ajouter une ligne, les 4 icônes masquer/afficher)
       // rejoint le panneau "⋮" (#btnPlusOutils/#toolbarSecondaire plus bas).
       //
-      // TECHNIQUE (détail dans FRONTEND-CHANGELOG.md §91) : les groupes
-      // déplacés dans #toolbarSecondaire restent les MÊMES éléments (mêmes
-      // id, même câblage dans cablerPagePlanning/majControlesAffichage/
-      // majZoomAffichage/majSemaineAffichage, inchangés) — aucune
-      // duplication de bouton ni de logique, donc aucun risque de
-      // désynchronisation entre 2 copies. Sur desktop/tablette,
-      // #toolbarSecondaire passe en display:contents (cf. style.css) : ses
-      // enfants redeviennent des éléments flex NORMAUX de CETTE barre,
-      // simplement repositionnés à leur place d'origine via `order` (posé
-      // ci-dessous en style inline — un numéro de séquence par groupe/
-      // séparateur, cf. le commentaire de #toolbarSecondaire dans
-      // style.css pour le tableau complet) : le rendu desktop reste donc
-      // rigoureusement identique à avant, bien que ces groupes ne soient
-      // plus à leur ancienne place dans le HTML. Sur téléphone seulement
-      // (style-mobile.css), #toolbarSecondaire devient un vrai panneau
-      // déroulant (position:absolute sous cette barre), ouvert/fermé par
-      // #btnPlusOutils (cf. cablerPagePlanning, fermerAutresMenusOutils
-      // étendue pour l'inclure dans l'exclusion mutuelle déjà en place pour
-      // #selectChantier/les .outil-menu). Les .toolbar-separateur-mobile/
-      // .toolbar-btn-label/.toolbar-btn-coche/.zoom-secondaire-label
-      // ajoutés ci-dessous sont TOUS masqués par défaut (style.css) : seul
-      // style-mobile.css les affiche, pour donner des séparateurs
-      // horizontaux + un libellé + une coche d'état à ces icônes une fois
-      // dans ce panneau — jamais visibles sur desktop/tablette.
+      // TECHNIQUE — refonte du round du 24.09.2026 (suite 3), Lionel :
+      // « Mode normal, modifier l'ordre des éléments afin de rendre logique
+      // le déplacement dans le menu 3 points -> annuler/refaire | imprimer |
+      // Chantier | navigation semaines | Zoom | Insertions | Masquages » et
+      // « En réduisant la largeur d'écran, placer un groupe d'élément dans le
+      // menu 3 points quand il sort de la tool barre ». Remplace le montage
+      // du §91/§106 (display:contents + `order`, puis TOUT le lot basculé
+      // d'un coup dans le panneau par .toolbar-compacte) : ce montage ne
+      // pouvait pas replier les groupes UN PAR UN, #toolbarSecondaire étant
+      // soit entièrement "transparent" (display:contents), soit entièrement
+      // un panneau.
+      //
+      // Désormais chaque groupe repliable est un vrai enfant de la barre OU
+      // du panneau, déplacé physiquement (appendChild/insertBefore) par
+      // ajusterDebordementToolbar() (grille-rendu.js) — toujours les MÊMES
+      // éléments (mêmes id, câblage de cablerPagePlanning/majControlesAffichage/
+      // majZoomAffichage/majSemaineAffichage inchangé : un listener suit son
+      // élément quand il change de parent), donc jamais 2 copies à tenir
+      // synchronisées. Deux rangs par groupe :
+      //   data-rang       place dans la barre (ordre de Lionel ci-dessus) ;
+      //   data-rang-menu  place dans le panneau "⋮" (Lionel : « Imprimer >
+      //                   Zoom > Navigation semaine > Affichage 1 ou 2
+      //                   semaine > Masquages »), différent de la barre
+      //                   (Zoom y passe AVANT la navigation).
+      // Le DOM suit toujours l'ordre visuel (insertion au bon rang, plus
+      // aucun `order` CSS côté desktop) — ce qui permet aux séparateurs
+      // d'être portés par les groupes eux-mêmes (.sep-avant, un ::before en
+      // CSS) et de partir avec eux dans le panneau au lieu de rester
+      // orphelins dans la barre.
+      //
+      // Toujours dans la barre (jamais repliés, Lionel : « mode compact,
+      // sur la barre, annuler/refaire | Chantier | Insertions », plus
+      // "Aujourd'hui" qu'il veut « Toujours sur la barre ») : Annuler/Refaire,
+      // Chantier, Aujourd'hui, Ajouter une ligne + "+". Repliés de droite à
+      // gauche : Masquages, Zoom, Navigation (+ 2 semaines), Imprimer.
+      // Téléphone (≤600px) : barre inchangée (Lionel : « Menu ⋮ seulement »),
+      // tout le reste — Ajouter une ligne compris — toujours dans le panneau.
       '<div class="toolbar-sheets" id="legendeBarre">' +
-        '<div class="toolbar-groupe" style="order:10">' +
+        '<div class="toolbar-groupe" id="groupeAnnulerRefaire" data-rang="10">' +
           '<button type="button" class="toolbar-btn" id="btnDefaire" title="Annuler (Ctrl+Z)" aria-label="Annuler">' + ICONS.undo + '</button>' +
           '<button type="button" class="toolbar-btn" id="btnRefaire" title="Refaire (Ctrl+Y)" aria-label="Refaire">' + ICONS.redo + '</button>' +
         '</div>' +
-        '<div class="toolbar-separateur" style="order:20"></div>' +
-        '<div class="toolbar-separateur toolbar-separateur-mobile" style="order:15"></div>' +
-        // §87 (round du 17.09.2026, suite×2) — Lionel : « l'insertion via le
-        // "+" doit pouvoir se faire aussi en dehors de la vue visible,
-        // actuellement limité à la semaine en cours [...] on pourrait
-        // ajouter aujourd'hui/2 semaines/la navigation dans la toolbar »,
-        // mockup mockup-sous-menu-outils.html à l'appui, puis ajusté :
-        // « il manque un rectangle avec un numéro de semaine, type "Sem. 38"
-        // cliquable [...] dans le style visuel du zoom, mais avec le même
-        // comportement que l'actuel [ouvrirAllerSemaine] ». #btnSemainePill
-        // réutilise .zoom-pill tel quel ; son panneau (#panneauSemaine) est
-        // reconstruit à l'ouverture par cablerPagePlanning, comme
-        // #pageAjoutPersonne plus bas — jamais rempli ici. Remplace
-        // entièrement l'ancienne ligne coinNav/navSemaine du coin de la
-        // grille (cf. son historique dans construireGrille), supprimée ce
-        // round (Lionel : « on enlève la première ligne du tableau qui ne
-        // sert plus »). #btnDeuxSemaines a quitté ce groupe au §91 (rejoint
-        // #toolbarSecondaire, cf. son commentaire).
-        //
-        // Round du 23.09.2026 (suite ×12) — la navigation semaine ELLE-MÊME
-        // a rejoint #toolbarSecondaire à son tour (cf. son bloc plus bas,
-        // toujours order:70) : Lionel, sur téléphone, « placer le sélecteur
-        // de semaine dans le menu pour gagner de la place ». Elle ne reste
-        // donc plus static dans CETTE barre — order:70 continue néanmoins de
-        // la repositionner ici visuellement sur desktop/tablette, exactement
-        // comme avant (#toolbarSecondaire y est display:contents, cf. son
-        // commentaire CSS) : seul le téléphone (où #toolbarSecondaire
-        // redevient un vrai panneau) voit la différence. Le séparateur
-        // mobile order:95, qui séparait ce groupe du chantier dans la barre
-        // du téléphone, disparaît avec lui (sans quoi il resterait collé à
-        // celui d'order:15, 2 traits consécutifs sans rien entre) — order:90
-        // (desktop/tablette, masqué sur téléphone de toute façon) reste seul
-        // nécessaire ici.
-        '<div class="toolbar-separateur" style="order:90"></div>' +
-        // §91 — chantier par défaut : reste ici, TOUJOURS visible (Lionel :
-        // « chantier visible mais seulement la pastille de couleur »).
-        // .nom-chantier/.caret restent dans le HTML (construireSelectChantier
-        // les cible par querySelector à chaque rendu, cf. son commentaire) —
-        // seule leur AFFICHAGE change sur téléphone (display:none en CSS,
-        // cf. style-mobile.css), rien n'est retiré ni recâblé ici.
-        '<div class="toolbar-groupe" style="order:100">' +
+        '<div class="toolbar-groupe sep-avant" id="groupeImprimer" data-rang="20" data-rang-menu="10">' +
+          '<button type="button" class="toolbar-btn" id="btnImprimerTitre" title="Imprimer — aperçu et export PDF de la semaine affichée">' + ICONS.print + '<span class="toolbar-btn-label">Imprimer</span></button>' +
+        '</div>' +
+        // Chantier par défaut (§91 : toujours visible). .nom-chantier/.caret
+        // restent dans le HTML même sur téléphone (construireSelectChantier
+        // les cible à chaque rendu), seul leur affichage y change
+        // (style-mobile.css). Habillage "pilule" comme Zoom/Sem. N et largeur
+        // fixe de 25 caractères, cf. .select-chantier-btn dans style.css.
+        '<div class="toolbar-groupe sep-avant" id="groupeChantier" data-rang="30">' +
           '<div class="select-chantier" id="selectChantier">' +
             '<button type="button" class="select-chantier-btn" id="btnSelectChantier"><span class="swatch"></span><span class="nom-chantier">Chantier</span><span class="caret">▾</span></button>' +
             '<div class="select-chantier-panneau" id="panneauChantier"></div>' +
           '</div>' +
         '</div>' +
-        '<div class="toolbar-separateur" style="order:110"></div>' +
-        '<div class="toolbar-separateur toolbar-separateur-mobile" style="order:115"></div>' +
-        // §91 — #menuAjoutLigne a quitté ce groupe (rejoint #toolbarSecondaire,
-        // cf. son commentaire) ; #menuAjoutElement ("+") reste seul ici et
-        // TOUJOURS visible (l'action la plus fréquente sur le terrain,
-        // repris tel quel du mockup) — .toolbar-groupe-droite (classe sans
-        // effet sur desktop/tablette, cf. style.css) pousse ce groupe ET
-        // #btnPlusOutils juste à côté à l'extrémité droite de la barre,
-        // SEULEMENT sur téléphone (cf. style-mobile.css) : sur desktop il
-        // reste à sa place d'origine (order:130, juste après le chantier),
-        // margin-left:auto n'étant défini que là-bas.
-        '<div class="toolbar-groupe toolbar-groupe-droite" style="order:130">' +
+        // "Aujourd'hui" — hors de la navigation (qui se replie) : Lionel,
+        // téléphone, round du 23.09.2026 (suite 13), « "Aujourd'hui" doit
+        // rester dans la tool bar », confirmé pour desktop/tablette ce round
+        // (« Toujours sur la barre »). Collé juste AVANT la navigation (pas
+        // de séparateur entre les deux, cf. #groupeNavSemaine sans
+        // .sep-avant) pour se lire comme un seul bloc "📅 ‹ Sem. N ›" tant
+        // que la navigation est dans la barre.
+        '<div class="toolbar-groupe sep-avant" id="groupeAujourdhui" data-rang="40">' +
+          '<button type="button" class="toolbar-btn" id="btnAujourdhui" title="Aller à aujourd’hui" aria-label="Aller à aujourd’hui">' + ICONS.aujourdhui + '</button>' +
+        '</div>' +
+        // Navigation semaine + "Afficher 2 semaines" collé derrière (Lionel :
+        // « Collé à la navigation ») — un SEUL groupe, replié d'un bloc. Dans
+        // le panneau : 1re ligne "‹ Sem. N ›" seule (Lionel : « placer "<"
+        // N° semaine ">" sur la même ligne, plus de texte semaine précédente
+        // et semaine suivante », puis « pas d'intitulé semaine »), calée à
+        // droite sous les contrôles de la ligne Zoom, puis "Afficher 2
+        // semaines" sur sa propre ligne en dessous. #btnVueJourMobile
+        // ("1 semaine", round du 23.09.2026 suite 4) remplace #btnDeuxSemaines
+        // sur téléphone seulement (échange en CSS, cf. style-mobile.css).
+        '<div class="toolbar-groupe" id="groupeNavSemaine" data-rang="50" data-rang-menu="30">' +
+          '<div class="nav-semaine-ligne">' +
+            '<button type="button" class="toolbar-btn" id="btnSemainePrec" title="Semaine précédente" aria-label="Semaine précédente">' + ICONS.chevronGauche + '</button>' +
+            '<div class="outil-menu" id="menuSemaine">' +
+              '<button type="button" class="zoom-pill" id="btnSemainePill" title="Aller à une semaine">Sem. ▾</button>' +
+              '<div class="outil-menu-panneau semaine-panneau" id="panneauSemaine"></div>' +
+            '</div>' +
+            '<button type="button" class="toolbar-btn" id="btnSemaineSuiv" title="Semaine suivante" aria-label="Semaine suivante">' + ICONS.chevronDroite + '</button>' +
+          '</div>' +
+          '<button type="button" class="toolbar-btn" id="btnDeuxSemaines" title="Afficher 2 semaines à la fois" aria-label="Afficher 2 semaines à la fois">' + ICONS.deuxSemaines + '<span class="toolbar-btn-label">Afficher 2 semaines</span><span class="toolbar-btn-coche">✓</span></button>' +
+          '<button type="button" class="toolbar-btn" id="btnVueJourMobile" title="Afficher la semaine complète" aria-label="Afficher la semaine complète">' + ICONS.semaineMobile + '<span class="toolbar-btn-label">1 semaine</span><span class="toolbar-btn-coche">✓</span></button>' +
+        '</div>' +
+        '<div class="toolbar-groupe sep-avant" id="groupeZoom" data-rang="60" data-rang-menu="20">' +
+          '<div class="zoom-ctrl" id="zoomCtrl">' +
+            '<span class="libelle-panneau">Zoom</span>' +
+            '<button type="button" class="zoom-btn" id="zoomMoins" title="Zoom arrière" aria-label="Zoom arrière">−</button>' +
+            '<div class="outil-menu" id="menuZoom">' +
+              '<button type="button" class="zoom-pill" id="btnZoom">100% ▾</button>' +
+              '<div class="outil-menu-panneau zoom-panneau" id="panneauZoom">' +
+                '<button type="button" class="outil-menu-item" data-zoom="75">75%</button>' +
+                '<button type="button" class="outil-menu-item" data-zoom="90">90%</button>' +
+                '<button type="button" class="outil-menu-item" data-zoom="100">100%</button>' +
+                '<button type="button" class="outil-menu-item" data-zoom="110">110%</button>' +
+                '<button type="button" class="outil-menu-item" data-zoom="125">125%</button>' +
+                '<button type="button" class="outil-menu-item" data-zoom="150">150%</button>' +
+              '</div>' +
+            '</div>' +
+            '<button type="button" class="zoom-btn" id="zoomPlus" title="Zoom avant" aria-label="Zoom avant">+</button>' +
+          '</div>' +
+        '</div>' +
+        // Insertions : "Ajouter une ligne" puis "+" collé derrière (pas de
+        // séparateur entre les 2), toujours dans la barre sur desktop/
+        // tablette. Sur téléphone, "Ajouter une ligne" rejoint le panneau
+        // (data-rang-menu) et "+" reste seul, poussé à droite avec "⋮"
+        // (.toolbar-groupe-droite, cf. style-mobile.css).
+        '<div class="toolbar-groupe sep-avant" id="groupeAjoutLigne" data-rang="70" data-rang-menu="40">' +
+          '<div class="outil-menu" id="menuAjoutLigne">' +
+            '<button type="button" class="toolbar-btn" id="btnAjoutLigne" title="Ajouter une ligne — Personnel ou Intervenant">' + ICONS.ajoutLigne + '<span class="toolbar-btn-label">Ajouter une ligne</span></button>' +
+            '<div class="outil-menu-panneau">' +
+              '<div class="outil-menu-titre">Ajouter une ligne</div>' +
+              '<button type="button" class="outil-menu-item" data-ligne="personnel">' + ICONS.people + 'Personnel</button>' +
+              '<button type="button" class="outil-menu-item" data-ligne="intervenant">' + ICONS.hardhat + 'Intervenant</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="toolbar-groupe toolbar-groupe-droite" id="groupeAjoutElement" data-rang="80">' +
           '<div class="outil-menu" id="menuAjoutElement">' +
             '<button type="button" class="toolbar-btn" id="btnAjoutElement" title="Ajouter un élément au planning">' + ICONS.plus + '</button>' +
             '<div class="outil-menu-panneau">' +
@@ -247,131 +281,32 @@
               '<div class="outil-menu-page" data-page="personne" id="pageAjoutPersonne" hidden></div>' +
             '</div>' +
           '</div>' +
-          // §91 — bouton "⋮" (nouveau) : ouvre/ferme #toolbarSecondaire
-          // (cf. cablerPagePlanning). Masqué par défaut (style.css) — n'existe
-          // visuellement que sur téléphone (style-mobile.css), desktop/
-          // tablette n'en ont jamais eu besoin (tout est déjà visible).
-          '<button type="button" class="toolbar-btn" id="btnPlusOutils" title="Plus d’outils" aria-label="Plus d’outils">' + ICONS.dots + '</button>' +
         '</div>' +
-        // Round du 23.09.2026 (suite 13) — #btnAujourdhui seul, hors de
-        // #toolbarSecondaire (cf. son commentaire dans le groupe order:70
-        // juste plus bas) : Lionel, téléphone, « "Aujourd'hui" doit rester
-        // dans la tool bar ». order:75 le repositionne exactement entre la
-        // nav. semaine (70, déplacée dans #toolbarSecondaire) et 2 semaines/
-        // 1 jour (80) — .toolbar-sheets a le même gap:2px que .toolbar-groupe
-        // (cf. tableau complet dans style.css), scinder n'y change donc
-        // AUCUN espacement visuel sur desktop/tablette. Sur téléphone, ce
-        // groupe reste un enfant DIRECT de .toolbar-sheets (jamais dans le
-        // panneau "⋮") : toujours visible dans la barre du haut, icône
-        // SEULE comme Annuler/Refaire/chantier/"+" — PAS de
-        // .toolbar-btn-label (contrairement à son ancien groupe order:70,
-        // resté lui dans #toolbarSecondaire) : ce libellé n'a plus aucun
-        // panneau vertical où s'afficher désormais, et .toolbar-btn-label
-        // {display:inline} sur mobile (style-mobile.css) n'est pas scopé au
-        // panneau — sans ce retrait, le libellé apparaîtrait à tort dans la
-        // barre compacte du haut, seul bouton du lot à en avoir un.
-        '<div class="toolbar-groupe" style="order:75">' +
-          '<button type="button" class="toolbar-btn" id="btnAujourdhui" title="Aller à aujourd’hui" aria-label="Aller à aujourd’hui">' + ICONS.aujourdhui + '</button>' +
+        // Masquages : icônes seules partout, y compris dans le panneau où
+        // elles restent sur UNE ligne (Lionel : « 4 icones sur la même ligne
+        // suffisent ») — plus de libellé ni de coche, l'état reste lisible
+        // par la teinte .actif/.desactive (majControlesAffichage).
+        '<div class="toolbar-groupe sep-avant" id="controlesAffichage" data-rang="90" data-rang-menu="50">' +
+          '<button type="button" class="toolbar-toggle actif" data-affichage-cible="jalon" title="Masquer/afficher Jalons" aria-label="Masquer/afficher Jalons">' + ICONS.flag + '</button>' +
+          '<button type="button" class="toolbar-toggle actif" data-affichage-cible="note" title="Masquer/afficher Notes" aria-label="Masquer/afficher Notes">' + ICONS.note + '</button>' +
+          '<button type="button" class="toolbar-toggle actif" data-affichage-cible="personnel" title="Masquer/afficher Personnel" aria-label="Masquer/afficher Personnel">' + ICONS.people + '</button>' +
+          '<button type="button" class="toolbar-toggle actif" data-affichage-cible="intervenants" title="Masquer/afficher Intervenants" aria-label="Masquer/afficher Intervenants">' + ICONS.hardhat + '</button>' +
         '</div>' +
-        // §91 — panneau "⋮" : regroupe les 5 groupes retirés de la barre
-        // principale sur téléphone (Imprimer, Zoom, 2 semaines, Ajouter une
-        // ligne, les 4 icônes masquer/afficher) — cf. le grand commentaire
-        // en tête de htmlPagePlanning() pour la technique (display:contents
-        // + `order` sur desktop, vrai panneau sur téléphone).
-        '<div class="toolbar-secondaire" id="toolbarSecondaire">' +
-          '<div class="toolbar-groupe" style="order:30">' +
-            '<button type="button" class="toolbar-btn" id="btnImprimerTitre" title="Imprimer — aperçu et export PDF de la semaine affichée">' + ICONS.print + '<span class="toolbar-btn-label">Imprimer</span></button>' +
-          '</div>' +
-          '<div class="toolbar-separateur" style="order:40"></div>' +
-          '<div class="toolbar-separateur toolbar-separateur-mobile" style="order:35"></div>' +
-          '<div class="toolbar-groupe" style="order:50">' +
-            '<div class="zoom-ctrl" id="zoomCtrl">' +
-              '<span class="zoom-secondaire-label">Zoom</span>' +
-              '<button type="button" class="zoom-btn" id="zoomMoins" title="Zoom arrière" aria-label="Zoom arrière">−</button>' +
-              '<div class="outil-menu" id="menuZoom">' +
-                '<button type="button" class="zoom-pill" id="btnZoom">100% ▾</button>' +
-                '<div class="outil-menu-panneau zoom-panneau" id="panneauZoom">' +
-                  '<button type="button" class="outil-menu-item" data-zoom="75">75%</button>' +
-                  '<button type="button" class="outil-menu-item" data-zoom="90">90%</button>' +
-                  '<button type="button" class="outil-menu-item" data-zoom="100">100%</button>' +
-                  '<button type="button" class="outil-menu-item" data-zoom="110">110%</button>' +
-                  '<button type="button" class="outil-menu-item" data-zoom="125">125%</button>' +
-                  '<button type="button" class="outil-menu-item" data-zoom="150">150%</button>' +
-                '</div>' +
-              '</div>' +
-              '<button type="button" class="zoom-btn" id="zoomPlus" title="Zoom avant" aria-label="Zoom avant">+</button>' +
-            '</div>' +
-          '</div>' +
-          '<div class="toolbar-separateur" style="order:60"></div>' +
-          '<div class="toolbar-separateur toolbar-separateur-mobile" style="order:65"></div>' +
-          // Round du 23.09.2026 (suite ×12) — navigation semaine, ex-groupe
-          // statique order:70 de la barre principale (cf. son historique
-          // juste après Annuler/Refaire plus haut) : Lionel, sur téléphone,
-          // « placer le sélecteur de semaine dans le menu pour gagner de la
-          // place ». order:70 INCHANGÉ (mêmes id, même câblage dans
-          // cablerPagePlanning/majSemaineAffichage — aucune duplication) : sur
-          // desktop/tablette (#toolbarSecondaire display:contents), ce
-          // déplacement dans le HTML ne change RIEN au rendu — ce groupe
-          // continue de s'intercaler exactement ici (entre Zoom=50 et
-          // 2 semaines/1 jour=80) via `order`, comme avant. Seul le téléphone
-          // (panneau réel) voit la différence : 4 lignes de plus dans le
-          // menu "⋮", plus rien dans la barre du haut à cet endroit.
-          //
-          // Round du 23.09.2026 (suite 13) — #btnAujourdhui RESSORT de ce
-          // groupe (et de #toolbarSecondaire) : Lionel, après avoir testé ce
-          // déplacement sur téléphone, « "Aujourd'hui" doit rester dans la
-          // tool bar ». Prec./pilule/Suiv. restent ici (rangés dans le menu
-          // "⋮" sur téléphone, cf. juste au-dessus) ; seul "Aujourd'hui"
-          // revient en enfant direct de .toolbar-sheets (nouveau groupe
-          // order:75 juste plus bas, hors #toolbarSecondaire) pour rester
-          // TOUJOURS visible dans la barre principale, y compris sur
-          // téléphone. Même id/câblage qu'avant (cablerPagePlanning) —
-          // aucune duplication.
-          '<div class="toolbar-groupe" style="order:70">' +
-            '<button type="button" class="toolbar-btn" id="btnSemainePrec" title="Semaine précédente" aria-label="Semaine précédente">' + ICONS.chevronGauche + '<span class="toolbar-btn-label">Semaine précédente</span></button>' +
-            '<div class="outil-menu" id="menuSemaine">' +
-              '<button type="button" class="zoom-pill" id="btnSemainePill" title="Aller à une semaine">Sem. ▾</button>' +
-              '<div class="outil-menu-panneau semaine-panneau" id="panneauSemaine"></div>' +
-            '</div>' +
-            '<button type="button" class="toolbar-btn" id="btnSemaineSuiv" title="Semaine suivante" aria-label="Semaine suivante">' + ICONS.chevronDroite + '<span class="toolbar-btn-label">Semaine suivante</span></button>' +
-          '</div>' +
-          '<div class="toolbar-groupe" id="groupeDeuxSemaines" style="order:80">' +
-            '<button type="button" class="toolbar-btn" id="btnDeuxSemaines" title="Afficher 2 semaines à la fois" aria-label="Afficher 2 semaines à la fois">' + ICONS.deuxSemaines + '<span class="toolbar-btn-label">Afficher 2 semaines</span><span class="toolbar-btn-coche">✓</span></button>' +
-          '</div>' +
-          // Round du 23.09.2026 (suite 4) — Lionel : « sur la vue mobile ne
-          // soit afficher que 1 jours. Un bouton permettrait d'afficher la
-          // vue 1 semaine (à la place du 2 semaines qu'on retrouve sur
-          // desktop et tablettes) ». #groupeVueJourMobile occupe le même
-          // emplacement/order que #groupeDeuxSemaines juste au-dessus — seul
-          // l'un des deux est visible à la fois : masqué par défaut ici
-          // (classe .mobile-seulement, cf. style-mobile.css) sur
-          // desktop/tablette où "Afficher 2 semaines" garde son rôle
-          // habituel inchangé ; sur téléphone (≤600px) c'est l'inverse
-          // (#groupeDeuxSemaines masqué, celui-ci affiché) — cf.
-          // style-mobile.css pour le détail des 2 règles.
-          '<div class="toolbar-groupe mobile-seulement" id="groupeVueJourMobile" style="order:80">' +
-            '<button type="button" class="toolbar-btn" id="btnVueJourMobile" title="Afficher la semaine complète" aria-label="Afficher la semaine complète">' + ICONS.semaineMobile + '<span class="toolbar-btn-label">1 semaine</span><span class="toolbar-btn-coche">✓</span></button>' +
-          '</div>' +
-          '<div class="toolbar-separateur toolbar-separateur-mobile" style="order:100"></div>' +
-          '<div class="toolbar-groupe" style="order:120">' +
-            '<div class="outil-menu" id="menuAjoutLigne">' +
-              '<button type="button" class="toolbar-btn" id="btnAjoutLigne" title="Ajouter une ligne — Personnel ou Intervenant">' + ICONS.ajoutLigne + '<span class="toolbar-btn-label">Ajouter une ligne</span></button>' +
-              '<div class="outil-menu-panneau">' +
-                '<div class="outil-menu-titre">Ajouter une ligne</div>' +
-                '<button type="button" class="outil-menu-item" data-ligne="personnel">' + ICONS.people + 'Personnel</button>' +
-                '<button type="button" class="outil-menu-item" data-ligne="intervenant">' + ICONS.hardhat + 'Intervenant</button>' +
-              '</div>' +
-            '</div>' +
-          '</div>' +
-          '<div class="toolbar-separateur" style="order:140"></div>' +
-          '<div class="toolbar-separateur toolbar-separateur-mobile" style="order:135"></div>' +
-          '<div class="toolbar-groupe" id="controlesAffichage" style="order:150">' +
-            '<button type="button" class="toolbar-toggle actif" data-affichage-cible="jalon" title="Masquer/afficher Jalons">' + ICONS.flag + '<span class="toolbar-btn-label">Jalons</span><span class="toolbar-btn-coche">✓</span></button>' +
-            '<button type="button" class="toolbar-toggle actif" data-affichage-cible="note" title="Masquer/afficher Notes">' + ICONS.note + '<span class="toolbar-btn-label">Notes</span><span class="toolbar-btn-coche">✓</span></button>' +
-            '<button type="button" class="toolbar-toggle actif" data-affichage-cible="personnel" title="Masquer/afficher Personnel">' + ICONS.people + '<span class="toolbar-btn-label">Personnel</span><span class="toolbar-btn-coche">✓</span></button>' +
-            '<button type="button" class="toolbar-toggle actif" data-affichage-cible="intervenants" title="Masquer/afficher Intervenants">' + ICONS.hardhat + '<span class="toolbar-btn-label">Intervenants</span><span class="toolbar-btn-coche">✓</span></button>' +
-          '</div>' +
-        '</div>' +
+        // "⋮" : visible seulement quand au moins un groupe est replié
+        // (#legendeBarre.toolbar-compacte, posée par ajusterDebordementToolbar)
+        // ou sur téléphone. Panneau (#toolbarSecondaire) sans aucun groupe au
+        // départ, rempli par ajusterDebordementToolbar au premier rendu.
+        // Menu ouvert : "⋮" devient "✕" (Lionel : « garde le menu ouvert »,
+        // puis « Place la Croix fermer à la place des 3 points ») — le
+        // panneau ne se referme plus à chaque clic sur l'un de ses boutons
+        // (cf. cablerPagePlanning), d'où un moyen explicite et à la même
+        // place de le refermer. Les 2 icônes sont dans le bouton, l'échange
+        // se fait en CSS sur la classe .ouvert que cablerPagePlanning/
+        // fermerAutresMenusOutils posent et retirent déjà sur #btnPlusOutils.
+        '<button type="button" class="toolbar-btn" id="btnPlusOutils" data-rang="100" title="Plus d’outils / fermer le menu" aria-label="Plus d’outils">' +
+          '<span class="icone-menu-ouvrir">' + ICONS.dots + '</span><span class="icone-menu-fermer">' + ICONS.close + '</span>' +
+        '</button>' +
+        '<div class="toolbar-secondaire" id="toolbarSecondaire" data-rang="110"></div>' +
       '</div>' +
       '<div class="zone-planning">' +
         '<div id="racine"></div>' +
@@ -681,6 +616,25 @@
         toolbarSecondaire.classList.toggle("ouvert", !etaitOuvert);
         btnPlusOutils.classList.toggle("ouvert", !etaitOuvert);
       });
+      // Round du 24.09.2026 (suite 3) — Lionel : « garde le menu ouvert ».
+      // Un clic DANS le panneau (‹/›, un masquage, 2 semaines, Imprimer…)
+      // ne remonte plus jusqu'au document, qui refermait tout — on peut
+      // avancer de plusieurs semaines ou basculer plusieurs masquages
+      // d'affilée. Ferme quand même les sous-menus ouverts (pilule Sem. N,
+      // zoom, chantier) : fermerAutresMenusOutils(panneau) épargne le
+      // panneau lui-même (il se "contient"). Les boutons de sous-menu et
+      // leurs listes arrêtent déjà la propagation eux-mêmes, ce listener ne
+      // les voit donc jamais. Fermeture : "✕" (le "⋮" du menu ouvert), ou
+      // clic hors du panneau. EXCEPTION Imprimer (Lionel : « Bonne idée de
+      // fermer le menu avec imprimé et ajouter ligne ») : ouvre une fenêtre
+      // par-dessus, le menu n'a plus rien à faire ouvert derrière — son
+      // propre listener (openPrintSheet) a déjà agi à ce stade, ce listener-ci
+      // passant après lui (remontée de l'événement). Pendant pour "Ajouter
+      // une ligne" : dans le câblage de #menuAjoutLigne plus bas.
+      toolbarSecondaire.addEventListener("click", function (e) {
+        e.stopPropagation();
+        fermerAutresMenusOutils(e.target.closest("#btnImprimerTitre") ? null : toolbarSecondaire);
+      });
     }
     // Ouverture/fermeture des 3 .outil-menu (zoom, ligne+, +) — générique
     // plutôt que triplée, même idée que #selectChantier ci-dessus (bouton
@@ -717,7 +671,12 @@
     if (menuAjoutLigne) {
       menuAjoutLigne.querySelectorAll("[data-ligne]").forEach(function (btn) {
         btn.addEventListener("click", function () {
-          menuAjoutLigne.classList.remove("ouvert");
+          // fermerAutresMenusOutils(null) plutôt que de ne refermer que ce
+          // sous-menu : referme aussi le panneau "⋮" quand "Ajouter une
+          // ligne" y est rangé (téléphone) — Lionel, round du 24.09.2026
+          // (suite 3) : « Bonne idée de fermer le menu avec imprimé et
+          // ajouter ligne ». Sans effet de plus quand il est dans la barre.
+          fermerAutresMenusOutils(null);
           ouvrirAjoutPersonne(btn.dataset.ligne === "intervenant");
         });
       });

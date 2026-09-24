@@ -419,14 +419,26 @@
      réellement à droite, est détecté tout de suite et part dans le
      menu "⋮". */
   .toolbar-groupe { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
-  /* Round du 23.09.2026 (suite 4) — .mobile-seulement (#groupeVueJourMobile,
-     cf. js/coquille.js) : masqué par défaut ici (desktop/tablette, où
-     #groupeDeuxSemaines garde seul son rôle habituel), réaffiché uniquement
-     ≤600px par style-mobile.css (même spécificité .toolbar-groupe.X, donc la
-     règle @media qui vient après dans la cascade l'emporte quand elle
-     s'applique). */
-  .toolbar-groupe.mobile-seulement { display: none; }
-  .toolbar-separateur { width: 1px; height: 22px; background: var(--border); margin: 0 8px; flex-shrink: 0; }
+  /* Round du 23.09.2026 (suite 4) — #btnVueJourMobile ("1 semaine") :
+     masqué ici (desktop/tablette, où #btnDeuxSemaines garde seul son rôle),
+     échangé avec lui ≤600px par style-mobile.css. Round du 24.09.2026
+     (suite 3) : ce sont désormais 2 boutons du MÊME groupe
+     (#groupeNavSemaine) plutôt que 2 groupes voisins, d'où un sélecteur
+     d'id (l'emporte sur `.toolbar-secondaire .toolbar-btn { display:flex }`
+     quand le groupe est replié dans le panneau). */
+  #btnVueJourMobile { display: none; }
+  /* Séparateur vertical — round du 24.09.2026 (suite 3) : porté par le
+     groupe qui le suit (.sep-avant) plutôt qu'un élément .toolbar-separateur
+     à part, pour qu'il parte AVEC son groupe quand celui-ci est replié dans
+     le panneau "⋮" (sinon 2 traits consécutifs sans rien entre eux dans la
+     barre). Enfant direct de #legendeBarre seulement : dans le panneau, la
+     séparation entre groupes est un trait horizontal (cf. .toolbar-secondaire
+     plus bas). Mêmes mesures qu'avant (1px, margin 0 8px, + le gap de 2px du
+     groupe) : espacement de la barre inchangé. Le 1er enfant visible de la
+     barre (Annuler/Refaire) n'en porte jamais. */
+  #legendeBarre > .sep-avant::before {
+    content: ""; width: 1px; height: 22px; background: var(--border); margin: 0 8px; flex-shrink: 0;
+  }
   .toolbar-btn {
     width: 30px; height: 30px; display: grid; place-items: center; border-radius: 7px; border: none;
     background: none; color: var(--ink-muted); cursor: pointer; transition: background .12s, color .12s; flex-shrink: 0;
@@ -441,15 +453,27 @@
      ex-construireLegende). Un swatch + le nom + un caret, ouverture d'un
      petit panneau listant les chantiers actifs (mêmes swatches que la
      grille réelle). */
+  /* Round du 24.09.2026 (suite 3) — Lionel : « Style visuel du chantier
+     comme zoom et sem.N » et, contre les chevauchements, « pour chantier
+     par exemple, une largeur fixe de 25 caractère, la partie du texte
+     dépasse sera caché ». Même habillage que .zoom-pill (fond blanc fixe
+     --case-fixe-bg, contour, police mono, survol accent). Police mono =
+     tous les caractères ont la même largeur : `25ch` fait EXACTEMENT 25
+     caractères, quel que soit le nom. Largeur fixe (pas un simple maximum) :
+     la barre ne change plus de largeur en changeant de chantier, donc le
+     repli dans "⋮" ne bouge pas non plus. Nom complet toujours lisible dans
+     l'info-bulle (btn.title, construireSelectChantier) et dans le panneau. */
   .select-chantier { position: relative; flex-shrink: 0; }
   .select-chantier-btn {
-    display: flex; align-items: center; gap: 7px; padding: 5px 9px 5px 7px; border-radius: 7px;
-    border: 1px solid transparent; background: none; cursor: pointer; font: inherit; font-size: 12px;
-    font-weight: 600; color: var(--ink); transition: background .12s, border-color .12s;
+    display: flex; align-items: center; gap: 7px; padding: 5px 8px; border-radius: 7px;
+    border: 1px solid var(--border); background: var(--case-fixe-bg); cursor: pointer; font: inherit;
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 700; color: var(--ink);
+    transition: background .12s, border-color .12s, color .12s;
   }
-  .select-chantier-btn:hover, .select-chantier.ouvert .select-chantier-btn { background: var(--surface-2); border-color: var(--border); }
+  .select-chantier-btn:hover, .select-chantier.ouvert .select-chantier-btn { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
   .select-chantier-btn .swatch { width: 12px; height: 12px; border-radius: 4px; flex-shrink: 0; }
-  .select-chantier-btn .caret { color: var(--ink-faint); font-size: 9px; margin-left: 1px; }
+  .select-chantier-btn .nom-chantier { width: 25ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+  .select-chantier-btn .caret { font-size: 12px; }
   .select-chantier-panneau {
     position: absolute; top: calc(100% + 4px); left: 0; z-index: 10; min-width: 168px;
     background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px;
@@ -559,6 +583,7 @@
     min-width: 58px; padding: 5px 8px; border-radius: 7px; border: 1px solid var(--border); background: var(--case-fixe-bg);
     font: inherit; font-size: 12px; font-weight: 700; color: var(--ink); cursor: pointer; text-align: center;
     font-family: 'IBM Plex Mono', monospace; transition: background .12s, border-color .12s, color .12s;
+    white-space: nowrap;
   }
   .zoom-pill:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
   .zoom-panneau { min-width: 90px; }
@@ -614,157 +639,92 @@
   .semaine-panneau .coche { color: var(--accent); font-size: 12px; }
 
   /* ============================================================
-     #toolbarSecondaire — §91 (round du 22.09.2026, suite). Lionel, mockup
-     mockup-nav-mobile.html validé : « on gardera les "tools" principaux sur
-     la barre et le reste sera dans un menu 3points à droite », puis
-     « chantier visible mais seulement la pastille de couleur. annuler/
-     refaire dans la barre. ». Regroupe, dans UN seul conteneur (nécessaire
-     pour qu'ils deviennent un vrai panneau téléphone d'un seul tenant, cf.
-     style-mobile.css), les 5 groupes retirés de la barre visible sur
-     téléphone : Imprimer, Zoom, 2 semaines, Ajouter une ligne, les 4 icônes
-     masquer/afficher — cf. htmlPagePlanning pour le HTML exact.
+     #toolbarSecondaire — panneau "⋮". Historique : §91 (round du
+     22.09.2026, suite, téléphone : « on gardera les "tools" principaux sur
+     la barre et le reste sera dans un menu 3points à droite »), étendu au
+     desktop/tablette au §106 (.toolbar-compacte, tout-ou-rien).
 
-     display:contents ICI (règle commune desktop/tablette/téléphone) : sur
-     desktop/tablette, ce conteneur n'a PAS d'override dans style-mobile.css
-     (celui-ci ne s'applique qu'à ≤600px) — il reste donc en display:contents
-     en permanence sur ces 2 tailles, ce qui le rend invisible EN TANT QUE
-     BOÎTE : ses enfants directs (les .toolbar-groupe/.toolbar-separateur
-     listés ci-dessous) deviennent des éléments flex NORMAUX de
-     .toolbar-sheets, exactement comme s'ils n'étaient pas enveloppés.
+     Round du 24.09.2026 (suite 3) — repli GROUPE PAR GROUPE (Lionel : « En
+     réduisant la largeur d'écran, placer un groupe d'élément dans le menu 3
+     points quand il sort de la tool barre »). Le panneau n'est plus un
+     conteneur "transparent" (display:contents + `order`) qui devenait
+     panneau d'un coup : c'est TOUJOURS un vrai panneau, vide tant que rien
+     n'est replié, et ajusterDebordementToolbar() (grille-rendu.js) y
+     déplace les groupes un par un, à leur rang de menu (data-rang-menu,
+     Lionel : « Imprimer > Zoom > Navigation semaine > Affichage 1 ou 2
+     semaine > Masquages »). Cf. le commentaire TECHNIQUE de
+     htmlPagePlanning (js/coquille.js) pour les rangs et la liste de ce qui
+     ne se replie jamais.
 
-     `order` — puisque ces groupes ne sont plus à leur place d'origine dans
-     le HTML (regroupés ici à la place), chacun porte un `order` (posé en
-     style inline dans htmlPagePlanning, comme les groupes restés en place)
-     qui reproduit leur position visuelle EXACTE d'avant ce round — le rendu
-     desktop/tablette reste ainsi rigoureusement identique au pixel près.
-     Tableau complet (.toolbar-sheets a lui-même gap:2px, IDENTIQUE au
-     gap:2px de .toolbar-groupe — scinder un groupe en 2 groupes voisins ne
-     change donc AUCUN espacement visuel) — mis à jour au round du
-     23.09.2026 (suite ×12) : Nav. semaine (70) a rejoint ce tableau, cf. son
-     propre commentaire dans htmlPagePlanning (Lionel, téléphone : « placer
-     le sélecteur de semaine dans le menu pour gagner de la place »), PUIS
-     (suite 13) #btnAujourdhui en est ressorti à part (75, Lionel :
-     « "Aujourd'hui" doit rester dans la tool bar ») :
-       10 Annuler/Refaire        90  séparateur
-       20 séparateur             100 Chantier
-       30 Imprimer                    (reste hors de #toolbarSecondaire)
-           (reste hors)          110 séparateur
-       40 séparateur             120 Ajouter une ligne
-       50 Zoom                   130 "+" (menuAjoutElement)
-       60 séparateur                  (reste hors de #toolbarSecondaire)
-       70 Nav. semaine (Prec./     75 Aujourd'hui
-          pilule/Suiv., sans           (reste hors de #toolbarSecondaire,
-          Aujourd'hui)                 cf. son commentaire dans
-       80 2 semaines/1 jour            htmlPagePlanning)
-                                  140 séparateur
-                                  150 Masquer/afficher (#controlesAffichage)
+     .toolbar-compacte (sur #legendeBarre) = « au moins un groupe replié » :
+     affiche "⋮", poussé à l'extrémité droite de la barre (margin-left:auto)
+     pour que le panneau, ancré à droite, s'ouvre juste sous lui.
 
-     Sur téléphone (≤600px), style-mobile.css redéfinit entièrement ce
-     display:contents en display:flex (colonne, position:absolute sous la
-     barre) quand .ouvert est posée par cablerPagePlanning (bouton
-     #btnPlusOutils) — `order` n'a alors plus aucun rôle (le panneau suit
-     l'ordre naturel du HTML ci-dessus, qui correspond déjà à un
-     regroupement logique cohérent pour une liste verticale). */
-  .toolbar-secondaire { display: contents; }
-  /* .toolbar-btn-label/.toolbar-btn-coche/.zoom-secondaire-label — masqués
-     par défaut : seul style-mobile.css les affiche, pour donner un libellé
-     + une coche d'état (déjà tenue à jour par majControlesAffichage/
-     majSemaineAffichage, cf. grille-interactions.js — simples classes
-     posées/retirées sur le bouton, jamais de textContent/innerHTML écrasé,
-     ces spans ne risquent donc jamais d'être effacés à un rendu) aux icônes
-     une fois dans #toolbarSecondaire. .zoom-secondaire-label est un span
-     FRÈRE de #btnZoom (pas un enfant) — majZoomAffichage() fait
-     btnZoom.textContent = ... à chaque rendu (cf. grille-interactions.js),
-     ce qui effacerait tout enfant posé à l'intérieur du bouton. */
-  .toolbar-btn-label, .toolbar-btn-coche, .zoom-secondaire-label { display: none; }
-  /* .toolbar-separateur-mobile — nouveaux séparateurs téléphone uniquement
-     (barre principale ET panneau "⋮"), distincts des 6 séparateurs d'origine
-     ci-dessus (qui gardent leur `order` pour le rendu desktop/tablette et
-     sont masqués sur téléphone, cf. style-mobile.css) : ceux-ci n'existaient
-     pas avant ce round, strictement invisibles tant qu'on n'est pas sur
-     téléphone. Portent eux aussi un `order` (posé en style inline dans
-     htmlPagePlanning, entre les valeurs des groupes qu'ils séparent — ex.
-     order:15 entre Annuler/Refaire=10 et Nav. semaine=70) : sans lui, tout
-     élément flex sans `order` explicite vaut 0 par défaut et se
-     retrouverait tassé tout au début de la barre (avant Annuler/Refaire,
-     order:10), pas à l'endroit voulu. Les 4 posés À L'INTÉRIEUR de
-     #toolbarSecondaire suivent la même logique, mais dans le système
-     d'`order` INDÉPENDANT de ce conteneur (lui-même display:flex quand
-     .ouvert, cf. style-mobile.css) — leurs valeurs n'ont donc aucun rapport
-     avec celles de la barre principale au-dessus. */
-  .toolbar-separateur-mobile { display: none; }
-  /* #btnPlusOutils ("⋮") — n'existe visuellement que sur téléphone
-     (style-mobile.css) par défaut : desktop/tablette affichent déjà tout,
-     inutile. Round du 23.09.2026 (suite ×12) — EXCEPTION : #legendeBarre.
-     toolbar-compacte le réaffiche aussi sur desktop/tablette quand la barre
-     ne tient plus (cf. le bloc juste en dessous). */
-  #btnPlusOutils { display: none; }
-  #legendeBarre.toolbar-compacte #btnPlusOutils { display: grid; }
-  /* ============================================================
-     .toolbar-compacte — round du 23.09.2026 (suite ×12). Lionel : « sur
-     desktop/tablette, placer les éléments qui dépassent de la toolbar dans
-     le menu 3 points. Pas de retour à la ligne. » .toolbar-sheets passait en
-     flex-wrap:wrap (règle plus haut) : une fenêtre trop étroite pour tout
-     son contenu faisait retomber les boutons en trop sur une 2e ligne — pas
-     franchement illisible, mais pas ce que Lionel veut. flex-wrap devient
-     nowrap (juste au-dessus, cf. .toolbar-sheets) : plus JAMAIS de 2e ligne,
-     quelle que soit la largeur — à la place, ajusterDebordementToolbar()
-     (grille-rendu.js, mêmes points d'appel que ajusterEnteteFixe juste à
-     côté : fin de construireGrille, resize débouncé) mesure si le contenu
-     déborde (scrollWidth > clientWidth de #legendeBarre) et, si oui, pose
-     cette classe sur #legendeBarre — jamais posée en dessous de 600px
-     (téléphone), où style-mobile.css gère déjà tout seul (panneau
-     permanent) : les 2 mécanismes se marcheraient dessus sinon.
-     Elle fait 2 choses : réaffiche #btnPlusOutils (juste au-dessus) et
-     transforme #toolbarSecondaire — normalement display:contents ici, cf.
-     sa règle de base plus haut — en un vrai panneau déroulant, désormais
-     caché tant que .ouvert n'est pas posée (même bouton #btnPlusOutils,
-     déjà câblé par cablerPagePlanning pour le téléphone — rien à recâbler).
-     Habillage propre, PAS un copier-coller du panneau plein-écran du
-     téléphone (style-mobile.css, pensé pour une feuille ancrée en bas) : un
-     dropdown classique ancré sous le bouton, à droite, comme .outil-menu-
-     panneau/.semaine-panneau juste plus haut — la largeur d'écran
-     disponible sur tablette/desktop ne justifie pas une feuille pleine
-     largeur. Les boutons à l'intérieur reprennent malgré tout la même
-     mécanique liste verticale (icône + libellé + coche, .toolbar-btn-label/
-     .toolbar-btn-coche réutilisés tels quels — déjà tenus à jour par
-     majControlesAffichage/majSemaineAffichage/majZoomAffichage, aucun
-     câblage supplémentaire) : un menu d'icônes SEULES, sans texte, serait
-     illisible en liste. */
-  #legendeBarre.toolbar-compacte .toolbar-secondaire { display: none; }
-  #legendeBarre.toolbar-compacte .toolbar-secondaire.ouvert {
+     Habillage unique pour desktop/tablette ET téléphone (style-mobile.css
+     ne redéfinit plus que la géométrie : feuille pleine largeur) —
+     auparavant dupliqué entre les 2 fichiers. */
+  .toolbar-secondaire { display: none; }
+  .toolbar-secondaire.ouvert {
     display: flex; flex-direction: column; gap: 2px;
     position: absolute; right: 8px; top: calc(100% + 6px); z-index: 41;
     min-width: 230px; max-height: 70vh; overflow-y: auto;
     background: var(--surface-2); border: 1px solid var(--border); border-radius: 14px;
     box-shadow: 0 10px 28px var(--shadow-lg); padding: 6px;
   }
-  /* Items internes : même mécanique que le panneau téléphone (icône +
-     libellé + coche, groupe multi-boutons en colonne) — cf. le commentaire
-     détaillé de style-mobile.css pour le pourquoi de chaque règle, repris
-     ici à l'identique mais RE-SCOPÉ sous .toolbar-compacte plutôt que sous
-     `@media (max-width:600px)` (une media query ne peut pas être déclenchée
-     par une classe JS ; dupliquer était le seul moyen de partager le même
-     habillage sur les 2 mécanismes déclencheurs). */
-  #legendeBarre.toolbar-compacte .toolbar-secondaire .toolbar-groupe { width: 100%; flex-direction: column; align-items: stretch; gap: 2px; }
-  #legendeBarre.toolbar-compacte .toolbar-secondaire .toolbar-separateur { width: auto; height: 1px; margin: 4px 2px; }
-  #legendeBarre.toolbar-compacte .toolbar-secondaire .toolbar-btn,
-  #legendeBarre.toolbar-compacte .toolbar-secondaire .toolbar-toggle {
+  #btnPlusOutils { display: none; }
+  #legendeBarre.toolbar-compacte #btnPlusOutils { display: grid; margin-left: auto; }
+  /* "⋮" devient "✕" tant que le menu est ouvert (Lionel : « Place la Croix
+     fermer à la place des 3 points ») — .ouvert posée/retirée sur le bouton
+     par cablerPagePlanning/fermerAutresMenusOutils/fermerPanneauSiVide. */
+  #btnPlusOutils .icone-menu-ouvrir, #btnPlusOutils .icone-menu-fermer { display: grid; place-items: center; }
+  #btnPlusOutils .icone-menu-fermer, #btnPlusOutils.ouvert .icone-menu-ouvrir { display: none; }
+  #btnPlusOutils.ouvert .icone-menu-fermer { display: grid; }
+  .toolbar-btn.ouvert { background: var(--surface-2); color: var(--ink); }
+  /* Trait horizontal entre 2 groupes du panneau (pendant du .sep-avant
+     vertical de la barre) — le DOM du panneau suit l'ordre visuel
+     (insererAuRang), le sélecteur de voisin suffit. */
+  .toolbar-secondaire > .toolbar-groupe + .toolbar-groupe { border-top: 1px solid var(--border); margin-top: 4px; padding-top: 4px; }
+  /* Chaque groupe devient une liste verticale pleine largeur ; chaque
+     bouton une ligne icône — libellé — coche (display:flex et non la grille
+     30×30 de la barre, qui empilerait icône/libellé/coche, cf. le bug
+     "boutons trop gros" du 22.09.2026 suite ×3). */
+  .toolbar-secondaire .toolbar-groupe { width: 100%; flex-direction: column; align-items: stretch; gap: 2px; }
+  .toolbar-secondaire .toolbar-btn {
     display: flex; align-items: center;
     width: 100%; height: auto; justify-content: flex-start; gap: 10px;
     padding: 10px 8px; border-radius: 9px; font-size: 13.5px; font-weight: 600; color: var(--ink);
   }
-  #legendeBarre.toolbar-compacte .toolbar-secondaire .toolbar-btn svg,
-  #legendeBarre.toolbar-compacte .toolbar-secondaire .toolbar-toggle svg { width: 15px; height: 15px; flex-shrink: 0; }
-  #legendeBarre.toolbar-compacte .toolbar-btn-label,
-  #legendeBarre.toolbar-compacte .zoom-secondaire-label { display: inline; }
-  #legendeBarre.toolbar-compacte .toolbar-btn-coche { display: inline; margin-left: auto; color: var(--accent); font-size: 12px; visibility: hidden; flex-shrink: 0; }
-  #legendeBarre.toolbar-compacte .toolbar-toggle.actif .toolbar-btn-coche,
-  #legendeBarre.toolbar-compacte .toolbar-btn.actif .toolbar-btn-coche { visibility: visible; }
-  #legendeBarre.toolbar-compacte .toolbar-secondaire .toolbar-btn.actif { background: var(--accent-soft); color: var(--accent); }
-  #legendeBarre.toolbar-compacte .toolbar-secondaire .zoom-ctrl { width: 100%; padding: 10px 8px; gap: 6px; }
-  #legendeBarre.toolbar-compacte .toolbar-secondaire .zoom-btn { width: 26px; height: 26px; border: 1px solid var(--border); border-radius: 6px; flex-shrink: 0; }
-  .toolbar-btn.ouvert { background: var(--surface-2); color: var(--ink); }
+  .toolbar-secondaire .toolbar-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+  /* Libellés/coches/intitulés de ligne : jamais dans la barre (icônes
+     seules), seulement une fois dans le panneau. Coche tenue à jour par
+     majSemaineAffichage (classe .actif, jamais de textContent écrasé). */
+  .toolbar-btn-label, .toolbar-btn-coche, .libelle-panneau { display: none; }
+  .toolbar-secondaire .toolbar-btn-label { display: inline; }
+  .toolbar-secondaire .toolbar-btn-coche { display: inline; margin-left: auto; color: var(--accent); font-size: 12px; visibility: hidden; flex-shrink: 0; }
+  .toolbar-secondaire .toolbar-btn.actif .toolbar-btn-coche { visibility: visible; }
+  .toolbar-secondaire .toolbar-btn.actif { background: var(--accent-soft); color: var(--accent); }
+  /* Lignes de réglage "Zoom − 100% +" et "‹ Sem. N ›" sur UNE ligne chacune
+     (Lionel : « placer "<" N° semaine ">" sur la même ligne, plus de texte
+     semaine précédente et semaine suivante », puis « pas d'intitulé
+     semaine » et « Aligner Sem.39 a gauche ») : la navigation, sans
+     intitulé, part du bord gauche comme les lignes icône + libellé ; le
+     zoom garde son intitulé à gauche et ses contrôles à droite. ‹/›
+     reprennent le gabarit des −/+ du zoom (sélecteur plus spécifique que la
+     règle "ligne pleine largeur" de .toolbar-btn juste au-dessus). */
+  .nav-semaine-ligne { display: flex; align-items: center; gap: 2px; }
+  .toolbar-secondaire .zoom-ctrl,
+  .toolbar-secondaire .nav-semaine-ligne { width: 100%; padding: 6px 8px; gap: 6px; }
+  .toolbar-secondaire .libelle-panneau { display: inline; margin-right: auto; font-size: 13.5px; font-weight: 600; color: var(--ink); }
+  .toolbar-secondaire .zoom-btn,
+  .toolbar-secondaire .nav-semaine-ligne .toolbar-btn {
+    display: grid; place-items: center; width: 26px; height: 26px; padding: 0;
+    border: 1px solid var(--border); border-radius: 6px; flex-shrink: 0;
+  }
+  /* Masquages : les 4 icônes restent sur UNE ligne (Lionel : « 4 icones sur
+     la même ligne suffisent »), un peu plus grandes que dans la barre pour
+     le doigt sur tablette/téléphone. */
+  .toolbar-secondaire #controlesAffichage { flex-direction: row; align-items: center; gap: 6px; padding: 6px 8px; }
+  .toolbar-secondaire .toolbar-toggle { width: 36px; height: 36px; }
   /* .nav-bas (barre basse, remplace .onglets-nav sur téléphone) et son
      panneau "Pages" (#switcherPanneau) — masqués par défaut, desktop/
      tablette gardent .onglets-nav en haut, inchangée. Tout l'habillage

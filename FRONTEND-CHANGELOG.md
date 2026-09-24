@@ -6598,3 +6598,46 @@ Lionel : « je n'utilise plus netlify mais github pages », puis « oui nettoie 
 - Les mentions de Netlify dans l'historique des changelogs (§76-77, BACKEND-CHANGELOG) et dans les archives (`MAJ-a-pousser-23-09-2026/`, `Claude outputs/`) sont volontairement laissées telles quelles : elles décrivent ce qui était vrai à leur date.
 
 **Reste à faire par Lionel (hors dépôt, impossible depuis le code)** : débrancher l'appli Netlify du dépôt GitHub — sinon elle continuera de construire une prévisualisation et de commenter chaque future PR. Au choix : sur GitHub, *Settings → GitHub Apps → Netlify → Configure*, retirer `Planning-chantier` de la liste ; ou sur Netlify, supprimer le projet `plan-to-build` (*Project configuration → Delete project*).
+
+## 111. Round du 24.09.2026 (suite 3) — Barre d'outils : nouvel ordre, repli groupe par groupe dans "⋮", chantier en pilule
+
+Lionel : « mode compact, dans le menu 3 points, placer "<" N° semaine ">" sur la même ligne, plus de texte semaine précédente et semaine suivante » ; « mode compact, sur la barre, annuler/refaire | Chantier | Insertions » ; « Mode normal, modifier l'ordre des éléments afin de rendre logique le déplacement dans le menu 3 points -> annuler/refaire | imprimer | Chantier | navigation semaines | Zoom | Insertions | Masquages » ; « Menu 3 points, ordre du haut en bas: Imprimer > Zoom > Navigation semaine > Affichage 1 ou 2 semaine > Masquages (4 icones sur la même ligne suffisent) » ; « En réduisant la largeur d'écran, placer un groupe d'élément dans le menu 3 points quand il sort de la tool barre. Attention éviter que certains éléments se superposent (… pour chantier par exemple, une largeur fixe de 25 caractère, la partie du texte dépasse sera caché) » ; « Style visuel du chantier comme zoom et sem.N ».
+
+Réponses de Lionel aux questions de clarification posées avant de coder :
+- "Aujourd'hui" : **toujours sur la barre**, jamais replié ;
+- "Afficher 2 semaines" : **collé à la navigation** (même groupe, replié avec elle ; ligne à part dans le menu) ;
+- ordre de repli : **de droite à gauche** — Masquages, puis Zoom, puis Navigation, puis Imprimer ;
+- téléphone : **menu "⋮" seulement**, barre inchangée.
+
+**Nouvelle barre (desktop/tablette)** : `↶ ↷ | 🖨 | [pilule chantier] | 📅 ‹ Sem. N › ▯▯ | − 100% + | ⊞ + | ⚑ 📄 👥 ⛑`, puis "⋮" à l'extrémité droite dès qu'au moins un groupe est replié. Barre la plus compacte : `↶ ↷ | chantier | 📅 | ⊞ + … ⋮`. "Aujourd'hui" est collé juste avant la navigation (sans séparateur) pour se lire comme un bloc tant qu'elle est là.
+
+**Menu "⋮"** : Imprimer > Zoom > Navigation (ligne "Semaine ‹ Sem. N ›", sur le modèle de la ligne "Zoom − 100% +") > Afficher 2 semaines (ou "1 semaine" sur téléphone) > [Ajouter une ligne, téléphone seulement] > Masquages (4 icônes sur une ligne, sans libellé ni coche — l'état reste lisible par la teinte). Le menu ne contient que ce qui est replié à la largeur courante.
+
+**Technique — pourquoi une refonte et pas un réglage.** Le montage du §91/§106 (`#toolbarSecondaire` en `display:contents` + `order` CSS sur desktop, qui devenait un panneau d'un seul bloc avec `.toolbar-compacte`) ne pouvait pas replier les groupes un par un : le conteneur était soit entièrement "transparent", soit entièrement un panneau. Désormais :
+- chaque groupe repliable est **déplacé physiquement** (`insertBefore`) entre la barre et le panneau par `ajusterDebordementToolbar()` (`js/grille-rendu.js`). Ce sont toujours les mêmes éléments (mêmes id, câblage inchangé : un listener suit son élément), donc jamais 2 copies à synchroniser ;
+- deux rangs par groupe (`data-rang` pour la barre, `data-rang-menu` pour le menu, où Zoom passe avant la navigation) ; le DOM suit toujours l'ordre visuel, plus aucun `order` CSS côté desktop ;
+- les **séparateurs sont portés par les groupes** (`.sep-avant`, un `::before`) au lieu d'éléments `.toolbar-separateur` à part : ils partent avec leur groupe dans le menu (sinon 2 traits consécutifs dans la barre). Dans le menu, trait horizontal entre groupes voisins ;
+- la mesure du débordement ne lit plus `scrollWidth` mais le bord droit de chaque enfant de la barre : un menu déroulant ouvert (le "+", le zoom…) dépasse de la barre sans qu'aucun bouton ne déborde, et aurait fait replier des groupes pour rien ;
+- boucle : repli du groupe suivant tant que la barre déborde — l'apparition de "⋮" (qui prend lui-même de la place) est prise en compte par la mesure suivante. Repart toujours de l'état étendu (tout remis dans la barre), sans rien peindre de l'état intermédiaire (tout est synchrone). Seuils mesurés avec « 26182 - Terrain de Padel » : Masquages à ~1020 px, Zoom à ~900 px, Navigation à ~770 px ; Imprimer ne se replie qu'en dessous, donc en pratique jamais avant la bascule téléphone (600 px) ;
+- panneau ré-élargi jusqu'à tout faire revenir : refermé automatiquement (sinon panneau vide ouvert sans plus de "⋮" pour le fermer) ;
+- habillage du panneau unifié dans `style.css` (il était dupliqué entre `style.css`, scopé `.toolbar-compacte`, et `style-mobile.css`) ; `style-mobile.css` ne garde que la géométrie pleine largeur.
+
+**Chantier** : même habillage que les pilules Zoom/Sem. N (fond blanc fixe, contour, police mono, survol accent). Le nom fait **exactement 25 caractères de large** (`width: 25ch` — exact en police mono), coupé par « … » au-delà ; nom complet dans l'info-bulle et dans la liste déroulante. Largeur fixe même pour un nom court : la barre ne change plus de largeur en changeant de chantier, donc les seuils de repli non plus. `white-space: nowrap` ajouté aux pilules Zoom/Sem. N (plus de retour à la ligne possible dans une pilule).
+
+**Téléphone** : barre identique au pixel près (vérifiée par capture avant/après) — `order` remet Annuler/Refaire et Aujourd'hui en tête, séparateurs réajustés, pilule chantier neutralisée (pastille seule). "Ajouter une ligne" part d'office dans le menu avec les groupes repliables.
+
+Vérifié en local (Playwright, `test_toolbar_chevauchement.js` étendu — 14 vérifications) : aucun chevauchement de 1400 à 320 px ; repli de droite à gauche un groupe à la fois ; Annuler/Refaire, Chantier, Aujourd'hui et "+" jamais repliés ; ordre de la barre complète ; "⋮" masqué quand rien n'est replié ; largeur du nom de chantier fixe ; ordre du menu ; ‹ Sem. N › et les 4 masquages chacun sur une ligne ; plus de libellé "Semaine précédente/suivante" ; ‹ cliqué depuis le menu recule bien d'une semaine ; retour complet dans la barre au ré-élargissement ; barre et menu téléphone. Captures contrôlées à 1400, 1100, 1000, 800, 700 et 390 px, avec un nom de chantier court et un nom de 50 caractères.
+
+**Retour de Lionel sur la PR, avant fusion** : « pas d'intitulé semaine, garde le menu ouvert, une croix "X" pour fermer le menu en face de imprimer ».
+- Intitulé "Semaine" retiré : la ligne de navigation du menu ne contient plus que ‹ Sem. N ›, calée à droite sous les contrôles de la ligne Zoom.
+- **Le menu reste ouvert** : un clic dans le panneau (‹/›, masquages, 2 semaines, Imprimer…) ne remonte plus jusqu'au document, qui refermait tout — on peut avancer de plusieurs semaines ou basculer plusieurs masquages d'affilée. Les sous-menus ouverts (pilule Sem. N, zoom, chantier) se referment quand même. Fermeture : "✕", "⋮" ou clic hors du menu.
+- **"✕"** (`#btnFermerPlusOutils`, remplacé ensuite, cf. 2e retour ci-dessous) en haut à droite du menu, en face d'Imprimer quand celle-ci est dans le menu (téléphone), sinon sur la 1re ligne présente (desktop, où Imprimer n'est quasiment jamais replié). La 1re ligne se réserve la place à droite pour que les contrôles du zoom ne passent jamais dessous (et la navigation juste en dessous aussi, pour rester alignée).
+
+Test étendu à 19 vérifications (ajouts : pas d'intitulé "Semaine", ‹ cliqué 2 fois depuis le menu recule bien de 2 semaines, menu toujours ouvert après ces clics et un masquage, "✕" sur la 1re ligne sans recouvrir ses boutons, "✕" ferme le menu, "✕" en face d'Imprimer sur téléphone) — 19/19 OK.
+
+**2e retour de Lionel** : « Aligner Sem.39 a gauche. Place la Croix fermer à la place des 3 points. Bonne idée de fermer le menu avec imprimé et ajouter ligne. »
+- ‹ Sem. N › calé à **gauche** dans le menu (même bord que les lignes icône + libellé).
+- **"✕" à la place de "⋮"** : la croix posée dans le panneau est retirée ; c'est le bouton "⋮" lui-même qui affiche "✕" tant que le menu est ouvert (2 icônes dans le bouton, échangées en CSS sur la classe `.ouvert` déjà posée/retirée par le code existant). Plus besoin de réserver de place dans la 1re ligne du menu.
+- **Imprimer** et **Ajouter une ligne > Personnel/Intervenant** referment le menu (ils ouvrent une fenêtre par-dessus) ; tous les autres boutons du menu le laissent ouvert.
+
+Test à 21 vérifications (ajouts : "⋮" devient "✕" menu ouvert puis redevient "⋮", ‹ Sem. N › aligné à gauche, Imprimer et Ajouter une ligne referment le menu ; retrait de celles de l'ancienne croix du panneau) — 21/21 OK.

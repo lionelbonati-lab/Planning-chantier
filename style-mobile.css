@@ -115,108 +115,60 @@
     .switcher-item { width: 100%; padding: 11px 10px; font-size: 13.5px; border-radius: 9px; }
 
     /* -- Barre du haut retaillée --------------------------------------
-       Les 6 séparateurs d'origine gardent leur `order` pour le calcul
-       desktop/tablette (cf. #toolbarSecondaire dans style.css) mais n'ont
-       plus leur place ici : masqués, remplacés par les séparateurs dédiés
-       .toolbar-separateur-mobile (posés aux bons endroits dans le HTML,
-       cf. htmlPagePlanning). */
-    .toolbar-sheets .toolbar-separateur:not(.toolbar-separateur-mobile) { display: none; }
-    .toolbar-separateur-mobile { display: block; }
+       Round du 24.09.2026 (suite 3) — Lionel, à la refonte de la barre
+       desktop/tablette : sur téléphone, « Menu ⋮ seulement », la barre
+       reste EXACTEMENT celle d'avant : Annuler/Refaire | Aujourd'hui,
+       pastille du chantier | "+" "⋮" (à droite). Tout le reste, "Ajouter une
+       ligne" compris, est déplacé d'office dans le panneau par
+       ajusterDebordementToolbar (grille-rendu.js, REPLIS_TELEPHONE) — plus
+       aucune règle CSS ne masque de groupe ici.
+
+       Le DOM suit l'ordre desktop (… Chantier, Aujourd'hui …) : `order`
+       remet Annuler/Refaire puis Aujourd'hui en tête, comme avant (tout le
+       reste à 0 garde l'ordre du DOM). Séparateurs (.sep-avant, style.css)
+       ajustés à ce nouvel ordre : aucun entre Aujourd'hui et la pastille,
+       un juste APRÈS la pastille (::after, et non ::before du "+" — celui-ci
+       est poussé à droite, le trait serait parti avec lui). */
+    #groupeAnnulerRefaire { order: -2; }
+    #groupeAujourdhui { order: -1; }
+    #legendeBarre > #groupeChantier::before { display: none; }
+    #legendeBarre > #groupeChantier::after {
+      content: ""; width: 1px; height: 22px; background: var(--border); margin: 0 8px; flex-shrink: 0;
+    }
     /* "+" et "⋮" poussés à l'extrémité droite de la barre (Lionel,
        mockup : les 2 boutons les plus utilisés/le menu restent groupés à
-       droite) — sans effet sur desktop/tablette (cf. style.css, classe non
-       définie là-bas). */
+       droite). "⋮" collé au "+" : son margin-left:auto desktop (style.css)
+       partagerait sinon l'espace libre avec celui du "+". */
     .toolbar-groupe-droite { margin-left: auto; }
-    #btnPlusOutils { display: grid; }
+    #legendeBarre.toolbar-compacte #btnPlusOutils { margin-left: 0; }
     /* Bug signalé par Lionel (round du 22.09.2026, suite ×3) : le menu
        déroulant "+" (#menuAjoutElement, .outil-menu-panneau) reste ancré à
        gauche de son bouton (left:0, cf. style.css) — correct quand le
        bouton est en milieu de barre, mais depuis que .toolbar-groupe-droite
        le pousse à l'extrémité droite de l'écran (règle ci-dessus), ce
-       panneau de 190px de large débordait hors du viewport à droite.
-       Seul ce panneau change d'ancrage (right:0 au lieu de left:0) — celui
-       de #menuAjoutLigne, resté à sa place dans la barre desktop/tablette
-       et déplacé dans le panneau "⋮" ici, n'est pas concerné. */
+       panneau de 190px de large débordait hors du viewport à droite. */
     .toolbar-groupe-droite .outil-menu-panneau { left: auto; right: 0; }
     /* Chantier réduit à sa seule pastille de couleur (Lionel : « chantier
        visible mais seulement la pastille de couleur ») — .nom-chantier/
        .caret restent dans le HTML (construireSelectChantier les cible à
-       chaque rendu, cf. grille-rendu.js) mais deviennent invisibles ; le
-       bouton retrouve le même gabarit 30×30 que les autres icônes de la
-       barre pour un alignement cohérent. */
-    .select-chantier-btn { width: 30px; height: 30px; padding: 0; justify-content: center; border-radius: 7px; }
+       chaque rendu) mais deviennent invisibles ; bouton 30×30 comme les
+       autres icônes. Round du 24.09.2026 (suite 3) : l'habillage "pilule"
+       desktop (fond blanc, contour, cf. style.css) est neutralisé ici —
+       barre téléphone inchangée. */
+    .select-chantier-btn { width: 30px; height: 30px; padding: 0; justify-content: center; border-radius: 7px; border-color: transparent; background: none; }
+    .select-chantier-btn:hover, .select-chantier.ouvert .select-chantier-btn { background: var(--surface-2); border-color: var(--border); color: var(--ink); }
     .select-chantier-btn .nom-chantier, .select-chantier-btn .caret { display: none; }
     .select-chantier-btn .swatch { width: 14px; height: 14px; border-radius: 50%; }
 
     /* -- Panneau "⋮" (#toolbarSecondaire) -----------------------------
-       display:contents (style.css, valable desktop/tablette/téléphone par
-       défaut) est ici entièrement remplacé : conteneur réel, ancré sous
-       .toolbar-sheets (position:sticky = containing block de ses
-       descendants absolus, même principe que .switcher-panneau plus haut),
-       masqué tant que .ouvert n'est pas posée par cablerPagePlanning
-       (#btnPlusOutils). */
-    .toolbar-secondaire {
-      display: none;
-    }
-    .toolbar-secondaire.ouvert {
-      display: flex; flex-direction: column; gap: 2px;
-      position: absolute; left: 8px; right: 8px; top: calc(100% + 6px); z-index: 41;
-      background: var(--surface-2); border: 1px solid var(--border); border-radius: 14px;
-      box-shadow: 0 10px 28px var(--shadow-lg); padding: 6px;
-      max-height: 70vh; overflow-y: auto;
-    }
-    /* Séparateurs internes du panneau : reprennent .toolbar-separateur-mobile
-       mais en trait HORIZONTAL (barre du haut = trait vertical entre
-       icônes ; ici = ligne entre sections d'une liste verticale). */
-    .toolbar-secondaire .toolbar-separateur-mobile { width: auto; height: 1px; margin: 4px 2px; }
-    /* Chaque groupe devient une ligne pleine largeur (au lieu d'un cluster
-       compact d'icônes 30×30) — même gabarit que .switcher-item/
-       .outil-menu-item pour une liste cohérente dans toute l'appli. */
-    /* flex-direction:column — sans quoi un groupe à PLUSIEURS boutons
-       (ex. #controlesAffichage, ses 4 icônes masquer/afficher) resterait
-       aligné en ligne (comportement par défaut de .toolbar-groupe, adapté
-       à la barre horizontale desktop) au lieu de former 4 lignes distinctes
-       dans cette liste verticale ; sans effet sur les groupes à un seul
-       bouton (Imprimer, 2 semaines, Ajouter une ligne, Zoom). */
-    .toolbar-secondaire .toolbar-groupe { width: 100%; flex-direction: column; align-items: stretch; gap: 2px; }
-    /* Bug signalé par Lionel (round du 22.09.2026, suite ×3) : "les 4
-       boutons d'affichage des groupes sont trop gros". Cause : .toolbar-btn/
-       .toolbar-toggle (style.css) sont display:grid;place-items:center —
-       pensés pour un carré icône seule (30×30) sur la barre desktop. Cette
-       règle ne redéfinissait que width/height/padding, jamais `display` :
-       une grille implicite à une seule colonne empile alors icône/libellé/
-       coche chacun sur sa propre ligne au lieu d'un rang horizontal, d'où
-       des lignes de 84px de haut au lieu d'environ 40px (mesuré en local).
-       `display: flex` restaure un rang unique icône—libellé—coche, comme
-       .outils-item dans le mockup validé. */
-    .toolbar-secondaire .toolbar-btn, .toolbar-secondaire .toolbar-toggle {
-      display: flex; align-items: center;
-      width: 100%; height: auto; justify-content: flex-start; gap: 10px;
-      padding: 10px 8px; border-radius: 9px; font-size: 13.5px; font-weight: 600; color: var(--ink);
-    }
-    .toolbar-secondaire .toolbar-btn svg, .toolbar-secondaire .toolbar-toggle svg { width: 15px; height: 15px; flex-shrink: 0; }
-    /* .toolbar-toggle.actif (Jalons/Notes/Personnel/Intervenants, cf.
-       majControlesAffichage) teinte déjà l'icône via les règles existantes
-       de style.css (.toolbar-toggle.actif[data-affichage-cible=...]),
-       inchangées ici — seuls le libellé et la coche deviennent visibles. */
-    .toolbar-btn-label, .zoom-secondaire-label { display: inline; }
-    .toolbar-btn-coche { display: inline; margin-left: auto; color: var(--accent); font-size: 12px; visibility: hidden; flex-shrink: 0; }
-    .toolbar-toggle.actif .toolbar-btn-coche, .toolbar-btn.actif .toolbar-btn-coche { visibility: visible; }
-    /* #btnDeuxSemaines utilise .toolbar-btn.actif (cf. majSemaineAffichage,
-       style.css) plutôt que .toolbar-toggle.desactive (2 modes valides, pas
-       un masquage — cf. le commentaire de .toolbar-btn.actif, style.css) :
-       même teinte accent que les .outil-menu-item actifs, pour un panneau
-       visuellement cohérent. */
-    .toolbar-secondaire .toolbar-btn.actif { background: var(--accent-soft); color: var(--accent); }
-    /* Ligne "Zoom" : libellé à gauche, mini-contrôles (−/pill/+, déjà
-       existants et câblés, cf. cablerPagePlanning) poussés à droite par le
-       même margin-right:auto que .outils-item-nom du mockup. */
-    .toolbar-secondaire .zoom-ctrl { width: 100%; padding: 10px 8px; gap: 6px; }
-    .zoom-secondaire-label { margin-right: auto; font-size: 13.5px; font-weight: 600; color: var(--ink); }
-    .toolbar-secondaire .zoom-btn { width: 26px; height: 26px; border: 1px solid var(--border); border-radius: 6px; flex-shrink: 0; }
-    /* #menuAjoutLigne garde son propre sous-menu déroulant (.outil-menu-panneau,
-       cf. style.css) — inchangé, simplement ancré sous sa ligne à
-       l'intérieur de ce panneau plutôt que sous une icône compacte. */
+       Habillage commun dans style.css (round du 24.09.2026, suite 3 —
+       auparavant dupliqué ici). Seule la géométrie diffère : feuille
+       pleine largeur sous la barre (position:sticky de .toolbar-sheets =
+       containing block, même principe que .switcher-panneau plus haut)
+       plutôt qu'un dropdown ancré à droite. #menuAjoutLigne y garde son
+       propre sous-menu déroulant (.outil-menu-panneau), simplement ancré
+       sous sa ligne. */
+    .toolbar-secondaire.ouvert { left: 8px; right: 8px; min-width: 0; }
 
     /* -- Espace réservé en bas de chaque page, sous la barre fixe -------
        .nav-bas (position:fixed, ~56px + zone encoche) n'occupe aucune
@@ -234,12 +186,13 @@
        js/grille-rendu.js — inline style, une media query CSS ne pourrait de
        toute façon pas la emporter dessus) ; ici on échange seulement lequel
        des 2 boutons "Afficher 2 semaines"/"1 semaine" est visible.
-       #groupeDeuxSemaines (ID, l'emporte sur .toolbar-groupe.mobile-seulement
-       de style.css quelle que soit la cascade) : son rôle usuel (1/2
-       semaines) ne fait plus sens une fois la largeur de colonnes pilotée
-       par vueJourMobile sur téléphone — remplacé ici par
-       #groupeVueJourMobile (display:flex, comme .toolbar-groupe de base,
-       pour un rendu identique aux autres groupes du panneau "⋮"). */
-    #groupeDeuxSemaines { display: none; }
-    .toolbar-groupe.mobile-seulement { display: flex; }
+       #btnDeuxSemaines : son rôle usuel (1/2 semaines) ne fait plus sens
+       une fois la largeur de colonnes pilotée par vueJourMobile sur
+       téléphone — remplacé ici par #btnVueJourMobile (display:flex, même
+       ligne icône—libellé—coche que les autres boutons du panneau "⋮").
+       Round du 24.09.2026 (suite 3) : 2 boutons du même groupe
+       (#groupeNavSemaine) au lieu de 2 groupes voisins — sélecteurs d'id,
+       qui l'emportent sur `.toolbar-secondaire .toolbar-btn` de style.css. */
+    #btnDeuxSemaines { display: none; }
+    #btnVueJourMobile { display: flex; }
   }
