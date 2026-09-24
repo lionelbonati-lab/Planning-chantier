@@ -7256,10 +7256,11 @@ Lionel : « Propose moi une version mobile de la page des feriés », puis « en
 - **aussi sur ordinateur** : un compteur de modifications non enregistrées sur Enregistrer (`diffFeries`, également utilisé par Enregistrer lui-même). Le tableau annuel est inchangé.
 
 Vérifié en local (Playwright) :
-- **`test_weekend_vendredi.js`** (nouveau), 8 vérifications, toutes OK. En modes compact et classique, week-ends affichés puis masqués :
+- **`test_weekend_vendredi.js`** (nouveau), 4 vérifications, toutes OK. 2 semaines affichées, week-ends affichés puis masqués :
   - bulles du vendredi au ras du vendredi ;
   - note vendredi → lundi jusqu'au lundi ;
-  - sur l'ancien code : 2 échecs (week-ends affichés, dans les 2 modes).
+  - sur l'ancien code : échec avec les week-ends affichés ;
+  - un seul mode d'affichage testé : l'ancien mode « classique » n'existe plus (Lionel : « Le mode classique n'existe plus. le seul mode est celui actuel, anciennement compact »).
 - **`test_feries_mobile.js`** (nouveau), 16 vérifications, toutes OK. Téléphone 390px tactile :
   - 12 cartes à la place du tableau, pas de défilement de côté, cases de 44px ;
   - septembre commence un mardi ;

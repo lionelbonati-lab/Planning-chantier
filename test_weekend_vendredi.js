@@ -7,8 +7,9 @@ const fs = require('fs');
 // d'une bulle était « le début du jour ouvré suivant » ; pour un vendredi,
 // c'est le lundi, placé APRÈS les colonnes Samedi/Dimanche (cf.
 // spanColonnes, js/grille-rendu.js). Date figée au jeudi 24.09.2026,
-// week-ends affichés, en mode compact (demi-journées côte à côte) puis
-// classique :
+// 2 semaines affichées, week-ends affichés puis masqués (seul mode
+// d'affichage de la grille, demi-journées côte à côte — l'ancien mode
+// « classique » n'existe plus) :
 //   - tâche du vendredi 25, jalon du vendredi après-midi, note du vendredi,
 //     tâche jeudi → vendredi : bord droit = bord droit du vendredi ;
 //   - note vendredi 25 → lundi 28 : traverse bien le week-end jusqu'au
@@ -134,16 +135,14 @@ const journee = (date, texte, extra) => [tache(date, 'matin', texte, extra), tac
   await page.evaluate(() => basculerDeuxSemaines());
   await page.waitForTimeout(500);
   const proche = (a, b) => a != null && b != null && Math.abs(a - b) <= 3;
-  for (const compact of [true, false]) {
-    for (const we of [true, false]) {
-      await page.evaluate((o) => { modeCompact = o.compact; afficherWeekends = o.we; render(false); }, { compact, we });
-      await page.waitForTimeout(200);
-      const m = await mesurer();
-      const cadre = (compact ? 'compact' : 'classique') + ', week-ends ' + (we ? 'affichés' : 'masqués');
-      verifier(['Vendredi', 'JeuVen', 'JalonAprem'].every((k) => proche(m[k], m.ven)),
-        cadre + ' : bulles du vendredi au ras du vendredi (' + m.ven + ' ; tâche ' + m.Vendredi + ', jeu→ven ' + m.JeuVen + ', jalon ' + m.JalonAprem + ')');
-      verifier(proche(m.Pont, m.lun), cadre + ' : note vendredi → lundi jusqu\'au lundi (' + m.Pont + ' / ' + m.lun + ')');
-    }
+  for (const we of [true, false]) {
+    await page.evaluate((w) => { afficherWeekends = w; render(false); }, we);
+    await page.waitForTimeout(200);
+    const m = await mesurer();
+    const cadre = 'week-ends ' + (we ? 'affichés' : 'masqués');
+    verifier(['Vendredi', 'JeuVen', 'JalonAprem'].every((k) => proche(m[k], m.ven)),
+      cadre + ' : bulles du vendredi au ras du vendredi (' + m.ven + ' ; tâche ' + m.Vendredi + ', jeu→ven ' + m.JeuVen + ', jalon ' + m.JalonAprem + ')');
+    verifier(proche(m.Pont, m.lun), cadre + ' : note vendredi → lundi jusqu\'au lundi (' + m.Pont + ' / ' + m.lun + ')');
   }
 
   if (erreurs.length) { echecs++; console.error('ERREURS JS : ' + JSON.stringify(erreurs, null, 2)); }
