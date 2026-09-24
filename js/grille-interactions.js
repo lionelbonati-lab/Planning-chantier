@@ -253,12 +253,14 @@
       // site du même problème — désormais PARTAGÉ avec le rendu statique
       // (cf. sa définition, juste après spanColonnes ci-dessus) pour que
       // les deux ne puissent plus jamais diverger.
+      //
+      // Round du 24.09.2026 (suite 21) : l'aperçu dessine désormais EXACTEMENT
+      // les bords calculés (demiDebutPrevisu/demiFinPrevisu), plus le bord
+      // d'origine du côté fixe — demiPourRedimNote peut maintenant retoucher
+      // les 2 bords quand il ne reste qu'un jour (cf. son en-tête), et
+      // l'aperçu doit montrer ce que le lâcher enregistrera.
       function appliquerPrevisu() {
-        var giAff = (cote === "droite") ? giDebutOrig : giDebutPrevisu;
-        var giFinAff = (cote === "droite") ? (giDebutPrevisu + dureePrevisu) : giFinExclusifFixe;
-        var demiDebAff = (cote === "droite") ? demiDebutOrig : demiDebutPrevisu;
-        var demiFinAff = (cote === "droite") ? demiFinPrevisu : demiFinOrig;
-        var cs = colonneEtSpanDemi(giAff, giFinAff - giAff, demiDebAff, demiFinAff);
+        var cs = colonneEtSpanDemi(giDebutPrevisu, dureePrevisu, demiDebutPrevisu, demiFinPrevisu);
         bulleDom.style.gridColumn = cs[0] + " / span " + cs[1];
       }
       function armer() { arme = true; document.body.classList.add("en-glissement"); handleEl.classList.add("actif"); }
@@ -608,6 +610,62 @@
       });
       return out.length ? out : null;
     }
+    // Glisser GROUPÉ par demi-journée à la souris (round du 24.09.2026,
+    // suite 21 — Lionel : « Lors d'une sélection multiple je ne peux pas
+    // glisser déposer par demi-journée. »). Jusqu'ici, un groupe ne se
+    // décalait que de jours ENTIERS (appliquerDelta), alors qu'une bulle
+    // seule suit le pointeur demi-journée par demi-journée
+    // (bordsDeplacementNoteMultiJours). La question laissée ouverte au
+    // round du 03.09.2026 (« laquelle des bulles sélectionnées la position
+    // du relâchement concerne-t-elle ? ») a une réponse naturelle : celle
+    // qu'on tient. Sa nouvelle position est calculée EXACTEMENT comme pour
+    // une bulle seule (même offsetHalvesClic, même demi sous le pointeur) ;
+    // l'écart obtenu, en demi-journées, est ensuite appliqué tel quel à
+    // toutes les autres — comme les flèches de la pilule (decalerSelection)
+    // qui décalent déjà un groupe d'une demi-journée. Butée : l'écart est
+    // réduit pour qu'aucune bulle ne sorte de la fenêtre chargée, pour que
+    // le groupe garde sa forme. Renvoie null (repli sur le jour entier,
+    // inchangé) au doigt, pour une bulle seule, ou quand le pointeur ou la
+    // bulle tenue est sur un week-end (une seule case par personne). Les
+    // bulles de week-end du groupe restent en place (même règle que
+    // decalerSelection).
+    function deltaDemisGroupe(cible, clientX) {
+      if (tactile || groupeIds.length < 2 || clientX == null || !cible) return null;
+      var giBrut = +cible.dataset.jour;
+      if (estGiWeekend(giBrut) || estGiWeekend(itemClic.giDebut)) return null;
+      var nTotal = nbJoursAffiches();
+      var dd = itemClic.demiDebut || null, df = itemClic.demiFin || null;
+      var b = bordsDeplacementNoteMultiJours(itemClic.giDebut, itemClic.duree, dd, df, offsetHalvesClic, giBrut, demiDepuisPointeur(cible, clientX), nTotal);
+      var dh = demiSlotsDepuisBornes(b.giDebut, b.duree, b.demiDebut, b.demiFin).halfStart - demiSlotsDepuisBornes(itemClic.giDebut, itemClic.duree, dd, df).halfStart;
+      var dhMin = -Infinity, dhMax = Infinity;
+      groupeIds.forEach(function (id) {
+        var plage = itemParId(id);
+        if (!plage || estGiWeekend(plage.item.giDebut)) return;
+        var sl = demiSlotsDepuisBornes(plage.item.giDebut, plage.item.duree, plage.item.demiDebut || null, plage.item.demiFin || null);
+        dhMin = Math.max(dhMin, -sl.halfStart);
+        dhMax = Math.min(dhMax, nTotal * 2 - 1 - sl.halfFinIncl);
+      });
+      return Math.max(dhMin, Math.min(dhMax, dh));
+    }
+    // Nouvelle forme d'une bulle décalée de `dh` demi-journées (cf.
+    // deltaDemisGroupe) — partagée par l'aperçu et le dépôt.
+    function formeDecaleeDemis(it, dh) {
+      var sl = demiSlotsDepuisBornes(it.giDebut, it.duree, it.demiDebut || null, it.demiFin || null);
+      return bornesDepuisDemiSlots(sl.halfStart + dh, sl.halfFinIncl + dh);
+    }
+    function previsionsDemisGroupe(dh) {
+      var out = [];
+      groupeIds.forEach(function (id) {
+        var plage = itemParId(id);
+        if (!plage || estGiWeekend(plage.item.giDebut)) return;
+        var ligne = ligneDeBulle(id);
+        if (!ligne) return;
+        var f = formeDecaleeDemis(plage.item, dh);
+        f.gridRow = ligne.gridRow; f.parent = ligne.parent;
+        out.push(f);
+      });
+      return out;
+    }
     // Ligne de grille (celle de ses .cell, toutes pistes comprises) d'une
     // bulle du groupe : la bulle elle-même est posée sur UNE piste
     // (row + _piste), la surbrillance doit couvrir toute la ligne comme dans
@@ -671,6 +729,14 @@
         // de la bulle).
         poserSurlignagePrecis(precis, cible.style.gridRow, bulleDom.parentElement);
         return;
+      }
+      var dhGroupe = deltaDemisGroupe(cible, clientX);
+      if (dhGroupe !== null) {
+        var prevDemis = previsionsDemisGroupe(dhGroupe);
+        if (prevDemis.length) {
+          prevDemis.forEach(function (p) { poserSurlignagePrecis(p, p.gridRow, p.parent); });
+          return;
+        }
       }
       var previsions = previsionsJourEntier(cible);
       if (previsions) {
@@ -823,6 +889,34 @@
       var msgDelta = (copieFinale ? "Copié (" : "Déplacé (") + nb + ").";
       if (!rendreAvecPorteeSerie("deplacer", msgDelta)) toast(msgDelta);
     }
+    // Variante demi-journée d'appliquerDelta pour un groupe glissé à la
+    // souris (round du 24.09.2026, suite 21, cf. deltaDemisGroupe) : chaque
+    // bulle est décalée de `dh` demi-journées et retombe sur sa forme
+    // canonique (bornesDepuisDemiSlots) — même résultat que les flèches de
+    // la pilule répétées `dh` fois. Bulles de week-end laissées en place.
+    function appliquerDeltaDemisGroupe(dh, copieFinale) {
+      nettoyerFantomes();
+      sauvegarderUndo();
+      var nb = 0;
+      groupeIds.forEach(function (id) {
+        var plage = itemParId(id);
+        if (!plage || estGiWeekend(plage.item.giDebut)) return;
+        var it = plage.item;
+        var f = formeDecaleeDemis(it, dh);
+        if (copieFinale) {
+          if (plage.liste === TACHES) plage.liste.push(itemPlageTache(it.type, it.texte, it.personneId, f.giDebut, f.duree, { important: it.important, chantier: it.chantier, statut: it.statut, demiDebut: f.demiDebut, demiFin: f.demiFin }));
+          else plage.liste.push(itemPlage(it.type, it.texte, f.giDebut, f.duree, { important: it.important, demiDebut: f.demiDebut, demiFin: f.demiFin }));
+        } else {
+          it.giDebut = f.giDebut; it.duree = f.duree;
+          it.demiDebut = f.demiDebut; it.demiFin = f.demiFin;
+          it.dateDebutIso = isoDeGi(it.giDebut);
+        }
+        nb++;
+      });
+      quitterModeSelection();
+      var msgDemis = (copieFinale ? "Copié (" : "Déplacé (") + nb + ").";
+      if (!rendreAvecPorteeSerie("deplacer", msgDemis)) toast(msgDemis);
+    }
     // NOTE seule, glissée à la souris (round du 03.09.2026, signalé par
     // Lionel : "les notes sont toujours pas extensible ni déplaçable en
     // demi journée") : variante de appliquerDelta ci-dessus qui pose EN
@@ -933,6 +1027,14 @@
         return;
       }
       if (estGiWeekend(giCibleBrut)) { nettoyerFantomes(); render(false); return; }
+      // Groupe glissé à la souris : par demi-journée (suite 21, cf.
+      // deltaDemisGroupe) — le même calcul que l'aperçu de survol.
+      var dhGroupeFinal = deltaDemisGroupe(celluleCible, clientXFinal);
+      if (dhGroupeFinal !== null) {
+        if (!dhGroupeFinal) { nettoyerFantomes(); render(false); return; }
+        appliquerDeltaDemisGroupe(dhGroupeFinal, copieActuelle);
+        return;
+      }
       var delta = giCibleBrut - offsetJoursClic - itemClic.giDebut;
       // NOTE ou JALON seul, glissé à la souris (round du 03.09.2026, signalé
       // par Lionel : "les notes sont toujours pas extensible ni déplaçable en

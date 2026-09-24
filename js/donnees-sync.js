@@ -1724,6 +1724,30 @@
     });
     chaine.then(function () {
       occupe(false);
+      // Round du 24.09.2026 (suite 21) — Lionel : « J'ai réussi a produire un
+      // bug ou des cellules paraissent sélectionné alors que non. Plusieurs
+      // déplacement avec les boutons gauche/droite de la barre de sélection
+      // ont causé ce bug. » Chaque clic sur une flèche modifie l'état local
+      // puis appelle synchroniser() ; le 2e clic tombait PENDANT l'écriture
+      // du 1er (syncRelance = true). AVANT ce correctif, la fin de l'écriture
+      // relisait le serveur (construireVueDepuisCache) AVANT de relancer :
+      // cette relecture écrasait l'état local du 2e/3e clic par ce que le
+      // serveur savait (1er clic seulement) — la relance ne trouvait alors
+      // plus aucune différence, ne rendait jamais la grille, et le DOM
+      // gardait des bulles aux anciens ids encore marquées .selectionnee
+      // alors que bullesSelectionnees venait d'être vidé : déplacements
+      // perdus ET faux anneaux bleus. Désormais : ce qu'on vient d'écrire
+      // devient la nouvelle référence (syncBaseline = local, l'état exact
+      // qu'on a diffé au départ) et la relance n'envoie QUE les changements
+      // faits entre-temps — la relecture du serveur n'a lieu qu'une fois
+      // plus rien ne reste à écrire.
+      syncBaseline = local;
+      if (syncRelance) {
+        syncRelance = false;
+        syncEnCours = false;
+        synchroniser();
+        if (syncEnCours) return;   // une nouvelle écriture part : c'est elle qui relira
+      }
       syncEnCours = false;
       // Ni enregistrer-plage ni apiEnregistrerCellulePersonne (une fois
       // portée) ne renvoient plus la semaine entière rafraîchie (contrairement
@@ -1736,9 +1760,12 @@
       oublierCache();
       differerSiEnGlissement(function () {
         assurerFenetreChargee(function () {
+          // Une écriture repartie pendant cette relecture (geste fait entre
+          // la fin de l'écriture et la réponse du serveur) : ne pas écraser
+          // son état local, c'est elle qui relira à son tour (cf. ci-dessus).
+          if (syncEnCours) return;
           construireVueDepuisCache();
-          if (syncRelance) { syncRelance = false; synchroniser(); }
-          else render(false);
+          render(false);
         });
       });
     }).catch(function (err) {
