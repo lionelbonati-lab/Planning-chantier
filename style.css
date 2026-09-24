@@ -399,9 +399,28 @@
        commentaire dans :root) : lit --accent-soft directement, sans réglage
        indépendant possible (Lionel : « elle doit toujours garder celle du
        thème »). */
-    position: sticky; z-index: 39; background: var(--accent-soft);
+    position: sticky; z-index: 39;
     border-radius: 999px;
   }
+  /* Bandeau couleur de fond derrière la barre collée — round du 24.09.2026
+     (suite 4). La barre se colle désormais à sa position de repos, un peu
+     sous le haut de l'écran (cf. ajusterEnteteFixe, grille-rendu.js, qui
+     pose --ecart-haut = cet écart) : sans ce bandeau, la grille défilerait
+     visiblement dans l'espace au-dessus d'elle, et dans les coins laissés
+     par ses bords arrondis. Même rôle que le background + padding-top de
+     .entete-planning-figee juste en dessous de la barre.
+     Le fond "pilule" (--accent-soft, arrondi) passe du coup sur ::after :
+     un pseudo-élément en z-index:-1 se peint AU-DESSUS du fond propre de
+     son parent (qui ouvre le contexte d'empilement, z-index:39) — laissé
+     sur .toolbar-sheets, ce fond aurait été recouvert par le bandeau
+     (repéré en testant : barre devenue blanche). Les 2 pseudo-éléments
+     sont à z-index:-1, ::after peint après ::before donc par-dessus, et
+     tous deux sous les boutons, au-dessus de la grille. */
+  .toolbar-sheets::before, .toolbar-sheets::after {
+    content: ""; position: absolute; z-index: -1; left: 0; right: 0; bottom: 0; top: 0;
+  }
+  .toolbar-sheets::before { top: calc(-1 * var(--ecart-haut, 0px)); background: var(--bg); }
+  .toolbar-sheets::after { background: var(--accent-soft); border-radius: inherit; }
   /* flex-shrink:0 — round du 24.09.2026. Lionel : « lors du rétrécissement
      de l'écran, certain élément de la toolbar se chevauchent » (capture :
      « 26182 - Terrain de Padel » recouvert par les 4 icônes masquer/

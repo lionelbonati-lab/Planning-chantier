@@ -136,16 +136,39 @@
   // l'onglet Planning via RENDU_PAR_PAGE, redimensionnement de fenêtre)
   // qui couvrent tous les cas où cette mesure doit être refaite pendant que
   // la page est effectivement visible.
+  //
+  // Round du 24.09.2026 (suite 4) — Lionel, captures téléphone à l'appui :
+  // « Sur mobile la partie au dessus de note doit rester fixe. Actuellement
+  // elle monte de quelques pixel lors d'un défilement ». Root cause : le top
+  // sticky valait la hauteur de .onglets-nav seule, alors qu'au repos la
+  // barre est posée PLUS BAS — padding-top de .page-scroll (6px), plus le
+  // margin-bottom de .onglets-nav (4px) sur desktop. Dès les premiers pixels
+  // de défilement, barre ET en-tête remontaient donc de cet écart avant de se
+  // coller (mesuré : 6px sur téléphone, où .onglets-nav est masquée, 10px
+  // sur desktop/tablette). Le top sticky reprend maintenant la position
+  // NATURELLE de la barre (mesurée en la décollant un instant, position
+  // relative, sans repaint entre les deux) : collée exactement là où elle
+  // est au repos, elle ne bouge plus d'un pixel. L'écart au-dessus d'elle,
+  // qui laisserait désormais voir la grille défiler en dessous, est masqué
+  // par un bandeau couleur de fond (::before, hauteur --ecart-haut, cf.
+  // .toolbar-sheets dans style.css).
   function ajusterEnteteFixe() {
     var pagePlanning = document.getElementById("page-planning");
     if (!pagePlanning || !pagePlanning.classList.contains("actif")) return;
     var nav = document.querySelector(".onglets-nav");
     var legendeBarre = document.getElementById("legendeBarre");
-    if (!nav || !legendeBarre) return;
+    var conteneur = document.getElementById("app");
+    if (!nav || !legendeBarre || !conteneur) return;
     var hNav = nav.getBoundingClientRect().height;
-    legendeBarre.style.top = hNav + "px";
+    legendeBarre.style.position = "relative";
+    legendeBarre.style.top = "0px";
+    var haut = legendeBarre.getBoundingClientRect().top - conteneur.getBoundingClientRect().top - conteneur.clientTop + conteneur.scrollTop;
+    legendeBarre.style.position = "";
+    haut = Math.max(hNav, haut);
+    legendeBarre.style.top = haut + "px";
+    legendeBarre.style.setProperty("--ecart-haut", (haut - hNav) + "px");
     var entete = document.querySelector(".entete-planning-figee");
-    if (entete) entete.style.top = (hNav + legendeBarre.getBoundingClientRect().height) + "px";
+    if (entete) entete.style.top = (haut + legendeBarre.getBoundingClientRect().height) + "px";
   }
   // ajusterDebordementToolbar() — round du 23.09.2026 (suite ×12). Lionel :
   // « sur desktop/tablette, placer les éléments qui dépassent de la toolbar

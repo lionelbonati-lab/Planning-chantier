@@ -211,6 +211,32 @@ function mesurer() {
   await page.waitForTimeout(150);
   verifier(!(await ouvert()), 'Imprimer referme le menu');
 
+  // 7) Barre + en-tête de la grille parfaitement immobiles pendant le
+  //    défilement (round du 24.09.2026, suite 4 — Lionel : « Sur mobile la
+  //    partie au dessus de note doit rester fixe. Actuellement elle monte de
+  //    quelques pixel » : 6px sur téléphone, 10px sur desktop avant le fix).
+  //    Grille allongée (lignes ajoutées) pour qu'il y ait de quoi défiler.
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => {
+    document.querySelectorAll('.form-pop, .overlay, .print-sheet').forEach((el) => el.remove());
+    for (let i = 0; i < 16; i++) PERSONNES.push({ id: 900 + i, nom: 'Test ' + i, sousTraitant: i > 8 });
+    render(false);
+  });
+  for (const w of [390, 1200]) {
+    await largeur(w);
+    const positions = await page.evaluate(async () => {
+      const app = document.getElementById('app');
+      const mesure = () => [document.getElementById('legendeBarre'), document.querySelector('.entete-planning-figee')].map((el) => Math.round(el.getBoundingClientRect().top));
+      const out = [];
+      for (const s of [0, 3, 8, 40, 300]) { app.scrollTop = s; await new Promise((r) => requestAnimationFrame(r)); out.push({ s: app.scrollTop, pos: mesure() }); }
+      app.scrollTop = 0;
+      return out;
+    });
+    const ref = JSON.stringify(positions[0].pos);
+    verifier(positions[positions.length - 1].s > 40 && positions.every((p) => JSON.stringify(p.pos) === ref),
+      w + 'px : barre et en-tête immobiles au défilement ' + JSON.stringify(positions.map((p) => p.s + '→' + p.pos.join('/'))));
+  }
+
   if (erreurs.length) { echecs++; console.error('ERREURS JS : ' + JSON.stringify(erreurs, null, 2)); }
   console.log((total - echecs) + '/' + total + ' vérifications' + (echecs ? ' — ' + echecs + ' ÉCHEC(S)' : ' — OK'));
   await browser.close();
