@@ -179,8 +179,10 @@
       // Toujours dans la barre (jamais repliés, Lionel : « mode compact,
       // sur la barre, annuler/refaire | Chantier | Insertions », plus
       // "Aujourd'hui" qu'il veut « Toujours sur la barre ») : Annuler/Refaire,
-      // Chantier, Aujourd'hui, Ajouter une ligne + "+". Repliés de droite à
-      // gauche : Masquages, Zoom, Navigation (+ 2 semaines), Imprimer.
+      // Chantier, Aujourd'hui, Ajouter une ligne + "+". Ordre de repli :
+      // Zoom d'abord (round du 24.09.2026, suite 10 — Lionel : « c'est la
+      // moins utilisé des fonctions »), puis Masquages, Navigation
+      // (+ 2 semaines), Imprimer — cf. REPLIS_ORDRE, js/grille-rendu.js.
       // Téléphone (≤600px) : barre inchangée (Lionel : « Menu ⋮ seulement »),
       // tout le reste — Ajouter une ligne compris — toujours dans le panneau.
       '<div class="toolbar-sheets" id="legendeBarre">' +

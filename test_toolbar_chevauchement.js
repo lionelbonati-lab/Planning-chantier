@@ -99,9 +99,10 @@ function mesurer() {
   }
 
   // 1) Rétrécissement 1400 -> 320px : jamais de chevauchement ; les groupes
-  //    partent dans "⋮" un par un, de droite à gauche (round du 24.09.2026,
-  //    suite 3 — Lionel : Masquages, Zoom, Navigation, Imprimer).
-  const ORDRE_REPLI = ['controlesAffichage', 'groupeZoom', 'groupeNavSemaine', 'groupeImprimer'];
+  //    partent dans "⋮" un par un (round du 24.09.2026, suite 3), Zoom en
+  //    premier (suite 10 — Lionel : « c'est la moins utilisé des
+  //    fonctions »), puis Masquages, Navigation, Imprimer.
+  const ORDRE_REPLI = ['groupeZoom', 'controlesAffichage', 'groupeNavSemaine', 'groupeImprimer'];
   const TOUJOURS_BARRE = ['groupeAnnulerRefaire', 'groupeChantier', 'groupeAujourdhui', 'groupeAjoutElement'];
   let largeursOk = 0, nbLargeurs = 0, replis = [], ordreRespecte = true, toujoursLa = true;
   for (let w = 1400; w >= 320; w -= 10) {
@@ -119,7 +120,7 @@ function mesurer() {
     }
   }
   verifier(largeursOk === nbLargeurs, largeursOk + '/' + nbLargeurs + ' largeurs sans chevauchement ni bouton hors de la barre');
-  verifier(ordreRespecte, 'repli de droite à gauche, un groupe à la fois : ' + JSON.stringify(replis));
+  verifier(ordreRespecte, 'repli un groupe à la fois, Zoom en premier : ' + JSON.stringify(replis));
   verifier(toujoursLa, 'Annuler/Refaire, Chantier, Aujourd\'hui et "+" toujours dans la barre');
 
   // 2) Barre complète : ordre de Lionel « annuler/refaire | imprimer |

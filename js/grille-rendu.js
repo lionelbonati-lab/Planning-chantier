@@ -206,7 +206,17 @@
   // Téléphone (≤600px) : pas de mesure, barre fixe (Lionel : « Menu ⋮
   // seulement », barre inchangée) — tous les groupes repliables ET "Ajouter
   // une ligne" vont d'office dans le panneau, comme avant ce round.
-  var REPLIS_ORDRE = ["controlesAffichage", "groupeZoom", "groupeNavSemaine", "groupeImprimer"];
+  //
+  // Round du 24.09.2026 (suite 10) — Zoom replié EN PREMIER. Lionel :
+  // « placer le zoom en premier dans le menu 3points lors du rétrécissement,
+  // c'est la moins utilisé des fonctions ». L'ordre de repli n'est donc plus
+  // strictement de droite à gauche : Zoom (le moins utilisé) part d'abord,
+  // puis Masquages, Navigation, Imprimer. Seul l'ordre de REPLI change :
+  // l'ordre d'affichage dans le menu (data-rang-menu, « Imprimer > Zoom >
+  // Navigation semaine > … ») et celui de la barre restent ceux qu'il avait
+  // fixés — insererAuRang place chaque groupe replié à son rang, quel que
+  // soit le moment où il part.
+  var REPLIS_ORDRE = ["groupeZoom", "controlesAffichage", "groupeNavSemaine", "groupeImprimer"];
   var REPLIS_TELEPHONE = REPLIS_ORDRE.concat(["groupeAjoutLigne"]);
   // Insère `el` dans `conteneur` avant le premier enfant de rang supérieur
   // (data-rang ou data-rang-menu selon `cle`) — garde le DOM dans l'ordre
