@@ -402,7 +402,23 @@
     position: sticky; z-index: 39; background: var(--accent-soft);
     border-radius: 999px;
   }
-  .toolbar-groupe { display: flex; align-items: center; gap: 2px; }
+  /* flex-shrink:0 — round du 24.09.2026. Lionel : « lors du rétrécissement
+     de l'écran, certain élément de la toolbar se chevauchent » (capture :
+     « 26182 - Terrain de Padel » recouvert par les 4 icônes masquer/
+     afficher). Root cause : avec le flex-shrink:1 par défaut, dès que la
+     barre (nowrap) manquait de place, flexbox COMPRIMAIT les groupes
+     sous la largeur réelle de leur contenu — leur largeur minimale calculée
+     autorise le nom du chantier et la pilule "Sem. 39" à passer à la ligne,
+     alors que leurs boutons (flex-shrink:0, .select-chantier compris) ne
+     rétrécissent jamais. Le contenu débordait donc de son groupe PAR-DESSUS
+     le groupe voisin, sans jamais dépasser le bord droit de la barre :
+     scrollWidth restait égal à clientWidth et ajusterDebordementToolbar()
+     (grille-rendu.js) ne voyait aucun débordement — chevauchement mesuré
+     de ~960px à ~840px de large, jusqu'à ce que .toolbar-compacte finisse
+     par se déclencher. Groupes rigides : ce qui ne tient plus dépasse
+     réellement à droite, est détecté tout de suite et part dans le
+     menu "⋮". */
+  .toolbar-groupe { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
   /* Round du 23.09.2026 (suite 4) — .mobile-seulement (#groupeVueJourMobile,
      cf. js/coquille.js) : masqué par défaut ici (desktop/tablette, où
      #groupeDeuxSemaines garde seul son rôle habituel), réaffiché uniquement
