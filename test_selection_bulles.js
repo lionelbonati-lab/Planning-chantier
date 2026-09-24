@@ -24,6 +24,13 @@ const path = require('path');
 //      corbeille (confirmation, table relue) ;
 //   9) téléphone : la même pilule prend toute la largeur, à la place de la
 //      barre d'onglets.
+//  10) (suite 11 — Lionel : « la barre d'outils sélections doit s'afficher
+//      avant le relâcher de souris, dès que le délai d'appui est passé »)
+//      pendant l'appui long, bouton ENCORE enfoncé : bulle sélectionnée et
+//      pilule visible ; le relâchement ne change plus rien. Aussi : appui
+//      long sur la bulle déjà seule sélectionnée (elle le reste), glisser
+//      après l'appui long (emporte toute la sélection affichée), et appui
+//      long au doigt sur téléphone.
 //
 // Lancer : node test_selection_bulles.js
 
@@ -125,13 +132,20 @@ function lignes(date, demi, texte, extra) {
     await page.waitForTimeout(80);
   }
   // Appui long : pointeur posé sans bouger plus de DELAI_APPUI_LONG (450ms).
-  async function appuiLong(texte) {
+  // Renvoie l'état relevé PENDANT l'appui, bouton encore enfoncé (suite 11).
+  // `relacher` à false : le bouton reste enfoncé (pour glisser ensuite).
+  async function appuiLong(texte, relacher) {
     const r = await page.locator('.bulle:has-text("' + texte + '")').boundingBox();
     await page.mouse.move(r.x + r.width / 2, r.y + r.height / 2);
     await page.mouse.down();
-    await page.waitForTimeout(650);
+    await page.waitForTimeout(250);
+    const avantDelai = Object.assign(await mode(), { selection: await selection() });
+    await page.waitForTimeout(400);
+    const pendant = Object.assign(await mode(), { selection: await selection(), surbrillance: await surbrillance(), avantDelai: avantDelai });
+    if (relacher === false) return pendant;
     await page.mouse.up();
     await page.waitForTimeout(80);
+    return pendant;
   }
   const giDeLaSelection = () => page.evaluate(() => Object.keys(bullesSelectionnees).map((id) => itemParId(id).item.giDebut).join(','));
   const attendreSync = () => page.waitForTimeout(700);
@@ -164,9 +178,12 @@ function lignes(date, demi, texte, extra) {
   verifier(await selection() === '' && !m.actif && !m.panneau, 'Échap : sélection vidée, mode éteint');
 
   // 4) Appui long.
-  await appuiLong('A');
+  let pendant = await appuiLong('A');
+  verifier(pendant.avantDelai.selection === '' && !pendant.avantDelai.panneau, 'appui long sur A, avant le délai : rien de sélectionné, pas de pilule');
+  verifier(pendant.selection === 'A' && pendant.surbrillance === 'A' && pendant.actif && pendant.panneau && pendant.blocFleches && pendant.compte === '1',
+    'appui long sur A, délai passé, bouton ENCORE enfoncé : A entourée, pilule visible (mode multiple, compteur 1)');
   m = await mode();
-  verifier(await selection() === 'A' && m.actif && m.panneau && m.blocFleches && m.compte === '1', 'appui long sur A : mode multiple allumé, flèches visibles, compteur 1');
+  verifier(await selection() === 'A' && m.actif && m.panneau && m.blocFleches && m.compte === '1', 'relâchement : rien ne change (A toujours sélectionnée, mode multiple)');
   await clic('C');
   m = await mode();
   verifier(await selection() === 'A,C' && m.compte === '2', 'en mode multiple, les clics s\'ajoutent : A,C (compteur 2)');
@@ -257,6 +274,46 @@ function lignes(date, demi, texte, extra) {
   await attendreSync();
   verifier(await bd('A') === '' && await page.evaluate(() => !TACHES.some((t) => t.texte === 'A')), 'A supprimée (table relue)');
 
+  // 10) Suite 11 : appui long sur la bulle déjà seule sélectionnée (mode
+  //     simple) -> elle reste sélectionnée, le mode multiple s'allume.
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(80);
+  await clic('B');
+  pendant = await appuiLong('B');
+  m = await mode();
+  verifier(pendant.selection === 'B' && pendant.panneau && pendant.actif && await selection() === 'B' && m.actif && m.panneau,
+    'appui long sur B déjà sélectionnée : B reste sélectionnée, mode multiple allumé, pilule jamais cachée');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(80);
+  //     Glisser après l'appui long : C sélectionnée (Ctrl+clic), appui long
+  //     sur B puis glisser d'un jour vers la gauche -> B ET C reculent d'un
+  //     jour (toute la sélection affichée pendant l'appui).
+  await clic('C', ['Control']);
+  const bB = await page.locator('.bulle:has-text("B")').boundingBox();
+  const colonne = await page.evaluate(() => {
+    const c = (j) => document.querySelector('.cell[data-kind="personne"][data-personne="1"][data-jour="' + j + '"][data-demi="matin"]').getBoundingClientRect();
+    return c(2).left - c(1).left;
+  });
+  const formeBAvant = await forme('B'), formeCAvant = await forme('C');
+  pendant = await appuiLong('B', false);
+  verifier(pendant.selection === 'B,C' && pendant.compte === '2' && pendant.panneau, 'appui long sur B (C déjà choisie), bouton enfoncé : B,C sélectionnées, compteur 2');
+  const x0 = bB.x + bB.width / 2, y0 = bB.y + bB.height / 2;
+  for (let i = 1; i <= 8; i++) { await page.mouse.move(x0 - colonne * i / 8, y0); await page.waitForTimeout(30); }
+  const fantomes = await page.evaluate(() => document.querySelectorAll('.fantome-glisse').length);
+  await page.mouse.up();
+  await attendreSync();
+  const recule = (f) => { const p = f.split('/'); p[0] = String(+p[0] - 1); return p.join('/'); };
+  verifier(fantomes === 2, 'glisser après l\'appui long : 2 fantômes (B et C) suivent le pointeur');
+  verifier(await forme('B') === recule(formeBAvant) && await forme('C') === recule(formeCAvant),
+    'B et C reculées d\'un jour ensemble : B ' + formeBAvant + ' -> ' + await forme('B') + ', C ' + formeCAvant + ' -> ' + await forme('C'));
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(80);
+  // Ctrl+Z : le glisser groupé s'annule d'un coup (et remet C le jeudi,
+  // jour affiché sur téléphone pour la section 9).
+  await page.keyboard.press('Control+z');
+  await attendreSync();
+  verifier(await forme('B') === formeBAvant && await forme('C') === formeCAvant, 'Ctrl+Z : B et C reviennent ensemble (' + await forme('B') + ', ' + await forme('C') + ')');
+
   // 9) Téléphone : pilule en bas à la place de la barre d'onglets.
   await page.setViewportSize({ width: 390, height: 800 });
   await page.waitForTimeout(600);
@@ -271,6 +328,20 @@ function lignes(date, demi, texte, extra) {
   await page.click('#selFermer');
   await page.waitForTimeout(80);
   verifier(await page.evaluate(() => getComputedStyle(document.querySelector('.nav-bas')).display) !== 'none', 'téléphone : barre d\'onglets de retour après ✕');
+  // Suite 11 : appui long AU DOIGT — pilule visible avant de lever le doigt.
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
+  const bC = await page.locator('.bulle:has-text("C"):visible').first().boundingBox();
+  const doigt = [{ x: bC.x + bC.width / 2, y: bC.y + bC.height / 2 }];
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: doigt });
+  await page.waitForTimeout(650);
+  const pendantDoigt = Object.assign(await mode(), { selection: await selection() });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await page.waitForTimeout(100);
+  m = await mode();
+  verifier(pendantDoigt.selection === 'C' && pendantDoigt.panneau && pendantDoigt.actif && pendantDoigt.corps,
+    'téléphone, appui long au doigt : C sélectionnée et pilule affichée AVANT de lever le doigt');
+  verifier(await selection() === 'C' && m.panneau && m.actif, 'doigt levé : C toujours sélectionnée, mode multiple');
 
   if (erreurs.length) { echecs++; console.error('ERREURS JS : ' + JSON.stringify(erreurs, null, 2)); }
   console.log((total - echecs) + '/' + total + ' vérifications' + (echecs ? ' — ' + echecs + ' ÉCHEC(S)' : ' — OK'));
