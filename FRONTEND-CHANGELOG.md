@@ -6631,6 +6631,13 @@ Vérifié en local (Playwright, `test_toolbar_chevauchement.js` étendu — 14 v
 **Retour de Lionel sur la PR, avant fusion** : « pas d'intitulé semaine, garde le menu ouvert, une croix "X" pour fermer le menu en face de imprimer ».
 - Intitulé "Semaine" retiré : la ligne de navigation du menu ne contient plus que ‹ Sem. N ›, calée à droite sous les contrôles de la ligne Zoom.
 - **Le menu reste ouvert** : un clic dans le panneau (‹/›, masquages, 2 semaines, Imprimer…) ne remonte plus jusqu'au document, qui refermait tout — on peut avancer de plusieurs semaines ou basculer plusieurs masquages d'affilée. Les sous-menus ouverts (pilule Sem. N, zoom, chantier) se referment quand même. Fermeture : "✕", "⋮" ou clic hors du menu.
-- **"✕"** (`#btnFermerPlusOutils`) en haut à droite du menu, en face d'Imprimer quand celle-ci est dans le menu (téléphone), sinon sur la 1re ligne présente (desktop, où Imprimer n'est quasiment jamais replié). La 1re ligne se réserve la place à droite pour que les contrôles du zoom ne passent jamais dessous (et la navigation juste en dessous aussi, pour rester alignée).
+- **"✕"** (`#btnFermerPlusOutils`, remplacé ensuite, cf. 2e retour ci-dessous) en haut à droite du menu, en face d'Imprimer quand celle-ci est dans le menu (téléphone), sinon sur la 1re ligne présente (desktop, où Imprimer n'est quasiment jamais replié). La 1re ligne se réserve la place à droite pour que les contrôles du zoom ne passent jamais dessous (et la navigation juste en dessous aussi, pour rester alignée).
 
 Test étendu à 19 vérifications (ajouts : pas d'intitulé "Semaine", ‹ cliqué 2 fois depuis le menu recule bien de 2 semaines, menu toujours ouvert après ces clics et un masquage, "✕" sur la 1re ligne sans recouvrir ses boutons, "✕" ferme le menu, "✕" en face d'Imprimer sur téléphone) — 19/19 OK.
+
+**2e retour de Lionel** : « Aligner Sem.39 a gauche. Place la Croix fermer à la place des 3 points. Bonne idée de fermer le menu avec imprimé et ajouter ligne. »
+- ‹ Sem. N › calé à **gauche** dans le menu (même bord que les lignes icône + libellé).
+- **"✕" à la place de "⋮"** : la croix posée dans le panneau est retirée ; c'est le bouton "⋮" lui-même qui affiche "✕" tant que le menu est ouvert (2 icônes dans le bouton, échangées en CSS sur la classe `.ouvert` déjà posée/retirée par le code existant). Plus besoin de réserver de place dans la 1re ligne du menu.
+- **Imprimer** et **Ajouter une ligne > Personnel/Intervenant** referment le menu (ils ouvrent une fenêtre par-dessus) ; tous les autres boutons du menu le laissent ouvert.
+
+Test à 21 vérifications (ajouts : "⋮" devient "✕" menu ouvert puis redevient "⋮", ‹ Sem. N › aligné à gauche, Imprimer et Ajouter une ligne referment le menu ; retrait de celles de l'ancienne croix du panneau) — 21/21 OK.

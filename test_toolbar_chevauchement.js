@@ -165,16 +165,20 @@ function mesurer() {
   await page.click('#controlesAffichage [data-affichage-cible="note"]');
   await page.waitForTimeout(150);
   verifier(await ouvert(), 'le menu reste ouvert après des clics sur ses boutons');
-  const croix = await page.evaluate(() => {
-    const x = document.getElementById('btnFermerPlusOutils').getBoundingClientRect();
-    const g = document.querySelector('#toolbarSecondaire > .toolbar-groupe').getBoundingClientRect();
-    const btns = Array.from(document.querySelectorAll('#toolbarSecondaire > .toolbar-groupe:first-of-type button')).map((b) => b.getBoundingClientRect());
-    return { surPremiereLigne: x.top >= g.top - 2 && x.bottom <= g.top + 50, chevauche: btns.some((b) => b.width > 0 && b.left < x.right && x.left < b.right && b.top < x.bottom && x.top < b.bottom) };
+  const icone = () => page.evaluate(() => {
+    const vis = (sel) => document.querySelector(sel).getBoundingClientRect().width > 0;
+    return vis('#btnPlusOutils .icone-menu-fermer') ? 'croix' : vis('#btnPlusOutils .icone-menu-ouvrir') ? 'points' : '?';
   });
-  verifier(croix.surPremiereLigne && !croix.chevauche, '"✕" sur la 1re ligne du menu, sans recouvrir ses boutons');
-  await page.click('#btnFermerPlusOutils');
+  verifier(await icone() === 'croix', 'menu ouvert : "⋮" remplacé par "✕"');
+  const nav = await page.evaluate(() => {
+    const g = document.getElementById('groupeNavSemaine').getBoundingClientRect();
+    const imp = document.querySelector('#groupeNavSemaine #btnDeuxSemaines svg').getBoundingClientRect();
+    return { prec: document.getElementById('btnSemainePrec').getBoundingClientRect().left - g.left, icone2sem: imp.left - g.left };
+  });
+  verifier(nav.prec <= nav.icone2sem, '‹ Sem. N › aligné à gauche (‹ à ' + Math.round(nav.prec) + 'px du bord, icône "2 semaines" à ' + Math.round(nav.icone2sem) + 'px)');
+  await page.click('#btnPlusOutils');
   await page.waitForTimeout(100);
-  verifier(!(await ouvert()), '"✕" ferme le menu');
+  verifier(!(await ouvert()) && await icone() === 'points', '"✕" ferme le menu et redevient "⋮"');
   await page.evaluate(() => { if (replierNotes) document.querySelector('#controlesAffichage [data-affichage-cible="note"]').click(); }); // Notes réaffichées
 
   // 5) Ré-élargissement : tout revient dans la barre, menu refermé.
@@ -193,13 +197,19 @@ function mesurer() {
   });
   verifier(JSON.stringify(ordreVisuel) === JSON.stringify(['groupeAnnulerRefaire', 'groupeAujourdhui', 'groupeChantier', 'groupeAjoutElement', 'btnPlusOutils']), 'barre téléphone inchangée : ' + ordreVisuel);
   verifier(JSON.stringify(e.menu) === JSON.stringify(['groupeImprimer', 'groupeZoom', 'groupeNavSemaine', 'groupeAjoutLigne', 'controlesAffichage']), 'menu téléphone : ' + e.menu);
-  await page.click('#btnPlusOutils');
-  await page.waitForTimeout(100);
-  verifier(await page.evaluate(() => {
-    const x = document.getElementById('btnFermerPlusOutils').getBoundingClientRect();
-    const imp = document.getElementById('btnImprimerTitre').getBoundingClientRect();
-    return Math.abs((x.top + x.height / 2) - (imp.top + imp.height / 2)) <= 3;
-  }), 'téléphone : "✕" en face de "Imprimer"');
+  // Imprimer et Ajouter une ligne referment le menu (Lionel : « Bonne idée
+  // de fermer le menu avec imprimé et ajouter ligne »). Clics via le DOM :
+  // la fenêtre ouverte par chacun recouvre ensuite l'écran.
+  const ouvrirMenu = () => page.evaluate(() => { if (!document.getElementById('toolbarSecondaire').classList.contains('ouvert')) document.getElementById('btnPlusOutils').click(); });
+  await ouvrirMenu();
+  await page.evaluate(() => { document.getElementById('btnAjoutLigne').click(); document.querySelector('#menuAjoutLigne [data-ligne="personnel"]').click(); });
+  await page.waitForTimeout(150);
+  verifier(!(await ouvert()), 'Ajouter une ligne > Personnel referme le menu');
+  await page.keyboard.press('Escape');
+  await ouvrirMenu();
+  await page.evaluate(() => document.getElementById('btnImprimerTitre').click());
+  await page.waitForTimeout(150);
+  verifier(!(await ouvert()), 'Imprimer referme le menu');
 
   if (erreurs.length) { echecs++; console.error('ERREURS JS : ' + JSON.stringify(erreurs, null, 2)); }
   console.log((total - echecs) + '/' + total + ' vérifications' + (echecs ? ' — ' + echecs + ' ÉCHEC(S)' : ' — OK'));

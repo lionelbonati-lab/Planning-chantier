@@ -296,18 +296,17 @@
         // (#legendeBarre.toolbar-compacte, posée par ajusterDebordementToolbar)
         // ou sur téléphone. Panneau (#toolbarSecondaire) sans aucun groupe au
         // départ, rempli par ajusterDebordementToolbar au premier rendu.
-        // #btnFermerPlusOutils ("✕") — Lionel : « garde le menu ouvert, une
-        // croix "X" pour fermer le menu en face de imprimer » : le panneau ne
-        // se referme plus à chaque clic sur l'un de ses boutons (cf.
-        // cablerPagePlanning), d'où un moyen explicite de le fermer. Toujours
-        // 1er enfant du panneau (sans data-rang-menu, insererAuRang place
-        // les groupes après lui), positionné en haut à droite en CSS : sur
-        // la ligne Imprimer quand celle-ci est dans le menu (téléphone), sur
-        // la 1re ligne présente sinon (desktop, Imprimer rarement replié).
-        '<button type="button" class="toolbar-btn" id="btnPlusOutils" data-rang="100" title="Plus d’outils" aria-label="Plus d’outils">' + ICONS.dots + '</button>' +
-        '<div class="toolbar-secondaire" id="toolbarSecondaire" data-rang="110">' +
-          '<button type="button" class="panneau-fermer" id="btnFermerPlusOutils" title="Fermer le menu" aria-label="Fermer le menu">✕</button>' +
-        '</div>' +
+        // Menu ouvert : "⋮" devient "✕" (Lionel : « garde le menu ouvert »,
+        // puis « Place la Croix fermer à la place des 3 points ») — le
+        // panneau ne se referme plus à chaque clic sur l'un de ses boutons
+        // (cf. cablerPagePlanning), d'où un moyen explicite et à la même
+        // place de le refermer. Les 2 icônes sont dans le bouton, l'échange
+        // se fait en CSS sur la classe .ouvert que cablerPagePlanning/
+        // fermerAutresMenusOutils posent et retirent déjà sur #btnPlusOutils.
+        '<button type="button" class="toolbar-btn" id="btnPlusOutils" data-rang="100" title="Plus d’outils / fermer le menu" aria-label="Plus d’outils">' +
+          '<span class="icone-menu-ouvrir">' + ICONS.dots + '</span><span class="icone-menu-fermer">' + ICONS.close + '</span>' +
+        '</button>' +
+        '<div class="toolbar-secondaire" id="toolbarSecondaire" data-rang="110"></div>' +
       '</div>' +
       '<div class="zone-planning">' +
         '<div id="racine"></div>' +
@@ -625,15 +624,16 @@
       // zoom, chantier) : fermerAutresMenusOutils(panneau) épargne le
       // panneau lui-même (il se "contient"). Les boutons de sous-menu et
       // leurs listes arrêtent déjà la propagation eux-mêmes, ce listener ne
-      // les voit donc jamais. Fermeture : "✕", "⋮", ou clic hors du panneau.
+      // les voit donc jamais. Fermeture : "✕" (le "⋮" du menu ouvert), ou
+      // clic hors du panneau. EXCEPTION Imprimer (Lionel : « Bonne idée de
+      // fermer le menu avec imprimé et ajouter ligne ») : ouvre une fenêtre
+      // par-dessus, le menu n'a plus rien à faire ouvert derrière — son
+      // propre listener (openPrintSheet) a déjà agi à ce stade, ce listener-ci
+      // passant après lui (remontée de l'événement). Pendant pour "Ajouter
+      // une ligne" : dans le câblage de #menuAjoutLigne plus bas.
       toolbarSecondaire.addEventListener("click", function (e) {
         e.stopPropagation();
-        fermerAutresMenusOutils(toolbarSecondaire);
-      });
-      var btnFermerPlusOutils = document.getElementById("btnFermerPlusOutils");
-      if (btnFermerPlusOutils) btnFermerPlusOutils.addEventListener("click", function (e) {
-        e.stopPropagation();
-        fermerAutresMenusOutils(null);
+        fermerAutresMenusOutils(e.target.closest("#btnImprimerTitre") ? null : toolbarSecondaire);
       });
     }
     // Ouverture/fermeture des 3 .outil-menu (zoom, ligne+, +) — générique
@@ -671,7 +671,12 @@
     if (menuAjoutLigne) {
       menuAjoutLigne.querySelectorAll("[data-ligne]").forEach(function (btn) {
         btn.addEventListener("click", function () {
-          menuAjoutLigne.classList.remove("ouvert");
+          // fermerAutresMenusOutils(null) plutôt que de ne refermer que ce
+          // sous-menu : referme aussi le panneau "⋮" quand "Ajouter une
+          // ligne" y est rangé (téléphone) — Lionel, round du 24.09.2026
+          // (suite 3) : « Bonne idée de fermer le menu avec imprimé et
+          // ajouter ligne ». Sans effet de plus quand il est dans la barre.
+          fermerAutresMenusOutils(null);
           ouvrirAjoutPersonne(btn.dataset.ligne === "intervenant");
         });
       });

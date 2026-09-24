@@ -673,6 +673,12 @@
   }
   #btnPlusOutils { display: none; }
   #legendeBarre.toolbar-compacte #btnPlusOutils { display: grid; margin-left: auto; }
+  /* "⋮" devient "✕" tant que le menu est ouvert (Lionel : « Place la Croix
+     fermer à la place des 3 points ») — .ouvert posée/retirée sur le bouton
+     par cablerPagePlanning/fermerAutresMenusOutils/fermerPanneauSiVide. */
+  #btnPlusOutils .icone-menu-ouvrir, #btnPlusOutils .icone-menu-fermer { display: grid; place-items: center; }
+  #btnPlusOutils .icone-menu-fermer, #btnPlusOutils.ouvert .icone-menu-ouvrir { display: none; }
+  #btnPlusOutils.ouvert .icone-menu-fermer { display: grid; }
   .toolbar-btn.ouvert { background: var(--surface-2); color: var(--ink); }
   /* Trait horizontal entre 2 groupes du panneau (pendant du .sep-avant
      vertical de la barre) — le DOM du panneau suit l'ordre visuel
@@ -700,15 +706,14 @@
   /* Lignes de réglage "Zoom − 100% +" et "‹ Sem. N ›" sur UNE ligne chacune
      (Lionel : « placer "<" N° semaine ">" sur la même ligne, plus de texte
      semaine précédente et semaine suivante », puis « pas d'intitulé
-     semaine ») : contrôles calés à droite dans les 2 lignes (le zoom par
-     son intitulé en margin-right:auto, la navigation, sans intitulé, par
-     justify-content), l'un sous l'autre. ‹/› reprennent le gabarit des −/+
-     du zoom (sélecteur plus spécifique que la règle "ligne pleine largeur"
-     de .toolbar-btn juste au-dessus). */
+     semaine » et « Aligner Sem.39 a gauche ») : la navigation, sans
+     intitulé, part du bord gauche comme les lignes icône + libellé ; le
+     zoom garde son intitulé à gauche et ses contrôles à droite. ‹/›
+     reprennent le gabarit des −/+ du zoom (sélecteur plus spécifique que la
+     règle "ligne pleine largeur" de .toolbar-btn juste au-dessus). */
   .nav-semaine-ligne { display: flex; align-items: center; gap: 2px; }
   .toolbar-secondaire .zoom-ctrl,
   .toolbar-secondaire .nav-semaine-ligne { width: 100%; padding: 6px 8px; gap: 6px; }
-  .toolbar-secondaire .nav-semaine-ligne { justify-content: flex-end; }
   .toolbar-secondaire .libelle-panneau { display: inline; margin-right: auto; font-size: 13.5px; font-weight: 600; color: var(--ink); }
   .toolbar-secondaire .zoom-btn,
   .toolbar-secondaire .nav-semaine-ligne .toolbar-btn {
@@ -720,21 +725,6 @@
      le doigt sur tablette/téléphone. */
   .toolbar-secondaire #controlesAffichage { flex-direction: row; align-items: center; gap: 6px; padding: 6px 8px; }
   .toolbar-secondaire .toolbar-toggle { width: 36px; height: 36px; }
-  /* "✕" (#btnFermerPlusOutils) — Lionel : « une croix "X" pour fermer le
-     menu en face de imprimer ». En haut à droite du panneau, à hauteur de
-     la 1re ligne (Imprimer quand elle y est, sinon la 1re présente) ; cette
-     1re ligne se réserve la place à droite pour que ses propres contrôles
-     (ceux du zoom, calés à droite) ne passent jamais dessous. Si c'est le
-     zoom qui porte la croix, la navigation juste en dessous se réserve la
-     même place, pour que ‹ Sem. N › reste aligné sous − 100% +. */
-  .panneau-fermer {
-    position: absolute; top: 10px; right: 10px; z-index: 1;
-    width: 28px; height: 28px; display: grid; place-items: center; border-radius: 7px; border: none;
-    background: none; color: var(--ink-muted); cursor: pointer; font: inherit; font-size: 14px; line-height: 1;
-  }
-  .panneau-fermer:hover { background: var(--surface); color: var(--ink); }
-  .toolbar-secondaire > .toolbar-groupe:first-of-type { padding-right: 38px; }
-  .toolbar-secondaire > #groupeZoom:first-of-type ~ #groupeNavSemaine { padding-right: 38px; }
   /* .nav-bas (barre basse, remplace .onglets-nav sur téléphone) et son
      panneau "Pages" (#switcherPanneau) — masqués par défaut, desktop/
      tablette gardent .onglets-nav en haut, inchangée. Tout l'habillage
