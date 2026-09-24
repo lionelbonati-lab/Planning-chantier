@@ -188,12 +188,10 @@
     // Round du 24.09.2026 (suite 7) — barre « ‹ › » de la sélection
     // multiple (Lionel : « des flèches gauche-droite et guillemets gauche,
     // guillemets droite ») : chevron simple = une demi-journée, double =
-    // un jour entier. selectionMultiple : 2 cases superposées + coche,
-    // pour le bouton qui active le mode (cf. #btnSelectionMultiple).
+    // un jour entier.
     chevronDoubleGauche: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M9.5 4.5 4 10l5.5 5.5M15.5 4.5 10 10l5.5 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     chevronDoubleDroite: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M4.5 4.5 10 10l-5.5 5.5M10.5 4.5 16 10l-5.5 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-    selectionMultiple: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="2.5" y="2.5" width="9" height="9" rx="1.6" stroke="currentColor" stroke-width="1.5"/><rect x="8.5" y="8.5" width="9" height="9" rx="1.6" stroke="currentColor" stroke-width="1.5"/><path d="m10.8 13 1.6 1.6 2.8-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-    // Barre de sélection (round du 24.09.2026, suite 8) : crayon (modifier,
+    // Pilule de sélection (round du 24.09.2026, suite 8) : crayon (modifier,
     // remplace le double-clic) et copier (2 feuilles).
     pencil: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M3.5 16.5l3.6-.8 8.6-8.6a1.6 1.6 0 0 0 0-2.3l-.5-.5a1.6 1.6 0 0 0-2.3 0L4.3 12.9l-.8 3.6z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M11.8 5.4l2.8 2.8" stroke="currentColor" stroke-width="1.5"/></svg>',
     copy: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="7" y="7" width="10" height="10" rx="1.8" stroke="currentColor" stroke-width="1.5"/><path d="M13 7V4.8A1.8 1.8 0 0 0 11.2 3H4.8A1.8 1.8 0 0 0 3 4.8v6.4A1.8 1.8 0 0 0 4.8 13H7" stroke="currentColor" stroke-width="1.5"/></svg>',
@@ -750,17 +748,36 @@
   // elle soit sélectionnée. Mais si j'en clique une autre, la bulle que
   // j'avais cliquée est désélectionnée et la nouvelle est sélectionnée.
   // Pour faire une sélection multiple, j'aimerais un petit bouton dans la
-  // toolbar ». modeSelectionMultiple : tant qu'il est actif (#btnSelectionMultiple,
-  // ou Ctrl+clic sur ordinateur), chaque clic AJOUTE/RETIRE la bulle à la
-  // sélection (l'ancien comportement) et une petite barre « ‹ › » sous le
-  // bouton permet de décaler la sélection (cf. decalerSelection,
-  // formulaires-communs.js). Inactif : un clic remplace la sélection.
+  // toolbar ». Puis (suite 9) : « enlever le bouton de la barre et activer
+  // le mode multiple en laissant le clic appuyé sur desktop et mobile. en
+  // résumé: simple appui = sélection simple, appui long = sélection
+  // multiple ». modeSelectionMultiple : allumé par un APPUI LONG sur une
+  // bulle (DELAI_APPUI_LONG, cf. onPointerDownGroupeSelection), par Ctrl/
+  // Cmd+clic sur ordinateur, ou par une sélection par zone ; chaque clic
+  // AJOUTE/RETIRE alors la bulle, et la pilule de sélection (#panneauSelection,
+  // en bas de l'écran) montre les flèches « ‹ › » (decalerSelection,
+  // formulaires-communs.js). Éteint dès que la sélection est vidée
+  // (quitterModeSelection). Inactif : un clic remplace la sélection.
   var modeSelectionMultiple = false;
+  // copieSelectionActive (suite 9) — Lionel : « le bouton copier copie les
+  // éléments avant le déplacement, il faudrait que ce bouton serve de choix
+  // pour que la/les bulles soient déplacées ou copiées ». Bouton ⧉ de la
+  // pilule : allumé, le PROCHAIN déplacement de la sélection (flèches ou
+  // glisser, souris comme doigt) pose des copies et laisse les originaux —
+  // l'équivalent de Maj+glisser, sans clavier. Se remet à zéro une fois la
+  // copie faite, ou quand la sélection est vidée.
+  var copieSelectionActive = false;
   var pressePapier = [];
   var pileUndo = [], pileRedo = [];
   var LIMITE_UNDO = 50;
   var popFermerActuel = null, popValiderActuel = null;
   var DELAI_SELECTION = 300, SEUIL_DEFILEMENT = 10;
+  // DELAI_APPUI_LONG (round du 24.09.2026, suite 9) : durée d'appui sans
+  // bouger au-delà de laquelle le relâchement vaut "sélection multiple"
+  // plutôt qu'un simple clic (cf. onPointerDownGroupeSelection). Plus long
+  // que DELAI_SELECTION (300ms, qui arme le glisser tactile) : un glisser
+  // tactile commencé après 300ms mais avant 450ms reste un glisser.
+  var DELAI_APPUI_LONG = 450;
   var PALETTE_STATUTS = ["#e2e6ea", "#dbe6f7", "#cdf1ea", "#f6dcd7", "#f7e6ab", "#d7cdf0", "#f8c8b5", "#cdeccb"];
 
   // Comparaison en chaîne partout : dataset.* (DOM) est toujours une chaîne,

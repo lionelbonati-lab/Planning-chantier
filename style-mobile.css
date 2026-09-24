@@ -148,27 +148,19 @@
        le pousse à l'extrémité droite de l'écran (règle ci-dessus), ce
        panneau de 190px de large débordait hors du viewport à droite. */
     .toolbar-groupe-droite .outil-menu-panneau { left: auto; right: 0; }
-    /* Barre de sélection sur téléphone (round du 24.09.2026, suite 8 —
+    /* Pilule de sélection sur téléphone (round du 24.09.2026, suite 8 —
        Lionel : « Sur mobile une pilule vient remplacer la barre d'onglet en
-       bas ») : le MÊME #panneauSelection (un seul élément, un seul câblage)
-       n'est plus ancré sous son bouton mais fixé en bas de l'écran, en
-       pilule, à la place de .nav-bas (masquée par body.selection-active,
-       posée par majBarreSelection). position:fixed reste relatif à l'écran
-       malgré l'ancêtre sticky (.toolbar-sheets) : seul un transform/filter
-       la capturerait. Même z-index que .nav-bas qu'elle remplace. */
+       bas ») : même pilule fixe qu'ailleurs (style.css), étirée sur toute
+       la largeur à la place de .nav-bas (masquée par body.selection-active,
+       posée par majBarreSelection). */
     body.selection-active .nav-bas { display: none; }
     .panneau-selection {
-      position: fixed; top: auto; left: 10px; right: 10px;
+      left: 10px; right: 10px; transform: none;
       bottom: calc(8px + env(safe-area-inset-bottom, 0px));
-      justify-content: space-around; gap: 4px; padding: 6px 10px;
-      border-radius: 999px; z-index: 41;
+      justify-content: space-around; gap: 4px;
     }
     .panneau-selection .toolbar-btn { width: 36px; height: 36px; }
     .panneau-selection .sel-sep { display: none; }
-    /* Pas de trait devant #btnSelectionMultiple sur téléphone (collé au "+",
-       2 actions voisines) : avec, la barre débordait de ~15px à 320px de
-       large — repéré par test_toolbar_chevauchement.js. */
-    #legendeBarre > #groupeSelection::before { display: none; }
     /* Chantier réduit à sa seule pastille de couleur (Lionel : « chantier
        visible mais seulement la pastille de couleur ») — .nom-chantier/
        .caret restent dans le HTML (construireSelectChantier les cible à
