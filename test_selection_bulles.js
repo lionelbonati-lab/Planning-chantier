@@ -9,18 +9,21 @@ const path = require('path');
 // guillemets gauche, guillemets droite. » Vérifie, sur ordinateur (1300px),
 // date figée au jeudi 24.09.2026, contre un faux Supabase en mémoire :
 //   1) clic = sélection simple (remplace ; recliquer la seule désélectionne) ;
-//   2) Ctrl+clic cumule et allume le mode multiple (bouton, barre « ‹ › ») ;
+//   2) Ctrl+clic cumule et allume le mode multiple (flèches « ‹ › ») ;
 //   3) Échap éteint tout ;
-//   4) bouton de la barre : mode multiple, les clics s'ajoutent, compteur ;
+//   4) (suite 9) appui LONG sur une bulle : mode multiple, les clics
+//      suivants s'ajoutent, compteur ;
 //   5) flèches : demi-journée / jour, forme conservée, sélection conservée
 //      (même après la synchronisation + reconstruction), table relue ;
 //   6) butée : tout ou rien, rien ne bouge ;
-//   7) ← → au clavier ; bouton de nouveau -> mode éteint, sélection vidée ;
-//   8) (suite 8) barre de sélection visible dès une bulle seule : crayon
-//      (ouvre la fiche, plus de double-clic), copier (copie au même endroit,
-//      sélectionnée), ✕, corbeille (confirmation, table relue) ;
-//   9) téléphone : la même barre devient une pilule en bas, à la place de
-//      la barre d'onglets.
+//   7) ← → au clavier ; ✕ -> mode éteint, sélection vidée ;
+//   8) (suite 8-9) pilule visible dès une bulle seule, fixée en bas : crayon
+//      (ouvre la fiche, plus de double-clic), ⧉ = "copier au prochain
+//      déplacement" (flèches : copie posée à la nouvelle position et
+//      sélectionnée, original en place ; glisser à la souris : idem), ✕,
+//      corbeille (confirmation, table relue) ;
+//   9) téléphone : la même pilule prend toute la largeur, à la place de la
+//      barre d'onglets.
 //
 // Lancer : node test_selection_bulles.js
 
@@ -108,11 +111,11 @@ function lignes(date, demi, texte, extra) {
   const selection = () => page.evaluate(() => Object.keys(bullesSelectionnees).map((id) => itemParId(id) ? itemParId(id).item.texte : '?').sort().join(','));
   const surbrillance = () => page.evaluate(() => Array.from(document.querySelectorAll('.bulle.selectionnee')).map((b) => b.textContent.trim()).sort().join(','));
   const mode = () => page.evaluate(() => ({
-    actif: modeSelectionMultiple, bouton: document.getElementById('btnSelectionMultiple').classList.contains('actif'),
+    actif: modeSelectionMultiple, copie: document.getElementById('selCopier').classList.contains('actif'),
     panneau: !document.getElementById('panneauSelection').hidden, compte: document.querySelector('#panneauSelection .sel-compte').textContent,
-    fleches: !document.querySelector('#panneauSelection [data-decal="1"]').disabled,
     blocFleches: !document.querySelector('#panneauSelection .sel-fleches').hidden,
-    crayon: !document.getElementById('selModifier').hidden, corps: document.body.classList.contains('selection-active')
+    crayon: !document.getElementById('selModifier').hidden, corps: document.body.classList.contains('selection-active'),
+    fixe: getComputedStyle(document.getElementById('panneauSelection')).position === 'fixed'
   }));
   const forme = (texte) => page.evaluate((tx) => { const t = TACHES.find((x) => x.texte === tx); return t ? [t.giDebut, t.duree, t.demiDebut, t.demiFin].join('/') : null; }, texte);
   const bd = (texte) => page.evaluate((tx) => window.__BD.taches.filter((t) => t.texte === tx).map((t) => t.date.slice(5) + ':' + t.demi).sort().join(' '), texte);
@@ -121,6 +124,16 @@ function lignes(date, demi, texte, extra) {
     await page.click('.bulle:has-text("' + texte + '")', modifiers ? { modifiers: modifiers } : {});
     await page.waitForTimeout(80);
   }
+  // Appui long : pointeur posé sans bouger plus de DELAI_APPUI_LONG (450ms).
+  async function appuiLong(texte) {
+    const r = await page.locator('.bulle:has-text("' + texte + '")').boundingBox();
+    await page.mouse.move(r.x + r.width / 2, r.y + r.height / 2);
+    await page.mouse.down();
+    await page.waitForTimeout(650);
+    await page.mouse.up();
+    await page.waitForTimeout(80);
+  }
+  const giDeLaSelection = () => page.evaluate(() => Object.keys(bullesSelectionnees).map((id) => itemParId(id).item.giDebut).join(','));
   const attendreSync = () => page.waitForTimeout(700);
 
   // 1) Sélection simple.
@@ -134,7 +147,7 @@ function lignes(date, demi, texte, extra) {
   verifier(!m.actif && !m.panneau && !m.corps, 'rien de sélectionné, mode éteint : barre de sélection cachée');
   await clic('A');
   m = await mode();
-  verifier(m.panneau && !m.actif && !m.blocFleches && m.crayon && m.corps, 'une bulle seule : barre visible avec le crayon, sans les flèches (mode multiple éteint)');
+  verifier(m.panneau && m.fixe && !m.actif && !m.blocFleches && m.crayon && m.corps, 'une bulle seule : pilule fixée en bas, avec le crayon, sans les flèches (mode multiple éteint)');
   await clic('A');
 
   // 2) Ctrl+clic.
@@ -142,7 +155,7 @@ function lignes(date, demi, texte, extra) {
   await clic('B', ['Control']);
   m = await mode();
   verifier(await selection() === 'A,B', 'Ctrl+clic : A puis B cumulées');
-  verifier(m.actif && m.bouton && m.panneau && m.blocFleches && m.compte === '2' && m.fleches && !m.crayon, 'Ctrl+clic allume le mode : bouton actif, flèches visibles et actives, compteur 2, pas de crayon (2 bulles)');
+  verifier(m.actif && m.panneau && m.blocFleches && m.compte === '2' && !m.crayon, 'Ctrl+clic allume le mode : flèches visibles, compteur 2, pas de crayon (2 bulles)');
 
   // 3) Échap.
   await page.keyboard.press('Escape');
@@ -150,15 +163,13 @@ function lignes(date, demi, texte, extra) {
   m = await mode();
   verifier(await selection() === '' && !m.actif && !m.panneau, 'Échap : sélection vidée, mode éteint');
 
-  // 4) Bouton de la barre.
-  await page.click('#btnSelectionMultiple');
-  await page.waitForTimeout(80);
+  // 4) Appui long.
+  await appuiLong('A');
   m = await mode();
-  verifier(m.actif && m.panneau && m.compte === '0' && !m.fleches, 'bouton : mode allumé, barre visible, flèches grisées sans sélection');
-  await clic('A');
+  verifier(await selection() === 'A' && m.actif && m.panneau && m.blocFleches && m.compte === '1', 'appui long sur A : mode multiple allumé, flèches visibles, compteur 1');
   await clic('C');
   m = await mode();
-  verifier(await selection() === 'A,C' && m.compte === '2' && m.fleches, 'en mode multiple, les clics s\'ajoutent : A,C (compteur 2)');
+  verifier(await selection() === 'A,C' && m.compte === '2', 'en mode multiple, les clics s\'ajoutent : A,C (compteur 2)');
 
   // 5) Flèches.
   await page.click('#panneauSelection [data-decal="1"]');
@@ -187,10 +198,10 @@ function lignes(date, demi, texte, extra) {
   await page.keyboard.press('ArrowLeft');
   await attendreSync();
   verifier(await forme('C') === '3/1/matin/matin', '← : recul d\'une demi-journée (C = jeu. matin)');
-  await page.click('#btnSelectionMultiple');
+  await page.click('#selFermer');
   await page.waitForTimeout(80);
   m = await mode();
-  verifier(await selection() === '' && !m.actif && !m.panneau, 'bouton de nouveau : mode éteint, sélection vidée');
+  verifier(await selection() === '' && !m.actif && !m.panneau, '✕ : mode éteint, sélection vidée');
   verifier(await page.evaluate(() => pileUndo.length) >= 5, 'chaque décalage est annulable (Ctrl+Z)');
 
   // 8) Barre de sélection pour une bulle seule (suite 8).
@@ -205,16 +216,39 @@ function lignes(date, demi, texte, extra) {
   await page.keyboard.press('Escape');
   await page.waitForTimeout(150);
   verifier(!(await formeOuverte()) && await selection() === '', 'Échap referme la fiche et vide la sélection');
-  await clic('B');
+  // ⧉ = copier au prochain déplacement (flèches).
+  await appuiLong('B');
   await page.click('#selCopier');
+  await page.waitForTimeout(80);
+  verifier((await mode()).copie, '⧉ armé : bouton teinté');
+  await page.click('#panneauSelection [data-decal="2"]');
   await attendreSync();
-  verifier(await bd('B') === '09-23:aprem 09-23:aprem 09-23:matin 09-23:matin', 'copier : une copie de B au même endroit dans la table (' + await bd('B') + ')');
-  verifier((await mode()).compte === '1' && await surbrillance() === 'B', 'une seule des deux B identiques ressort sélectionnée après la synchronisation');
+  verifier(await bd('B') === '09-23:aprem 09-23:matin 09-24:aprem 09-24:matin', '» avec ⧉ armé : copie posée le jeudi, original toujours le mercredi (' + await bd('B') + ')');
+  m = await mode();
+  // Au rechargement, la copie (jeudi) et l'original (mercredi), identiques et
+  // contigus, ne font plus qu'UNE bulle de 2 jours : c'est elle qui doit
+  // rester sélectionnée (report par recouvrement, cf. construireVueDepuisCache).
+  verifier(m.compte === '1' && await giDeLaSelection() === '2' && await page.evaluate(() => TACHES.filter((t) => t.texte === 'B').length === 1 && TACHES.find((t) => t.texte === 'B').duree === 2) && !m.copie,
+    'copie et original fusionnés en une bulle mer.-jeu., toujours sélectionnée ; ⧉ désarmé');
   verifier((await toastTexte()).indexOf('Copié (1)') === 0, 'message : ' + await toastTexte());
-  await page.click('#selFermer');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(80);
+  // ⧉ = copier au prochain glisser à la souris : C (jeu. matin, Mathis) copiée sur ven. matin.
+  await clic('C');
+  await page.click('#selCopier');
+  await page.waitForTimeout(80);
+  const src = await page.locator('.bulle:has-text("C")').boundingBox();
+  const dst = await page.locator('.cell[data-kind="personne"][data-personne="2"][data-jour="4"][data-demi="matin"]').boundingBox();
+  await page.mouse.move(src.x + src.width / 2, src.y + src.height / 2);
+  await page.mouse.down();
+  for (let i = 1; i <= 8; i++) { await page.mouse.move(src.x + src.width / 2 + (dst.x + dst.width / 2 - src.x - src.width / 2) * i / 8, src.y + src.height / 2 + (dst.y + dst.height / 2 - src.y - src.height / 2) * i / 8); await page.waitForTimeout(30); }
+  await page.mouse.up();
+  await attendreSync();
+  verifier(await bd('C') === '09-24:matin 09-25:matin', 'glisser avec ⧉ armé : copie de C posée le vendredi, jeudi toujours là (' + await bd('C') + ')');
+  await page.keyboard.press('Escape');
   await page.waitForTimeout(80);
   m = await mode();
-  verifier(await selection() === '' && !m.panneau && !m.corps, '✕ : sélection vidée, barre cachée');
+  verifier(await selection() === '' && !m.panneau && !m.corps && !m.copie, 'Échap : sélection vidée, pilule cachée, ⧉ désarmé');
   await clic('A');
   await page.click('#selSupprimer');
   await page.waitForTimeout(100);
@@ -233,7 +267,7 @@ function lignes(date, demi, texte, extra) {
       navBas: getComputedStyle(document.querySelector('.nav-bas')).display, cachee: p.hidden };
   });
   verifier(!pilule.cachee && pilule.position === 'fixed' && pilule.bas >= 0 && pilule.bas < 40 && pilule.largeur > 300 && pilule.navBas === 'none',
-    'téléphone : pilule fixée en bas (' + pilule.bas + 'px du bord, ' + pilule.largeur + 'px de large), barre d\'onglets masquée');
+    'téléphone : pilule pleine largeur en bas (' + pilule.bas + 'px du bord, ' + pilule.largeur + 'px de large), barre d\'onglets masquée');
   await page.click('#selFermer');
   await page.waitForTimeout(80);
   verifier(await page.evaluate(() => getComputedStyle(document.querySelector('.nav-bas')).display) !== 'none', 'téléphone : barre d\'onglets de retour après ✕');

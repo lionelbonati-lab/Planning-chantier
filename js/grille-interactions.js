@@ -364,8 +364,9 @@
   // (suite 8 — Lionel : « une petite icône pour modifier la tâche à la
   // place du double-clic », puis « Non, crayon seulement ») : la fiche
   // s'ouvre par le crayon de la barre de sélection (#selModifier,
-  // modifierSelection) ou par Entrée. cumuler (suite 7) : Ctrl/Cmd enfoncé
-  // — ajoute à la sélection au lieu de la remplacer, cf. basculerSelection.
+  // modifierSelection) ou par Entrée. cumuler (suite 7, puis 9) : appui long
+  // ou Ctrl/Cmd enfoncé — ajoute à la sélection au lieu de la remplacer et
+  // allume le mode multiple, cf. basculerSelection.
   function resoudreClicBulle(id, cumuler) {
     basculerSelection(id, cumuler);
   }
@@ -417,8 +418,9 @@
     var dejaSelectionnee = !!bullesSelectionnees[idClic];
     var groupeIds = dejaSelectionnee ? Object.keys(bullesSelectionnees) : [idClic];
     var tactile = e.pointerType === "touch";
-    var copie = !tactile && e.shiftKey;
-    var copieActuelle = copie;
+    // copieSelectionActive (suite 9) : le bouton ⧉ de la pilule vaut Maj —
+    // au doigt comme à la souris.
+    var copieActuelle = copieSelectionActive || (!tactile && e.shiftKey);
     var sx = e.clientX, sy = e.clientY, dernierX = sx, dernierY = sy, dernierT = e.timeStamp;
     var pointerId = e.pointerId;
     var scroller = trouverScroller(bulleDom);
@@ -429,6 +431,15 @@
     // le glissement d'une bulle entière.
     var defilementManuel = creerDefilementManuel(scroller);
     var arme = false, enDefilement = false, bouge = false, badge = null;
+    // appuiLong (round du 24.09.2026, suite 9 — Lionel : « simple appui =
+    // sélection simple, appui long = sélection multiple ») : vrai si le
+    // pointeur est resté posé sans bouger au moins DELAI_APPUI_LONG. Un
+    // relâchement sans glisser vaut alors "ajouter à la sélection multiple"
+    // (cf. onUp -> resoudreClicBulle(cumuler)). Un minuteur plutôt que la
+    // différence des timeStamp : identique souris/doigt, et insensible à
+    // une horloge figée (tests).
+    var appuiLong = false;
+    var minuteurAppuiLong = setTimeout(function () { appuiLong = true; }, DELAI_APPUI_LONG);
     var fantomes = [];
     var cibleActuelle = null, cellulesSurvoleesActuelles = [];
     var surlignagePrecisEl = null;
@@ -547,10 +558,10 @@
         document.body.appendChild(clone);
         fantomes.push({ clone: clone, left: r.left, top: r.top, id: id });
       });
-      if (groupeIds.length > 1 || copie) {
+      if (groupeIds.length > 1 || copieActuelle) {
         badge = document.createElement("div");
         badge.className = "badge-glisse";
-        badge.textContent = (tactile ? "" : (copie ? "Copier " : "Déplacer ")) + groupeIds.length + (groupeIds.length > 1 ? " bulles" : " bulle");
+        badge.textContent = (copieActuelle ? "Copier " : "Déplacer ") + groupeIds.length + (groupeIds.length > 1 ? " bulles" : " bulle");
         badge.style.left = (sx + 14) + "px"; badge.style.top = (sy + 14) + "px";
         document.body.appendChild(badge);
       }
@@ -578,6 +589,7 @@
     }
     function detacher() {
       clearTimeout(minuteur);
+      clearTimeout(minuteurAppuiLong);
       // relacher() (round du 23.09.2026, suite ×12) : cf. son commentaire
       // dans cablerPoigneeRedim — même règle, appelée depuis le point de
       // sortie commun à onUp ET onCancel.
@@ -600,12 +612,13 @@
         return;
       }
       var d2 = Math.abs(e2.clientX - sx) + Math.abs(e2.clientY - sy);
-      if (d2 > 4) bouge = true;
-      if (!tactile) {
-        copieActuelle = !!e2.shiftKey;
-        if (!badge && copieActuelle) { badge = document.createElement("div"); badge.className = "badge-glisse"; document.body.appendChild(badge); }
-        if (badge) badge.textContent = (copieActuelle ? "Copier " : "Déplacer ") + groupeIds.length + (groupeIds.length > 1 ? " bulles" : " bulle");
-      }
+      if (d2 > 4) { bouge = true; clearTimeout(minuteurAppuiLong); }
+      // Badge "Copier/Déplacer N bulles" : au doigt aussi désormais (suite
+      // 9), dès que la copie est armée par ⧉ — seule indication visible
+      // pendant le geste que la dépose posera une copie.
+      copieActuelle = copieSelectionActive || (!tactile && !!e2.shiftKey);
+      if (!badge && copieActuelle) { badge = document.createElement("div"); badge.className = "badge-glisse"; document.body.appendChild(badge); }
+      if (badge) badge.textContent = (copieActuelle ? "Copier " : "Déplacer ") + groupeIds.length + (groupeIds.length > 1 ? " bulles" : " bulle");
       var dx = e2.clientX - sx, dy = e2.clientY - sy;
       fantomes.forEach(function (f) { f.clone.style.left = (f.left + dx) + "px"; f.clone.style.top = (f.top + dy) + "px"; });
       if (badge) { badge.style.left = (e2.clientX + 14) + "px"; badge.style.top = (e2.clientY + 14) + "px"; }
@@ -827,10 +840,8 @@
       }
       if (!delta) { nettoyerFantomes(); render(false); return; }
       // Tactile : plus de question "Déplacer / Copier" après la dépose
-      // (round du 24.09.2026, suite 8 — Lionel : la barre du bas disparaît,
-      // « Dans la pilule de sélection ajouter un bouton à cliquer pour
-      // copier ») : un glisser DÉPLACE, comme à la souris sans Maj ; copier
-      // passe par #selCopier (dupliquerSelection) puis un décalage.
+      // (round du 24.09.2026, suite 8-9) : un glisser DÉPLACE, sauf si ⧉
+      // (copieSelectionActive) a été armé dans la pilule avant le geste.
       appliquerDelta(delta, copieActuelle);
     }
     function onUp(e2) {
@@ -838,7 +849,7 @@
       var celluleCible = cibleActuelle;
       detacher();
       if (enDefilement) { nettoyerFantomes(); return; }
-      if (!arme || !bouge) { nettoyerFantomes(); resoudreClicBulle(idClic, !tactile && (e2.ctrlKey || e2.metaKey)); return; }
+      if (!arme || !bouge) { nettoyerFantomes(); resoudreClicBulle(idClic, appuiLong || (!tactile && (e2.ctrlKey || e2.metaKey))); return; }
       resoudreCibleGroupe(celluleCible, e2.clientX);
     }
     function onCancel(e2) { if (e2.pointerId !== pointerId) return; detacher(); nettoyerFantomes(); }

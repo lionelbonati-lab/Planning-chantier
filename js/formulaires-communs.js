@@ -29,10 +29,10 @@
   // Sélection SIMPLE par défaut : un clic remplace la sélection (recliquer
   // la seule bulle sélectionnée la désélectionne). L'ancien comportement
   // (chaque clic ajoute/retire) ne vaut plus qu'en mode multiple
-  // (modeSelectionMultiple, bouton de la barre) ou avec Ctrl/Cmd+clic sur
-  // ordinateur (`cumuler`, réponse de Lionel : « Ctrl+clic ») — qui allume
-  // aussi le mode, pour que la barre « ‹ › » apparaisse et que le bouton
-  // reflète l'état.
+  // (modeSelectionMultiple) ou quand `cumuler` est vrai — appui LONG sur la
+  // bulle (suite 9, Lionel : « appui long = sélection multiple »), ou Ctrl/
+  // Cmd+clic sur ordinateur — ce qui allume aussi le mode, pour que les
+  // flèches « ‹ › » apparaissent dans la pilule.
   function basculerSelection(id, cumuler) {
     var deja = !!bullesSelectionnees[id];
     var activer;
@@ -53,17 +53,14 @@
     if (dom) dom.classList.toggle("selectionnee", activer);
     majBarreSelection();
   }
-  // Bouton #btnSelectionMultiple : allume/éteint le mode. L'éteindre vide
-  // aussi la sélection (comme Échap) — sinon des bulles resteraient cochées
-  // sans plus aucun moyen visible d'en ajouter d'autres.
-  function basculerModeSelectionMultiple() {
-    if (modeSelectionMultiple) { quitterModeSelectionMultiple(); return; }
-    modeSelectionMultiple = true;
+  // Bouton ⧉ de la pilule (suite 9) : bascule "copier au prochain
+  // déplacement" — cf. copieSelectionActive (core.js). Remplace le
+  // "Copier" qui posait une copie sur place (suite 8).
+  function basculerCopieSelection() {
+    if (!Object.keys(bullesSelectionnees).length) return;
+    copieSelectionActive = !copieSelectionActive;
     majBarreSelection();
-  }
-  function quitterModeSelectionMultiple() {
-    modeSelectionMultiple = false;
-    quitterModeSelection();
+    toast(copieSelectionActive ? "Le prochain déplacement (flèches ou glisser) posera une copie." : "Le prochain déplacement déplacera.");
   }
   // Décale toute la sélection de `deltaHalf` demi-journées (±1) ou jours
   // (±2), en gardant la forme de chaque bulle (modèle demi-slot de
@@ -74,6 +71,10 @@
   // les bulles perdraient leurs positions relatives). Les cases de week-end
   // (isolées, jamais déplaçables) restent en place. La sélection est
   // conservée après le décalage — pour pouvoir appuyer plusieurs fois.
+  // copieSelectionActive (suite 9) : des COPIES sont posées à la nouvelle
+  // position, les originaux restent, et ce sont les copies qui ressortent
+  // sélectionnées (pour continuer à les décaler) ; la bascule se remet à
+  // zéro.
   function decalerSelection(deltaHalf) {
     var ids = Object.keys(bullesSelectionnees);
     if (!ids.length) { toast("Aucune bulle sélectionnée."); return; }
@@ -91,38 +92,48 @@
     });
     if (bloque) { toast(deltaHalf < 0 ? "Déjà au début de la semaine affichée." : "Déjà à la fin de la semaine affichée."); return; }
     sauvegarderUndo();
+    var copie = copieSelectionActive, nouveaux = [];
     plages.forEach(function (p) {
       var it = p.item;
       var b = demiSlotsDepuisBornes(it.giDebut, it.duree, it.demiDebut || null, it.demiFin || null);
       var nb = bornesDepuisDemiSlots(b.halfStart + deltaHalf, b.halfFinIncl + deltaHalf);
+      if (copie) {
+        var nouveau = p.liste === TACHES
+          ? itemPlageTache(it.type, it.texte, it.personneId, nb.giDebut, nb.duree, { chantier: it.chantier, important: it.important, statut: it.statut, demiDebut: nb.demiDebut, demiFin: nb.demiFin })
+          : itemPlage(it.type, it.texte, nb.giDebut, nb.duree, { important: it.important, demiDebut: nb.demiDebut, demiFin: nb.demiFin });
+        nouveau.dateDebutIso = isoDeGi(nouveau.giDebut);
+        p.liste.push(nouveau);
+        nouveaux.push(nouveau.id);
+        return;
+      }
       it.giDebut = nb.giDebut; it.duree = nb.duree; it.demiDebut = nb.demiDebut; it.demiFin = nb.demiFin;
       it.dateDebutIso = isoDeGi(it.giDebut);
     });
+    if (copie) {
+      copieSelectionActive = false;
+      bullesSelectionnees = {};
+      nouveaux.forEach(function (id) { bullesSelectionnees[id] = true; });
+    }
     render();
     majBarreSelection();
-    toast("Décalé (" + plages.length + ")" + (weekend ? " — " + weekend + " case(s) de week-end laissée(s) en place." : "."));
+    toast((copie ? "Copié (" : "Décalé (") + plages.length + ")" + (weekend ? " — " + weekend + " case(s) de week-end laissée(s) en place." : "."));
   }
-  // Barre de sélection (#panneauSelection) + bouton #btnSelectionMultiple :
-  // appelée à chaque rendu et à chaque changement de sélection. Visible dès
-  // qu'une bulle est sélectionnée OU que le mode multiple est allumé.
-  // Crayon seulement pour UNE bulle ; flèches seulement en mode multiple
-  // (réponse de Lionel, suite 7) ; copier/supprimer dès qu'il y a une
-  // sélection. body.selection-active : sur téléphone, la barre devient une
-  // pilule fixée en bas à la place de .nav-bas (cf. style-mobile.css).
+  // Pilule de sélection (#panneauSelection) : appelée à chaque rendu et à
+  // chaque changement de sélection. Visible dès qu'une bulle est
+  // sélectionnée. Crayon seulement pour UNE bulle ; flèches seulement en
+  // mode multiple (réponse de Lionel, suite 7) ; ⧉ teinté quand "copier au
+  // prochain déplacement" est armé. body.selection-active : sur téléphone,
+  // la pilule prend la place de .nav-bas (cf. style-mobile.css).
   function majBarreSelection() {
-    var btn = document.getElementById("btnSelectionMultiple"), panneau = document.getElementById("panneauSelection");
-    if (!btn || !panneau) return;
+    var panneau = document.getElementById("panneauSelection");
+    if (!panneau) return;
     var n = Object.keys(bullesSelectionnees).length;
-    var visible = n > 0 || modeSelectionMultiple;
-    btn.classList.toggle("actif", modeSelectionMultiple);
-    panneau.hidden = !visible;
-    document.body.classList.toggle("selection-active", visible);
+    panneau.hidden = !n;
+    document.body.classList.toggle("selection-active", n > 0);
     panneau.querySelector(".sel-fleches").hidden = !modeSelectionMultiple;
-    panneau.querySelectorAll("[data-decal]").forEach(function (b) { b.disabled = !n; });
     panneau.querySelector(".sel-compte").textContent = String(n);
     document.getElementById("selModifier").hidden = n !== 1;
-    document.getElementById("selCopier").disabled = !n;
-    document.getElementById("selSupprimer").disabled = !n;
+    document.getElementById("selCopier").classList.toggle("actif", copieSelectionActive);
   }
   // Crayon : ouvre la fiche de LA bulle sélectionnée (même geste qu'Entrée).
   function modifierSelection() {
@@ -131,43 +142,6 @@
     var plage = itemParId(ids[0]);
     if (!plage) return;
     ouvrirBulle(plage.item, plage, Math.round(window.innerWidth / 2 - 110), Math.round(window.innerHeight / 2 - 90));
-  }
-  // Copier (Lionel : « Dans la pilule de sélection ajouter un bouton à
-  // cliquer pour copier ») : pose une copie de chaque bulle sélectionnée AU
-  // MÊME ENDROIT et sélectionne les copies — à décaler ensuite avec les
-  // flèches ou au doigt (remplace le "Copier" proposé après un glisser
-  // tactile, qui n'existe plus). Deux tâches identiques sur une même case
-  // s'empilent normalement ; un JALON, lui, est unique par jour (mode
-  // "remplacement" côté serveur, cf. synchroniser) — sa copie est posée
-  // juste APRÈS l'original, s'il reste de la place dans la semaine.
-  function dupliquerSelection() {
-    var ids = Object.keys(bullesSelectionnees);
-    if (!ids.length) { toast("Aucune bulle sélectionnée."); return; }
-    var nTotal = nbJoursAffiches(), nouveaux = [], sautes = 0;
-    sauvegarderUndo();
-    ids.forEach(function (id) {
-      var plage = itemParId(id);
-      if (!plage) return;
-      var it = plage.item, nouveau;
-      if (plage.liste === TACHES) {
-        nouveau = itemPlageTache(it.type, it.texte, it.personneId, it.giDebut, it.duree, { chantier: it.chantier, important: it.important, statut: it.statut, demiDebut: it.demiDebut, demiFin: it.demiFin });
-      } else {
-        var gi = it.giDebut;
-        if (it.type === "jalon") {
-          gi = it.giDebut + it.duree;
-          if (estGiWeekend(it.giDebut) || gi + it.duree > nTotal) { sautes++; return; }
-        }
-        nouveau = itemPlage(it.type, it.texte, gi, it.duree, { important: it.important, demiDebut: it.demiDebut, demiFin: it.demiFin });
-      }
-      nouveau.dateDebutIso = isoDeGi(nouveau.giDebut);
-      plage.liste.push(nouveau);
-      nouveaux.push(nouveau.id);
-    });
-    quitterModeSelection();
-    nouveaux.forEach(function (id) { bullesSelectionnees[id] = true; });
-    render();
-    majBarreSelection();
-    toast(nouveaux.length ? ("Copié (" + nouveaux.length + ") — les copies sont sélectionnées, décalez-les." + (sautes ? " " + sautes + " jalon(s) sans place à droite." : "")) : "Pas de place à droite pour copier ce jalon.");
   }
   // Sortie automatique de la sélection une fois l'action terminée
   // (suppression, déplacement ou copie du groupe) : il suffit ensuite de
@@ -183,12 +157,17 @@
   // (Annuler seul, notamment) : sans ce nettoyage direct, la bulle resterait
   // visuellement teintée "sélectionnée" bien que bullesSelectionnees soit
   // déjà vide.
+  // Suite 9 : vider la sélection éteint aussi le mode multiple (plus de
+  // bouton pour le voir — le mode n'existe que le temps d'une sélection) et
+  // désarme "copier au prochain déplacement".
   function quitterModeSelection() {
     Object.keys(bullesSelectionnees).forEach(function (id) {
       var dom = document.querySelector('.bulle[data-id="' + id + '"]');
       if (dom) dom.classList.remove("selectionnee");
     });
     bullesSelectionnees = {};
+    modeSelectionMultiple = false;
+    copieSelectionActive = false;
     majBarreSelection();
   }
   // Suppression groupée depuis la sélection : toujours confirmée avant
@@ -242,8 +221,7 @@
 
     if (e.key === "Escape") {
       if (popFermerActuel) { popFermerActuel(); e.preventDefault(); return; }
-      // Échap éteint aussi le mode multiple (round du 24.09.2026, suite 7).
-      if (Object.keys(bullesSelectionnees).length > 0 || modeSelectionMultiple) { quitterModeSelectionMultiple(); render(false); e.preventDefault(); }
+      if (Object.keys(bullesSelectionnees).length > 0 || modeSelectionMultiple) { quitterModeSelection(); render(false); e.preventDefault(); }
       return;
     }
     if (e.key === "Enter" && popValiderActuel) { popValiderActuel(); e.preventDefault(); return; }

@@ -40,9 +40,16 @@
        .sync-dot). Sorties ici en variables pour pouvoir être pilotées
        depuis la nouvelle page, sans changer leur valeur ni leur rendu
        actuel. Même valeur dans les 2 thèmes (comme Absence/Jalon/Note
-       ci-dessus) : pas de redéfinition à ajouter dans le bloc sombre plus
-       bas, l'absence de règle là-bas suffit à garder cette valeur. */
-    --important-toggle-bg: #f2b134; --important-toggle-ink: #6b4400;
+       ci-dessus).
+       Round du 24.09.2026 (suite 9) — Lionel : « le petit drapeau des
+       formulaires qui signifie important doit être du même groupe de
+       couleur que erreur/suppression ». La page Couleurs regroupait déjà
+       --danger, --important-ink et --important-toggle-bg (« Erreur,
+       suppression et étoile "important" », défaut #b3372f) — mais la valeur
+       PAR DÉFAUT ici restait l'orange d'origine, visible tant que le groupe
+       n'a jamais été réglé. Alignée sur --danger/--danger-ink, dans les 2
+       thèmes (bloc sombre plus bas, comme --danger). */
+    --important-toggle-bg: #b3372f; --important-toggle-ink: #ffffff;
     --sync-dot: #3fa15a;
     /* Round du 23.09.2026 (suite ×3) — Lionel, 2e retour sur la page de
        couleurs : « sortir le fond de la toolbar de la couleur de fond, un
@@ -116,6 +123,7 @@
       --important-ink: #f2a89c;
       --status-confirme-bg: #123f38; --status-confirme-ink: #7ee0cf;
       --danger: #e0685f; --danger-ink: #2a0e0c;
+      --important-toggle-bg: #e0685f; --important-toggle-ink: #2a0e0c;
       --shadow: rgba(0, 0, 0, 0.4); --shadow-lg: rgba(0, 0, 0, 0.6);
       --interdit-bg: #4a2620;
       --avertissement-bg: #5a3110; --avertissement-ink: #f2a565;
@@ -685,35 +693,38 @@
   #btnPlusOutils .icone-menu-fermer, #btnPlusOutils.ouvert .icone-menu-ouvrir { display: none; }
   #btnPlusOutils.ouvert .icone-menu-fermer { display: grid; }
   .toolbar-btn.ouvert { background: var(--surface-2); color: var(--ink); }
-  /* Barre « ‹ › » de la sélection multiple (#panneauSelection, round du
-     24.09.2026, suite 7) : petit panneau flottant sous #btnSelectionMultiple,
-     affiché tant que le mode est actif (hidden géré par
-     majModeSelectionMultiple, formulaires-communs.js). Même habillage que
-     .outil-menu-panneau mais en LIGNE ; #groupeSelection est son bloc de
-     référence (position:relative). z-index 41 = au-dessus du panneau "⋮" et
-     de l'en-tête figée de la grille, sous les fiches (.form-pop). */
-  #groupeSelection { position: relative; }
+  /* Pilule de sélection (#panneauSelection) — round du 24.09.2026, suite 7
+     à 9. Lionel, capture BlueMail à l'appui : « placer cette barre en bas
+     aussi sous forme de pilule […] de la couleur du thème ». Fixée en bas
+     de l'écran, centrée, aux couleurs de la barre d'outils (--accent-soft,
+     icônes --accent) — desktop, tablette ET téléphone (style-mobile.css ne
+     change que sa largeur : pleine largeur à la place de .nav-bas).
+     hidden géré par majBarreSelection (formulaires-communs.js). z-index 90 :
+     au-dessus de la grille et des panneaux de la barre d'outils, sous les
+     fiches/confirmations (.voile-confirm 95). .sel-fleches (bloc des
+     flèches, mode multiple seulement), .sel-sep (trait vertical entre les
+     groupes), corbeille en rouge ; ⧉ .actif = "copier au prochain
+     déplacement" armé. [hidden] sur un span/bouton display:flex/grid doit
+     être redit explicitement. */
   .panneau-selection {
-    position: absolute; top: calc(100% + 6px); left: 0; z-index: 41;
-    display: flex; align-items: center; gap: 2px; padding: 4px;
-    background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px;
-    box-shadow: 0 6px 20px var(--shadow-lg);
+    position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 90;
+    display: flex; align-items: center; gap: 2px; padding: 6px 10px;
+    background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+    border-radius: 999px; box-shadow: 0 10px 28px var(--shadow-lg);
   }
   .panneau-selection[hidden] { display: none; }
+  .panneau-selection .toolbar-btn { width: 34px; height: 34px; color: var(--accent); }
+  .panneau-selection .toolbar-btn:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
+  .panneau-selection .toolbar-btn.actif { background: var(--accent); color: var(--accent-ink); border: none; }
   .panneau-selection .sel-compte {
     min-width: 2.2em; padding: 0 4px; text-align: center; font-family: 'IBM Plex Mono', monospace;
-    font-size: 12px; font-weight: 700; color: var(--ink-muted);
+    font-size: 12px; font-weight: 700; color: var(--accent);
   }
-  /* Round du 24.09.2026 (suite 8) — actions de l'ancienne barre du bas dans
-     cette même barre : .sel-fleches (bloc des flèches, mode multiple
-     seulement), .sel-sep (trait vertical entre les groupes), corbeille
-     teintée en rouge comme l'ancien "Supprimer". [hidden] sur un span/bouton
-     display:flex/grid doit être redit explicitement. */
   .panneau-selection .sel-fleches { display: flex; align-items: center; gap: 2px; }
   .panneau-selection .sel-fleches[hidden], .panneau-selection .toolbar-btn[hidden] { display: none; }
-  .panneau-selection .sel-sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; flex-shrink: 0; }
-  .panneau-selection .sel-supprimer { color: var(--important-ink); }
-  .panneau-selection .sel-supprimer:hover:not(:disabled) { background: var(--interdit-bg); color: var(--important-ink); }
+  .panneau-selection .sel-sep { width: 1px; height: 20px; background: color-mix(in srgb, var(--accent) 35%, transparent); margin: 0 4px; flex-shrink: 0; }
+  .panneau-selection .sel-supprimer { color: var(--danger); }
+  .panneau-selection .sel-supprimer:hover:not(:disabled) { background: var(--interdit-bg); color: var(--danger); }
   /* Trait horizontal entre 2 groupes du panneau (pendant du .sep-avant
      vertical de la barre) — le DOM du panneau suit l'ordre visuel
      (insererAuRang), le sélecteur de voisin suffit. */

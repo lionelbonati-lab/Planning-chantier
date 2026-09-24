@@ -1025,13 +1025,19 @@
     // doit rester pour appuyer de nouveau. On mémorise les bulles
     // sélectionnées par leur CONTENU (empreinteBulle_) avant de tout
     // reconstruire, puis on re-sélectionne celles qui correspondent.
-    // Comptées, pas juste cochées : deux bulles IDENTIQUES peuvent coexister
-    // (une copie posée au même endroit par dupliquerSelection) — une seule
-    // des deux doit ressortir sélectionnée, pas les deux.
-    var empreintesSelection = {};
+    // Une entrée par bulle sélectionnée (pas un simple jeu de clés : deux
+    // bulles identiques peuvent coexister, une seule doit ressortir).
+    // Repli par RECOUVREMENT (suite 9) : une copie posée juste à côté de son
+    // original par ⧉ + flèches (decalerSelection) fusionne avec lui au
+    // rechargement (même texte, demi-journées contiguës = une seule bulle
+    // plus longue, cf. la fusion plus bas) — l'empreinte exacte n'existe
+    // plus, mais la bulle fusionnée qui COUVRE la position de la copie est
+    // bien "la" bulle à garder sélectionnée. Même chose après un
+    // redimensionnement qui absorbe une voisine identique.
+    var selectionAvant = [];
     Object.keys(bullesSelectionnees).forEach(function (id) {
       var p = itemParId(id);
-      if (p) { var e = empreinteBulle_(p.item); empreintesSelection[e] = (empreintesSelection[e] || 0) + 1; }
+      if (p) selectionAvant.push({ cle: cleBulle_(p.item), empreinte: empreinteBulle_(p.item), giDebut: p.item.giDebut });
     });
     TACHES = []; JALONS = []; NOTES = [];
     var nJoursFenetre = donnees.length * 5;
@@ -1289,20 +1295,26 @@
       });
     });
 
-    if (Object.keys(empreintesSelection).length) {
+    if (selectionAvant.length) {
       bullesSelectionnees = {};
-      [TACHES, JALONS, NOTES].forEach(function (liste) {
-        liste.forEach(function (it) { var e = empreinteBulle_(it); if (empreintesSelection[e] > 0) { empreintesSelection[e]--; bullesSelectionnees[it.id] = true; } });
+      var toutes = TACHES.concat(JALONS, NOTES), prises = {};
+      selectionAvant.forEach(function (sel) {
+        var exact = toutes.filter(function (it) { return !prises[it.id] && empreinteBulle_(it) === sel.empreinte; })[0];
+        var trouve = exact || toutes.filter(function (it) {
+          return !prises[it.id] && cleBulle_(it) === sel.cle && sel.giDebut >= it.giDebut && sel.giDebut < it.giDebut + it.duree;
+        })[0];
+        if (trouve) { prises[trouve.id] = true; bullesSelectionnees[trouve.id] = true; }
       });
     }
     syncBaseline = calculerEtatLocal();
   }
-  // Empreinte d'une bulle indépendante de son id (cf. construireVueDepuisCache
-  // ci-dessus) : ce qui la distingue à l'écran, position comprise — après
-  // un décalage synchronisé, la bulle rechargée a la position mutée
-  // localement, donc la même empreinte.
+  // Clé (ligne + type + texte) et empreinte (clé + position + forme) d'une
+  // bulle, indépendantes de son id — cf. construireVueDepuisCache ci-dessus.
+  function cleBulle_(it) {
+    return [it.personneId !== undefined ? "p" + it.personneId : it.type, it.type, it.texte].join("\u0000");
+  }
   function empreinteBulle_(it) {
-    return [it.personneId !== undefined ? "p" + it.personneId : it.type, it.type, it.texte, it.giDebut, it.duree, it.demiDebut || "", it.demiFin || ""].join("\u0000");
+    return [cleBulle_(it), it.giDebut, it.duree, it.demiDebut || "", it.demiFin || ""].join("\u0000");
   }
   function trouverPersonneDonnees(data, ancre) {
     var a = String(ancre);
