@@ -12,6 +12,11 @@ const path = require('path');
 // qu'aucun bouton visible de la barre n'en recouvre un autre et qu'aucun ne
 // dépasse de la barre.
 //
+// Étendu au round du 24.09.2026 (suite 3) — refonte de la barre (ordre des
+// groupes, repli dans "⋮" groupe par groupe de droite à gauche, chantier à
+// largeur fixe, menu réordonné, barre téléphone inchangée) : cf. les
+// sections 2) à 6) plus bas.
+//
 // Supabase remplacé par un faux client (servi à la place du CDN) : l'appli
 // démarre par son vrai chemin (demarrer() -> construireCoquille()), avec un
 // chantier au nom long comme sur la capture de Lionel.
@@ -75,21 +80,105 @@ function mesurer() {
   await page.waitForSelector('#legendeBarre');
   await page.evaluate((nom) => { chantierParDefaut = nom; construireSelectChantier(); }, NOM_LONG);
 
-  let total = 0, echecs = 0, premiereCompacte = null;
-  for (let w = 1400; w >= 320; w -= 10) {
+  let total = 0, echecs = 0;
+  function verifier(cond, message) {
+    total++;
+    if (cond) console.log('OK: ' + message);
+    else { echecs++; console.error('ÉCHEC: ' + message); }
+  }
+  const etatBarre = () => page.evaluate(() => {
+    const b = document.getElementById('legendeBarre'), p = document.getElementById('toolbarSecondaire');
+    return {
+      barre: Array.from(b.children).filter((c) => c !== p && c.getBoundingClientRect().width > 0).map((c) => c.id),
+      menu: Array.from(p.children).map((c) => c.id)
+    };
+  });
+  async function largeur(w) {
     await page.setViewportSize({ width: w, height: 900 });
     await page.waitForTimeout(160); // > débounce de 120ms du resize (grille-rendu.js)
+  }
+
+  // 1) Rétrécissement 1400 -> 320px : jamais de chevauchement ; les groupes
+  //    partent dans "⋮" un par un, de droite à gauche (round du 24.09.2026,
+  //    suite 3 — Lionel : Masquages, Zoom, Navigation, Imprimer).
+  const ORDRE_REPLI = ['controlesAffichage', 'groupeZoom', 'groupeNavSemaine', 'groupeImprimer'];
+  const TOUJOURS_BARRE = ['groupeAnnulerRefaire', 'groupeChantier', 'groupeAujourdhui', 'groupeAjoutElement'];
+  let largeursOk = 0, nbLargeurs = 0, replis = [], ordreRespecte = true, toujoursLa = true;
+  for (let w = 1400; w >= 320; w -= 10) {
+    await largeur(w);
     const m = await page.evaluate(mesurer);
-    total++;
-    if (m.compacte && premiereCompacte === null) premiereCompacte = w;
+    nbLargeurs++;
     if (m.chevauchements.length || m.horsBarre.length) {
-      echecs++;
-      console.error('ÉCHEC ' + w + 'px : chevauchements=' + JSON.stringify(m.chevauchements) + ' hors barre=' + JSON.stringify(m.horsBarre));
+      console.error('   ' + w + 'px : chevauchements=' + JSON.stringify(m.chevauchements) + ' hors barre=' + JSON.stringify(m.horsBarre));
+    } else largeursOk++;
+    const e = await etatBarre();
+    if (!TOUJOURS_BARRE.every((id) => e.barre.includes(id))) { toujoursLa = false; console.error('   ' + w + 'px : barre=' + e.barre); }
+    if (w > 600) {
+      e.menu.forEach((id) => { if (!replis.includes(id)) replis.push(id); });
+      if (JSON.stringify(replis) !== JSON.stringify(ORDRE_REPLI.slice(0, replis.length))) ordreRespecte = false;
     }
   }
-  console.log('Barre compacte (menu "⋮") à partir de ' + premiereCompacte + 'px');
+  verifier(largeursOk === nbLargeurs, largeursOk + '/' + nbLargeurs + ' largeurs sans chevauchement ni bouton hors de la barre');
+  verifier(ordreRespecte, 'repli de droite à gauche, un groupe à la fois : ' + JSON.stringify(replis));
+  verifier(toujoursLa, 'Annuler/Refaire, Chantier, Aujourd\'hui et "+" toujours dans la barre');
+
+  // 2) Barre complète : ordre de Lionel « annuler/refaire | imprimer |
+  //    Chantier | navigation semaines | Zoom | Insertions | Masquages ».
+  await largeur(1400);
+  let e = await etatBarre();
+  verifier(JSON.stringify(e.barre) === JSON.stringify(['groupeAnnulerRefaire', 'groupeImprimer', 'groupeChantier', 'groupeAujourdhui', 'groupeNavSemaine', 'groupeZoom', 'groupeAjoutLigne', 'groupeAjoutElement', 'controlesAffichage']) && e.menu.length === 0,
+    'barre complète dans l\'ordre demandé, menu vide : ' + e.barre);
+  verifier(await page.evaluate(() => getComputedStyle(document.getElementById('btnPlusOutils')).display === 'none'), '"⋮" masqué quand rien n\'est replié');
+
+  // 3) Chantier : largeur fixe (25 caractères), nom long tronqué.
+  const largeurNom = () => page.evaluate(() => document.querySelector('#btnSelectChantier .nom-chantier').getBoundingClientRect().width);
+  const lLong = await largeurNom();
+  await page.evaluate(() => { chantierParDefaut = null; construireSelectChantier(); });
+  const lCourt = await largeurNom();
+  await page.evaluate((nom) => { chantierParDefaut = nom; construireSelectChantier(); }, NOM_LONG);
+  verifier(Math.abs(lLong - lCourt) < 0.5 && lLong > 100, 'nom du chantier à largeur fixe (' + Math.round(lLong) + 'px avec ou sans chantier choisi)');
+
+  // 4) Menu "⋮" à 700px : ordre Zoom > Navigation > Masquages ; ‹ Sem. N ›
+  //    sur une ligne ; 4 masquages sur une ligne ; ‹ utilisable depuis le menu.
+  await largeur(700);
+  e = await etatBarre();
+  verifier(JSON.stringify(e.menu) === JSON.stringify(['groupeZoom', 'groupeNavSemaine', 'controlesAffichage']), 'ordre du menu à 700px : ' + e.menu);
+  await page.click('#btnPlusOutils');
+  await page.waitForTimeout(100);
+  const lignes = await page.evaluate(() => {
+    const y = (sel) => Array.from(document.querySelectorAll(sel)).map((el) => Math.round(el.getBoundingClientRect().top + el.getBoundingClientRect().height / 2));
+    return { nav: y('#btnSemainePrec, #btnSemainePill, #btnSemaineSuiv'), masq: y('#controlesAffichage .toolbar-toggle'),
+      libelles: Array.from(document.querySelectorAll('#groupeNavSemaine .toolbar-btn-label')).filter((l) => l.getBoundingClientRect().width > 0).map((l) => l.textContent) };
+  });
+  verifier(new Set(lignes.nav).size === 1, '‹ Sem. N › sur une seule ligne dans le menu');
+  verifier(new Set(lignes.masq).size === 1, 'les 4 masquages sur une seule ligne dans le menu');
+  verifier(JSON.stringify(lignes.libelles) === JSON.stringify(['Afficher 2 semaines']), 'plus de texte "Semaine précédente/suivante" : ' + JSON.stringify(lignes.libelles));
+  const semAvant = await page.evaluate(() => etat.indexSemaine);
+  await page.click('#btnSemainePrec');
+  await page.waitForTimeout(200);
+  verifier(await page.evaluate(() => etat.indexSemaine) === semAvant - 1, '‹ du menu recule bien d\'une semaine');
+
+  // 5) Ré-élargissement : tout revient dans la barre, menu refermé.
+  await page.click('#btnPlusOutils').catch(() => {});
+  await page.waitForTimeout(100);
+  await largeur(1400);
+  e = await etatBarre();
+  verifier(e.menu.length === 0 && e.barre.includes('controlesAffichage'), 'ré-élargi : tous les groupes revenus dans la barre');
+
+  // 6) Téléphone : barre inchangée (Lionel : « Menu ⋮ seulement »), menu
+  //    Imprimer > Zoom > Navigation > Ajouter une ligne > Masquages.
+  await largeur(390);
+  e = await etatBarre();
+  const ordreVisuel = await page.evaluate(() => {
+    const b = document.getElementById('legendeBarre'), p = document.getElementById('toolbarSecondaire');
+    return Array.from(b.children).filter((c) => c !== p && c.getBoundingClientRect().width > 0)
+      .sort((a, c) => a.getBoundingClientRect().left - c.getBoundingClientRect().left).map((c) => c.id);
+  });
+  verifier(JSON.stringify(ordreVisuel) === JSON.stringify(['groupeAnnulerRefaire', 'groupeAujourdhui', 'groupeChantier', 'groupeAjoutElement', 'btnPlusOutils']), 'barre téléphone inchangée : ' + ordreVisuel);
+  verifier(JSON.stringify(e.menu) === JSON.stringify(['groupeImprimer', 'groupeZoom', 'groupeNavSemaine', 'groupeAjoutLigne', 'controlesAffichage']), 'menu téléphone : ' + e.menu);
+
   if (erreurs.length) { echecs++; console.error('ERREURS JS : ' + JSON.stringify(erreurs, null, 2)); }
-  console.log((total - echecs) + '/' + total + ' largeurs sans chevauchement' + (echecs ? ' — ' + echecs + ' ÉCHEC(S)' : ' — OK'));
+  console.log((total - echecs) + '/' + total + ' vérifications' + (echecs ? ' — ' + echecs + ' ÉCHEC(S)' : ' — OK'));
   await browser.close();
   process.exit(echecs ? 1 : 0);
 })();

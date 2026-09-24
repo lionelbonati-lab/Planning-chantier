@@ -156,31 +156,88 @@
   // commentaire CSS pour ce que ça change) selon que le contenu, une fois
   // étendu, dépasserait ou non de la barre.
   //
-  // Repart TOUJOURS de l'état étendu avant de mesurer (classList.remove en
-  // premier) : sans ça, une fois .toolbar-compacte posée une fois, elle ne
-  // serait jamais retirée même en réagrandissant la fenêtre ensuite — le
-  // contenu qu'elle a fait disparaître de la barre ne "reviendrait" jamais
-  // peser dans scrollWidth. Le retrait puis la (ré)application, tous deux
+  // Repart TOUJOURS de l'état étendu avant de mesurer (tous les groupes
+  // remis dans la barre en premier) : sans ça, un groupe replié une fois ne
+  // reviendrait jamais en réagrandissant la fenêtre — absent de la barre, il
+  // ne pèserait plus dans la mesure. Remise en place puis repli, tous deux
   // synchrones, n'ont aucun effet visible à l'écran (aucun repaint entre les
-  // deux) — seule la lecture de scrollWidth/clientWidth entre les deux force
-  // un reflow, sans jamais rien afficher de l'état intermédiaire.
+  // deux) — seules les lectures de getBoundingClientRect entre les deux
+  // forcent un reflow, sans jamais rien afficher de l'état intermédiaire.
   //
-  // Inerte ≤600px (téléphone) : style-mobile.css gère déjà tout seul (panneau
-  // permanent en dur, cf. son commentaire) — poser .toolbar-compacte en plus
-  // là-bas ne changerait rien de visible mais les 2 mécanismes se
-  // marcheraient sur les pieds pour rien.
+  // Round du 24.09.2026 (suite 3) — repli GROUPE PAR GROUPE. Lionel : « En
+  // réduisant la largeur d'écran, placer un groupe d'élément dans le menu 3
+  // points quand il sort de la tool barre », de droite à gauche (« De droite
+  // à gauche » : Masquages, Zoom, Navigation, Imprimer — cf. REPLIS_ORDRE).
+  // Plus un tout-ou-rien : chaque groupe est déplacé physiquement de la
+  // barre vers #toolbarSecondaire (cf. le commentaire TECHNIQUE de
+  // htmlPagePlanning, js/coquille.js), un à la fois, tant que la barre
+  // déborde encore — "⋮" apparaissant dès le 1er repli (.toolbar-compacte),
+  // sa propre largeur est prise en compte par la mesure suivante.
+  //
+  // La mesure ne regarde plus scrollWidth mais le bord droit de chaque
+  // enfant direct de la barre : un menu déroulant OUVERT (le "+", le zoom…,
+  // en position:absolute) peut dépasser de la barre sans qu'aucun bouton ne
+  // déborde — scrollWidth l'aurait compté comme un débordement et replié
+  // des groupes pour rien.
+  //
+  // Téléphone (≤600px) : pas de mesure, barre fixe (Lionel : « Menu ⋮
+  // seulement », barre inchangée) — tous les groupes repliables ET "Ajouter
+  // une ligne" vont d'office dans le panneau, comme avant ce round.
+  var REPLIS_ORDRE = ["controlesAffichage", "groupeZoom", "groupeNavSemaine", "groupeImprimer"];
+  var REPLIS_TELEPHONE = REPLIS_ORDRE.concat(["groupeAjoutLigne"]);
+  // Insère `el` dans `conteneur` avant le premier enfant de rang supérieur
+  // (data-rang ou data-rang-menu selon `cle`) — garde le DOM dans l'ordre
+  // visuel, dont dépendent les séparateurs (.sep-avant, cf. style.css).
+  function insererAuRang(el, conteneur, cle) {
+    var rang = Number(el.dataset[cle]);
+    var suivant = null;
+    for (var i = 0; i < conteneur.children.length; i++) {
+      var c = conteneur.children[i];
+      if (c !== el && c.dataset[cle] !== undefined && Number(c.dataset[cle]) > rang) { suivant = c; break; }
+    }
+    if (el.parentNode !== conteneur || el.nextElementSibling !== suivant) conteneur.insertBefore(el, suivant);
+  }
+  function barreDeborde(barre, panneau) {
+    var st = getComputedStyle(barre);
+    var bord = barre.getBoundingClientRect().right - parseFloat(st.paddingRight) - parseFloat(st.borderRightWidth);
+    for (var i = 0; i < barre.children.length; i++) {
+      var c = barre.children[i];
+      if (c === panneau) continue;
+      var r = c.getBoundingClientRect();
+      if (r.width > 0 && r.right > bord + 1) return true;
+    }
+    return false;
+  }
   function ajusterDebordementToolbar() {
     var pagePlanning = document.getElementById("page-planning");
     if (!pagePlanning || !pagePlanning.classList.contains("actif")) return;
     var legendeBarre = document.getElementById("legendeBarre");
-    if (!legendeBarre) return;
-    if (typeof window.matchMedia === "function" && window.matchMedia("(max-width: 600px)").matches) {
-      legendeBarre.classList.remove("toolbar-compacte");
+    var panneau = document.getElementById("toolbarSecondaire");
+    if (!legendeBarre || !panneau) return;
+    var telephone = typeof window.matchMedia === "function" && window.matchMedia("(max-width: 600px)").matches;
+    var groupes = REPLIS_TELEPHONE.map(function (id) { return document.getElementById(id); }).filter(Boolean);
+    groupes.forEach(function (g) { insererAuRang(g, legendeBarre, "rang"); });
+    legendeBarre.classList.remove("toolbar-compacte");
+    if (telephone) {
+      groupes.forEach(function (g) { insererAuRang(g, panneau, "rangMenu"); });
+      legendeBarre.classList.add("toolbar-compacte");
       return;
     }
-    legendeBarre.classList.remove("toolbar-compacte");
-    var deborde = legendeBarre.scrollWidth > legendeBarre.clientWidth + 1;
-    legendeBarre.classList.toggle("toolbar-compacte", deborde);
+    var ordre = REPLIS_ORDRE.map(function (id) { return document.getElementById(id); }).filter(Boolean);
+    for (var i = 0; i < ordre.length && barreDeborde(legendeBarre, panneau); i++) {
+      insererAuRang(ordre[i], panneau, "rangMenu");
+      legendeBarre.classList.add("toolbar-compacte");
+    }
+    fermerPanneauSiVide(panneau);
+  }
+  // Panneau ouvert puis fenêtre ré-élargie jusqu'à tout faire revenir dans
+  // la barre : "⋮" disparaît — ne pas laisser un panneau vide ouvert sans
+  // plus aucun bouton pour le refermer.
+  function fermerPanneauSiVide(panneau) {
+    if (panneau.children.length) return;
+    panneau.classList.remove("ouvert");
+    var btn = document.getElementById("btnPlusOutils");
+    if (btn) btn.classList.remove("ouvert");
   }
   var minuteurAjustEntete = null;
   window.addEventListener("resize", function () {
