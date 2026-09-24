@@ -77,7 +77,6 @@
         '</div>' +
       '</div>';
     cablerNavigation();
-    cablerBarreAction();
     cablerPagePlanning();
     cablerPageEntreeRapide();
     cablerPageFeries();
@@ -295,12 +294,27 @@
         // decalerSelection, formulaires-communs.js).
         '<div class="toolbar-groupe sep-avant" id="groupeSelection" data-rang="85">' +
           '<button type="button" class="toolbar-btn" id="btnSelectionMultiple" title="Sélection multiple — cliquer plusieurs bulles, puis les décaler avec les flèches" aria-label="Sélection multiple">' + ICONS.selectionMultiple + '</button>' +
+          // Round du 24.09.2026 (suite 8) — la barre porte aussi les actions
+          // de l'ancienne barre du bas (Lionel : « Dans la barre avec les
+          // flèches ») : crayon (une seule bulle — remplace le double-clic),
+          // copier, supprimer, puis les flèches (mode multiple seulement),
+          // puis ✕ (désélectionner). Visible dès qu'une bulle est
+          // sélectionnée, même hors mode multiple (cf. majBarreSelection).
+          // Sur téléphone : pilule fixée en bas à la place de .nav-bas.
           '<div class="panneau-selection" id="panneauSelection" hidden>' +
-            '<button type="button" class="toolbar-btn" data-decal="-2" title="Décaler d’un jour vers la gauche (Maj+←)" aria-label="Décaler d’un jour vers la gauche">' + ICONS.chevronDoubleGauche + '</button>' +
-            '<button type="button" class="toolbar-btn" data-decal="-1" title="Décaler d’une demi-journée vers la gauche (←)" aria-label="Décaler d’une demi-journée vers la gauche">' + ICONS.chevronGauche + '</button>' +
-            '<span class="sel-compte" title="Bulles sélectionnées">0</span>' +
-            '<button type="button" class="toolbar-btn" data-decal="1" title="Décaler d’une demi-journée vers la droite (→)" aria-label="Décaler d’une demi-journée vers la droite">' + ICONS.chevronDroite + '</button>' +
-            '<button type="button" class="toolbar-btn" data-decal="2" title="Décaler d’un jour vers la droite (Maj+→)" aria-label="Décaler d’un jour vers la droite">' + ICONS.chevronDoubleDroite + '</button>' +
+            '<button type="button" class="toolbar-btn" id="selModifier" title="Modifier (Entrée)" aria-label="Modifier">' + ICONS.pencil + '</button>' +
+            '<button type="button" class="toolbar-btn" id="selCopier" title="Copier — pose une copie au même endroit, à décaler ensuite" aria-label="Copier">' + ICONS.copy + '</button>' +
+            '<button type="button" class="toolbar-btn sel-supprimer" id="selSupprimer" title="Supprimer (Suppr)" aria-label="Supprimer">' + ICONS.trash + '</button>' +
+            '<span class="sel-fleches" hidden>' +
+              '<span class="sel-sep"></span>' +
+              '<button type="button" class="toolbar-btn" data-decal="-2" title="Décaler d’un jour vers la gauche (Maj+←)" aria-label="Décaler d’un jour vers la gauche">' + ICONS.chevronDoubleGauche + '</button>' +
+              '<button type="button" class="toolbar-btn" data-decal="-1" title="Décaler d’une demi-journée vers la gauche (←)" aria-label="Décaler d’une demi-journée vers la gauche">' + ICONS.chevronGauche + '</button>' +
+              '<span class="sel-compte" title="Bulles sélectionnées">0</span>' +
+              '<button type="button" class="toolbar-btn" data-decal="1" title="Décaler d’une demi-journée vers la droite (→)" aria-label="Décaler d’une demi-journée vers la droite">' + ICONS.chevronDroite + '</button>' +
+              '<button type="button" class="toolbar-btn" data-decal="2" title="Décaler d’un jour vers la droite (Maj+→)" aria-label="Décaler d’un jour vers la droite">' + ICONS.chevronDoubleDroite + '</button>' +
+            '</span>' +
+            '<span class="sel-sep"></span>' +
+            '<button type="button" class="toolbar-btn" id="selFermer" title="Désélectionner (Échap)" aria-label="Désélectionner">' + ICONS.close + '</button>' +
           '</div>' +
         '</div>' +
         // Masquages : icônes seules partout, y compris dans le panneau où
@@ -331,12 +345,9 @@
       '</div>' +
       '<div class="zone-planning">' +
         '<div id="racine"></div>' +
-        '<div class="barre-action" id="barreAction" hidden>' +
-          '<button type="button" id="baAnnuler" class="ovale-neutre">Annuler</button>' +
-          '<button type="button" id="baSupprimer" class="ovale-danger">Supprimer</button>' +
-          '<button type="button" id="baCopier" class="ovale-bleu" hidden>Copier</button>' +
-          '<button type="button" id="baDeplacer" class="ovale-bleu" hidden>Déplacer</button>' +
-        '</div>' +
+        // #barreAction (Annuler / Supprimer / Copier / Déplacer, sticky en bas)
+        // a disparu au round du 24.09.2026 (suite 8) : ses rôles sont repris
+        // par #panneauSelection dans la barre d'outils, cf. plus haut.
       '</div>' +
       '</div></div></div>';
   }
@@ -810,6 +821,10 @@
     document.querySelectorAll("#panneauSelection [data-decal]").forEach(function (b) {
       b.addEventListener("click", function () { decalerSelection(+b.dataset.decal); });
     });
+    document.getElementById("selModifier").addEventListener("click", modifierSelection);
+    document.getElementById("selCopier").addEventListener("click", dupliquerSelection);
+    document.getElementById("selSupprimer").addEventListener("click", supprimerSelection);
+    document.getElementById("selFermer").addEventListener("click", function () { quitterModeSelectionMultiple(); });
     if (btnDeuxSemainesBarre) btnDeuxSemainesBarre.addEventListener("click", basculerDeuxSemaines);
     if (btnVueJourMobileBarre) btnVueJourMobileBarre.addEventListener("click", basculerVueJourMobile);
     // #menuSemaine/#btnSemainePill remplacent ouvrirAllerSemaine() (popup

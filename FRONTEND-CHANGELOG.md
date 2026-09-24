@@ -6754,3 +6754,22 @@ Réponses de Lionel aux questions posées avant de coder : le menu des flèches 
 **Téléphone** : bouton collé au « + » sans trait de séparation (avec, la barre débordait de ~15 px à 320 px de large, repéré par `test_toolbar_chevauchement.js`) ; panneau de flèches ancré à droite.
 
 Vérifié en local (Playwright) avec le nouveau test `test_selection_bulles.js` : 20 vérifications, toutes OK. Sélection simple (remplacement, désélection par re-clic), Ctrl+clic, Échap, bouton (mode, compteur, flèches grisées puis actives), décalage d'une demi-journée et d'un jour avec vérification de la forme des bulles et de la table `taches` relue, sélection conservée après synchronisation, butée tout ou rien, clavier, extinction, pile Annuler. Captures contrôlées à 1200, 390 et 320 px. `test_toolbar_chevauchement.js` 23/23 (attentes mises à jour pour le nouveau bouton), `test_tache_hors_semaine.js` 16/16, `test_defilement_jour_mobile.js` 20/20.
+
+## 116. Round du 24.09.2026 (suite 8) — Barre de sélection : crayon, copier, corbeille et ✕ à la place de la barre du bas ; plus de double-clic
+
+Lionel : « Il faudrait retravailler au passage les deux boutons annuler et supprimer qui s'ouvrent quand une bulle est sélectionnée. Peut-être les réduire à de simples icônes qu'on placerait sur la bulle qu'on a sélectionnée. On y ajouterait une petite icône pour modifier la tâche à la place du double-clic. » Réponses aux questions posées avant de coder : les icônes vont **« dans la barre avec les flèches. Sur desktop et tablette. Sur mobile une pilule vient remplacer la barre d'onglet en bas »** ; le double-clic disparaît (**« crayon seulement »**) ; le choix Déplacer/Copier après un glisser tactile est remplacé par **« un bouton à cliquer pour copier »** dans la pilule.
+
+**La barre du bas n'existe plus** (`#barreAction` : Annuler / Supprimer, et Copier / Déplacer après un glisser tactile). Tout passe par la barre de sélection `#panneauSelection` (§115), qui apparaît désormais **dès qu'une bulle est sélectionnée**, mode multiple ou non. De gauche à droite :
+- **✎ Modifier** — seulement quand une seule bulle est sélectionnée ; ouvre sa fiche (comme Entrée). **Le double-clic sur une bulle ne fait plus rien de spécial** : deux clics = sélection puis désélection.
+- **⧉ Copier** — pose une copie de chaque bulle sélectionnée **au même endroit** et sélectionne les copies, à décaler ensuite avec les flèches ou au doigt. Deux tâches identiques sur une même case s'empilent normalement ; un **jalon**, unique par jour côté serveur, voit sa copie posée juste après l'original (s'il reste de la place, sinon message).
+- **🗑 Supprimer** — toute la sélection, avec confirmation, comme avant.
+- **« ‹ n › »** — inchangées, toujours en mode multiple seulement.
+- **✕** — désélectionne tout et éteint le mode (comme Échap).
+
+**Téléphone** : c'est le **même élément** (un seul câblage) qui, sous 600 px, devient une **pilule fixée en bas de l'écran à la place de la barre d'onglets** (`.nav-bas` masquée par `body.selection-active`, posée par `majBarreSelection`) ; la barre d'onglets revient dès que la sélection est vidée.
+
+**Glisser tactile** : plus de question « Déplacer / Copier / Annuler » à la dépose — un glisser **déplace**, comme à la souris sans Maj. Copier passe par le bouton ⧉ puis un décalage. Le code de ce choix (fantômes reposés, reprise du glisser, dépôt sur le bouton rouge « Supprimer ») est supprimé de `js/grille-interactions.js`, ainsi que `choixDeplacerCopierEnCours`, `DELAI_DOUBLE_CLIC` et les `.ovale-*` de `style.css`.
+
+**Copie identique et sélection** : le report de la sélection à travers la reconstruction de la grille (§115, empreinte par contenu) compte désormais les empreintes au lieu de les cocher — sinon la copie ET l'original, identiques, seraient tous deux ressortis sélectionnés après la synchronisation, et les flèches auraient déplacé les deux.
+
+Vérifié en local (Playwright) : `test_selection_bulles.js` étendu à **32 vérifications**, toutes OK — barre visible pour une bulle seule (crayon, sans flèches), plus de double-clic, crayon qui ouvre la fiche, copier (table relue : 4 demi-journées « B », une seule des deux sélectionnée), ✕, corbeille avec confirmation et table relue, pilule en bas sur téléphone avec barre d'onglets masquée puis de retour. `test_toolbar_chevauchement.js` 23/23, `test_tache_hors_semaine.js` 16/16, `test_defilement_jour_mobile.js` 20/20. Captures contrôlées à 1200 px (bulle seule, mode multiple) et 390 px (pilule).

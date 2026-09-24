@@ -1025,10 +1025,13 @@
     // doit rester pour appuyer de nouveau. On mémorise les bulles
     // sélectionnées par leur CONTENU (empreinteBulle_) avant de tout
     // reconstruire, puis on re-sélectionne celles qui correspondent.
+    // Comptées, pas juste cochées : deux bulles IDENTIQUES peuvent coexister
+    // (une copie posée au même endroit par dupliquerSelection) — une seule
+    // des deux doit ressortir sélectionnée, pas les deux.
     var empreintesSelection = {};
     Object.keys(bullesSelectionnees).forEach(function (id) {
       var p = itemParId(id);
-      if (p) empreintesSelection[empreinteBulle_(p.item)] = true;
+      if (p) { var e = empreinteBulle_(p.item); empreintesSelection[e] = (empreintesSelection[e] || 0) + 1; }
     });
     TACHES = []; JALONS = []; NOTES = [];
     var nJoursFenetre = donnees.length * 5;
@@ -1289,7 +1292,7 @@
     if (Object.keys(empreintesSelection).length) {
       bullesSelectionnees = {};
       [TACHES, JALONS, NOTES].forEach(function (liste) {
-        liste.forEach(function (it) { if (empreintesSelection[empreinteBulle_(it)]) bullesSelectionnees[it.id] = true; });
+        liste.forEach(function (it) { var e = empreinteBulle_(it); if (empreintesSelection[e] > 0) { empreintesSelection[e]--; bullesSelectionnees[it.id] = true; } });
       });
     }
     syncBaseline = calculerEtatLocal();

@@ -355,20 +355,19 @@
     });
   }
 
-  var dernierClicBulle = null, dernierClicTemps = 0;
   function ouvrirBulle(itemData, plage, x, y) {
     if (plage && plage.liste === TACHES) ouvrirEdition(null, itemData, null, x, y);
     else if (plage) ouvrirEditionPlage(itemData.type, itemData, null, null, x, y);
   }
-  // cumuler (round du 24.09.2026, suite 7) : Ctrl/Cmd enfoncé au clic —
-  // ajoute à la sélection au lieu de la remplacer, cf. basculerSelection.
-  function resoudreClicBulle(id, itemData, plage, x, y, cumuler) {
-    var maintenant = Date.now();
-    var estDouble = dernierClicBulle === id && (maintenant - dernierClicTemps) < DELAI_DOUBLE_CLIC;
-    dernierClicBulle = estDouble ? null : id;
-    dernierClicTemps = maintenant;
-    if (estDouble) ouvrirBulle(itemData, plage, x, y);
-    else basculerSelection(id, cumuler);
+  // Un clic (sans glisser) sur une bulle = sélection, rien d'autre. Le
+  // double-clic qui ouvrait la fiche a disparu au round du 24.09.2026
+  // (suite 8 — Lionel : « une petite icône pour modifier la tâche à la
+  // place du double-clic », puis « Non, crayon seulement ») : la fiche
+  // s'ouvre par le crayon de la barre de sélection (#selModifier,
+  // modifierSelection) ou par Entrée. cumuler (suite 7) : Ctrl/Cmd enfoncé
+  // — ajoute à la sélection au lieu de la remplacer, cf. basculerSelection.
+  function resoudreClicBulle(id, cumuler) {
+    basculerSelection(id, cumuler);
   }
 
   function onPointerDownGroupeSelection(e) {
@@ -431,7 +430,7 @@
     var defilementManuel = creerDefilementManuel(scroller);
     var arme = false, enDefilement = false, bouge = false, badge = null;
     var fantomes = [];
-    var cibleActuelle = null, surBoutonSuppr = false, cellulesSurvoleesActuelles = [];
+    var cibleActuelle = null, cellulesSurvoleesActuelles = [];
     var surlignagePrecisEl = null;
 
     function kindOrigineGeste() { return plageClic.liste === TACHES ? "personne" : itemClic.type; }
@@ -585,7 +584,6 @@
       if (enDefilement) defilementManuel.relacher();
       document.body.classList.remove("en-glissement");
       autoDefil.arreter();
-      if (baSupprimerEl) baSupprimerEl.classList.remove("cible-suppr");
       nettoyerSurvol();
       document.removeEventListener("pointermove", onMove);
       document.removeEventListener("pointerup", onUp);
@@ -613,27 +611,8 @@
       if (badge) { badge.style.left = (e2.clientX + 14) + "px"; badge.style.top = (e2.clientY + 14) + "px"; }
       autoDefil.maj(e2.clientX);
       var sous = document.elementFromPoint(e2.clientX, e2.clientY);
-      surBoutonSuppr = !!(sous && sous.closest("#baSupprimer"));
-      if (baSupprimerEl) baSupprimerEl.classList.toggle("cible-suppr", surBoutonSuppr);
-      cibleActuelle = surBoutonSuppr ? null : (sous && sous.closest(".cell"));
+      cibleActuelle = sous && sous.closest(".cell");
       survolerCible(cibleActuelle, e2.clientX);
-    }
-    function supprimerGroupeConfirme() {
-      nettoyerFantomes();
-      var texteSuppr = "Supprimer " + groupeIds.length + " bulle" + (groupeIds.length > 1 ? "s" : "") + " ?";
-      demanderConfirmation(texteSuppr, function () {
-        sauvegarderUndo();
-        groupeIds.forEach(function (id) {
-          var plage = itemParId(id);
-          if (!plage) return;
-          var i = plage.liste.indexOf(plage.item);
-          if (i >= 0) plage.liste.splice(i, 1);
-          delete bullesSelectionnees[id];
-        });
-        quitterModeSelection();
-        render();
-        toast("Supprimé (" + groupeIds.length + ").");
-      }, function () { render(false); });
     }
     function appliquerDelta(delta, copieFinale) {
       var nTotal = nbJoursAffiches();
@@ -732,26 +711,6 @@
       render();
       toast(copieFinale ? "Copié." : "Déplacé.");
     }
-    function poserFantomesPourDelta(delta) {
-      var nTotal = nbJoursAffiches();
-      groupeIds.forEach(function (id) {
-        var dom = document.querySelector('.bulle[data-id="' + id + '"]');
-        var f = fantomes.filter(function (x) { return x.id === id; })[0];
-        if (!dom || !f) return;
-        var plage2 = itemDepuisBulle(dom);
-        if (!plage2) return;
-        var it2 = plage2.item;
-        var ni2 = Math.max(0, Math.min(nTotal - it2.duree, it2.giDebut + delta));
-        var kind2 = plage2.liste === TACHES ? "personne" : it2.type;
-        // demi (round du 03.09.2026, repris ici au §49) : rectanglePlage
-        // n'a besoin que d'UNE demi-journée de repère pour trouver sa
-        // cellule de fond (celluleAPosition, indexée par data-demi) — le
-        // 1er bord de l'item (demiDebut) fait toujours l'affaire, "matin"
-        // en repli pour une plage en journée entière (demiDebut === null).
-        var extra2 = plage2.liste === TACHES ? { personne: it2.personneId, demi: it2.demiDebut || "matin" } : null;
-        poserSurCellule(f.clone, rectanglePlage(kind2, extra2, ni2, it2.duree));
-      });
-    }
     function estBulleUnitaireDeplacable() { return groupeIds.length === 1 && plageClic.liste === TACHES; }
     function celluleValidePourUnitaire(celluleCible) {
       if (!celluleCible || celluleCible.dataset.kind !== "personne") return false;
@@ -774,21 +733,6 @@
       quitterModeSelection();
       render();
       toast(copieFinale ? "Copié." : "Déplacé.");
-    }
-    function poserFantomePourCible(cible) {
-      var f = fantomes[0];
-      if (!f) return;
-      poserSurCellule(f.clone, rectanglePlage("personne", { personne: cible.personneId, demi: cible.demiDebut || "matin" }, cible.giDebut, cible.duree));
-    }
-    function posterMenuUnitairePourCible(cible) {
-      if (badge) { badge.remove(); badge = null; }
-      poserFantomePourCible(cible);
-      afficherChoixDeplacerCopier(
-        function () { quitterModeSelection(); nettoyerFantomes(); render(false); },
-        function () { appliquerCibleUnitaire(cible, true); },
-        function () { appliquerCibleUnitaire(cible, false); }
-      );
-      permettreRepriseGroupe(function () { posterMenuUnitairePourCible(cible); });
     }
     function resoudreCibleGroupe(celluleCible, clientXFinal) {
       if (!celluleCible) { nettoyerFantomes(); render(false); return; }
@@ -823,7 +767,7 @@
           cible = { personneId: celluleCible.dataset.personne, giDebut: giCible, duree: itemClic.duree, demiDebut: demiDebutActuelTache, demiFin: demiFinActuelTache };
         }
         if (cible.personneId === itemClic.personneId && cible.giDebut === itemClic.giDebut && cible.duree === itemClic.duree && cible.demiDebut === demiDebutActuelTache && cible.demiFin === demiFinActuelTache) { nettoyerFantomes(); render(false); return; }
-        if (tactile) posterMenuUnitairePourCible(cible); else appliquerCibleUnitaire(cible, copieActuelle);
+        appliquerCibleUnitaire(cible, copieActuelle);
         return;
       }
       if (estGiWeekend(giCibleBrut)) { nettoyerFantomes(); render(false); return; }
@@ -882,81 +826,19 @@
         return;
       }
       if (!delta) { nettoyerFantomes(); render(false); return; }
-      if (tactile) posterMenuGroupePourDelta(delta); else appliquerDelta(delta, copieActuelle);
-    }
-    function posterMenuGroupePourDelta(delta) {
-      if (badge) { badge.remove(); badge = null; }
-      poserFantomesPourDelta(delta);
-      afficherChoixDeplacerCopier(
-        function () { quitterModeSelection(); nettoyerFantomes(); render(false); },
-        function () { appliquerDelta(delta, true); },
-        function () { appliquerDelta(delta, false); }
-      );
-      permettreRepriseGroupe(function () { posterMenuGroupePourDelta(delta); });
-    }
-    function permettreRepriseGroupe(reposer) {
-      fantomes.forEach(function (f) {
-        function reprendre(e3) {
-          e3.preventDefault();
-          fantomes.forEach(function (f2) { if (f2._reprendre) f2.clone.removeEventListener("pointerdown", f2._reprendre); });
-          barreActionEl.hidden = true;
-          suivreRedeplacementGroupe(e3, reposer);
-        }
-        f._reprendre = reprendre;
-        f.clone.addEventListener("pointerdown", reprendre);
-      });
-    }
-    function suivreRedeplacementGroupe(e0, reposer) {
-      var pointerId2 = e0.pointerId;
-      var sx2 = e0.clientX, sy2 = e0.clientY;
-      fantomes.forEach(function (f) { f.left = parseFloat(f.clone.style.left) || 0; f.top = parseFloat(f.clone.style.top) || 0; f.clone.classList.remove("posee"); });
-      document.body.classList.add("en-glissement");
-      var autoDefil2 = creerAutoDefilement(scroller);
-      var elementCapte = e0.currentTarget;
-      var cibleActuelle2 = null, surBoutonSuppr2 = false;
-      function onMove2(e2) {
-        if (e2.pointerId !== pointerId2) return;
-        var dx = e2.clientX - sx2, dy = e2.clientY - sy2;
-        fantomes.forEach(function (f) { f.clone.style.left = (f.left + dx) + "px"; f.clone.style.top = (f.top + dy) + "px"; });
-        autoDefil2.maj(e2.clientX);
-        var sous = document.elementFromPoint(e2.clientX, e2.clientY);
-        surBoutonSuppr2 = !!(sous && sous.closest("#baSupprimer"));
-        if (baSupprimerEl) baSupprimerEl.classList.toggle("cible-suppr", surBoutonSuppr2);
-        cibleActuelle2 = surBoutonSuppr2 ? null : (sous && sous.closest(".cell"));
-        survolerCible(cibleActuelle2);
-      }
-      function detacher2() {
-        document.body.classList.remove("en-glissement");
-        autoDefil2.arreter();
-        if (baSupprimerEl) baSupprimerEl.classList.remove("cible-suppr");
-        nettoyerSurvol();
-        document.removeEventListener("pointermove", onMove2);
-        document.removeEventListener("pointerup", onUp2);
-        document.removeEventListener("pointercancel", onCancel2);
-        try { elementCapte.releasePointerCapture(pointerId2); } catch (ex) {}
-      }
-      function onUp2(e2) {
-        if (e2.pointerId !== pointerId2) return;
-        var celluleCible2 = cibleActuelle2, surSuppr2 = surBoutonSuppr2;
-        detacher2();
-        if (surSuppr2) { supprimerGroupeConfirme(); return; }
-        if (!celluleCible2) { reposer(); return; }
-        resoudreCibleGroupe(celluleCible2, e2.clientX);
-      }
-      function onCancel2(e2) { if (e2.pointerId !== pointerId2) return; detacher2(); reposer(); }
-      try { elementCapte.setPointerCapture(pointerId2); } catch (ex) {}
-      // document (pas elementCapte) — cf. §79.
-      document.addEventListener("pointermove", onMove2);
-      document.addEventListener("pointerup", onUp2);
-      document.addEventListener("pointercancel", onCancel2);
+      // Tactile : plus de question "Déplacer / Copier" après la dépose
+      // (round du 24.09.2026, suite 8 — Lionel : la barre du bas disparaît,
+      // « Dans la pilule de sélection ajouter un bouton à cliquer pour
+      // copier ») : un glisser DÉPLACE, comme à la souris sans Maj ; copier
+      // passe par #selCopier (dupliquerSelection) puis un décalage.
+      appliquerDelta(delta, copieActuelle);
     }
     function onUp(e2) {
       if (e2.pointerId !== pointerId) return;
-      var celluleCible = cibleActuelle, surSuppr = surBoutonSuppr;
+      var celluleCible = cibleActuelle;
       detacher();
       if (enDefilement) { nettoyerFantomes(); return; }
-      if (!arme || !bouge) { nettoyerFantomes(); resoudreClicBulle(idClic, itemClic, plageClic, e2.clientX, e2.clientY, !tactile && (e2.ctrlKey || e2.metaKey)); return; }
-      if (surSuppr) { supprimerGroupeConfirme(); return; }
+      if (!arme || !bouge) { nettoyerFantomes(); resoudreClicBulle(idClic, !tactile && (e2.ctrlKey || e2.metaKey)); return; }
       resoudreCibleGroupe(celluleCible, e2.clientX);
     }
     function onCancel(e2) { if (e2.pointerId !== pointerId) return; detacher(); nettoyerFantomes(); }
@@ -972,7 +854,6 @@
   }
 
   function onPointerDownBulle(e) {
-    if (choixDeplacerCopierEnCours) { e.preventDefault(); e.stopPropagation(); return; }
     e.preventDefault(); e.stopPropagation();
     onPointerDownGroupeSelection(e);
   }

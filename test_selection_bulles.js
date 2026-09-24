@@ -15,7 +15,12 @@ const path = require('path');
 //   5) flèches : demi-journée / jour, forme conservée, sélection conservée
 //      (même après la synchronisation + reconstruction), table relue ;
 //   6) butée : tout ou rien, rien ne bouge ;
-//   7) ← → au clavier ; bouton de nouveau -> mode éteint, sélection vidée.
+//   7) ← → au clavier ; bouton de nouveau -> mode éteint, sélection vidée ;
+//   8) (suite 8) barre de sélection visible dès une bulle seule : crayon
+//      (ouvre la fiche, plus de double-clic), copier (copie au même endroit,
+//      sélectionnée), ✕, corbeille (confirmation, table relue) ;
+//   9) téléphone : la même barre devient une pilule en bas, à la place de
+//      la barre d'onglets.
 //
 // Lancer : node test_selection_bulles.js
 
@@ -105,7 +110,9 @@ function lignes(date, demi, texte, extra) {
   const mode = () => page.evaluate(() => ({
     actif: modeSelectionMultiple, bouton: document.getElementById('btnSelectionMultiple').classList.contains('actif'),
     panneau: !document.getElementById('panneauSelection').hidden, compte: document.querySelector('#panneauSelection .sel-compte').textContent,
-    fleches: !document.querySelector('#panneauSelection [data-decal="1"]').disabled
+    fleches: !document.querySelector('#panneauSelection [data-decal="1"]').disabled,
+    blocFleches: !document.querySelector('#panneauSelection .sel-fleches').hidden,
+    crayon: !document.getElementById('selModifier').hidden, corps: document.body.classList.contains('selection-active')
   }));
   const forme = (texte) => page.evaluate((tx) => { const t = TACHES.find((x) => x.texte === tx); return t ? [t.giDebut, t.duree, t.demiDebut, t.demiFin].join('/') : null; }, texte);
   const bd = (texte) => page.evaluate((tx) => window.__BD.taches.filter((t) => t.texte === tx).map((t) => t.date.slice(5) + ':' + t.demi).sort().join(' '), texte);
@@ -121,21 +128,21 @@ function lignes(date, demi, texte, extra) {
   verifier(await selection() === 'A' && await surbrillance() === 'A', 'clic sur A : A sélectionnée');
   await clic('B');
   verifier(await selection() === 'B' && await surbrillance() === 'B', 'clic sur B : B remplace A');
-  // L'horloge est figée (setFixedTime) : Date.now() n'avance pas, tout
-  // 2e clic sur la même bulle passerait pour un double-clic (< 400ms) —
-  // on avance l'heure figée d'une seconde à la place d'attendre.
-  await page.clock.setFixedTime(new Date('2026-09-24T10:00:01'));
   await clic('B');
   verifier(await selection() === '' && await surbrillance() === '', 'recliquer la seule bulle sélectionnée la désélectionne');
   let m = await mode();
-  verifier(!m.actif && !m.panneau, 'mode multiple éteint par défaut, barre « ‹ › » cachée');
+  verifier(!m.actif && !m.panneau && !m.corps, 'rien de sélectionné, mode éteint : barre de sélection cachée');
+  await clic('A');
+  m = await mode();
+  verifier(m.panneau && !m.actif && !m.blocFleches && m.crayon && m.corps, 'une bulle seule : barre visible avec le crayon, sans les flèches (mode multiple éteint)');
+  await clic('A');
 
   // 2) Ctrl+clic.
   await clic('A', ['Control']);
   await clic('B', ['Control']);
   m = await mode();
   verifier(await selection() === 'A,B', 'Ctrl+clic : A puis B cumulées');
-  verifier(m.actif && m.bouton && m.panneau && m.compte === '2' && m.fleches, 'Ctrl+clic allume le mode : bouton actif, barre visible, compteur 2, flèches actives');
+  verifier(m.actif && m.bouton && m.panneau && m.blocFleches && m.compte === '2' && m.fleches && !m.crayon, 'Ctrl+clic allume le mode : bouton actif, flèches visibles et actives, compteur 2, pas de crayon (2 bulles)');
 
   // 3) Échap.
   await page.keyboard.press('Escape');
@@ -185,6 +192,51 @@ function lignes(date, demi, texte, extra) {
   m = await mode();
   verifier(await selection() === '' && !m.actif && !m.panneau, 'bouton de nouveau : mode éteint, sélection vidée');
   verifier(await page.evaluate(() => pileUndo.length) >= 5, 'chaque décalage est annulable (Ctrl+Z)');
+
+  // 8) Barre de sélection pour une bulle seule (suite 8).
+  const formeOuverte = () => page.evaluate(() => !!document.querySelector('.form-pop'));
+  await clic('A');
+  await clic('A');
+  verifier(!(await formeOuverte()) && await selection() === '', 'deux clics rapides sur A : plus de double-clic (aucune fiche), simple bascule');
+  await clic('A');
+  await page.click('#selModifier');
+  await page.waitForTimeout(150);
+  verifier(await formeOuverte(), 'crayon : la fiche de A s\'ouvre');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(150);
+  verifier(!(await formeOuverte()) && await selection() === '', 'Échap referme la fiche et vide la sélection');
+  await clic('B');
+  await page.click('#selCopier');
+  await attendreSync();
+  verifier(await bd('B') === '09-23:aprem 09-23:aprem 09-23:matin 09-23:matin', 'copier : une copie de B au même endroit dans la table (' + await bd('B') + ')');
+  verifier((await mode()).compte === '1' && await surbrillance() === 'B', 'une seule des deux B identiques ressort sélectionnée après la synchronisation');
+  verifier((await toastTexte()).indexOf('Copié (1)') === 0, 'message : ' + await toastTexte());
+  await page.click('#selFermer');
+  await page.waitForTimeout(80);
+  m = await mode();
+  verifier(await selection() === '' && !m.panneau && !m.corps, '✕ : sélection vidée, barre cachée');
+  await clic('A');
+  await page.click('#selSupprimer');
+  await page.waitForTimeout(100);
+  verifier(await page.evaluate(() => !!document.querySelector('.confirm-pop')), 'corbeille : demande de confirmation');
+  await page.click('.confirm-pop .c-ok');
+  await attendreSync();
+  verifier(await bd('A') === '' && await page.evaluate(() => !TACHES.some((t) => t.texte === 'A')), 'A supprimée (table relue)');
+
+  // 9) Téléphone : pilule en bas à la place de la barre d'onglets.
+  await page.setViewportSize({ width: 390, height: 800 });
+  await page.waitForTimeout(600);
+  await clic('C');
+  const pilule = await page.evaluate(() => {
+    const p = document.getElementById('panneauSelection'), r = p.getBoundingClientRect(), st = getComputedStyle(p);
+    return { position: st.position, bas: Math.round(window.innerHeight - r.bottom), haut: Math.round(r.top), largeur: Math.round(r.width),
+      navBas: getComputedStyle(document.querySelector('.nav-bas')).display, cachee: p.hidden };
+  });
+  verifier(!pilule.cachee && pilule.position === 'fixed' && pilule.bas >= 0 && pilule.bas < 40 && pilule.largeur > 300 && pilule.navBas === 'none',
+    'téléphone : pilule fixée en bas (' + pilule.bas + 'px du bord, ' + pilule.largeur + 'px de large), barre d\'onglets masquée');
+  await page.click('#selFermer');
+  await page.waitForTimeout(80);
+  verifier(await page.evaluate(() => getComputedStyle(document.querySelector('.nav-bas')).display) !== 'none', 'téléphone : barre d\'onglets de retour après ✕');
 
   if (erreurs.length) { echecs++; console.error('ERREURS JS : ' + JSON.stringify(erreurs, null, 2)); }
   console.log((total - echecs) + '/' + total + ' vérifications' + (echecs ? ' — ' + echecs + ' ÉCHEC(S)' : ' — OK'));
