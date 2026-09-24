@@ -217,13 +217,17 @@ function mesurer() {
   //    quelques pixel » : 6px sur téléphone, 10px sur desktop avant le fix).
   //    Grille allongée (lignes ajoutées) pour qu'il y ait de quoi défiler.
   await page.keyboard.press('Escape');
-  await page.evaluate(() => {
-    document.querySelectorAll('.form-pop, .overlay, .print-sheet').forEach((el) => el.remove());
-    for (let i = 0; i < 16; i++) PERSONNES.push({ id: 900 + i, nom: 'Test ' + i, sousTraitant: i > 8 });
-    render(false);
-  });
+  await page.evaluate(() => document.querySelectorAll('.form-pop, .overlay, .print-sheet').forEach((el) => el.remove()));
   for (const w of [390, 1200]) {
     await largeur(w);
+    await page.waitForTimeout(200);
+    // Lignes ajoutées APRÈS le changement de largeur : franchir 600px
+    // reconstruit la grille depuis les données (vue "1 jour" <-> "1 semaine",
+    // round du 24.09.2026 suite 6), ce qui effacerait des lignes ajoutées avant.
+    await page.evaluate(() => {
+      for (let i = 0; i < 16; i++) PERSONNES.push({ id: 900 + i, nom: 'Test ' + i, sousTraitant: i > 8 });
+      render(false);
+    });
     const positions = await page.evaluate(async () => {
       const app = document.getElementById('app');
       const mesure = () => [document.getElementById('legendeBarre'), document.querySelector('.entete-planning-figee')].map((el) => Math.round(el.getBoundingClientRect().top));

@@ -392,9 +392,12 @@
       etat.semaines = genererSemaines(etat.aujourdhui, FENETRE_SEMAINES, FENETRE_SEMAINES);
       etat.indexSemaine = indexSemaineAujourdhui_(); // réutilise la règle existante (semaine du jour, sinon prochaine, sinon dernière)
 
-      return chargerSemaineDepuisServeur(etat.semaines[etat.indexSemaine].labG);
-    }).then(function (data) {
-      mettreEnCache(data);
+      // Toute la fenêtre d'affichage (fenetreLabGs), et plus seulement la
+      // semaine du jour : la vue "1 jour" téléphone, par défaut à
+      // l'ouverture, en charge 2 (round du 24.09.2026, suite 6, cf. core.js).
+      return Promise.all(fenetreLabGs().map(function (lg) { return chargerSemaineDepuisServeur(lg); }));
+    }).then(function (donnees) {
+      donnees.forEach(function (data) { mettreEnCache(data); });
       appliquerStatutsEtFormulaires();
       idc = 1;
       // Coquille de navigation (sidebar + 9 pages) : construite une seule
@@ -1403,7 +1406,10 @@
     NOTES.forEach(function (n) { out[n.id] = { texte: n.texte, important: !!n.important, giDebut: n.giDebut, duree: n.duree, dateDebutIso: n.dateDebutIso, demiDebut: n.demiDebut || null, demiFin: n.demiFin || null }; });
     return out;
   }
-  function nbJoursAffiches() { return deuxSemaines ? 10 : 5; }
+  // Nombre de semaines réellement chargées × 5 (et non plus deuxSemaines
+  // seul) : la vue "1 jour" téléphone en charge aussi 2 (round du
+  // 24.09.2026, suite 6, cf. fenetreLabGs dans core.js).
+  function nbJoursAffiches() { return fenetreLabGs().length * 5; }
   function giVisibleFenetre(gi, n) {
     if (estGiWeekend(gi)) return afficherWeekends && semaineDuGiWeekend(gi) < (n / 5);
     return gi < n;

@@ -468,7 +468,12 @@
       // autre onglet), ce qui donne des hauteurs nulles et donc un top faux.
       // Remesurer juste au moment où elle redevient visible corrige ça sans
       // reconstruire toute la grille.
-      planning: ajusterEnteteFixe
+      // Round du 24.09.2026 (suite 6) : si la largeur d'écran a franchi 600px
+      // pendant qu'on était sur un autre onglet, la vue "1 jour" s'est
+      // activée/désactivée et la fenêtre chargée a changé — reconstruction
+      // complète dans ce cas (verifierModeFenetre, grille-rendu.js), sinon
+      // simple remesure comme avant.
+      planning: function () { if (!verifierModeFenetre()) ajusterEnteteFixe(); }
     };
     function fermerSwitcher() {
       if (switcherBtn) switcherBtn.classList.remove("ouvert");

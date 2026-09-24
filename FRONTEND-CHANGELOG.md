@@ -6691,3 +6691,42 @@ Vérifié en local (Playwright) avec le nouveau test `test_tache_hors_semaine.js
 6. nouvelle absence créée directement sur le lundi suivant.
 
 `test_toolbar_chevauchement.js` toujours à 23/23.
+
+## 114. Round du 24.09.2026 (suite 6) — Téléphone, vue « 1 jour » : défilement continu d'une semaine à l'autre
+
+Lionel : « Sur mobile j'aimerai que les défilement des jours soient plus fluides quand on change de semaine, comme si la page était infinie. » Réponse à la question posée avant de coder : **téléphone, vue « 1 jour » seulement** ; tablette et ordinateur inchangés.
+
+**Avant.** La vue « 1 jour » ne chargeait qu'une semaine. Arrivé au vendredi, le défilement butait. Il fallait un 2e swipe « contre le bord » (`naviguerSemaineDepuisBordJour`, §100), qui reconstruisait la grille sur la semaine suivante, souvent après un rechargement réseau : un arrêt net, puis un saut.
+
+**Principe retenu.**
+- **Deux semaines chargées en vue « 1 jour »** (`fenetreLabGs`, `js/core.js`). C'est le mode « 2 semaines » du bureau, déjà éprouvé par tout le reste du code (coordonnées gi 0..9, synchronisation, bulles à cheval). Le lundi suivant est simplement la colonne d'après le vendredi, atteinte par le même geste, sans rechargement.
+- **Deux notions séparées.**
+  - `etat.indexSemaine` garde son sens de « semaine du jour affiché » : pilule Sem. N, impression, ‹ ›.
+  - La fenêtre commence à `debutFenetreMobile`, soit la semaine affichée, soit celle d'avant, choisie pour laisser au moins 2 jours d'avance de chaque côté du jour affiché : lundi/mardi → [semaine d'avant, cette semaine] ; mercredi à vendredi → [cette semaine, la suivante].
+  - Le jour affiché est mémorisé dans `jourMobileIso`.
+- **À l'arrêt du défilement** (plus d'événement `scroll` depuis 200 ms, aucun doigt posé, aucun glisser de bulle en cours) :
+  - on relève le jour affiché ;
+  - la pilule Sem. N le suit ;
+  - s'il reste moins de 2 jours d'avance d'un côté, la fenêtre **glisse d'une semaine**. La grille est reconstruite avec le même jour exactement à la même place à l'écran : rien ne bouge visuellement, et le geste suivant repart avec de l'avance des deux côtés. Jamais pendant le geste : reconstruire sous le doigt le casserait (cf. `differerSiEnGlissement`).
+- **Préchargement en arrière-plan** de la semaine juste avant et juste après la fenêtre (`prechargerVoisinesJourMobile`), silencieux : le glissement se fait sans attendre le réseau. Le préchargement est ignoré si le cache a été vidé entre-temps (nouvelle `generationCache`, incrémentée par `oublierCache`), pour ne jamais réinjecter des données d'avant une écriture.
+- **Le rendu en vue « 1 jour » se cale toujours sur le jour affiché**, au lieu de l'ancienne position de défilement, qui ne désigne plus le même jour dès que la fenêtre a glissé.
+  - ‹ › : même jour de la semaine, une semaine avant ou après.
+  - Aujourd'hui : aujourd'hui.
+  - Rendu après une modification : le jour visible. Il est relevé dans l'ancienne grille juste avant de la reconstruire, pour couvrir le défilement automatique pendant un glisser de bulle, qui ne déclenche pas le relevé « à l'arrêt ».
+- **Détecteur de swipe « contre le bord de semaine »** désactivé en vue « 1 jour » (plus de bord à franchir) ; inchangé dans les autres vues.
+
+**Ajustements induits.**
+- `nbJoursAffiches()` et le nombre de semaines de la grille se basent sur la fenêtre réellement chargée, plus sur `deuxSemaines` seul.
+- `demarrer()` charge toute la fenêtre au démarrage : la vue « 1 jour », ouverte par défaut, en demande 2. Sans cela, l'appli ne démarrait plus sur téléphone (repéré au premier test).
+- `basculerVueJourMobile` recharge la fenêtre (1 ↔ 2 semaines) au lieu d'un simple re-rendu.
+- **Franchissement de 600 px** (rotation du téléphone, fenêtre redimensionnée) : la vue « 1 jour » s'active ou se désactive, et la fenêtre change avec elle. La grille est reconstruite aussitôt (`verifierModeFenetre`, écouteur `matchMedia`), ou au retour sur l'onglet Planning s'il était masqué.
+- En-têtes des jours de week-end : `data-gi` ajouté, comme les jours ouvrés.
+
+Vérifié en local (Playwright) avec le nouveau test `test_defilement_jour_mobile.js` : 20 vérifications, toutes OK, sur un téléphone simulé (390 px, tactile), date figée au jeudi 24.09.2026. Points vérifiés :
+- 2 semaines chargées ; vendredi → lundi d'un seul geste, sans rechargement ; pilule qui suit ;
+- fenêtre qui glisse près du bord avec le jour aligné au pixel près (aucun saut), puis retour en arrière symétrique ;
+- ‹ ›, Aujourd'hui, et rendu après un défilement fait pendant un glisser ;
+- bascule « 1 semaine » et retour ; passage au-delà de 600 px et retour ;
+- semaines voisines préchargées.
+
+Contrôle complémentaire avec de vrais gestes tactiles (événements touch envoyés via le protocole Chrome) : 7 swipes vers l'avant du jeudi 24 au lundi 5 oct., puis 4 vers l'arrière. Chaque swipe avance d'un jour, et la fenêtre glisse au bon moment. `test_tache_hors_semaine.js` (16/16) et `test_toolbar_chevauchement.js` (23/23, une vérification adaptée : ses lignes de test sont ajoutées après le changement de largeur, puisque franchir 600 px reconstruit désormais la grille) toujours verts.

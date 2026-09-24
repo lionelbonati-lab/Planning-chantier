@@ -339,7 +339,13 @@
     etat.cache[data.labG] = data;
     etat.cacheTs[data.labG] = Date.now();
   }
+  // generationCache : incrémentée à chaque oubli du cache — un préchargement
+  // lancé AVANT (cf. prechargerVoisinesJourMobile, grille-rendu.js) et qui
+  // répond APRÈS ne doit pas y réinjecter des données d'avant l'écriture qui
+  // a justement motivé cet oubli.
+  var generationCache = 0;
   function oublierCache(labGDepuis) {
+    generationCache++;
     if (labGDepuis == null) { etat.cache = {}; etat.cacheTs = {}; return; }
     Object.keys(etat.cache).forEach(function (k) {
       if (+k >= labGDepuis) { delete etat.cache[k]; delete etat.cacheTs[k]; }
@@ -347,7 +353,61 @@
   }
 
   /* ============ FENÊTRE AFFICHÉE (1 ou 2 semaines) ============ */
+  // Round du 24.09.2026 (suite 6) — Lionel : « Sur mobile j'aimerai que les
+  // défilement des jours soient plus fluides quand on change de semaine,
+  // comme si la page était infinie » (réponse à la question posée avant de
+  // coder : téléphone, vue "1 jour" seulement). Jusqu'ici la vue "1 jour"
+  // ne chargeait qu'UNE semaine : arrivé au vendredi, il fallait un 2e swipe
+  // "contre le bord" (naviguerSemaineDepuisBordJour) qui reconstruisait la
+  // grille sur la semaine suivante — un arrêt net, puis un saut.
+  // Désormais la vue "1 jour" charge TOUJOURS 2 semaines consécutives (le
+  // mode "2 semaines" du desktop, déjà éprouvé par tout le reste du code :
+  // gi 0..9, synchronisation, bulles à cheval…) : le lundi suivant est
+  // simplement la colonne d'après le vendredi, atteinte par le même geste.
+  // etat.indexSemaine garde son sens de "semaine du jour AFFICHÉ" (pilule
+  // Sem. N, impression, ‹ ›) ; la fenêtre, elle, commence à
+  // debutFenetreMobile — la semaine affichée ou celle d'avant, choisie pour
+  // laisser au moins 2 jours d'avance de chaque côté du jour affiché
+  // (lundi/mardi -> [semaine d'avant, cette semaine] ; mercredi-vendredi ->
+  // [cette semaine, la suivante]). Quand le défilement s'arrête trop près
+  // d'un bord, la grille "glisse" d'une semaine sans que le jour affiché ne
+  // bouge (cf. recentrerFenetreJourMobile, grille-rendu.js).
+  var jourMobileIso = null;       // jour affiché en vue "1 jour" (null : aujourd'hui, sinon lundi)
+  var debutFenetreMobile = null;  // index (etat.semaines) de la 1re semaine chargée ; null = à recalculer
+  function modeJourMobileActif() {
+    return vueJourMobile && typeof window.matchMedia === "function" && window.matchMedia("(max-width: 600px)").matches;
+  }
+  function jourSemaineIso_(iso) { return (new Date(iso + "T00:00:00").getDay() + 6) % 7; } // 0 = lundi
+  // Jour affiché ramené DANS la semaine etat.indexSemaine : même jour de la
+  // semaine quand on vient d'en changer (‹ ›, pilule Sem. N), aujourd'hui s'il
+  // y tombe, sinon le lundi. Mémorisé dans jourMobileIso.
+  function jourMobileCourant() {
+    var s = etat.semaines[etat.indexSemaine];
+    if (!s) return null;
+    if (jourMobileIso && jourMobileIso >= s.debut && jourMobileIso <= s.fin) return jourMobileIso;
+    var d;
+    if (jourMobileIso) {
+      d = new Date(s.debut + "T00:00:00"); d.setDate(d.getDate() + Math.min(4, jourSemaineIso_(jourMobileIso)));
+      jourMobileIso = isoDeDate(d);
+    } else {
+      jourMobileIso = (etat.aujourdhui >= s.debut && etat.aujourdhui <= s.fin && jourSemaineIso_(etat.aujourdhui) < 5) ? etat.aujourdhui : s.debut;
+    }
+    return jourMobileIso;
+  }
+  function debutFenetreJourMobile_() {
+    var idx = etat.indexSemaine, max = Math.max(0, etat.semaines.length - 2);
+    if (debutFenetreMobile != null && (debutFenetreMobile === idx || debutFenetreMobile === idx - 1) && debutFenetreMobile <= max) return debutFenetreMobile;
+    var jour = jourMobileCourant();
+    debutFenetreMobile = Math.max(0, Math.min(max, (jour && jourSemaineIso_(jour) < 2) ? idx - 1 : idx));
+    return debutFenetreMobile;
+  }
   function fenetreLabGs() {
+    if (modeJourMobileActif()) {
+      var d = debutFenetreJourMobile_();
+      var lgs = [etat.semaines[d].labG];
+      if (etat.semaines[d + 1]) lgs.push(etat.semaines[d + 1].labG);
+      return lgs;
+    }
     var out = [etat.semaines[etat.indexSemaine].labG];
     if (deuxSemaines && etat.semaines[etat.indexSemaine + 1]) out.push(etat.semaines[etat.indexSemaine + 1].labG);
     return out;
