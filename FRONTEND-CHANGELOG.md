@@ -8331,3 +8331,39 @@ Proposition 14 retenue par Lionel : « Sauvegarde automatique : un export régul
 - Échec de `test_suite35.js` : 1 échec sur 3 passes complètes, malgré le correctif de la suite 47.
   - Il ne s'est pas reproduit en 8 lancements en parallèle, ni en 2 passes complètes.
   - La vérification en cause n'a pas été notée : piste encore ouverte.
+
+## 158. Round du 25.09.2026 (suite 50) — Téléphone : barre et planning pleine largeur, barre qui ne déborde plus
+
+Lionel, capture de son téléphone à l'appui : « Sur téléphone la toolbar déborde. Utilise toutes la largeur de l'écran avec le planning et la toolbar ».
+
+### Cause du débordement
+- Depuis la suite 47, « À réserver » restait d'office dans la barre du téléphone. Aucune mesure n'était faite sur téléphone.
+- Résultat : « ⋮ » sortait de la pilule. Mesuré avec 1 tâche à réserver : 11 px de trop à 360 px, 39 px à 320 px. C'est encore plus avec un texte agrandi dans les réglages du téléphone.
+
+### Correctif (js/grille-rendu.js, js/a-reserver.js)
+- Sur téléphone, la barre est maintenant mesurée après le repli habituel. Si elle déborde, « À réserver » part dans « ⋮ », et une pastille sur « ⋮ » le signale, comme sur ordinateur.
+- La barre est remesurée quand le compteur ou le libellé du bouton change, car un compteur à 2 chiffres élargit le bouton.
+
+### Pleine largeur (style-mobile.css, page Planning, ≤ 600 px)
+- La page Planning n'a plus les 18 px de marge de chaque côté. Les autres pages (formulaires, listes) les gardent.
+- La barre devient un bandeau droit de bord à bord, sans arrondi.
+- L'en-tête figé et le corps de la grille perdent leurs bordures latérales et leurs coins arrondis, qui tomberaient sur le bord de l'écran.
+- En vue « 1 jour », le jour affiché gagne 36 px. Sa largeur est calculée en JS : les 2 px de bordure retirés du calcul ont disparu avec les bordures.
+
+| Largeur | Avant | Après |
+|---|---|---|
+| 320 px | « ⋮ » dépasse de 39 px | « À réserver » dans « ⋮ », tout tient |
+| 360 px | « ⋮ » dépasse de 11 px | tout tient, « À réserver » dans la barre |
+| 390 / 412 px | tout juste | tout tient, « À réserver » dans la barre |
+
+Tablette et ordinateur : inchangés (marges, pilule, cadre arrondi).
+
+### Tests
+- Nouveau test_suite50.js, 26 vérifications, à 320, 360, 390 et 412 px :
+  - barre, en-tête et grille de bord à bord ;
+  - rien ne dépasse de la barre ;
+  - « À réserver » dans la barre ou replié dans « ⋮ » avec sa pastille, et il s'ouvre depuis « ⋮ » ;
+  - le jour affiché va jusqu'au bord droit ;
+  - compteur à 12 : rien ne dépasse ; texte agrandi : repli ;
+  - 820 et 1400 px inchangés.
+- Suite complète : 60/60.

@@ -129,6 +129,20 @@
        ajustés à ce nouvel ordre : aucun entre Aujourd'hui et la pastille,
        un juste APRÈS la pastille (::after, et non ::before du "+" — celui-ci
        est poussé à droite, le trait serait parti avec lui). */
+    /* -- Planning et barre pleine largeur -----------------------------
+       Round du 25.09.2026 (suite 50) — Lionel, capture de son téléphone :
+       « Utilise toutes la largeur de l'écran avec le planning et la
+       toolbar ». Les 18 px de marge de .page-scroll de chaque côté
+       disparaissent sur la page Planning (les autres pages les gardent :
+       formulaires et listes) ; la barre devient un bandeau droit de bord à
+       bord, et le cadre de la grille (en-tête figé + corps) perd ses
+       bordures latérales et ses coins arrondis, qui tomberaient sur le bord
+       de l'écran. 36 px de plus pour le jour affiché en vue "1 jour"
+       (largeur recalculée en JS, cf. largeurVisibleJour, grille-rendu.js). */
+    #page-planning .page-scroll { padding-left: 0; padding-right: 0; }
+    #legendeBarre, #legendeBarre::after { border-radius: 0; }
+    #page-planning .entete-planning-scroll { border-left: none; border-right: none; border-radius: 0; }
+    #page-planning .grille-cadre { border-left: none; border-right: none; border-radius: 0; }
     #groupeAnnulerRefaire { order: -2; }
     #groupeAujourdhui { order: -1; }
     #legendeBarre > #groupeChantier::before { display: none; }
