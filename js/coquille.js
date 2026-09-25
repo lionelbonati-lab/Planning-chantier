@@ -81,6 +81,7 @@
     cablerNavigation();
     cablerPagePlanning();
     cablerAReserver();
+    cablerPageSauvegardes();
     cablerPageEntreeRapide();
     cablerPageFeries();
     cablerPageHoraires();
@@ -415,6 +416,20 @@
       // htmlReglagesCouleurs() plutôt qu'écrite ici en dur : la liste des
       // groupes de couleurs vit dans un seul fichier, pas dupliquée.
       htmlReglagesCouleurs() +
+      // Sauvegardes (round du 25.09.2026, suite 49 — js/page-sauvegardes.js,
+      // sql/0017_sauvegardes.sql). Lionel, proposition 14 : « Sauvegarde
+      // automatique [...] pour pouvoir revenir en arrière après une grosse
+      // erreur. »
+      '<div class="bloc-sauvegardes">' +
+      '<h2 class="titre-liste">Sauvegardes</h2>' +
+      '<div class="actions-feries">' +
+        '<button type="button" class="btn-calculer" id="btnImporterSauvegarde">Importer un fichier…</button>' +
+        '<button type="button" class="btn-enregistrer" id="btnSauvegarderMaintenant">Sauvegarder maintenant</button>' +
+        '<input type="file" id="fichierSauvegarde" accept=".json,application/json" hidden>' +
+      '</div>' +
+      '<p class="page-sous">Tout le planning (tâches, jalons, notes, personnes, chantiers, horaires, réglages…) est copié chaque nuit, si quelque chose a changé ; les 30 dernières copies sont gardées. « Restaurer » remplace tout le planning par une copie, après avoir sauvegardé l’état actuel. « Télécharger » en garde un fichier sur cet appareil.</p>' +
+      '</div>' +
+      '<div class="liste-intervenants" id="listeSauvegardes"></div>' +
       '</div></div>';
   }
   function htmlPagePersonnel() {
@@ -585,6 +600,7 @@
       // les horaires de travail.
       horaires: function () { renderFeries(); renderHoraires(); },
       "mise-en-page": renderMiseEnPage,
+      general: renderSauvegardes, // liste relue à chaque ouverture (suite 49)
       // Round du 16.09.2026 (suite, encore) : la page Planning elle-même
       // n'a pas besoin d'un re-rendu complet à chaque activation (ses
       // données restent à jour en tâche de fond, cf. synchroniser()) — mais

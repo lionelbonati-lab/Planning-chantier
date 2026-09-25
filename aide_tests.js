@@ -107,6 +107,22 @@ const FAUX_SUPABASE = LOGIQUE_PLAGE + '\n(' + function () {
           window.__ECRITURES.push('rpc:' + nom + ':' + JSON.stringify(a));
           return Promise.resolve({ data: null, error: null });
         }
+        // Sauvegardes (sql/0017, suite 49) : copie de la base en mémoire ;
+        // la restauration est seulement notée (console : la page se recharge).
+        if (nom === 'creer_sauvegarde' || nom === 'importer_sauvegarde') {
+          var copie = {};
+          Object.keys(BD).forEach(function (t) { if (t !== 'sauvegardes') copie[t] = JSON.parse(JSON.stringify(BD[t])); });
+          var contenu = nom === 'importer_sauvegarde' ? a.p_contenu : { version: 1, tables: copie };
+          if (!contenu || !contenu.tables || !Array.isArray(contenu.tables.personnes)) return Promise.resolve({ data: null, error: { message: 'Ce fichier n\'est pas une sauvegarde du planning.' } });
+          var nb = 0;
+          Object.keys(contenu.tables).forEach(function (t) { if (Array.isArray(contenu.tables[t])) nb += contenu.tables[t].length; });
+          BD.sauvegardes = BD.sauvegardes || [];
+          var idS = prochainId++;
+          BD.sauvegardes.push({ id: idS, cree_le: new Date().toISOString(), origine: nom === 'importer_sauvegarde' ? 'importee' : a.p_origine, lignes: nb, contenu: contenu });
+          window.__ECRITURES.push('rpc:' + nom);
+          return Promise.resolve({ data: idS, error: null });
+        }
+        if (nom === 'restaurer_sauvegarde') console.log('RPC restaurer_sauvegarde ' + JSON.stringify(a));
         window.__ECRITURES.push('rpc:' + nom);
         return Promise.resolve({ data: null, error: null });
       },
