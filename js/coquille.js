@@ -21,16 +21,16 @@
         '<nav class="onglets-nav" id="ongletsNav">' +
           '<div class="marque-nav"><img src="icons/icon-32.png" width="28" height="28" alt="Planning Chantiers"></div>' +
           '<div class="onglets-liste">' +
-            '<button type="button" class="onglet actif" data-page="planning">' + ICONS.calendar + 'Planning</button>' +
-            '<button type="button" class="onglet" data-page="jalons">' + ICONS.flag + 'Jalons</button>' +
-            '<button type="button" class="onglet" data-page="personnel">' + ICONS.people + 'Personnel</button>' +
-            '<button type="button" class="onglet" data-page="intervenants">' + ICONS.hardhat + 'Intervenants</button>' +
-            '<button type="button" class="onglet" data-page="general">' + ICONS.gear + 'Général</button>' +
-            '<button type="button" class="onglet" data-page="chantiers">' + ICONS.building + 'Chantiers</button>' +
-            '<button type="button" class="onglet" data-page="statuts">' + ICONS.tag + 'Statuts</button>' +
-            '<button type="button" class="onglet" data-page="horaires">' + ICONS.clock + 'Horaires</button>' +
-            '<button type="button" class="onglet" data-page="mise-en-page">' + ICONS.miseEnPage + 'Mise en page</button>' +
-            '<button type="button" class="onglet" data-page="entree-rapide">' + ICONS.bolt + 'Entrée rapide</button>' +
+            '<button type="button" class="onglet actif" data-page="planning" title="Planning">' + ICONS.calendar + '<span class="onglet-nom">Planning</span></button>' +
+            '<button type="button" class="onglet" data-page="jalons" title="Jalons">' + ICONS.flag + '<span class="onglet-nom">Jalons</span></button>' +
+            '<button type="button" class="onglet" data-page="personnel" title="Personnel">' + ICONS.people + '<span class="onglet-nom">Personnel</span></button>' +
+            '<button type="button" class="onglet" data-page="intervenants" title="Intervenants">' + ICONS.hardhat + '<span class="onglet-nom">Intervenants</span></button>' +
+            '<button type="button" class="onglet" data-page="general" title="Général">' + ICONS.gear + '<span class="onglet-nom">Général</span></button>' +
+            '<button type="button" class="onglet" data-page="chantiers" title="Chantiers">' + ICONS.building + '<span class="onglet-nom">Chantiers</span></button>' +
+            '<button type="button" class="onglet" data-page="statuts" title="Statuts">' + ICONS.tag + '<span class="onglet-nom">Statuts</span></button>' +
+            '<button type="button" class="onglet" data-page="horaires" title="Horaires">' + ICONS.clock + '<span class="onglet-nom">Horaires</span></button>' +
+            '<button type="button" class="onglet" data-page="mise-en-page" title="Mise en page">' + ICONS.miseEnPage + '<span class="onglet-nom">Mise en page</span></button>' +
+            '<button type="button" class="onglet" data-page="entree-rapide" title="Entrée rapide">' + ICONS.bolt + '<span class="onglet-nom">Entrée rapide</span></button>' +
           '</div>' +
           '<button type="button" class="avatar-nav" id="lienDeconnexionNav" title="Se déconnecter" aria-label="Se déconnecter">L</button>' +
         '</nav>' +
@@ -62,6 +62,12 @@
             '<span class="nom" id="switcherNom">Planning</span>' +
             '<span class="caret">▾</span>' +
           '</button>' +
+          // « À réserver » dans la barre du bas (round du 25.09.2026, suite 53
+          // — Lionel : « A réservé pourrait être placer sur la barre du bas
+          // en mode mobile. ») : icône + compteur, de toutes les pages ; sur
+          // téléphone, il ne figure plus dans la barre d'outils du planning
+          // (cf. js/a-reserver.js, style-mobile.css).
+          '<button type="button" class="nav-bas-a-reserver" id="btnAReserverNavBas" title="À réserver" aria-label="À réserver" hidden>' + ICONS.reserver + '<span class="compte-a-reserver" hidden></span></button>' +
           '<button type="button" class="avatar-nav" id="lienDeconnexionNavBas" title="Se déconnecter" aria-label="Se déconnecter">L</button>' +
           '<div class="switcher-panneau" id="switcherPanneau">' +
             '<div class="switcher-titre">Pages</div>' +
@@ -79,6 +85,10 @@
         '</div>' +
       '</div>';
     cablerNavigation();
+    // Onglets du haut : icônes seules quand ils ne tiennent pas (suite 53).
+    ajusterOngletsNav();
+    window.addEventListener("resize", ajusterOngletsNav);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(ajusterOngletsNav);
     cablerPagePlanning();
     cablerAReserver();
     cablerPageSauvegardes();
@@ -577,6 +587,21 @@
   // (jamais mise en cache côté page — la source de vérité est
   // etat.*Serveur/PERSONNES, déjà tenue à jour par les fonctions de
   // rafraîchissement de chaque CRUD).
+  // Round du 25.09.2026 (suite 53) — Lionel : « Des icônes seront mieux
+  // que des textes car sur mobile les textes sortent de l'écran. » La barre
+  // d'onglets du haut (tablette, téléphone tenu à l'horizontale, petite
+  // fenêtre d'ordinateur) coupait « Mise en page » et cachait « Entrée
+  // rapide » dès 1024 px. Quand les 10 onglets ne tiennent pas, seuls les
+  // icônes restent (libellé en title, au survol), sauf l'onglet actif qui
+  // garde son nom. Mesuré, pas une largeur fixe : dépend de la police et
+  // de la taille de texte choisie sur l'appareil.
+  function ajusterOngletsNav() {
+    var nav = document.getElementById("ongletsNav");
+    var liste = nav && nav.querySelector(".onglets-liste");
+    if (!liste) return;
+    nav.classList.remove("onglets-compacts");
+    if (liste.scrollWidth > liste.clientWidth + 1) nav.classList.add("onglets-compacts");
+  }
   function cablerNavigation() {
     // §91 (round du 22.09.2026, suite) — querySelectorAll(".onglet") capte
     // maintenant 18 boutons (9 de .onglets-nav en haut + 9 de
@@ -646,6 +671,7 @@
         }
         if (switcherNom) switcherNom.textContent = btn.textContent.trim();
         fermerSwitcher();
+        ajusterOngletsNav(); // l'onglet actif garde son nom (suite 53)
         var fn = RENDU_PAR_PAGE[btn.dataset.page];
         if (fn) fn();
       });

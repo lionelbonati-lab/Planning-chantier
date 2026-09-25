@@ -53,8 +53,9 @@
       return '<div class="ligne-intervenant ligne-desactivee" data-id="' + esc2(p.id) + '"><b>' + esc(p.nom) + '</b>' +
         '<span class="compte"></span>' +
         '<span class="ligne-actions">' +
-        '<button type="button" class="lien-reactiver">Réactiver</button>' +
-        '<button type="button" class="lien-supprimer-def" title="Supprimer définitivement">' + ICONS.trash + ' Supprimer</button>' +
+        // Icônes (suite 53) : cf. boutonIconeLigne, js/core.js.
+        boutonIconeLigne("lien-reactiver", ICONS.restaurer, "Réactiver") +
+        boutonIconeLigne("lien-supprimer-def", ICONS.trash, "Supprimer définitivement") +
         '</span></div>';
     }
     return '<div class="ligne-intervenant" data-id="' + esc2(p.id) + '">' +
@@ -75,10 +76,13 @@
       // parvenait pas à cliquer le checkbox) : sans <label>, l'interrupteur
       // aurait été inerte au clic pour de vrais utilisateurs aussi, pas
       // seulement pour le test.
-      '<label class="champ-actif"><span class="interrupteur"><input type="checkbox" checked><span class="interrupteur-piste"></span></span>Actif</label>' +
+      // « Actif » masqué sur téléphone (suite 53), gardé en title.
+      '<label class="champ-actif" title="Actif"><span class="interrupteur"><input type="checkbox" checked><span class="interrupteur-piste"></span></span><span class="champ-actif-texte">Actif</span></label>' +
       // Lien de consultation en lecture seule (suite 51, js/liens-consultation.js).
-      '<button type="button" class="lien-consultation" title="Lien de consultation en lecture seule">Lien</button>' +
-      '<button type="button" class="lien-modifier">Modifier</button>' +
+      // Icônes (suite 53) — Lionel : « Des icônes seront mieux que des
+      // textes car sur mobile les textes sortent de l'écran. »
+      boutonIconeLigne("lien-consultation", ICONS.lien, "Lien de consultation") +
+      boutonIconeLigne("lien-modifier", ICONS.pencil, "Modifier") +
       '</span></div>';
   }
   // Charge compterTachesPersonnesServeur() une seule fois (mémorisée dans

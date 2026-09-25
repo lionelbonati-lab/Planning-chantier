@@ -1847,6 +1847,11 @@
   .onglet svg { width: 14px; height: 14px; flex-shrink: 0; }
   @media (hover: hover) and (pointer: fine) { .onglet:hover { background: var(--surface-2); color: var(--ink); } }
   .onglet.actif { background: var(--accent-soft); color: var(--accent); }
+  /* Onglets trop nombreux pour la largeur (suite 53, cf. ajusterOngletsNav,
+     js/coquille.js) : icônes seules, sauf l'onglet actif. */
+  .onglets-compacts .onglet:not(.actif) { padding: 7px 10px; }
+  .onglets-compacts .onglet:not(.actif) .onglet-nom { display: none; }
+  .onglets-compacts .onglet svg { width: 16px; height: 16px; }
   /* Round du 22.09.2026 (suite ×5) — Lionel : « je ne veux pas 2 types
      d'onglets ». Les 9 pages (avant : 4 "principales" + 5 "secondaires" en
      retrait visuel via .onglet.secondaire, ci-dessous jusqu'ici) partagent
@@ -1918,6 +1923,8 @@
      éviter toute ambiguïté de sélecteur entre les deux usages. Même rendu que
      .compte pour rester visuellement cohérent avec le reste de l'appli. */
   .ligne-intervenant > span.plage-jalon { color: var(--ink-faint); font-size: 11px; margin-left: 10px; }
+  .ligne-intervenant > span.jalon-important { color: var(--important-ink); display: inline-flex; }
+  .ligne-intervenant > span.jalon-important svg { width: 14px; height: 14px; }
   .ligne-actions { display: flex; align-items: center; gap: 14px; margin-left: auto; padding-left: 14px; }
   .ligne-intervenant .gauche-chantier { display: flex; align-items: center; gap: 10px; }
   .swatch-chantier { width: 18px; height: 18px; border-radius: 6px; flex-shrink: 0; border: 1px solid var(--border); }
@@ -2002,6 +2009,30 @@
   @media (hover: hover) and (pointer: fine) { .lien-modifier:hover, .lien-renommer:hover, .lien-consultation:hover { color: var(--accent); } }
   .lien-supprimer { font-size: 12px; font-weight: 600; color: var(--ink-faint); cursor: pointer; background: none; border: none; font-family: inherit; padding: 0; }
   @media (hover: hover) and (pointer: fine) { .lien-supprimer:hover { color: var(--important-ink); } }
+  /* Boutons icônes des listes (round du 25.09.2026, suite 53 — Lionel :
+     « Onglets jalons, personnel, intervenants, chantier et statut à
+     reprendre. Des icônes seront mieux que des textes car sur mobile les
+     textes sortent de l'écran. »). Cible de 34 px (doigt), libellé en
+     title/aria-label (cf. boutonIconeLigne, js/core.js). Couleurs : gris
+     comme les anciens liens, rouge pour la suppression définitive, bleu
+     pour Réactiver. */
+  .btn-icone-ligne {
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+    width: 34px; height: 34px; padding: 0; border-radius: 8px; border: none; background: none;
+    color: var(--ink-muted); cursor: pointer;
+  }
+  .btn-icone-ligne svg { width: 17px; height: 17px; }
+  .btn-icone-ligne.lien-supprimer { color: var(--ink-faint); }
+  .btn-icone-ligne.lien-supprimer-def { color: var(--important-ink); }
+  .btn-icone-ligne.lien-reactiver { color: var(--accent); }
+  @media (hover: hover) and (pointer: fine) { .btn-icone-ligne:hover { background: var(--bg); color: var(--accent); text-decoration: none; } }
+  @media (hover: hover) and (pointer: fine) { .btn-icone-ligne.lien-supprimer:hover, .btn-icone-ligne.lien-supprimer-def:hover { color: var(--important-ink); } }
+  .ligne-intervenant .ligne-actions { gap: 2px; padding-left: 10px; flex-shrink: 0; }
+  .ligne-intervenant .champ-actif { margin-right: 6px; }
+  /* Nom : prend la place libre et revient à la ligne entre les mots (plus
+     un mot par ligne comme « 26182 / - / Terrain / de / Padel »). */
+  .ligne-intervenant > b, .ligne-intervenant .gauche-chantier { min-width: 0; overflow-wrap: anywhere; }
+  .ligne-intervenant .gauche-chantier { flex: 1 1 auto; }
   .panneau-nouveau-form { margin-top: 16px; padding: 16px 18px; border: 1.5px dashed var(--border); border-radius: 12px; background: var(--surface); max-width: 420px; }
   .panneau-nouveau-form h3 { font-size: 12px; font-weight: 700; margin: 0 0 12px; color: var(--ink-muted); text-transform: uppercase; letter-spacing: .04em; }
   .champ-ligne { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
@@ -2217,7 +2248,15 @@
   @media (hover: hover) and (pointer: fine) { .pop button.btn-primaire:hover { filter: brightness(1.06); } }
   .pop button.btn-primaire:disabled { opacity: .55; cursor: default; }
 
+  /* Round du 25.09.2026 (suite 53) — Lionel : « La fenêtre d'aperçu avant
+     impression doit être plus large sur tablette et desktop. » 900 px fixes
+     auparavant (à peine plus que la moitié d'un écran d'ordinateur, tableau
+     tassé) : toute la largeur de la fenêtre moins une marge, jusqu'à
+     1600 px, et presque toute sa hauteur. Téléphone inchangé (même
+     max-width qu'avant, cf. style-mobile.css pour le reste). */
   .impression-modal { width: 900px; max-width: calc(100vw - 32px); max-height: calc(100vh - 40px); text-align: left; padding: 20px 22px; }
+  @media (min-width: 1101px) { .impression-modal { width: min(1600px, calc(100vw - 48px)); max-height: calc(100vh - 32px); } }
+  @media (min-width: 601px) and (max-width: 1100px) { .impression-modal { width: calc(100vw - 24px); max-width: calc(100vw - 24px); max-height: calc(100vh - 24px); } }
   .impression-modal .cp-titre { font-size: 13px; }
   .print-doc { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px; font-size: 12px; }
   /* Round du 25.09.2026 (suite 40) — Lionel, capture sur téléphone : « La

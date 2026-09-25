@@ -24,8 +24,9 @@
       return '<div class="ligne-intervenant ligne-desactivee" data-ligne="' + c.ligne + '">' +
         '<span class="gauche-chantier"><span class="swatch-chantier" style="background:' + esc2(c.couleur) + '"></span><b>' + esc(c.nom) + '</b></span>' +
         '<span class="ligne-actions">' +
-        '<button type="button" class="lien-reactiver">Réactiver</button>' +
-        '<button type="button" class="lien-supprimer-def" title="Supprimer définitivement">' + ICONS.trash + ' Supprimer</button>' +
+        // Icônes (suite 53) : cf. boutonIconeLigne, js/core.js.
+        boutonIconeLigne("lien-reactiver", ICONS.restaurer, "Réactiver") +
+        boutonIconeLigne("lien-supprimer-def", ICONS.trash, "Supprimer définitivement") +
         '</span></div>';
     }
     return '<div class="ligne-intervenant" data-ligne="' + c.ligne + '">' +
@@ -45,9 +46,12 @@
       // parvenait pas à cliquer le checkbox) : sans <label>, l'interrupteur
       // aurait été inerte au clic pour de vrais utilisateurs aussi, pas
       // seulement pour le test.
-      '<label class="champ-actif"><span class="interrupteur"><input type="checkbox" checked><span class="interrupteur-piste"></span></span>Actif</label>' +
-      '<button type="button" class="lien-modifier">Couleur</button>' +
-      '<button type="button" class="lien-renommer">Renommer</button>' +
+      // « Actif » masqué sur téléphone (suite 53), gardé en title.
+      '<label class="champ-actif" title="Actif"><span class="interrupteur"><input type="checkbox" checked><span class="interrupteur-piste"></span></span><span class="champ-actif-texte">Actif</span></label>' +
+      // Icônes (suite 53) : « Couleur » et « Renommer » sortaient de l'écran
+      // d'un téléphone (capture du 25.09.2026, « Renommer » coupé).
+      boutonIconeLigne("lien-modifier", ICONS.palette, "Couleur") +
+      boutonIconeLigne("lien-renommer", ICONS.pencil, "Renommer") +
       '</span></div>';
   }
   // ↑/↓ chantiers — même schéma qu'echangerOrdrePersonnes (2 updates

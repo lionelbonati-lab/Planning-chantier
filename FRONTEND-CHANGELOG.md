@@ -8464,3 +8464,51 @@ Proposition 13 retenue par Lionel : « Mode hors ligne : consulter le planning e
   - démarrage sans réseau avec une session expirée, puis vrai renouvellement au retour du réseau.
 - test_suite34.js : la vérification « le client Supabase reçoit fetchAvecRejeuJwt_ » accepte le passage par `fetchHorsLigne`.
 - Suite complète : 62/62.
+
+## 161. Round du 25.09.2026 (suite 53) — Aperçu d'impression plus large, « À réserver » en bas, listes en icônes
+
+Lionel :
+- « La fenêtre d'aperçu avant impression doit être plus large sur tablette et deskop. »
+- « A réservé pourrait être placer sur la barre du bas en mode mobile. »
+- « Onglets jalons, personnel, intervenants, chantier et statut à reprendre. Des icônes seront mieux que des textes car sur mobile les textes sortent de l'écran. »
+
+### Aperçu avant impression (style.css)
+- Ordinateur (plus de 1100 px) : toute la largeur de la fenêtre moins 24 px de chaque côté, jusqu'à 1600 px (900 px fixes avant), et presque toute la hauteur.
+- Tablette (601 à 1100 px) : largeur de l'écran moins 12 px de chaque côté.
+- Téléphone inchangé.
+
+### « À réserver » dans la barre du bas sur téléphone (js/coquille.js, js/a-reserver.js, js/grille-rendu.js, style-mobile.css)
+- Nouveau bouton `#btnAReserverNavBas` entre le choix de page et l'avatar : icône et compteur à la couleur du statut, même titre que le bouton de la barre d'outils.
+- Il est visible sur toutes les pages, et masqué s'il n'existe aucun statut.
+- Le résumé s'ouvre depuis n'importe quelle page. Un clic sur une ligne ramène au planning, sur ce jour.
+- Sur téléphone, le bouton n'est plus dans la barre d'outils du planning ni replié dans « ⋮ ». La règle de la suite 50, qui le repliait dans « ⋮ » quand la barre débordait, est retirée.
+- Ordinateur et tablette : inchangé.
+
+### Onglets Jalons, Personnel, Intervenants, Chantiers, Statuts : boutons en icônes (js/core.js, js/page-*.js, style.css, style-mobile.css)
+- `boutonIconeLigne(classe, icône, libellé)` : le libellé passe dans `title` (survol) et `aria-label`, la cible fait 34 px. Les classes d'origine sont gardées, donc le câblage ne change pas.
+- Correspondance des icônes :
+  - Modifier et Renommer → crayon ;
+  - Supprimer → corbeille (rouge au survol) ;
+  - Lien de consultation → maillons (nouvelle icône `lien`) ;
+  - Couleur d'un chantier → palette (nouvelle icône `palette`) ;
+  - Réactiver → flèche qui revient, en bleu (nouvelle icône `restaurer`) ;
+  - Supprimer définitivement → corbeille rouge.
+- Sur téléphone :
+  - le libellé « Actif » à côté de l'interrupteur est masqué (gardé en `title`) ;
+  - les lignes sont un peu moins rembourrées ;
+  - le nom prend la place libre. « 26182 - Terrain de Padel » tient sur une ligne au lieu d'un mot par ligne, et « Renommer » ne sort plus de l'écran.
+- Jalons : le drapeau « important » reprend l'icône des onglets (14 px, rouge) au lieu d'un petit carré noir.
+
+### Barre d'onglets du haut (js/coquille.js, style.css)
+- Dans le même esprit : dès 1024 px, « Mise en page » était coupé et « Entrée rapide » caché ; c'était aussi le cas sur un téléphone tenu à l'horizontale.
+- Quand les 10 onglets ne tiennent pas (mesuré par `ajusterOngletsNav`, au démarrage, au redimensionnement et à chaque changement de page), ils passent en icônes seules. L'onglet actif garde son nom, et chaque onglet a son libellé en `title`.
+- 1400 px : inchangé.
+
+### Tests
+- test_suite53.js (nouveau), 47 vérifications, 47 OK :
+  - 5 onglets à 360, 390 et 1400 px : boutons en icônes, dans la ligne et dans l'écran, noms sur 3 lignes au plus, « Actif » masqué seulement sur téléphone ; palette, maillons et drapeau ;
+  - « À réserver » en bas : compteur, place, ouverture depuis Chantiers, retour au planning sur le bon jour ; toujours dans la barre à 1400 px ;
+  - onglets du haut à 1400, 1024 et 844 px ;
+  - largeur de l'aperçu à 1920, 1400, 1024, 820 et 390 px.
+- test_suite47.js et test_suite50.js : sur téléphone, « À réserver » est cherché dans la barre du bas.
+- Suite complète : 63/63.

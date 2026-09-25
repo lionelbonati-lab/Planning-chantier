@@ -98,6 +98,8 @@
       groupe.hidden = cache;
       if (typeof ajusterDebordementToolbar === "function") ajusterDebordementToolbar();
     }
+    var btnBas = document.getElementById("btnAReserverNavBas"); // barre du bas (suite 53)
+    if (btnBas) btnBas.hidden = cache;
     clearTimeout(minuteurAReserver);
     if (!cache) minuteurAReserver = setTimeout(majBoutonAReserver, 1500);
   }
@@ -121,9 +123,18 @@
     badge.textContent = n;
     badge.hidden = !n;
     badge.style.background = s.couleur;
+    // Même compteur sur le bouton de la barre du bas (téléphone, suite 53).
+    var btnBas = document.getElementById("btnAReserverNavBas");
+    if (btnBas) {
+      var badgeBas = btnBas.querySelector(".compte-a-reserver");
+      badgeBas.textContent = n;
+      badgeBas.hidden = !n;
+      badgeBas.style.background = s.couleur;
+    }
     var barre = document.getElementById("legendeBarre");
     if (barre) barre.style.setProperty("--couleur-a-reserver", s.couleur); // pastille de « ⋮ » (style.css)
     btn.title = premiereMajuscule_(s.nom) + " — " + (n ? n + " tâche" + (n > 1 ? "s" : "") + " à partir d’aujourd’hui" : "rien à partir d’aujourd’hui");
+    if (btnBas) { btnBas.title = btn.title; btnBas.setAttribute("aria-label", btn.title); }
     // Libellé et compteur changent la largeur du bouton : la barre est
     // remesurée (suite 50 — un compteur à 2 chiffres pouvait pousser « ⋮ »
     // hors de la barre d'un téléphone étroit).
@@ -177,6 +188,13 @@
         b.addEventListener("click", function () {
           var g = liste[+b.dataset.i];
           fermer();
+          // Ouvert depuis la barre du bas sur une autre page (suite 53) :
+          // retour au planning d'abord.
+          var pagePlanning = document.getElementById("page-planning");
+          if (pagePlanning && !pagePlanning.classList.contains("actif")) {
+            var onglet = document.querySelector('.onglet[data-page="planning"]');
+            if (onglet) onglet.click();
+          }
           allerAuJour(g.du);
         });
       });
@@ -188,4 +206,6 @@
   function cablerAReserver() {
     var btn = document.getElementById("btnAReserver");
     if (btn) btn.addEventListener("click", function () { ouvrirResumeAReserver(); });
+    var btnBas = document.getElementById("btnAReserverNavBas");
+    if (btnBas) btnBas.addEventListener("click", function (e) { e.stopPropagation(); ouvrirResumeAReserver(); });
   }
