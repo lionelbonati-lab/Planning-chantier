@@ -176,7 +176,9 @@
     jl.forEach(function (j) { h += '<th colspan="2">' + j.j + ' ' + j.d + '</th>'; });
     h += '</tr>';
     h += '<tr class="print-demis">';
-    jl.forEach(function () { h += '<th>Matin</th><th class="demi-aprem">Aprem</th>'; });
+    // .demi-matin / .demi-aprem : les 2 côtés de la frontière pointillée
+    // (suite 30, cf. leur CSS — chacun déclare « dotted » de son côté).
+    jl.forEach(function () { h += '<th class="demi-matin">Matin</th><th class="demi-aprem">Aprem</th>'; });
     h += '</tr>';
     // Ligne des horaires (round du 25.09.2026, suite 27) — Lionel : « Sur la
     // page d'impression. On rajoute une ligne sous matin et après-midi pour
@@ -190,7 +192,7 @@
     if (aDesHoraires) {
       h += '<tr class="print-horaires"><th class="coin-horaires">Horaires</th>';
       horairesSemaine.forEach(function (x) {
-        h += '<th>' + (x ? esc(x.matin) : '') + '</th><th class="demi-aprem">' + (x ? esc(x.aprem || '—') : '') + '</th>';
+        h += '<th class="demi-matin">' + (x ? esc(x.matin) : '') + '</th><th class="demi-aprem">' + (x ? esc(x.aprem || '—') : '') + '</th>';
       });
       h += '</tr>';
     }
@@ -376,7 +378,7 @@
         if (!infoMatin.empty && JSON.stringify(infoMatin.fragments) === JSON.stringify(infoAprem.fragments)) {
           h += celluleTache(infoMatin, null, true);
         } else {
-          h += celluleTache(infoMatin, null, false);
+          h += celluleTache(infoMatin, "demi-matin", false);
           h += celluleTache(infoAprem, "demi-aprem", false);
         }
       }

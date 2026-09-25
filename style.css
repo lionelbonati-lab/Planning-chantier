@@ -2317,16 +2317,35 @@
      masquage/pointillé reprend la couleur de la dernière bande sur toute la
      hauteur plutôt que celle d'une bande du dessus — imperfection mineure
      déjà actée dans ce même commentaire, à l'endroit exact où elle se
-     produit (un pixel de large, au bord partagé avec la case voisine). */
-  table.print-table .demi-aprem { position: relative; }
-  table.print-table .demi-aprem::before {
-    content: ""; position: absolute; left: -1px; top: 2px; bottom: 2px; width: 1px;
-    background-color: inherit;
-  }
-  table.print-table .demi-aprem::after {
-    content: ""; position: absolute; left: -1px; top: 3px; bottom: 3px; width: 0;
-    border-left: 1px dotted var(--border-strong);
-  }
+     produit (un pixel de large, au bord partagé avec la case voisine).
+
+     Round du 25.09.2026 (suite 30) — Lionel, capture de son aperçu à
+     l'appui : « Verife encore la construction des bordures. Optimise les. »
+     Sur SON rendu (Safari/WebKit, pas Chrome), toutes les sous-colonnes
+     Aprem étaient abîmées : traits horizontaux amincis ou absents sous
+     « APREM » et sous les horaires de l'après-midi, trait matin/aprem plein
+     et troué au lieu du pointillé — les sous-colonnes Matin, elles,
+     intactes. Cause : le `position: relative` de .demi-aprem (support des
+     ::before/::after ci-dessus). Sous border-collapse, WebKit peint une case
+     positionnée dans un calque à part, APRÈS les bordures partagées du
+     tableau : son fond recouvre la moitié des traits qui la bordent, et
+     le masque ::before / le pointillé ::after ne tombent plus où prévu.
+     Chrome ne le montre pas, d'où son absence de tous nos PDF de contrôle.
+     Tout ce montage est remplacé par une VRAIE bordure pointillée, déclarée
+     des 2 côtés de la frontière : border-right de la case matin
+     (.demi-matin, posée par openPrintSheet) ET border-left de la case aprem.
+     Le conflit de border-collapse se résout d'abord par la largeur (1px des
+     2 côtés : égalité) puis par le style — et le style est « dotted » des 2
+     côtés, donc c'est lui qui est dessiné, sans calcul de largeur qui
+     « gagne », sans masque, sans case positionnée (le problème du round
+     16.09 venait de ce que SEUL l'aprem déclarait dotted : le « solid » de
+     la case matin l'emportait). Trait natif : net à l'impression (cf. le
+     flou du dégradé plus haut), 1px comme le reste de la grille, aux
+     croisements les traits horizontaux restent continus (ils sont pleins,
+     donc prioritaires). Une case fusionnée matin+aprem (colspan=2) n'a pas
+     de frontière interne : rien à dessiner, comme avant. */
+  table.print-table .demi-matin { border-right-style: dotted; }
+  table.print-table .demi-aprem { border-left-style: dotted; }
   /* Portage mockup (round 5) — même piège de spécificité que .print-spacer
      documenté plus haut : ".print-notes td" (1 classe + 1 type) était battu
      par la règle de base "table.print-table th, table.print-table td" (1
