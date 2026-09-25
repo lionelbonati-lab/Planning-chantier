@@ -136,7 +136,7 @@ const lignes = (page) => page.evaluate(() => [...document.querySelectorAll('#hor
   {
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 390, height: 800 }, hasTouch: true, bd: { horaires: HORAIRES, feries: FERIES } });
     await allerA(page, 'horaires');
-    const barre = await page.evaluate(() => ({ page: document.documentElement.scrollWidth, textes: [...document.querySelectorAll('#page-horaires .actions-feries button')].map((b) => b.innerText.trim()), debord: [...document.querySelectorAll('#page-horaires .actions-feries button')].some((b) => b.scrollWidth > b.clientWidth + 1) }));
+    const barre = await page.evaluate(() => ({ page: document.documentElement.scrollWidth, textes: [...document.querySelectorAll('#blocHoraires .actions-feries button')].map((b) => b.innerText.trim()), debord: [...document.querySelectorAll('#blocHoraires .actions-feries button')].some((b) => b.scrollWidth > b.clientWidth + 1) }));
     verifier(barre.page <= 390 && !barre.debord && barre.textes[0] === 'Copier 2025', 'téléphone : « Copier 2025 | Ajouter | Enregistrer » tiennent sans déborder (' + JSON.stringify(barre) + ')');
     await page.click('#horaireAnneeSuiv');
     await page.click('#btnCopierHoraires');

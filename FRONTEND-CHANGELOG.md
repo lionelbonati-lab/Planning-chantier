@@ -8177,3 +8177,55 @@ Lionel : « Mise en page : ajouter aussi le format de la date d'impression. Aper
 - `test_suite38.js` : bloc Couleurs attendu sans niveaux de gris.
 - `test_suite39.js` : bloc « Date d'impression » et ses valeurs par défaut attendus.
 - **Suite complète : 56/56** (`node lancer_tests.js`).
+
+## 155. Round du 25.09.2026 (suite 47) — Onglet Horaires (fériés + horaires) ; résumé « À réserver » ; tâche → série ; restes
+
+Lionel : « Un résumé facilement accessible des statuts à réserver serait bien aussi. Regrouper les onglets fériés et horaires. Nom d'onglet horaires, placer le calendrier en haut de page et les horaires en bas de page. » Plus le point 15 des propositions : terminer les restes et fiabiliser test_suite35.
+
+### Onglet Horaires (js/coquille.js, js/page-feries.js, js/page-horaires.js, style.css, style-mobile.css)
+- L'onglet **Fériés** disparaît : son calendrier passe en haut de l'onglet **Horaires**, les horaires de travail en bas.
+- Deux blocs (`#blocCalendrier` puis `#blocHoraires`). Chacun a son titre et ses boutons, et enregistre séparément :
+  - Calendrier : Calculer, Effacer, Enregistrer ;
+  - Horaires de travail : Copier, Ajouter, Enregistrer.
+- **Un seul sélecteur d'année** pour la page, qui change les deux blocs.
+- Enregistrer les horaires redessine aussi le calendrier : les heures des jours y suivent.
+- Téléphone : la barre de boutons de chaque bloc reste collée en bas, au-dessus de la barre de navigation, tant que le bloc est à l'écran. Les catégories du calendrier restent collées en haut.
+
+### Résumé « À réserver » (js/a-reserver.js nouveau, js/core.js, js/grille-rendu.js, style.css)
+- Nouveau bouton **À réserver** (icône signet) dans la barre du planning. Une pastille à la couleur du statut donne le nombre de tâches « à réserver » à partir d'aujourd'hui.
+- Le compte est lu sur le serveur, pas dans les semaines chargées : une réservation dans 3 mois compte aussi.
+- Une tâche sur plusieurs jours ouvrés de suite ne compte qu'une fois : même personne, même texte, même chantier, même statut.
+- Le compteur est relu après chaque rendu du planning, au plus toutes les 1,5 s.
+- Un clic ouvre le **Résumé des statuts** :
+  - une pastille par statut avec son nombre (À réserver, Réservé, Confirmé…) ; un clic passe à ce statut ;
+  - la liste est triée par date : quand (« Lun. 28 sept., matin », « Jeu. 1 oct. → Lun. 5 oct. »), qui, quoi, chantier ;
+  - un clic sur une ligne amène le planning sur ce jour.
+- Sans statut « à réserver », le bouton prend le premier statut de la page Statuts. Sans aucun statut, il est caché.
+- Le bouton est montré ou caché tout de suite au rendu, pas 1,5 s plus tard : la barre ne bouge pas sous la souris.
+- Barre trop étroite : le bouton se replie dans « ⋮ » après le zoom et les masquages, avant la navigation par semaine.
+  - Une pastille de sa couleur sur « ⋮ » signale alors qu'il reste des tâches à réserver.
+  - Au téléphone il reste dans la barre.
+  - Correction : en rélargissant la fenêtre, tous les groupes repliables reviennent d'abord dans la barre (le bouton restait coincé dans « ⋮ »).
+
+### Tâche existante → série (js/formulaires-edition.js, js/donnees-sync.js)
+- Une tâche simple déjà posée montre maintenant les champs « Répéter » dans Plus d'options.
+- Enregistrer avec une répétition remplace la tâche par une série qui commence à sa date, avec son texte, son chantier, son statut, sa durée et ses demi-journées. Message : « Série créée à partir de cette tâche. »
+- `attendreFinSynchro_()` attend la fin d'une synchro en cours avant la conversion (10 s au plus).
+
+### Restes
+- Commentaire périmé sur `couleurProposeeChantier` corrigé : js/page-chantiers.js.
+- `test_suite35.js` : l'échec intermittent (« tap sur Coffrage ») ne s'est pas reproduit en 12 lancements parallèles.
+  - Le test est fiabilisé : il attend que le défilement horizontal soit arrêté avant le tap (`defilementArrete`).
+  - Il attend ensuite la sélection au lieu de la lire tout de suite.
+
+### Tests
+- `test_suite47.js` (nouveau) :
+  - compteur et résumé (1400 et 360 px) ;
+  - pastilles de statuts, regroupement des jours, libellés matin / après-midi ;
+  - liste vide, navigation au clic ;
+  - repli dans « ⋮ » à 820 px avec pastille ;
+  - onglet Horaires fusionné : ordre des blocs, année commune, heures du calendrier après enregistrement des horaires, barres collées au téléphone ;
+  - conversion d'une tâche en série.
+- `test_feries_mobile.js`, `test_suite27.js`, `test_suite28.js`, `test_suite32.js` : passent par l'onglet Horaires.
+- `test_toolbar_chevauchement.js` : ordre de repli avec « À réserver ».
+- **Suite complète : 57/57** (`node lancer_tests.js`).

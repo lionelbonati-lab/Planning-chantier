@@ -81,7 +81,7 @@ const toastTexte = (page) => page.evaluate(() => document.getElementById('toast'
     await page.click('.impression-modal .f-fermer');
 
     // --- 3. Tableau des Fériés : heures dans les cases, totaux du mois ---
-    await allerA(page, 'feries');
+    await allerA(page, 'horaires');
     const fer = await page.evaluate(() => {
       const ligne = (m) => [...document.querySelectorAll('#ferieCalendrier tbody tr')][m];
       const avril = ligne(3), mars = ligne(2);
@@ -151,7 +151,7 @@ const toastTexte = (page) => page.evaluate(() => document.getElementById('toast'
   // --- 5. Téléphone : page Fériés (mois) et page Horaires (cartes) ---
   {
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 390, height: 800 }, hasTouch: true, bd: BD });
-    await allerA(page, 'feries');
+    await allerA(page, 'horaires');
     const carte = await page.evaluate(() => {
       const c = [...document.querySelectorAll('#ferieMoisMobile .mois-carte')][3];
       const b = c.querySelector('button.jm[data-j="1"]');

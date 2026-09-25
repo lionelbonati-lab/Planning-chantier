@@ -106,8 +106,8 @@
   // Planning_Format.gs (CHANTIER_PALETTE) : palette choisie pour rester
   // lisible à l'impression (cf. commentaire d'origine dans Planning_Format.gs),
   // reprise sans y toucher. etat.palette (demarrer()) s'en sert directement ;
-  // couleurProposeeChantier() (page "Chantiers", pas encore portée) choisira
-  // la 1ère couleur pas encore utilisée dedans, exactement comme avant.
+  // couleurProposeeChantier() (js/page-chantiers.js) y choisit la 1ère
+  // couleur pas encore utilisée, exactement comme avant.
   var CHANTIER_PALETTE = [
     '#adcbef', '#f8c8b5', '#aee3d0', '#fae5ba', '#f5c4d6', '#bcdebc', '#b8b2dd', '#f5c0c0',
     '#81afe7', '#f4ab8e', '#7bd1b2', '#f7d691', '#efa3c0', '#95cb95', '#938acb', '#f1a1a0',
@@ -1875,6 +1875,18 @@
       });
     });
   });
+  // Promesse résolue quand plus aucune synchronisation n'est en cours ni
+  // relancée (suite 47, cf. la conversion d'une tâche en série dans
+  // ouvrirEdition) — au plus 10 s, puis on continue quand même.
+  function attendreFinSynchro_() {
+    return new Promise(function (ok) {
+      var debut = Date.now();
+      (function verifier() {
+        if ((!syncEnCours && !syncRelance) || Date.now() - debut > 10000) ok();
+        else setTimeout(verifier, 100);
+      })();
+    });
+  }
   function synchroniser() {
     if (!fenetrePrete() || !syncBaseline) return;
     if (syncEnCours) { syncRelance = true; return; }

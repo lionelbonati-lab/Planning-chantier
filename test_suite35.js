@@ -59,6 +59,17 @@ const poignee = (page, texte, cote) => page.evaluate(([x, c]) => {
   const r = b.querySelector('.poignee-' + c).getBoundingClientRect();
   return { x: r.left + r.width / 2, y: r.top + r.height / 2, largeur: r.width, affichee: getComputedStyle(b.querySelector('.poignee-' + c)).display !== 'none' };
 }, [texte, cote]);
+// Attend que .scroller ne bouge plus (2 relevés identiques à 150 ms
+// d'écart, au plus 3 s).
+async function defilementArrete(page) {
+  let avant = null;
+  for (let i = 0; i < 20; i++) {
+    const x = await page.evaluate(() => document.querySelector('.scroller').scrollLeft);
+    if (x === avant) return;
+    avant = x;
+    await page.waitForTimeout(150);
+  }
+}
 const revenirJeudi = (page) => page.evaluate(() => {
   const s = document.querySelector('.scroller');
   const th = document.querySelector('.entete-planning-figee .th.today');
@@ -128,9 +139,18 @@ const revenirJeudi = (page) => page.evaluate(() => {
     verifier(/^2026-09-24 - d2 /.test(await tache(page, 'Gabarits')), 'poignée droite maintenue contre le bord : étirée sur vendredi (' + await tache(page, 'Gabarits') + ')');
     await revenirJeudi(page);
     await page.waitForTimeout(600);
+    // Suite 47 (fiabilisation — ce contrôle échouait de temps en temps sous
+    // charge, jamais reproduit seul : tâche DÉPLACÉE sur mercredi au lieu
+    // d'étirée, signe que la poignée n'était pas active, donc que le tap de
+    // sélection n'avait pas pris). Le défilement doit être arrêté avant le
+    // tap, et la sélection est vérifiée avant de tirer la poignée : un échec
+    // dit désormais lequel des deux gestes n'a pas pris.
+    await defilementArrete(page);
     // Suite 37 : poignées actives seulement sur une bulle sélectionnée —
     // tap sur Coffrage d'abord.
     await doigt(page, await centreCarte(page, 'Coffrage'), null, 0, 60);
+    const selection = await page.waitForFunction(() => Object.keys(bullesSelectionnees).length === 1, null, { timeout: 3000 }).then(() => true, () => false);
+    verifier(selection, 'tap sur Coffrage : bulle sélectionnée, poignées actives');
     p = await poignee(page, 'Coffrage', 'g');
     await doigt(page, p, { x: 40, y: p.y }, 1000);
     verifier(/^2026-09-23 .* d2 /.test(await tache(page, 'Coffrage')), 'poignée gauche maintenue contre la colonne des noms : étirée sur mercredi (' + await tache(page, 'Coffrage') + ')');

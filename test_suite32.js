@@ -81,7 +81,7 @@ const lireTableau = (page) => page.evaluate(() => {
   // --- 1. Données corrigées comme la feuille → mêmes chiffres, 2112.03 h ---
   {
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 1400, height: 900 }, bd: { horaires: [...HORAIRES, JANV9], feries: [...FERIES, JUIN22('vacances_entreprise')] } });
-    await allerA(page, 'feries');
+    await allerA(page, 'horaires');
     const t = await lireTableau(page);
     verifier(t.entetes.join(' ') === 'J.trav. H.trav. J.fér. H.fér. J.vac. H.vac.', 'en-têtes des colonnes de la feuille (' + t.entetes.join(' ') + ')');
     FEUILLE_CELLULES.forEach((attendu, m) => {
@@ -101,7 +101,7 @@ const lireTableau = (page) => page.evaluate(() => {
   // --- 2. Production telle quelle : les 2 écarts avec la feuille ---
   {
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 1400, height: 900 }, bd: { horaires: HORAIRES, feries: [...FERIES, JUIN22('compenses')] } });
-    await allerA(page, 'feries');
+    await allerA(page, 'horaires');
     const t = await lireTableau(page);
     verifier(t.mois[0].filter(Boolean).join(' ') === '15 112.50', 'production sans période du 9 janvier : janvier 15 j 112.50 h (' + t.mois[0].filter(Boolean).join(' ') + ')');
     verifier(t.mois[5].filter(Boolean).join(' ') === '18 162.00 2 16.18', 'production, 22 juin compensé : juin sans le jour de vacances (' + t.mois[5].filter(Boolean).join(' ') + ')');
@@ -114,7 +114,7 @@ const lireTableau = (page) => page.evaluate(() => {
   // --- 3. Téléphone : carte « Bilan 2026 » sous décembre ---
   {
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, bd: { horaires: [...HORAIRES, JANV9], feries: [...FERIES, JUIN22('vacances_entreprise')] } });
-    await allerA(page, 'feries');
+    await allerA(page, 'horaires');
     const m = await page.evaluate(() => {
       const c = document.querySelector('#ferieMoisMobile .mois-carte.bilan-annuel');
       if (!c) return null;

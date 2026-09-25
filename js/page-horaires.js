@@ -332,14 +332,23 @@
     enregistrerHorairesServeur(d.modifs, d.nouveaux, d.supprimes).then(function () {
       copierHorairesServeur_();
       renderHoraires();
+      // Suite 47 : le calendrier est sur la même page, juste au-dessus —
+      // ses durées par jour et ses totaux suivent tout de suite.
+      renderFerieCalendrier();
       render(false); // les horaires du planning ont pu changer
       toast("Horaires enregistrés.");
     }).catch(function (err) { toast("Échec de l’enregistrement : " + (err && err.message ? err.message : err)); });
   }
 
   function cablerPageHoraires() {
-    document.getElementById("horaireAnneePrec").addEventListener("click", function () { horairesAnnee--; renderHoraires(); });
-    document.getElementById("horaireAnneeSuiv").addEventListener("click", function () { horairesAnnee++; renderHoraires(); });
+    // Suite 47 (onglets Fériés et Horaires regroupés) : une seule année
+    // pour le calendrier (ferieAnnee, page-feries.js) et les horaires.
+    function changerAnnee(delta) {
+      horairesAnnee += delta; ferieAnnee = horairesAnnee;
+      renderFeries(); renderHoraires();
+    }
+    document.getElementById("horaireAnneePrec").addEventListener("click", function () { changerAnnee(-1); });
+    document.getElementById("horaireAnneeSuiv").addEventListener("click", function () { changerAnnee(1); });
     document.getElementById("btnAjouterHoraire").addEventListener("click", ajouterPeriodeHoraire);
     document.getElementById("btnCopierHoraires").addEventListener("click", copierAnneePrecedente);
     document.getElementById("btnEnregistrerHoraires").addEventListener("click", enregistrerHoraires);

@@ -216,8 +216,12 @@
   // Navigation semaine > … ») et celui de la barre restent ceux qu'il avait
   // fixés — insererAuRang place chaque groupe replié à son rang, quel que
   // soit le moment où il part.
-  var REPLIS_ORDRE = ["groupeZoom", "controlesAffichage", "groupeNavSemaine", "groupeImprimer"];
-  var REPLIS_TELEPHONE = REPLIS_ORDRE.concat(["groupeAjoutLigne"]);
+  // « À réserver » (suite 47, js/a-reserver.js) : replié après Zoom et
+  // Masquages, avant la navigation — sans quoi, toujours dans la barre, il
+  // chassait la navigation dans « ⋮ » dès 820 px (tablette). Sur téléphone,
+  // il reste dans la barre : la place y est (tout le reste est dans « ⋮ »).
+  var REPLIS_ORDRE = ["groupeZoom", "controlesAffichage", "groupeAReserver", "groupeNavSemaine", "groupeImprimer"];
+  var REPLIS_TELEPHONE = REPLIS_ORDRE.filter(function (id) { return id !== "groupeAReserver"; }).concat(["groupeAjoutLigne"]);
   // Insère `el` dans `conteneur` avant le premier enfant de rang supérieur
   // (data-rang ou data-rang-menu selon `cle`) — garde le DOM dans l'ordre
   // visuel, dont dépendent les séparateurs (.sep-avant, cf. style.css).
@@ -249,7 +253,12 @@
     if (!legendeBarre || !panneau) return;
     var telephone = typeof window.matchMedia === "function" && window.matchMedia("(max-width: 600px)").matches;
     var groupes = REPLIS_TELEPHONE.map(function (id) { return document.getElementById(id); }).filter(Boolean);
-    groupes.forEach(function (g) { insererAuRang(g, legendeBarre, "rang"); });
+    // Tout ce qui peut être replié revient d'abord dans la barre — y compris
+    // « À réserver », replié sur ordinateur mais pas sur téléphone (suite 47).
+    REPLIS_ORDRE.concat(REPLIS_TELEPHONE).forEach(function (id) {
+      var g = document.getElementById(id);
+      if (g) insererAuRang(g, legendeBarre, "rang");
+    });
     legendeBarre.classList.remove("toolbar-compacte");
     if (telephone) {
       groupes.forEach(function (g) { insererAuRang(g, panneau, "rangMenu"); });
@@ -2128,6 +2137,7 @@
   function render(sync) {
     construireGrille();
     if (sync !== false) synchroniser();
+    planifierMajAReserver(); // compteur « À réserver » (suite 47, js/a-reserver.js)
   }
 
   function bulleEl(it) {
