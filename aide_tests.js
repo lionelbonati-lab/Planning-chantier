@@ -97,6 +97,14 @@ const FAUX_SUPABASE = LOGIQUE_PLAGE + '\n(' + function () {
               important: !!l.important, serie_id: l.serie_id || null, est_absence: !!l.est_absence, chantier_id: l.chantier_id || null });
           });
         }
+        // remplacer_compositions_equipes (sql/0015, suite 33) : tous les
+        // instantanés des équipes données sont remplacés par les lignes.
+        if (nom === 'remplacer_compositions_equipes') {
+          BD.equipes_compositions = (BD.equipes_compositions || []).filter(function (r) { return a.p_equipes.indexOf(+r.equipe_id) < 0; });
+          (a.p_lignes || []).forEach(function (l) { BD.equipes_compositions.push({ id: prochainId++, equipe_id: l.equipe_id, lundi: l.lundi, membres: l.membres.slice() }); });
+          window.__ECRITURES.push('rpc:' + nom + ':' + JSON.stringify(a));
+          return Promise.resolve({ data: null, error: null });
+        }
         window.__ECRITURES.push('rpc:' + nom);
         return Promise.resolve({ data: null, error: null });
       },

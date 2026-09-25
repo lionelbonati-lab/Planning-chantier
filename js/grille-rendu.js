@@ -282,10 +282,11 @@
     var p = personneParAncre(personneId);
     return p && p.sousTraitant ? "sous-traitant" : "personnel";
   }
+  // Ordre AFFICHÉ (suite 33) : équipes suivies de leurs membres, membres
+  // repliés exclus — cf. personnesAffichees (js/equipes.js).
   function lignesSecteur(secteur) {
     var out = [];
-    PERSONNES.forEach(function (p) {
-      if ((p.sousTraitant ? "sous-traitant" : "personnel") !== secteur) return;
+    personnesAffichees(secteur).forEach(function (p) {
       DEMIS.forEach(function (demi) { out.push({ personne: p.id, demi: demi }); });
     });
     return out;
@@ -1650,7 +1651,10 @@
         var nbPistes = Math.max(1, assignerPistesCompact(itemsLigne));
         var lbl = document.createElement("div");
         lbl.className = "lbl lbl-compacte";
+        // Ligne d'équipe (nom, membres, ▸/▾) ou membre d'une équipe
+        // (décalé sous elle) — suite 33, cf. js/equipes.js.
         lbl.innerHTML = "<b>" + esc(p.nom) + "</b>";
+        remplirEtiquetteEquipe(lbl, p);
         poser(lbl, 1, row, null, nbPistes);
         for (var gi4 = 0; gi4 < n; gi4++) {
           DEMIS.forEach(function (demi) {
@@ -1690,8 +1694,11 @@
     }
     function ligneGroupePersonnes(groupe) { ligneGroupePersonnesCompact(groupe); }
 
-    var groupePersonnel = PERSONNES.filter(function (p) { return !p.sousTraitant; });
-    var groupeIntervenants = PERSONNES.filter(function (p) { return p.sousTraitant; });
+    // Suite 33 : Personnel dans l'ordre des équipes (chaque équipe suivie
+    // de ses membres, les membres repliés sans rien à eux cachés) — cf.
+    // personnesAffichees, js/equipes.js.
+    var groupePersonnel = personnesAffichees("personnel");
+    var groupeIntervenants = personnesAffichees("sous-traitant");
 
     // §86 (round du 17.09.2026, suite) — Lionel : « les lignes de séparation
     // "personnel" et "intervenant" doivent aussi être masquées quand le

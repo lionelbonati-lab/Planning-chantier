@@ -112,7 +112,9 @@
   }
 
   function boutonsMenuAjout(personneId) {
-    var estIntervenant = secteurPersonne(personneId) === "sous-traitant";
+    // Pas d'absence non plus pour une ligne d'équipe (suite 33) : elle se
+    // pose sur la ligne de la personne absente.
+    var estIntervenant = secteurPersonne(personneId) === "sous-traitant" || estLigneEquipe(personneId);
     var html = '<button type="button" data-t="tache">Tâche</button>';
     // "Absence" (qui ouvre l'éditeur, pour saisir un motif) reste proposée
     // telle quelle au personnel : ce n'est pas une entrée rapide mais un type
@@ -137,6 +139,7 @@
     // lui-même déciderait un mauvais formulaire au clic.
     FORMULAIRES_RAPIDES.forEach(function (f, i) {
       if (!formulaireVisiblePour(f, personneId)) return;
+      if (f.typeEntree === "absence" && estLigneEquipe(personneId)) return; // cf. estIntervenant ci-dessus
       html += '<button type="button" data-form="' + i + '">' + esc(f.nom) + '</button>';
     });
     // « Coller » (suite 24 — Lionel : « proposer une entrée rapide "coller"

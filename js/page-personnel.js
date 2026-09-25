@@ -181,7 +181,7 @@
       btn.addEventListener("click", function () { echangerOrdrePersonnes(idDe(btn), 1, actifs); });
     });
     var btnAdd = zone.querySelector(".ligne-ajouter");
-    if (btnAdd) btnAdd.addEventListener("click", function () { ouvrirAjoutPersonne(btnAdd.dataset.sousTraitant === "1"); });
+    if (btnAdd) btnAdd.addEventListener("click", function () { ouvrirAjoutPersonne(btnAdd.dataset.sousTraitant === "1", btnAdd.dataset.equipe === "1"); });
     var btnRepli = zone.querySelector(".repli-desactives");
     if (btnRepli) btnRepli.addEventListener("click", function () {
       btnRepli.classList.toggle("ouvert");
@@ -198,33 +198,35 @@
   // aller-retour de plus à chaque activation d'onglet est négligeable
   // (même choix que renderStatuts/renderFormulaires, qui ne cachent pas
   // non plus).
-  function renderListePersonnes(sousTraitant) {
-    var zone = document.getElementById(sousTraitant ? "listeIntervenants" : "listePersonnel");
+  // equipe (suite 33) : 3e liste, les équipes (page Personnel, au-dessus
+  // des personnes) — mêmes lignes, flèches, interrupteur et suppression.
+  function renderListePersonnes(sousTraitant, equipe) {
+    var zone = document.getElementById(equipe ? "listeEquipes" : sousTraitant ? "listeIntervenants" : "listePersonnel");
     if (!zone) return;
     listerPersonnesGestionServeur().then(function (toutes) {
-      var liste = toutes.filter(function (p) { return !!p.sousTraitant === !!sousTraitant; });
+      var liste = toutes.filter(function (p) { return equipe ? p.equipe : (!p.equipe && !!p.sousTraitant === !!sousTraitant); });
       var actifs = liste.filter(function (p) { return p.actif; });
       var inactifs = liste.filter(function (p) { return !p.actif; });
       var html = actifs.map(function (p, i) {
         return ligneFichePersonne(p, { premier: i === 0, dernier: i === actifs.length - 1 });
-      }).join("") + '<button type="button" class="ligne-ajouter" data-sous-traitant="' + (sousTraitant ? 1 : 0) + '">+ Ajouter</button>';
+      }).join("") + '<button type="button" class="ligne-ajouter" data-sous-traitant="' + (sousTraitant ? 1 : 0) + '"' + (equipe ? ' data-equipe="1"' : "") + ">" + (equipe ? "+ Nouvelle équipe" : "+ Ajouter") + "</button>";
       if (inactifs.length) {
         html += '<button type="button" class="repli-desactives"><span class="chevron">›</span> Désactivés (' + inactifs.length + ')</button>' +
           '<div class="groupe-desactives" hidden>' + inactifs.map(function (p) { return ligneFichePersonne(p); }).join("") + '</div>';
       }
       zone.innerHTML = html;
-      cablerListePersonnes(zone, function () { renderListePersonnes(sousTraitant); }, actifs);
+      cablerListePersonnes(zone, function () { renderListePersonnes(sousTraitant, equipe); }, actifs);
       chargerCompteursTaches();
     }).catch(erreurFatale);
   }
-  function renderPersonnel() { renderListePersonnes(false); }
+  function renderPersonnel() { renderListePersonnes(false, true); renderListePersonnes(false); }
   function renderIntervenants() { renderListePersonnes(true); }
-  function ouvrirAjoutPersonne(sousTraitant) {
+  function ouvrirAjoutPersonne(sousTraitant, equipe) {
     var pop = document.createElement("div");
     pop.className = "pop form-pop";
     pop.innerHTML =
-      '<div class="cp-titre">Ajouter — ' + (sousTraitant ? "Intervenant" : "Personnel") + '</div>' +
-      '<input type="text" class="f-nom" placeholder="Nom' + (sousTraitant ? " de l’intervenant" : " de la personne") + '…">' +
+      '<div class="cp-titre">Ajouter — ' + (equipe ? "Équipe" : sousTraitant ? "Intervenant" : "Personnel") + '</div>' +
+      '<input type="text" class="f-nom" placeholder="Nom' + (equipe ? " de l’équipe" : sousTraitant ? " de l’intervenant" : " de la personne") + '…">' +
       '<div class="form-actions"><button type="button" class="f-annuler">Annuler</button><button type="button" class="f-ok">Enregistrer</button></div>';
     var px = Math.round(window.innerWidth / 2 - 110), py = Math.round(window.innerHeight / 2 - 90);
     positionnerPop(pop, px, py);
@@ -235,9 +237,9 @@
       var nom = inputNom.value.trim();
       if (!nom) { fermer(); return; }
       fermer();
-      ajouterPersonneServeur(nom, !!sousTraitant).then(function () {
+      ajouterPersonneServeur(nom, !!sousTraitant, !!equipe).then(function () {
         rafraichirApresPersonnel();
-        toast(sousTraitant ? "Intervenant ajouté." : "Personnel ajouté.");
+        toast(equipe ? "Équipe ajoutée — clique sur son nom dans le planning pour choisir ses membres." : sousTraitant ? "Intervenant ajouté." : "Personnel ajouté.");
       }).catch(function (err) { toast("Échec de l’ajout : " + (err && err.message ? err.message : err)); });
     });
     inputNom.focus();

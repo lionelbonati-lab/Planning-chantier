@@ -266,7 +266,7 @@
       // ligne interactive côté client pour le week-end). weekendDates[0]/[1]
       // = Samedi/Dimanche.
       return {
-        ancre: p.id, nom: p.nom, sousTraitant: !!p.sous_traitant,
+        ancre: p.id, nom: p.nom, sousTraitant: !!p.sous_traitant, equipe: !!p.equipe,
         matin: matin, aprem: aprem,
         weekend: [celluleVue_(p.id, "matin", infos.weekendDates[0]), celluleVue_(p.id, "matin", infos.weekendDates[1])]
       };
@@ -364,7 +364,7 @@
     etat.aujourdhui = new Date().toISOString().slice(0, 10); // date du jour, UTC — même convention que le reste du chargement
 
     Promise.all([
-      sbClient.from("personnes").select("id, nom, sous_traitant, ordre").eq("actif", true).order("ordre", { ascending: true }),
+      sbClient.from("personnes").select("id, nom, sous_traitant, equipe, ordre").eq("actif", true).order("ordre", { ascending: true }),
       // actif/ordre (sql/0008) : la requête reste volontairement SANS
       // .eq("actif", true) — contrairement à celle des personnes juste
       // au-dessus — pour que chantiersParId (juste en dessous) reste
@@ -390,7 +390,11 @@
       // Horaires de travail (round du 25.09.2026, suite 27 — sql/0014) :
       // non bloquante, comme les 2 précédentes. Sans elle, le planning
       // s'affiche simplement sans horaires.
-      sbClient.from("horaires").select(COLONNES_HORAIRES).order("date_debut", { ascending: true })
+      sbClient.from("horaires").select(COLONNES_HORAIRES).order("date_debut", { ascending: true }),
+      // Composition des équipes par semaine (round du 25.09.2026, suite 33
+      // — sql/0015, js/equipes.js) : non bloquante non plus. Sans elle, une
+      // équipe s'affiche simplement « Aucun membre ».
+      sbClient.from("equipes_compositions").select(COLONNES_COMPOSITIONS)
     ]).then(function (r) {
       r.slice(0, 4).forEach(function (res) { if (res.error) throw res.error; }); // ces 4-là restent bloquantes, comme avant
       var personnesBrutes = r[0].data || [], chantiersBruts = r[1].data || [], statutsBruts = r[2].data || [], feriesBruts = r[3].data || [];
@@ -424,6 +428,7 @@
       etat.categoriesFeriesServeur = categoriesFeriesBrutes.map(function (c) { return { id: c.id, nom: c.nom, couleur: c.couleur }; });
       reconstruireFeriesParIso();
       etat.horairesServeur = (r[6] && !r[6].error) ? normaliserHoraires(r[6].data || []) : [];
+      etat.compositionsEquipes = (r[7] && !r[7].error) ? normaliserCompositions(r[7].data || []) : [];
 
       // etat.couleursPerso : null tant que le serveur n'a pas répondu (page-
       // couleurs.js retombe alors sur son cache localStorage, cf. son
@@ -553,14 +558,16 @@
   // chargerSemaineDepuisServeur (qui filtre `.in("personne_id", ...)` sur
   // cette liste) reste synchrone avec ce qui vient d'être écrit.
   function rechargerPersonnesActives_() {
-    return sbClient.from("personnes").select("id, nom, sous_traitant, ordre").eq("actif", true).order("ordre", { ascending: true })
+    return sbClient.from("personnes").select("id, nom, sous_traitant, equipe, ordre").eq("actif", true).order("ordre", { ascending: true })
       .then(function (res) {
         if (res.error) throw res.error;
         etat.personnesActives = res.data || [];
       });
   }
-  function ajouterPersonneServeur(nom, sousTraitant) {
-    return sbClient.from("personnes").insert({ nom: nom, sous_traitant: !!sousTraitant, ordre: prochainOrdrePersonne_() })
+  // equipe (suite 33) : une équipe est une ligne `personnes` comme les
+  // autres, marquée equipe = true (cf. sql/0015, js/equipes.js).
+  function ajouterPersonneServeur(nom, sousTraitant, equipe) {
+    return sbClient.from("personnes").insert({ nom: nom, sous_traitant: !!sousTraitant && !equipe, equipe: !!equipe, ordre: prochainOrdrePersonne_() })
       .then(function (res) { if (res.error) throw res.error; });
   }
   // sousTraitant repris tel quel (jamais togglé depuis l'UI actuelle, cf.
@@ -605,11 +612,11 @@
   // grille elle-même ne doit jamais montrer une personne désactivée,
   // historique compris — comportement préexistant, inchangé).
   function listerPersonnesGestionServeur() {
-    return sbClient.from("personnes").select("id, nom, sous_traitant, actif, ordre").order("ordre", { ascending: true })
+    return sbClient.from("personnes").select("id, nom, sous_traitant, equipe, actif, ordre").order("ordre", { ascending: true })
       .then(function (res) {
         if (res.error) throw res.error;
         var liste = (res.data || []).map(function (p) {
-          return { id: String(p.id), nom: p.nom, sousTraitant: !!p.sous_traitant, actif: p.actif !== false, ordre: p.ordre || 0 };
+          return { id: String(p.id), nom: p.nom, sousTraitant: !!p.sous_traitant, equipe: !!p.equipe, actif: p.actif !== false, ordre: p.ordre || 0 };
         });
         // Re-tri explicite côté client, en plus du .order() ci-dessus (qui
         // suffit déjà avec un vrai Supabase) : ceinture et bretelles, sans
@@ -1079,7 +1086,8 @@
     // spec) ; la liste vient de la 1ère semaine affichée, chaque ligne est
     // recherchée par ancre dans l'éventuelle 2e semaine.
     PERSONNES = (d0.personnes || []).map(function (p) {
-      return { id: String(p.ancre), nom: p.nom, sousTraitant: !!p.sousTraitant };
+      // equipe (suite 33, js/equipes.js) : ligne d'équipe, pas une personne.
+      return { id: String(p.ancre), nom: p.nom, sousTraitant: !!p.sousTraitant, equipe: !!p.equipe };
     });
 
     // CHANTIERS : clé = NOM (c'est la clé de reconnaissance réelle côté

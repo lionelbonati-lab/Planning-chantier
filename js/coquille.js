@@ -294,6 +294,8 @@
               '<div class="outil-menu-titre">Ajouter une ligne</div>' +
               '<button type="button" class="outil-menu-item" data-ligne="personnel">' + ICONS.people + 'Personnel</button>' +
               '<button type="button" class="outil-menu-item" data-ligne="intervenant">' + ICONS.hardhat + 'Intervenant</button>' +
+              // Suite 33 : une équipe (ligne unique pour plusieurs personnes, cf. js/equipes.js).
+              '<button type="button" class="outil-menu-item" data-ligne="equipe">' + ICONS.people + 'Équipe</button>' +
             '</div>' +
           '</div>' +
         '</div>' +
@@ -408,6 +410,12 @@
     return '<div class="page" id="page-personnel"><div class="page-scroll">' +
       '<div class="page-titre"><h1>Personnel</h1></div>' +
       '<p class="page-sous">L’équipe interne.</p>' +
+      // Équipes (round du 25.09.2026, suite 33 — js/equipes.js) : au-dessus
+      // du personnel, qu'elles regroupent dans le planning.
+      '<h2 class="titre-liste">Équipes</h2>' +
+      '<p class="page-sous">Une ligne par équipe dans le planning : ses tâches valent pour tous ses membres. Les membres se choisissent semaine par semaine, en cliquant sur le nom de l’équipe dans le planning.</p>' +
+      '<div class="liste-intervenants" id="listeEquipes"></div>' +
+      '<h2 class="titre-liste">Personnes</h2>' +
       // Round du 23.09.2026 (suite) — réglage de couleur de la ligne de
       // séparation Personnel, placé ici à la demande de Lionel (réutilisé
       // aussi par le bouton de masquage de la toolbar). Cf. js/page-couleurs.js.
@@ -770,7 +778,7 @@
           // (suite 3) : « Bonne idée de fermer le menu avec imprimé et
           // ajouter ligne ». Sans effet de plus quand il est dans la barre.
           fermerAutresMenusOutils(null);
-          ouvrirAjoutPersonne(btn.dataset.ligne === "intervenant");
+          ouvrirAjoutPersonne(btn.dataset.ligne === "intervenant", btn.dataset.ligne === "equipe");
         });
       });
     }
@@ -797,7 +805,8 @@
           pageAjoutPersonne.innerHTML =
             '<button type="button" class="outil-menu-retour">‹ Retour</button>' +
             '<div class="outil-menu-titre">Pour qui — ' + (type === "tache" ? "Tâche" : "Absence") + '</div>';
-          var liste = type === "absence" ? PERSONNES.filter(function (p) { return !p.sousTraitant; }) : PERSONNES;
+          // Ordre affiché (suite 33) ; pas d'absence pour une équipe.
+          var liste = type === "absence" ? personnesAffichees("personnel").filter(function (p) { return !p.equipe; }) : personnesAfficheesToutes();
           liste.forEach(function (p) {
             var it = document.createElement("button");
             it.type = "button";

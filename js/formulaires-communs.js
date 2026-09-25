@@ -317,7 +317,8 @@
         if (isoDebut) copie._collage = {
           demiAbs: indexOuvreDeIso_(isoDebut) * 2 + (b.halfStart % 2),
           longueur: b.halfFinIncl - b.halfStart,
-          ligne: copie.personneId !== undefined ? PERSONNES.map(function (p) { return String(p.id); }).indexOf(String(copie.personneId)) : null
+          // Rang dans l'ordre AFFICHÉ (suite 33 : équipes et membres repliés).
+          ligne: copie.personneId !== undefined ? personnesAfficheesToutes().map(function (p) { return String(p.id); }).indexOf(String(copie.personneId)) : null
         };
       }
       return copie;
@@ -360,7 +361,7 @@
     var cibleAbs = indexOuvreDeIso_(isoCible) * 2 + (demi === "aprem" ? 1 : 0);
     var ecart = cibleAbs - Math.min.apply(null, elements.map(function (it) { return it._collage.demiAbs; }));
     var lignes = elements.filter(function (it) { return it._collage.ligne != null && it._collage.ligne >= 0; }).map(function (it) { return it._collage.ligne; });
-    var idsPersonnes = PERSONNES.map(function (p) { return String(p.id); });
+    var idsPersonnes = personnesAfficheesToutes().map(function (p) { return String(p.id); });
     var ecartLignes = lignes.length ? idsPersonnes.indexOf(String(personneId)) - Math.min.apply(null, lignes) : 0;
     var nJours = fenetreLabGs().length * 5;
     var aPoser = [], ignores = 0;
