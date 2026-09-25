@@ -45,9 +45,13 @@ const apercu = (page) => page.evaluate(() => {
   };
 });
 const coche = (page, sel) => page.evaluate((s) => { const c = document.querySelector(s); return c && { coche: c.checked, grise: c.disabled }; }, sel);
+// Panneau replié à chaque ouverture et placé sous l'aperçu (suite 40) :
+// déplié avant d'y cliquer.
+const deplier = (page) => page.click('.impr-reglages summary');
 const rouvrir = async (page) => {
   await page.click('.impression-modal .f-fermer');
   await page.evaluate(() => openPrintSheet()); await page.waitForTimeout(200);
+  await deplier(page);
 };
 
 (async () => {
@@ -58,6 +62,7 @@ const rouvrir = async (page) => {
   {
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 1300, height: 900 }, bd: BD });
     await page.evaluate(() => openPrintSheet()); await page.waitForTimeout(200);
+    await deplier(page);
 
     // --- 1. Par défaut : comme avant ---
     const libelles = await page.evaluate(() => [...document.querySelectorAll('.impr-reglages fieldset')].map((f) => f.textContent.replace(/\s+/g, ' ').trim()));

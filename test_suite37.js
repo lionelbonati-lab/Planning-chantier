@@ -153,7 +153,9 @@ const pres = (a, b, tol) => Math.abs(a - b) <= (tol == null ? 1 : tol);
     await page.waitForTimeout(600);
     liv = await carte(page, 'Livraison'); dec = await carte(page, 'Décoffrage');
     const gab2 = await carte(page, 'Gabarits');
-    verifier(liv.cachee, 'mardi posé : la carte du lundi est retirée');
+    // Suite 41 : la veille garde sa carte, prête hors écran (« faire les
+    // calcul de texte et bulles sur le jour avant et après le jour affiché »).
+    verifier(!liv.cachee && liv.d <= f.g - 1 && pres(liv.l, (jour - 2) / 2), 'mardi posé : la carte du lundi (veille) sort de l\'écran, gardée à sa largeur du lundi (' + Math.round(liv.l) + ' px)');
     verifier(pres(dec.g, f.g) && pres(dec.d, f.d) && pres(gab2.d, f.d) && pres(gab2.l, (jour - 2) / 2), 'mardi posé : largeurs recalculées pour le jour fixé (' + Math.round(dec.l) + ' / ' + Math.round(gab2.l) + ' px)');
     const pistes = await page.evaluate(() => document.querySelector('.scroller .grille').classList.contains('hauteurs-figees'));
     verifier(pistes, 'mardi posé : hauteurs de lignes refigées pour ce jour');

@@ -119,6 +119,7 @@ const apercu = (page) => page.evaluate(() => {
     verifier((await apercu(page)).page.includes('Imprimé le 24.09.2026 à 11:42'), 'date d\'impression recalculée au moment d\'imprimer (beforeprint)');
 
     // Lien vers l'onglet.
+    await page.click('.impr-reglages summary'); // replié à l'ouverture (suite 40)
     await page.click('.impr-reglages .lien-mep');
     const apres = await page.evaluate(() => ({ modale: !!document.querySelector('.impression-modal'), regle: !!document.querySelector('.style-page-impression'),
       onglet: document.getElementById('page-mise-en-page').classList.contains('actif') }));

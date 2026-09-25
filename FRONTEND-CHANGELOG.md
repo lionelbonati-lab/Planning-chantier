@@ -7921,3 +7921,45 @@ Lionel : « Je pensais aussi à une mise en page. En-tête, pied de pages, marge
 - `test_suite38.js` : le panneau n'a plus que 2 blocs, aucune liste ni champ texte ; orientation, taille et titre vérifiés par `test_suite39.js`.
 - `test_suite29.js` (écarts 6 et 14 px) inchangé et vert avec les variables CSS.
 - **Suite complète : 49/49** (`node lancer_tests.js`).
+
+## 148. Round du 25.09.2026 (suite 40) — Aperçu d'impression sur téléphone : page à la largeur de la grille, Réglages repliés sous l'aperçu
+
+Lionel, capture sur téléphone à l'appui : « La page sur l'aperçu avant impression est dessinée à la largeur de l'écran, tandis que la grille est dessinée correctement. Réglages Toujours fermés à l'ouverture. Descendre les réglage sous l'aperçu. Comme le bouton imprimer. »
+
+### Page de l'aperçu (style.css)
+- Sur téléphone, le tableau ne peut pas descendre sous sa largeur minimale (noms, horaires…) et débordait de la carte `.print-doc`, restée à la largeur de l'écran : bord droit au milieu du tableau, en-tête simulé replié sur 2 lignes (« 26028 - / Filisetti »).
+- `.print-doc` en `width: fit-content; min-width: 100%` : la carte suit le tableau quand il est plus large que l'écran (elle défile d'un bloc avec lui) et reste à la largeur de la fenêtre sinon. Rien ne change sur ordinateur. À l'impression, largeur automatique comme avant.
+
+### Réglages (js/impression.js)
+- Repliés à chaque ouverture de l'aperçu.
+- Placés sous l'aperçu, juste au-dessus de Fermer / Imprimer.
+- Dépliés, ils sont amenés à l'écran (ils s'ouvrent vers le bas).
+
+### Tests
+- `test_suite40.js` (nouveau, 13 vérifications, à 360 et 1300 px) : ordre aperçu / Réglages / boutons, repliés à l'ouverture et à la réouverture (réglages retenus), carte qui contient la grille sur téléphone et en-tête sur une ligne, inchangée sur ordinateur, panneau amené à l'écran une fois déplié, largeur du papier à l'impression.
+- `test_suite27.js`, `test_suite38.js`, `test_suite39.js` : panneau déplié avant d'y cliquer.
+- **Suite complète : 50/50** (`node lancer_tests.js`).
+
+## 149. Round du 25.09.2026 (suite 41) — Mobile : cartes de la veille et du lendemain calculées d'avance
+
+Lionel, capture du vendredi sur téléphone (cartes de 17 px, « B / é. », « E / v. ») : « En mode mobile, faire les calcul de texte et bulles sur le jour avant et après le jour affiché, pour éviter ce genre de petites bulles. »
+
+### Cause
+- Hors du jour posé, une carte était masquée (`display:none`), puis calculée seulement en entrant à l'écran pendant le glissement : sa part dans la colonne de son jour.
+- Quand cette colonne n'était pas retrouvée à temps (en-tête pas encore recalé sur le défilement), la carte prenait la mince lamelle visible à cet instant (17 px). Elle la gardait ensuite tout le geste (largeurs figées pendant le glissement, suite 37).
+- Autre cas : un jour atteint en tenant une bulle au bord (suite 26). L'arrêt du défilement était abandonné tant que la bulle était tenue, et avec lui le calcul des largeurs du jour atteint.
+
+### Correction (`ajusterLargeurBullesJourMobile`, js/grille-rendu.js)
+- À chaque calcul complet (rendu, jour posé), les cartes des **2 jours voisins** reçoivent déjà leur largeur définitive, comme si leur jour était affiché. Elles restent en place hors écran, texte déjà enroulé, poignées masquées (classe `.jour-voisin`, en plus de `.hors-jour`). Le glissement n'a plus rien à calculer pour elles.
+- `figerHauteursJourMobile` ignore les `.jour-voisin` : les hauteurs de lignes restent celles du jour posé.
+- Cartes de plus loin (2 jours d'un coup) : calcul d'entrée inchangé, mais une colonne introuvable donne au plus la largeur d'un jour, jamais la lamelle.
+- Jour posé en tenant une bulle : l'arrêt est retenté toutes les 400 ms jusqu'au lâcher, comme pendant une synchronisation.
+
+### Tests
+- `test_suite41.js` (nouveau, 10 vérifications, 360 px) :
+  - jeudi posé : cartes du vendredi et du mercredi déjà à leur largeur, hors écran, sans poignées, texte enroulé ; mardi toujours masqué ;
+  - glissement jeudi → vendredi : largeurs finales à 3, 10, 40 et 80 % du geste ;
+  - vendredi posé : le jeudi devient la veille, le mercredi est de nouveau masqué ; hauteurs de lignes propres à chaque jour ;
+  - jour atteint en tenant une bulle : calculé au lâcher.
+- `test_suite37.js` : une fois le mardi posé, la carte du lundi (la veille) sort de l'écran à sa largeur du lundi au lieu d'être masquée.
+- **Suite complète : 51/51** (`node lancer_tests.js`).

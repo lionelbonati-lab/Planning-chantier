@@ -611,8 +611,12 @@
     overlay.className = "voile-confirm";
     var pop = document.createElement("div");
     pop.className = "pop confirm-pop impression-modal";
-    // Panneau « Réglages » (suite 38) au-dessus de l'aperçu, replié ou
-    // non d'un clic sur son titre. Chaque changement est retenu sur
+    // Panneau « Réglages » (suite 38), replié ou non d'un clic sur son
+    // titre. Suite 40 (même jour) — Lionel, capture sur téléphone à l'appui :
+    // « Réglages Toujours fermés à l'ouverture. Descendre les réglage sous
+    // l'aperçu. Comme le bouton imprimer. » Replié à chaque ouverture, placé
+    // sous l'aperçu, juste au-dessus de Fermer / Imprimer ; déplié, il est
+    // amené à l'écran (il s'ouvre vers le bas, hors de vue sinon). Chaque changement est retenu sur
     // l'appareil puis l'aperçu est reconstruit : ce qui s'affiche est
     // exactement ce qui s'imprimera. Une option qui n'a pas d'effet dans
     // l'état actuel est grisée (légende sans couleurs, personne sans tâche
@@ -651,14 +655,17 @@
       return h;
     }
     pop.innerHTML = '<div class="cp-titre">Aperçu impression — semaine ' + esc(data.numero) + '</div>' +
-      '<details class="impr-reglages" open><summary>Réglages</summary><div class="impr-grille"></div>' +
+      '<div class="print-doc"></div>' +
+      '<details class="impr-reglages"><summary>Réglages</summary><div class="impr-grille"></div>' +
         // Suite 39 : plus que des cases à cocher ici ; la mise en page
         // (orientation, marges, en-tête…) a son onglet, rappelé d'un lien.
         '<div class="impr-lien-mep"><button type="button" class="f-reinit">Réinitialiser</button>' +
         '<span><span class="impr-resume-mep"></span> — <button type="button" class="lien-mep">Mise en page ›</button></span></div></details>' +
-      '<div class="print-doc"></div>' +
       '<div class="impression-actions"><button type="button" class="f-fermer">Fermer</button><button type="button" class="btn-primaire f-genpdf">Imprimer / PDF</button></div>';
     var reglagesEl = pop.querySelector(".impr-reglages");
+    reglagesEl.addEventListener("toggle", function () {
+      if (reglagesEl.open && reglagesEl.scrollIntoView) reglagesEl.scrollIntoView({ block: "nearest" });
+    });
     var grilleReglages = pop.querySelector(".impr-grille");
     var docImpr = pop.querySelector(".print-doc");
     // Mise en page (suite 39, onglet Mise en page) : règle @page complète

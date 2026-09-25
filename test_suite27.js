@@ -69,6 +69,7 @@ const toastTexte = (page) => page.evaluate(() => document.getElementById('toast'
     verifier(impr.cellules && impr.cellules[0] === 'Horaires' && impr.cellules[1] === '07:00–12:00' && impr.cellules[2] === '13:00–17:15', 'impression : ligne « Horaires » sous Matin/Aprem (' + JSON.stringify(impr.cellules && impr.cellules.slice(0, 3)) + ')');
     verifier(impr.cellules[7] === '07:00–10:15' && impr.cellules[8] === '—' && impr.cellules[9] === '' && impr.cellules[10] === '', 'impression : jeudi matin seul, vendredi vide (' + JSON.stringify(impr.cellules.slice(7)) + ')');
     verifier(impr.visible && impr.coche, 'impression : case « Afficher les horaires » cochée par défaut, ligne visible');
+    await page.click('.impr-reglages summary'); // replié à l'ouverture (suite 40)
     await page.click('.f-horaires');
     const masquee = await page.evaluate(() => getComputedStyle(document.querySelector('.print-horaires')).display === 'none');
     verifier(masquee, 'impression : décocher masque la ligne des horaires');
