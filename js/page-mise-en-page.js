@@ -44,13 +44,19 @@
       pied: { page: true, date: true, texte: "" },
       // Suite 44 (cf. plus bas, « Accolades » et « Colonnes »).
       liens: { hautBas: false, gaucheDroite: false, toutes: false },
-      colonnes: { jours: "dynamique", largeurJour: 48, noms: "dynamique", largeurNoms: 30 }
+      colonnes: { jours: "dynamique", largeurJour: 48, noms: "dynamique", largeurNoms: 30 },
+      // Suite 45 (cf. plus bas, « Dates des en-têtes de jours ») : « Lun 21 »
+      // sous la ligne des mois, comme avant.
+      dates: { jour: "abrege", mois: "masque", annee: false }
     };
   }
   // Bornes des champs en mm : par groupe, ou par clé pour les colonnes
   // (un jour de 15 mm, une colonne des noms de 10 mm au moins).
   var BORNES_MEP_ = { marges: [0, 40], espaces: [0, 15], colonnes: { largeurJour: [15, 120], largeurNoms: [10, 80] } };
   function bornesMep_(g, k) { var b = BORNES_MEP_[g]; return Array.isArray(b) ? b : b[k]; }
+
+  var FORMATS_JOUR_MEP_ = ["abrege", "complet", "initiale", "masque"];
+  var FORMATS_MOIS_MEP_ = ["masque", "chiffres", "abrege", "complet"];
 
   // Remet d'aplomb une valeur lue (serveur, cache, ancienne clé) : toute
   // clé manquante ou d'un mauvais type reprend sa valeur par défaut.
@@ -71,6 +77,10 @@
       var v = (src.colonnes || {})[k];
       if (v === "fixe" || v === "dynamique") m.colonnes[k] = v;
     });
+    var sd = src.dates || {};
+    if (FORMATS_JOUR_MEP_.indexOf(sd.jour) >= 0) m.dates.jour = sd.jour;
+    if (FORMATS_MOIS_MEP_.indexOf(sd.mois) >= 0) m.dates.mois = sd.mois;
+    if (typeof sd.annee === "boolean") m.dates.annee = sd.annee;
     ["entete", "pied", "liens"].forEach(function (groupe) {
       var s = src[groupe] || {};
       Object.keys(m[groupe]).forEach(function (k) {
@@ -169,6 +179,34 @@
     };
   }
 
+  // Dates des en-têtes de jours — round du 25.09.2026 (suite 45). Lionel :
+  // « Mise en page : Possibilité de choisir d'afficher les dates sous
+  // différentes formes, différents formats. » Précisé (question posée) :
+  // « En-têtes des jours. Afficher le mois dans la case du jour enlève la
+  // ligne du mois car redondant. Idem pour l'année. »
+  //   jour  : abrégé (Lun), complet (Lundi), initiale (L) ou masqué ;
+  //   mois  : "masque" = ligne des mois au-dessus des jours (comme avant),
+  //           sinon dans la case : 21.09, 21 sept., 21 septembre ;
+  //   annee : dans la case aussi (21.09.2026, 21 sept. 2026) — seulement
+  //           avec le mois dans la case.
+  // L'aperçu d'impression (js/impression.js) retire la ligne des mois dès
+  // que le mois est dans la case ; l'année passe alors dans le coin, avec
+  // la semaine, sauf si elle est elle aussi dans la case.
+  var JOURS_SEMAINE_MEP_ = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
+  var MOIS_ABREGES_MEP_ = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
+  var MOIS_LETTRES_MEP_ = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+  function libelleJourImpression(m, iso) {
+    var d = m.dates, an = +iso.slice(0, 4), mo = +iso.slice(5, 7), jr = +iso.slice(8, 10);
+    var p = function (n) { return (n < 10 ? "0" : "") + n; };
+    var nom = JOURS_SEMAINE_MEP_[new Date(Date.UTC(an, mo - 1, jr)).getUTCDay()];
+    var sem = { abrege: nom.slice(0, 3), complet: nom, initiale: nom.charAt(0) }[d.jour] || "";
+    var annee = d.annee && d.mois !== "masque";
+    var date = d.mois === "chiffres" ? p(jr) + "." + p(mo) + (annee ? "." + an : "")
+      : d.mois === "abrege" || d.mois === "complet" ? (jr === 1 ? "1er" : String(jr)) + " " + (d.mois === "abrege" ? MOIS_ABREGES_MEP_ : MOIS_LETTRES_MEP_)[mo - 1] + (annee ? " " + an : "")
+      : p(jr);
+    return sem ? sem + " " + date : date;
+  }
+
   // Espacement en mm -> px entiers : une hauteur fractionnaire décale les
   // traits d'un demi-pixel d'une ligne à l'autre (cf. la dérive d'arrondi
   // des largeurs fractionnaires du 16.09.2026).
@@ -254,8 +292,8 @@
       (inclus ? ' disabled' : '') + ' title="' + titre + '" aria-label="' + titre + '" style="grid-row:' + ligne + ' / span ' + hauteur + ';grid-column:' + colonne + '">' +
       '<span class="mep-accolade-trait"></span>' + SVG_LIEN_MEP_ + '</button>';
   }
-  function caseMep_(groupe, cle, libelle, note) {
-    return '<label class="impr-option"><input type="checkbox" data-g="' + groupe + '" data-k="' + cle + '"' + (mepEdition_[groupe][cle] ? " checked" : "") + '> <span>' + libelle +
+  function caseMep_(groupe, cle, libelle, note, off) {
+    return '<label class="impr-option' + (off ? ' impr-off' : '') + '"><input type="checkbox" data-g="' + groupe + '" data-k="' + cle + '"' + (mepEdition_[groupe][cle] ? " checked" : "") + (off ? " disabled" : "") + '> <span>' + libelle +
       (note ? '<small class="impr-note">' + note + '</small>' : "") + '</span></label>';
   }
   function texteMep_(groupe, cle, libelle, exemple) {
@@ -290,6 +328,15 @@
       ? { texte: "Il ne reste que " + fmtMm_(utile - c.largeurNoms) + " mm pour les " + n + " jours : colonne des noms trop large.", alerte: true }
       : { texte: "Il reste " + fmtMm_(utile - c.largeurNoms) + " mm pour les " + n + " jours (" + fmtMm_(parJour) + " mm chacun, selon leur contenu).", alerte: false };
   }
+  // Ligne d'aide sous les dates (suite 45) : l'en-tête d'un lundi, et ce
+  // que deviennent la ligne des mois et l'année du coin.
+  function aideDates_(m) {
+    var l = new Date(), p = function (n) { return (n < 10 ? "0" : "") + n; };
+    l.setDate(l.getDate() - (l.getDay() + 6) % 7);
+    var ex = "Exemple : « " + libelleJourImpression(m, l.getFullYear() + "-" + p(l.getMonth() + 1) + "-" + p(l.getDate())) + " » — ";
+    if (m.dates.mois === "masque") return ex + "mois et année sur la ligne au-dessus des jours.";
+    return ex + (m.dates.annee ? "plus de ligne des mois, ni d’année dans le coin." : "plus de ligne des mois ; l’année passe dans le coin, avec la semaine.");
+  }
   function formulaireMep_() {
     var ch = nomChantierChoisi_();
     return '<fieldset><legend>Page</legend>' +
@@ -313,6 +360,11 @@
         choixMep_("noms", "Noms", [["dynamique", "Dynamique"], ["fixe", "Largeur fixe"]], "colonnes") +
         champNombre_("colonnes", "largeurNoms", "Colonne des noms", 1, mepEdition_.colonnes.noms !== "fixe") +
         (function () { var a = aideColonnes_(mepEdition_); return '<small class="mep-aide mep-aide-colonnes' + (a.alerte ? ' alerte' : '') + '">' + esc(a.texte) + '</small>'; })() +
+      '</fieldset><fieldset><legend>Dates</legend>' +
+        choixMep_("jour", "Jour de la semaine", [["abrege", "Abrégé : Lun"], ["complet", "Complet : Lundi"], ["initiale", "Initiale : L"], ["masque", "Masqué"]], "dates") +
+        choixMep_("mois", "Mois", [["masque", "Ligne au-dessus des jours"], ["chiffres", "Dans la case : 21.09"], ["abrege", "Dans la case : 21 sept."], ["complet", "Dans la case : 21 septembre"]], "dates") +
+        caseMep_("dates", "annee", "Année dans la case", mepEdition_.dates.mois === "masque" ? "(avec le mois dans la case)" : "", mepEdition_.dates.mois === "masque") +
+        '<small class="mep-aide mep-aide-dates">' + esc(aideDates_(mepEdition_)) + '</small>' +
       '</fieldset><fieldset><legend>Espacements</legend>' +
         champNombre_("espaces", "personnes", "Entre les personnes", 0.1) + champNombre_("espaces", "sections", "Entre les sections", 0.1) +
         champNombre_("espaces", "cases", "Dans les cases", 0.1) + champNombre_("espaces", "legende", "Avant la légende", 0.1) +
@@ -438,7 +490,8 @@
     // seulement (pas pendant la frappe, « 1 » en route vers « 12 »).
     if (final && el.type === "number") el.value = mepEdition_[g][k];
     // Colonne passée en fixe ou dynamique : son champ de largeur s'active.
-    if (g === "colonnes" && el.tagName === "SELECT") redessinerFormulaireMep_();
+    // Dates (suite 45) : case Année et exemple à jour.
+    if ((g === "colonnes" && el.tagName === "SELECT") || g === "dates") redessinerFormulaireMep_();
     else {
       // Aide des colonnes à jour (largeur utile, total) sans redessiner.
       var aide = f && f.querySelector(".mep-aide-colonnes");

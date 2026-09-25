@@ -84,10 +84,19 @@
   // page (js/page-mise-en-page.js, lireMiseEnPage) ; ici ne restent que
   // les cases à cocher. Les anciennes valeurs encore retenues sous cette
   // clé y sont reprises une fois (miseEnPageDepuisSuite38_).
+  // Round du 25.09.2026 (suite 45) — Lionel : « Aperçu avant impression :
+  // option pour afficher/masquer le ligne matin | aprem - impression noir
+  // et blanc à la place de couleurs chantiers. » demis : la ligne Matin /
+  // Aprem sous les jours. rendu (« Les deux au choix », question posée) :
+  // "couleurs" (couleurs des chantiers, comme avant), "gris" (niveaux de
+  // gris, nom du chantier écrit) ou "nb" (noir et blanc : aucun fond, nom
+  // écrit) — remplace la case « Couleurs des chantiers » de la suite 38,
+  // dont une valeur décochée encore retenue devient "nb".
+  var RENDUS_IMPRESSION_ = ["couleurs", "gris", "nb"];
   var CLE_REGLAGES_IMPRESSION = "planning.impression.reglages";
   function reglagesImpressionDefaut_() {
-    return { horaires: true, jalons: true, notes: true, personnel: true, intervenants: true, legende: true, statuts: true,
-      couleurs: true, vides: false, masques: {} };
+    return { horaires: true, demis: true, jalons: true, notes: true, personnel: true, intervenants: true, legende: true, statuts: true,
+      rendu: "couleurs", vides: false, masques: {} };
   }
   function lireReglagesImpression_() {
     var r = reglagesImpressionDefaut_();
@@ -95,11 +104,32 @@
       var lu = JSON.parse(localStorage.getItem(CLE_REGLAGES_IMPRESSION) || "null");
       if (lu && typeof lu === "object") {
         Object.keys(r).forEach(function (k) { if (lu[k] != null && typeof lu[k] === typeof r[k]) r[k] = lu[k]; });
+        if (lu.rendu == null && lu.couleurs === false) r.rendu = "nb";
+        if (RENDUS_IMPRESSION_.indexOf(r.rendu) < 0) r.rendu = "couleurs";
       } else {
         r.horaires = lireOptionHorairesImpression_();
       }
     } catch (e) {}
     return r;
+  }
+  // Niveau de gris d'une couleur (suite 45, rendu "gris") : même clarté
+  // perçue (luminance Rec. 601), pour que 2 chantiers de teintes
+  // différentes restent le plus souvent distincts, clairs ou foncés comme
+  // à l'écran. Une couleur non lue (#rgb, #rrggbb, rgb()) donne un gris
+  // neutre : jamais de couleur en mode gris.
+  function grisCouleur_(c) {
+    var s = String(c || "").trim(), m, v;
+    if ((m = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/i.exec(s))) v = [m[1] + m[1], m[2] + m[2], m[3] + m[3]].map(function (x) { return parseInt(x, 16); });
+    else if ((m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(s))) v = [m[1], m[2], m[3]].map(function (x) { return parseInt(x, 16); });
+    else if ((m = /^rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/i.exec(s))) v = [+m[1], +m[2], +m[3]];
+    if (!v) return "#d9d9d9";
+    var g = Math.round(0.299 * v[0] + 0.587 * v[1] + 0.114 * v[2]), x = (g < 16 ? "0" : "") + g.toString(16);
+    return "#" + x + x + x;
+  }
+  // Fond d'un chantier (ou d'un statut) selon le rendu : sa couleur, son
+  // gris, ou rien du tout (null) en noir et blanc.
+  function couleurRendu_(r, c) {
+    return r.rendu === "nb" ? null : r.rendu === "gris" ? grisCouleur_(c) : c;
   }
   function ecrireReglagesImpression_(r) {
     try {
@@ -216,9 +246,18 @@
       // au niveau du JOUR (colspan=2 d'office), ils suivent désormais leur
       // demi-journée comme à l'écran — cf. segmentsDemiImpression_ plus bas
       // (round du 25.09.2026, suite 35).
-      h += '<tr class="print-mois"><th class="coin-annee">' + esc(anneesSemaine.join(" / ")) + '</th>';
-      groupesMois.forEach(function (g) { h += '<th colspan="' + (g.span * 2) + '">' + esc(g.mois) + '</th>'; });
-      h += '</tr>';
+      // Dates des en-têtes (suite 45, onglet Mise en page, cf.
+      // libelleJourImpression) — Lionel : « Afficher le mois dans la case du
+      // jour enlève la ligne du mois car redondant. Idem pour l'année. »
+      // Mois dans la case : plus de ligne des mois ; l'année, qui y avait
+      // sa case, passe dans le coin au-dessus de « Semaine N » — sauf si
+      // elle est elle aussi dans la case.
+      var moisDansCase = mep.dates.mois !== "masque", anneeDansCase = moisDansCase && mep.dates.annee;
+      if (!moisDansCase) {
+        h += '<tr class="print-mois"><th class="coin-annee">' + esc(anneesSemaine.join(" / ")) + '</th>';
+        groupesMois.forEach(function (g) { h += '<th colspan="' + (g.span * 2) + '">' + esc(g.mois) + '</th>'; });
+        h += '</tr>';
+      }
       // round du 15.09.2026 (suite) — Lionel : "Inscription semaine N dans la
       // case sous l'année". Cette case de coin (rowspan=2, sous "2026")
       // était vide jusqu'ici ; elle prend maintenant le numéro de semaine —
@@ -226,14 +265,20 @@
       // la modale, cf. cp-titre plus haut) ne s'imprime plus (cf. @media
       // print, "pas besoin de aperçu avant impression - semaine N") : sans
       // ça, le numéro de semaine aurait disparu du document imprimé.
-      h += '<tr><th rowspan="2" class="coin-semaine">Semaine ' + esc(data.numero) + '</th>';
-      jl.forEach(function (j) { h += '<th colspan="2">' + j.j + ' ' + j.d + '</th>'; });
+      // Ligne Matin / Aprem masquable (suite 45, case « Ligne Matin /
+      // Aprem ») : sans elle, la case de coin ne couvre plus que la ligne
+      // des jours.
+      h += '<tr class="print-jours"><th' + (r.demis ? ' rowspan="2"' : '') + ' class="coin-semaine">' +
+        (moisDansCase && !anneeDansCase ? '<span class="coin-annee-semaine">' + esc(anneesSemaine.join(" / ")) + '</span>' : '') + 'Semaine ' + esc(data.numero) + '</th>';
+      jl.forEach(function (j) { h += '<th colspan="2">' + esc(libelleJourImpression(mep, j.iso)) + '</th>'; });
       h += '</tr>';
-      h += '<tr class="print-demis">';
-      // .demi-matin / .demi-aprem : les 2 côtés de la frontière pointillée
-      // (suite 30, cf. leur CSS — chacun déclare « dotted » de son côté).
-      jl.forEach(function () { h += '<th class="demi-matin">Matin</th><th class="demi-aprem">Aprem</th>'; });
-      h += '</tr>';
+      if (r.demis) {
+        h += '<tr class="print-demis">';
+        // .demi-matin / .demi-aprem : les 2 côtés de la frontière pointillée
+        // (suite 30, cf. leur CSS — chacun déclare « dotted » de son côté).
+        jl.forEach(function () { h += '<th class="demi-matin">Matin</th><th class="demi-aprem">Aprem</th>'; });
+        h += '</tr>';
+      }
       // Ligne des horaires (round du 25.09.2026, suite 27) — Lionel : « Sur la
       // page d'impression. On rajoute une ligne sous matin et après-midi pour
       // afficher les horaires du matin et de l'après-midi. Une case à cocher
@@ -463,15 +508,14 @@
           // ligne `assignations` jamais réécrite, cf. celluleVue_), sinon
           // fond neutre — toujours UN SEUL fragment, comme n'importe quelle
           // case avant Option A.
-          var bg0 = "transparent";
-          if (cell && cell.chantier && !r.couleurs) {
-            return { fragments: [{ bg: "var(--surface-2)", txt: '<span class="print-chantier">' + esc(cell.chantier) + '</span>' }], empty: true };
-          }
+          // Suite 45 : gris ou noir et blanc, fond du chantier grisé ou
+          // retiré (couleurRendu_) et son nom écrit, comme sans couleurs.
           if (cell && cell.chantier) {
             var ch0 = etat.chantierParNom[cell.chantier];
-            bg0 = ch0 ? ch0.couleur : "#e5e5e5";
+            var bg0 = couleurRendu_(r, ch0 ? ch0.couleur : "#e5e5e5");
+            return { fragments: [{ bg: bg0 || "var(--surface-2)", txt: r.rendu === "couleurs" ? "" : '<span class="print-chantier">' + esc(cell.chantier) + '</span>' }], empty: true };
           }
-          return { fragments: [{ bg: bg0 === "transparent" ? "var(--surface-2)" : bg0, txt: "" }], empty: true };
+          return { fragments: [{ bg: "var(--surface-2)", txt: "" }], empty: true };
         }
         var fragments = taches.map(function (t) {
           // Absence (round du 16.09.2026) : désormais détectée PAR TÂCHE
@@ -494,12 +538,18 @@
           // (absences comprises : impression noir et blanc, économie
           // d'encre) et nom du chantier en petit sous le texte de la tâche.
           // Statuts des intervenants (« RÉSERVÉ »…) masquables.
+          // Suite 45 : trois rendus. Niveaux de gris : chaque fond passe à
+          // son gris (absences : --absence-bg grisée par .rendu-gris, cf.
+          // style.css) et le nom du chantier est écrit, 2 chantiers
+          // pouvant tomber sur des gris voisins. Noir et blanc : le « sans
+          // couleurs » ci-dessus, statuts compris (badge cerclé, sans fond).
           var nomChantier = "";
-          if (!r.couleurs) {
-            bg = "transparent";
+          if (r.rendu !== "couleurs") {
+            if (r.rendu === "nb") bg = "transparent";
+            else if (!estAbs && bg !== "transparent") bg = grisCouleur_(bg);
             if (t.chantier && !estAbs) nomChantier = '<span class="print-chantier">' + esc(t.chantier) + '</span>';
           }
-          var badge = (r.statuts && p.sousTraitant && t.statut && STATUTS[t.statut]) ? ' <span class="print-statut" style="background:' + STATUTS[t.statut].couleur + '">' + esc(STATUTS[t.statut].nom) + '</span>' : "";
+          var badge = (r.statuts && p.sousTraitant && t.statut && STATUTS[t.statut]) ? ' <span class="print-statut" style="background:' + (couleurRendu_(r, STATUTS[t.statut].couleur) || "transparent") + '">' + esc(STATUTS[t.statut].nom) + '</span>' : "";
           var ouvre = t.important ? '<span class="print-important">' : "";
           var ferme = t.important ? '</span>' : "";
           return { bg: bg === "transparent" ? "var(--surface-2)" : bg, txt: ouvre + esc(t.texte) + ferme + badge + nomChantier };
@@ -592,14 +642,28 @@
         }
       });
 
-      h += '</tbody></table>';
+      h += '</tbody>';
+      // Ligne Matin / Aprem masquée (suite 45) : c'est elle qui donnait à
+      // chaque demi-colonne sa largeur minimale — sans elle, une demi-journée
+      // vide toute la semaine (vendredi après-midi…) se réduisait à rien et
+      // le partage matin/aprem de chaque jour suivait le texte des tâches.
+      // Ses mots restent, invisibles et sans hauteur, dans une dernière
+      // ligne sans bordure (même largeur de colonnes qu'avec la ligne).
+      // Inutile en largeur fixe (colonnes déjà posées).
+      if (!r.demis && mep.colonnes.jours !== "fixe") {
+        h += '<tfoot class="print-cale"><tr class="print-spacer print-cale" aria-hidden="true"><td></td>' +
+          jl.map(function () { return '<td>Matin</td><td>Aprem</td>'; }).join('') + '</tr></tfoot>';
+      }
+      h += '</table>';
 
       var legendKeys = Object.keys(chantiersUtilises);
-      if (r.legende && r.couleurs && legendKeys.length) {
+      // Légende (suite 45) : pastilles grises en niveaux de gris, aucune en
+      // noir et blanc (plus aucun fond à expliquer).
+      if (r.legende && r.rendu !== "nb" && legendKeys.length) {
         h += '<div class="print-legend">';
         legendKeys.forEach(function (nomChantier) {
           var ch = etat.chantierParNom[nomChantier];
-          h += '<div class="legend-item"><span class="sw" style="background:' + (ch ? ch.couleur : "#e5e5e5") + '"></span>' + esc(nomChantier) + '</div>';
+          h += '<div class="legend-item"><span class="sw" style="background:' + couleurRendu_(r, ch ? ch.couleur : "#e5e5e5") + '"></span>' + esc(nomChantier) + '</div>';
         });
         h += '</div>';
       }
@@ -652,12 +716,22 @@
           (opt.note ? '<small class="impr-note">' + opt.note + '</small>' : '') + '</span></label>';
       }
       var h = '<fieldset><legend>Afficher</legend>';
+      h += caseR("demis", "Ligne Matin / Aprem");
       if (aDesHoraires) h += caseR("horaires", "Horaires", { classe: "f-horaires" });
       h += caseR("jalons", "Jalons") + caseR("notes", "Notes") +
-        caseR("legende", "Légende des chantiers", { off: !r.couleurs, note: r.couleurs ? "" : "(inutile sans couleurs)" }) +
+        caseR("legende", "Légende des chantiers", { off: r.rendu === "nb", note: r.rendu === "nb" ? "(inutile en noir et blanc)" : "" }) +
         caseR("statuts", "Statuts des intervenants") +
-        caseR("couleurs", "Couleurs des chantiers", { note: r.couleurs ? "" : "(nom du chantier écrit dans la case)" }) +
         caseR("vides", "Personnes sans tâche");
+      // Rendu (suite 45) : 3 boutons radio à la place de la case
+      // « Couleurs des chantiers » (suite 38).
+      function choixRendu(valeur, libelle, note) {
+        return '<label class="impr-option"><input type="radio" name="impr-rendu" data-r="rendu" value="' + valeur + '"' + (r.rendu === valeur ? ' checked' : '') + '> <span>' + libelle +
+          (note ? '<small class="impr-note">' + note + '</small>' : '') + '</span></label>';
+      }
+      h += '</fieldset><fieldset class="impr-rendu"><legend>Couleurs</legend>' +
+        choixRendu("couleurs", "Couleurs des chantiers") +
+        choixRendu("gris", "Niveaux de gris", "(nom du chantier écrit dans la case)") +
+        choixRendu("nb", "Noir et blanc", "(sans fond, nom du chantier écrit)");
       h += '</fieldset><fieldset class="impr-personnes"><legend>Personnes</legend>';
       function groupe(cle, libelle, entrees) {
         var ouvert = groupesOuverts[cle];
@@ -708,10 +782,12 @@
     function appliquerReglages_(avecPanneau) {
       if (avecPanneau) {
         // Garde le focus sur le même réglage après reconstruction du panneau.
+        // Bouton radio du rendu (suite 45) : retrouvé par sa valeur.
         var actif = document.activeElement, cle = actif && grilleReglages.contains(actif) ? (actif.dataset.r || actif.dataset.p) : null;
+        var radio = cle && actif.type === "radio" ? '[value="' + actif.value + '"]' : "";
         grilleReglages.innerHTML = panneauReglages_();
         if (cle) {
-          var cible = grilleReglages.querySelector('[data-r="' + cle + '"], [data-p="' + cle + '"]');
+          var cible = grilleReglages.querySelector('[data-r="' + cle + '"]' + radio + ', [data-p="' + cle + '"]');
           if (cible) cible.focus();
         }
       }
@@ -724,7 +800,8 @@
       }
       docImpr.innerHTML = ligneEcran("impr-entete-ecran", z.haut) + construireDocImpression_(r) + ligneEcran("impr-pied-ecran", z.bas);
       docImpr.classList.toggle("sans-horaires", !r.horaires);
-      docImpr.classList.toggle("sans-couleurs", !r.couleurs);
+      docImpr.classList.toggle("rendu-gris", r.rendu === "gris");
+      docImpr.classList.toggle("rendu-nb", r.rendu === "nb");
       docImpr.classList.toggle("taille-petite", mep.taille === "petite");
       docImpr.classList.toggle("taille-grande", mep.taille === "grande");
       docImpr.classList.toggle("noms-fixe", mep.colonnes.noms === "fixe");

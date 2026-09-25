@@ -71,9 +71,11 @@ const rouvrir = async (page) => {
 
     // --- 1. Par défaut : comme avant ---
     const libelles = await page.evaluate(() => [...document.querySelectorAll('.impr-reglages fieldset')].map((f) => f.textContent.replace(/\s+/g, ' ').trim()));
-    verifier(libelles.length === 2 && ['Jalons', 'Notes', 'Légende des chantiers', 'Statuts des intervenants', 'Couleurs des chantiers', 'Personnes sans tâche'].every((l) => libelles[0].includes(l)) &&
-      ['Personnel', 'Intervenants'].every((l) => libelles[1].includes(l)),
-      'panneau « Réglages » : Afficher / Personnes, rien d\'autre (' + libelles[0] + ')');
+    // Suite 45 : fieldset Couleurs (3 boutons radio) entre Afficher et
+    // Personnes, à la place de la case « Couleurs des chantiers ».
+    verifier(libelles.length === 3 && ['Jalons', 'Notes', 'Légende des chantiers', 'Statuts des intervenants', 'Personnes sans tâche'].every((l) => libelles[0].includes(l)) &&
+      /^Couleurs Couleurs des chantiers Niveaux de gris/.test(libelles[1]) && ['Personnel', 'Intervenants'].every((l) => libelles[2].includes(l)),
+      'panneau « Réglages » : Afficher / Couleurs / Personnes, rien d\'autre (' + libelles[0] + ')');
     const bas = await page.evaluate(() => ({ selects: document.querySelectorAll('.impr-reglages select, .impr-reglages input[type=text]').length,
       reinit: !!document.querySelector('.impr-reglages .f-reinit'), lien: (document.querySelector('.impr-reglages .impr-lien-mep') || {}).textContent }));
     verifier(bas.selects === 0 && bas.reinit && /Paysage, marges 12 mm — Mise en page ›/.test(bas.lien), 'suite 39 : plus que des cases à cocher, Réinitialiser et un lien vers l\'onglet Mise en page (' + JSON.stringify(bas) + ')');
@@ -102,12 +104,12 @@ const rouvrir = async (page) => {
     a = await apercu(page);
     verifier(a.statuts === 0 && !a.legende, 'Statuts et Légende décochés : ni badge « Réservé » ni légende');
     await page.click('[data-r="legende"]');
-    await page.click('[data-r="couleurs"]');
+    await page.click('[data-r="rendu"][value="nb"]');
     a = await apercu(page);
-    verifier(a.fonds.length === 0, 'Couleurs décochées : plus aucun fond coloré dans les cases (absence comprise)');
+    verifier(a.fonds.length === 0, 'Noir et blanc (suite 45, ex-« Couleurs » décochées) : plus aucun fond coloré dans les cases (absence comprise)');
     verifier(a.chantiers.join() === '26182 - Terrain de Padel,26150 - Villa Bine', 'sans couleurs : nom du chantier écrit dans chaque case (' + a.chantiers.join(' / ') + ')');
     const leg = await coche(page, '[data-r="legende"]');
-    verifier(!a.legende && leg.grise, 'sans couleurs : légende retirée, sa case grisée');
+    verifier(!a.legende && leg.grise, 'noir et blanc : légende retirée, sa case grisée');
     await page.click('[data-r="vides"]');
     a = await apercu(page);
     verifier(a.personnes.join() === 'Lionel,Antoine,Béton/Armature,Echafaudage', 'Personnes sans tâche : Antoine et Echafaudage imprimés (' + a.personnes.join() + ')');
@@ -121,7 +123,7 @@ const rouvrir = async (page) => {
     // --- 5. Retenus, puis Réinitialiser ---
     await rouvrir(page);
     a = await apercu(page);
-    const r = await page.evaluate(() => ({ jalons: document.querySelector('[data-r="jalons"]').checked, couleurs: document.querySelector('[data-r="couleurs"]').checked,
+    const r = await page.evaluate(() => ({ jalons: document.querySelector('[data-r="jalons"]').checked, couleurs: !document.querySelector('[data-r="rendu"][value="nb"]').checked,
       mathis: document.querySelector('[data-p="2"]').checked }));
     verifier(!r.jalons && !r.couleurs && !r.mathis && a.jalons === 0 && a.chantiers.length === 2,
       'réouverture : réglages retenus (' + JSON.stringify(r) + ')');
