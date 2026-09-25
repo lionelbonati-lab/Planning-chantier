@@ -8412,3 +8412,55 @@ Proposition 10 retenue par Lionel : « Lien de consultation : un lien en lecture
   - les 4 cas d'erreur ;
   - « Lien » à 1400 et 360 px : lien existant, copier, nouveau lien, suppression, création.
 - Suite complète : 61/61.
+
+## 160. Round du 25.09.2026 (suite 52) — Mode hors ligne
+
+Proposition 13 retenue par Lionel : « Mode hors ligne : consulter le planning et noter des changements sans réseau, puis les envoyer quand la connexion revient. Utile sur chantier en zone blanche. »
+
+### L'appli s'ouvre sans réseau (sw.js, nouveau)
+- Service worker enregistré par js/hors-ligne.js (seulement en http/https, donc pas dans les tests en `file://`).
+- À l'installation, index.html est lu et tout ce qu'il charge est copié : CSS, `js/*.js`, supabase-js (CDN), polices, icônes, plus `functions/enregistrer-plage/logic.js`. Pas de liste à tenir à jour quand un fichier est ajouté.
+- « Réseau d'abord » : avec du réseau, toujours la dernière version publiée (et la copie est rafraîchie) ; sans réseau ou sans réponse en 6 s, la copie.
+- Les appels à Supabase ne passent jamais par le service worker.
+
+### Le planning se consulte sans réseau (js/hors-ligne.js, nouveau ; js/core.js ; js/donnees-sync.js)
+- Tout passe par `fetchHorsLigne`, branché comme `global.fetch` de supabase-js ; le vrai envoi reste `fetchAvecRejeuJwt_`.
+- Chaque lecture réussie de la base est gardée sur l'appareil (IndexedDB `planning-hors-ligne`, magasin `lectures`, adresse complète = clé).
+  - Sans réseau, ou sans réponse en 10 s, la même lecture est servie depuis cette copie.
+  - Copies de plus de 60 jours effacées.
+- Préchargement à l'ouverture, 5 s après le démarrage, avec du réseau : la semaine précédente et les 4 suivantes (`prechargerHorsLigne`).
+- Démarrage sans réseau :
+  - une session gardée sur l'appareil suffit ;
+  - le renouvellement du jeton de connexion (1 h) ne bloque plus l'appli. Sans réseau, supabase-js le retentait ~30 s en bloquant toutes les requêtes. La réponse est donc fabriquée depuis la session gardée : jeton noté « provisoire », valable 5 min pour supabase-js ;
+  - dès que le réseau revient, un vrai renouvellement est demandé avant tout envoi et avant le démarrage ;
+  - un refus du serveur (session révoquée) passe tel quel.
+- « Pas de connexion internet. Reconnecte-toi au réseau puis réessaie. » au lieu de « Failed to fetch » quand rien n'est en mémoire.
+
+### Les changements se notent sans réseau et partent au retour du réseau
+- Mis en file (magasin `envois`) au lieu d'échouer : les écritures de la grille, c'est-à-dire
+  - la case d'une personne (`remplacer_case_personne`) ;
+  - les notes et jalons (`enregistrer-plage`, même `planPlage` que le serveur, chargée depuis `functions/enregistrer-plage/logic.js`) ;
+  - le détachement d'une série.
+- Chaque changement en file est aussi appliqué aux copies des lectures : visible tout de suite, et encore après un changement de semaine.
+- Semaine jamais chargée : refus, message clair.
+- Les autres écritures (Personnel, Chantiers, Statuts, Horaires, séries…) : « Hors ligne : ce changement demande une connexion internet. »
+- Envoi dans l'ordre, dès l'événement « online », au retour sur l'appli, puis toutes les 15 s tant qu'il reste quelque chose. Les changements faits pendant l'envoi partent à la suite. Ensuite, le planning est relu du serveur.
+- Conflits : avant d'envoyer une case modifiée hors ligne, elle est relue sur le serveur.
+  - Si quelqu'un d'autre l'a changée pendant la coupure, elle n'est pas écrasée.
+  - La fenêtre « Changements non envoyés » la liste : « Mathis, Ven. 25 sept. matin : Ferraillage N2 — modifiée entre-temps par quelqu'un d'autre ».
+  - Notes et jalons n'ont pas ce risque : seule l'entrée d'origine est retirée.
+- Pastille en bas à gauche (au-dessus de la barre du bas sur téléphone) : « Hors ligne — planning en mémoire », « Hors ligne — 3 changements en attente », « Envoi de … ».
+
+### Tests
+- test_suite52.js (nouveau), 22 vérifications, 22 OK. Contrairement aux autres tests, il tourne avec :
+  - l'appli servie en http (service worker actif) ;
+  - le vrai supabase-js (npm, gardé dans le dossier temporaire) ;
+  - un faux serveur Supabase : filtres PostgREST, RPC, `enregistrer-plage` avec la vraie `planPlage`, renouvellement du jeton.
+- Scénarios :
+  - en ligne : copies et préchargement ;
+  - rechargement sans réseau : appli et planning affichés, pastille, semaine suivante consultable ;
+  - tâche, case et note changées hors ligne : visibles, comptées, gardées après un aller-retour de semaine ; rien au serveur ; écriture hors planning refusée ;
+  - retour du réseau : envoi, conflit pas écrasé et listé, planning relu, file vide ;
+  - démarrage sans réseau avec une session expirée, puis vrai renouvellement au retour du réseau.
+- test_suite34.js : la vérification « le client Supabase reçoit fetchAvecRejeuJwt_ » accepte le passage par `fetchHorsLigne`.
+- Suite complète : 62/62.

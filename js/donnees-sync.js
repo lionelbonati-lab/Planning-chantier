@@ -480,7 +480,28 @@
       // cf. chargerFormulairesRapides) se charge maintenant en arrière-plan,
       // sans bloquer davantage l'écran de chargement.
       chargerFormulairesRapides();
+      prechargerHorsLigne();
     }).catch(erreurFatale);
+  }
+
+  // Mode hors ligne (suite 52, js/hors-ligne.js) : 5 s après l'ouverture,
+  // la semaine précédente et les 4 suivantes sont lues en arrière-plan, une
+  // par une — leur copie est alors sur l'appareil, et le planning de ces
+  // semaines-là s'affichera aussi sans réseau (sur chantier, en zone
+  // blanche). Rien si le réseau manque déjà.
+  function prechargerHorsLigne() {
+    if (typeof fetchHorsLigne !== "function") return;
+    setTimeout(function () {
+      if (navigator.onLine === false) return;
+      var i0 = etat.indexSemaine, dejaLues = fenetreLabGs();
+      var labs = [i0 - 1, i0 + 1, i0 + 2, i0 + 3, i0 + 4].map(function (i) { return etat.semaines[i] && etat.semaines[i].labG; })
+        .filter(function (lg) { return lg && dejaLues.indexOf(lg) < 0 && !etat.cache[lg]; });
+      labs.reduce(function (chaine, lg) {
+        return chaine.then(function () {
+          return chargerSemaineDepuisServeur(lg).then(function (data) { if (!etat.cache[lg]) mettreEnCache(data); }, function () {});
+        });
+      }, Promise.resolve());
+    }, 5000);
   }
 
   function appliquerStatutsEtFormulaires() {
