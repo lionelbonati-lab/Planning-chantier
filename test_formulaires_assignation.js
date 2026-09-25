@@ -22,7 +22,7 @@
  * bug invisible depuis cette page-là, mais bien réel dans le menu "Ajouter".
  *
  * Comme test_grille_compacte.js, ce fichier extrait la fonction RÉELLE de
- * `index.html` plutôt que d'en tester une copie.
+ * l'appli (`js/*.js`) plutôt que d'en tester une copie.
  *
  * Lancer : node test_formulaires_assignation.js
  */
@@ -31,12 +31,14 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const SRC = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+// index.html + js/*.js : le code est sorti d'index.html le 17.09.2026 (cf.
+// sourceApp, aide_tests.js).
+const SRC = require('./aide_tests').sourceApp();
 
 function extraireFonction(nom) {
   const re = new RegExp('\\n(\\s*)function ' + nom + '\\s*\\(');
   const m = re.exec(SRC);
-  if (!m) throw new Error('fonction introuvable dans index.html : ' + nom);
+  if (!m) throw new Error('fonction introuvable dans le code de l\'appli : ' + nom);
   let i = SRC.indexOf('{', m.index + m[0].length - 1);
   let profondeur = 0;
   for (let j = i; j < SRC.length; j++) {

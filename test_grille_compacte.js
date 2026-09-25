@@ -22,13 +22,15 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const SRC = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+// index.html + js/*.js : le code est sorti d'index.html le 17.09.2026 (cf.
+// sourceApp, aide_tests.js).
+const SRC = require('./aide_tests').sourceApp();
 
-// ---- Extraction des fonctions réelles depuis index.html -----------------
+// ---- Extraction des fonctions réelles depuis js/*.js ---------------------
 function extraireFonction(nom) {
   const re = new RegExp('\\n(\\s*)function ' + nom + '\\s*\\(');
   const m = re.exec(SRC);
-  if (!m) throw new Error('fonction introuvable dans index.html : ' + nom);
+  if (!m) throw new Error('fonction introuvable dans le code de l\'appli : ' + nom);
   // Découpe par équilibrage des accolades à partir du corps de la fonction.
   let i = SRC.indexOf('{', m.index + m[0].length - 1);
   let profondeur = 0;
@@ -41,7 +43,7 @@ function extraireFonction(nom) {
 
 const NOMS = ['colsParJour', 'colonneGrille', 'colonneDemi', 'spanColonnes',
   'estGiWeekend', 'giWeekend', 'semaineDuGiWeekend', 'jourWeekendIdx', 'assignerPistesCompact',
-  'colonneEtSpanDemi', 'demiDepuisPointeur', 'demiPourRedimNote', 'demiCiblePourDeplacementNote',
+  'colonneEtSpanDemi', 'demiDepuisPointeur', 'demiPourRedimNote', 'colFinDernierJour_',
   'demiSlotsDepuisBornes', 'bornesDepuisDemiSlots', 'bordsDeplacementNoteMultiJours',
   'demisOccupeesTache'];
 
@@ -180,7 +182,7 @@ assertEqual(sandbox.colonneEtSpanDemi(0, 2, null, 'aprem'), sandbox.colonneEtSpa
   '"aprem" comme bord de fin sur plusieurs jours est inerte (rendu identique à journée entière)');
 
 // =======================================================================
-// 4) demiDepuisPointeur / demiPourRedimNote / demiCiblePourDeplacementNote
+// 4) demiDepuisPointeur / demiPourRedimNote / déplacement d'une note d'un jour
 //    — round du 03.09.2026, signalé par Lionel (une 2e fois) : "les notes
 //    sont toujours pas extensible ni déplaçable en demi journée". Le round
 //    précédent n'avait réparé que l'APERÇU d'une note déjà en demi-journée
@@ -228,12 +230,16 @@ assertEqual(sandbox.demiDepuisPointeur(faireCell(100, 40, 'aprem'), 139), 'aprem
 //    pas augmenter à 1 jour et demi") : contrairement à l'ancienne version,
 //    l'AUTRE bord n'est plus jamais figé sur sa valeur de départ dès que
 //    l'aperçu dépasse 1 jour — sinon "1 jour et demi" restait inatteignable.
+//    Depuis le §129 (round du 24.09.2026, suite 21), un début « matin » sur
+//    plusieurs jours est ramené à null : même rendu (cf. colonneEtSpanDemi,
+//    « "matin" comme bord de départ sur plusieurs jours est inerte »), une
+//    seule écriture possible par forme.
 assertEqual(sandbox.demiPourRedimNote('droite', 3, 'matin', null, 'matin'),
-  { demiDebut: 'matin', demiFin: 'matin' },
-  'poignée droite, encore plusieurs jours (duree=3) : demiDebut reconduit tel quel, demiFin choisi par la position du pointeur dans le NOUVEAU dernier jour — "1 jour et demi" atteint ici');
+  { demiDebut: null, demiFin: 'matin' },
+  'poignée droite, encore plusieurs jours (duree=3) : début « matin » = journée (null), demiFin choisi par la position du pointeur dans le NOUVEAU dernier jour — "1 jour et demi" atteint ici');
 assertEqual(sandbox.demiPourRedimNote('droite', 3, 'matin', null, 'aprem'),
-  { demiDebut: 'matin', demiFin: null },
-  'poignée droite, encore plusieurs jours : pointeur côté droit du nouveau dernier jour -> ce jour reste entier, demiDebut inchangé');
+  { demiDebut: null, demiFin: null },
+  'poignée droite, encore plusieurs jours : pointeur côté droit du nouveau dernier jour -> ce jour reste entier, début en journée (null)');
 assertEqual(sandbox.demiPourRedimNote('droite', 1, null, null, 'matin'),
   { demiDebut: 'matin', demiFin: 'matin' }, 'poignée droite, réduite à 1 jour : les 2 bords fusionnent, pointeur côté gauche -> "matin" (rogné)');
 assertEqual(sandbox.demiPourRedimNote('droite', 1, null, null, 'aprem'),
@@ -246,34 +252,48 @@ assertEqual(sandbox.demiPourRedimNote('gauche', 1, null, null, 'aprem'),
 assertEqual(sandbox.demiPourRedimNote('gauche', 1, null, null, 'matin'),
   { demiDebut: null, demiFin: null }, 'poignée gauche, réduite à 1 jour, pointeur côté gauche -> journée entière (pas encore rogné)');
 
-// -- demiCiblePourDeplacementNote : déplacement (bulle entière) --
-// round du 08.09.2026 (suite) : Lionel, « quand je déplace une note
-// matin/aprem de 1/2 jour elle est retrecie en 1/2 journée » — le cas
-// "même jour (delta=0)" traitait TOUJOURS la position du relâchement comme
-// choisissant une demi-journée, y compris pour une note en JOURNÉE ENTIÈRE
-// (contrairement au cas "jour différent" juste après, qui protège déjà la
-// journée entière) : le moindre micro-glissement resté sur le même jour
-// rétrécissait donc la note par accident. Les 2 cas suivent désormais
-// exactement la même règle (cf. FRONTEND-CHANGELOG §42).
-assertEqual(sandbox.demiCiblePourDeplacementNote(1, 0, null, null, 'aprem'),
-  { demiDebut: null, demiFin: null }, 'même jour (delta=0), note en JOURNÉE ENTIÈRE -> reste en journée entière (avant ce round : rétrécie par accident en demi-journée)');
-assertEqual(sandbox.demiCiblePourDeplacementNote(1, 0, 'matin', 'matin', 'aprem'),
-  { demiDebut: 'aprem', demiFin: 'aprem' }, 'même jour, note déjà du matin -> passe à l’après-midi (le geste que Lionel décrivait le 03.09.2026)');
-assertEqual(sandbox.demiCiblePourDeplacementNote(1, 2, 'matin', 'matin', 'aprem'),
-  { demiDebut: 'aprem', demiFin: 'aprem' }, 'jour différent, note déjà en demi-journée -> la position choisit la nouvelle demi-journée sur le jour d’arrivée');
-assertEqual(sandbox.demiCiblePourDeplacementNote(1, 2, null, null, 'aprem'),
-  { demiDebut: null, demiFin: null }, 'jour différent, note en JOURNÉE ENTIÈRE -> reste en journée entière (jamais réduite par accident lors d’un simple déplacement)');
-assertEqual(sandbox.demiCiblePourDeplacementNote(3, 2, 'aprem', 'matin', 'matin'),
-  { demiDebut: 'aprem', demiFin: 'matin' },
-  'note de PLUSIEURS jours : un simple déplacement conserve la forme de ses 2 bords telle quelle, quelle que soit la position du relâchement');
+// -- Déplacement d'une note d'UN jour (bulle entière) --
+// Round du 25.09.2026 (suite 36). Ces 5 vérifications portaient sur
+// demiCiblePourDeplacementNote, supprimée à la suite 24 avec le mode
+// classique : tout déplacement passe désormais par
+// bordsDeplacementNoteMultiJours (section 5), qui garde le NOMBRE de
+// demi-journées de la note et suit le pointeur demi-journée par
+// demi-journée. Réécrites sur cette fonction, avec les mêmes scénarios.
+// Lionel, à la question « une note sur une journée entière glissée d'une
+// demi-journée vers la droite » : « Se décaler » — elle garde sa taille
+// (mercredi après-midi → jeudi matin), comme il l'avait demandé le
+// 08.09.2026 (« une bulle de 2 case doit garder sa grandeur mais doit
+// pouvoir se déplacer de 1 case »). L'ancienne règle « une journée entière
+// reste entière quelle que soit la position » n'a plus cours.
+// Arguments : giDebut, duree, demiDebut, demiFin, demi-journées entre le
+// début de la bulle et le point de prise, jour et demi-journée sous le
+// pointeur, nombre de jours de la fenêtre.
+assertEqual(sandbox.bordsDeplacementNoteMultiJours(1, 1, null, null, 0, 1, 'matin', 200),
+  { giDebut: 1, duree: 1, demiDebut: null, demiFin: null },
+  'même jour, note en JOURNÉE ENTIÈRE, pointeur resté sur sa demi-journée de prise -> ne bouge pas (pas de rétrécissement par accident, §42)');
+assertEqual(sandbox.bordsDeplacementNoteMultiJours(1, 1, null, null, 0, 1, 'aprem', 200),
+  { giDebut: 1, duree: 2, demiDebut: 'aprem', demiFin: 'matin' },
+  'note en JOURNÉE ENTIÈRE glissée d\u2019une demi-journée vers la droite -> garde sa taille : après-midi → matin du lendemain (choix de Lionel, suite 36)');
+assertEqual(sandbox.bordsDeplacementNoteMultiJours(1, 1, 'matin', 'matin', 0, 1, 'aprem', 200),
+  { giDebut: 1, duree: 1, demiDebut: 'aprem', demiFin: 'aprem' },
+  'même jour, note du matin -> passe à l\u2019après-midi (le geste que Lionel décrivait le 03.09.2026)');
+assertEqual(sandbox.bordsDeplacementNoteMultiJours(1, 1, 'matin', 'matin', 0, 2, 'aprem', 200),
+  { giDebut: 2, duree: 1, demiDebut: 'aprem', demiFin: 'aprem' },
+  'jour différent, note en demi-journée -> la position choisit la nouvelle demi-journée sur le jour d\u2019arrivée');
+assertEqual(sandbox.bordsDeplacementNoteMultiJours(1, 1, null, null, 0, 2, 'matin', 200),
+  { giDebut: 2, duree: 1, demiDebut: null, demiFin: null },
+  'jour différent, note en JOURNÉE ENTIÈRE relâchée à la même demi-journée qu\u2019à la prise -> reste en journée entière sur le jour d\u2019arrivée');
+assertEqual(sandbox.bordsDeplacementNoteMultiJours(1, 3, 'aprem', 'matin', 0, 2, 'aprem', 200),
+  { giDebut: 2, duree: 3, demiDebut: 'aprem', demiFin: 'matin' },
+  'note de PLUSIEURS jours décalée d\u2019un jour entier -> conserve la forme de ses 2 bords');
 
 // =======================================================================
 // 5) demiSlotsDepuisBornes / bornesDepuisDemiSlots / bordsDeplacementNoteMultiJours
 //    — round du 07.09.2026 (suite), Lionel après le §37 : « toujours
 //    impossible de déplacer une note qui mesure 2 demi/journée de 1 demi
 //    journée », clarifié en « un après-midi et un matin [...] je veux le
-//    déplacer sur matin/après-midi ». demiCiblePourDeplacementNote ci-dessus
-//    reconduit TOUJOURS la forme des 2 bords telle quelle dès que duree > 1
+//    déplacer sur matin/après-midi ». L'ancienne demiCiblePourDeplacementNote
+//    (supprimée à la suite 24) reconduisait TOUJOURS la forme des 2 bords dès que duree > 1
 //    — un déplacement de note multi-jours ne pouvait donc bouger que par
 //    jour ENTIER. Le modèle "demi-slot" (un entier par demi-journée ouvrée :
 //    2*gi = matin, 2*gi+1 = aprem) généralise le déplacement à la
@@ -343,7 +363,7 @@ assertEqual(sandbox.bordsDeplacementNoteMultiJours(0, 2, null, null, 0, 2, 'apre
 //    grandeur mais doit pouvoir se déplacer de 1 case ». Avant ce round,
 //    seules les notes duree > 1 passaient par bordsDeplacementNoteMultiJours
 //    en mode compact ; une note d'1 SEUL jour en JOURNÉE ENTIÈRE passait par
-//    demiCiblePourDeplacementNote, qui la reconduit TOUJOURS en jour entier
+//    demiCiblePourDeplacementNote (supprimée depuis), qui la reconduisait en jour entier
 //    (§42) et ne peut donc la poser que sur un jour ENTIER cible — jamais à
 //    cheval sur 2 jours. Une journée entière occupe pourtant exactement 2
 //    demi-slots ("2 cases"), au même titre qu'une note "1 jour et demi" : ce
