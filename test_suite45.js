@@ -6,7 +6,8 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 // et blanc à la place de couleurs chantiers. Mise en page : - Possibilité
 // de choisir d'afficher les dates sous différentes formes, différents
 // formats. » Ses réponses (questions posées) : noir et blanc « Les deux au
-// choix » (niveaux de gris ou noir et blanc pur) ; dates : « En-têtes des
+// choix » (niveaux de gris ou noir et blanc pur — niveaux de gris retiré
+// en suite 46, « les imprimantes gèrent ça ») ; dates : « En-têtes des
 // jours, Afficher le mois dans la case du jour enlève la ligne du mois car
 // redondant. Idem pour l'année ».
 // Aperçu : openPrintSheet (js/impression.js) ; onglet : js/page-mise-en-page.js.
@@ -78,8 +79,8 @@ const ouvrirApercu = async (page) => {
       ancienneCase: !!document.querySelector('[data-r="couleurs"]')
     }));
     verifier(panneau.legendes.join() === 'Afficher,Couleurs,Personnes' && panneau.demis && !panneau.ancienneCase &&
-      panneau.rendus.join(' | ') === 'couleurs*:Couleurs des chantiers | gris:Niveaux de gris(nom du chantier écrit dans la case) | nb:Noir et blanc(sans fond, nom du chantier écrit)',
-      largeur + ' px : « Ligne Matin / Aprem » cochée, fieldset Couleurs à 3 choix, « Couleurs des chantiers » par défaut (' + panneau.rendus.join(' | ') + ')');
+      panneau.rendus.join(' | ') === 'couleurs*:Couleurs des chantiers | nb:Noir et blanc(sans fond, nom du chantier écrit)',
+      largeur + ' px : « Ligne Matin / Aprem » cochée, fieldset Couleurs à 2 choix (Niveaux de gris retiré en suite 46), « Couleurs des chantiers » par défaut (' + panneau.rendus.join(' | ') + ')');
 
     // Ligne Matin / Aprem.
     let e = await entete(page);
@@ -99,26 +100,13 @@ const ouvrirApercu = async (page) => {
     verifier(f.colores.length >= 4 && f.legende && f.chantiers.length === 0 && !f.importantNoir,
       largeur + ' px : Couleurs des chantiers — fonds colorés (' + f.colores.length + '), légende, pas de nom écrit, important en rouge');
 
-    // Niveaux de gris.
-    await page.click('[data-r="rendu"][value="gris"]');
-    f = await fonds(page);
-    verifier(f.colores.length === 0 && f.distincts.length >= 4,
-      largeur + ' px : Niveaux de gris — plus aucun fond coloré, mais des gris distincts (' + f.distincts.join(' ; ') + ')');
-    verifier(f.chantiers.join() === '26182 - Terrain de Padel,26150 - Villa Bine,26150 - Villa Bine' && f.legende && f.importantNoir,
-      largeur + ' px : Niveaux de gris — nom du chantier écrit, légende en gris, important à l\'encre normale (' + f.chantiers.join(' / ') + ')');
-    verifier(await page.evaluate(() => { const a = document.activeElement; return a && a.dataset.r === 'rendu' && a.value === 'gris' && a.checked; }), largeur + ' px : focus sur « Niveaux de gris » après reconstruction');
-    await page.emulateMedia({ media: 'print' });
-    const fp = await fonds(page);
-    await page.emulateMedia({ media: 'screen' });
-    verifier(fp.colores.length === 0 && fp.absence !== 'rgba(0, 0, 0, 0)' && fp.jalon !== 'rgb(255, 255, 255)',
-      largeur + ' px : Niveaux de gris à l\'impression — neutre partout, absence et jalon gardent un fond gris (' + fp.absence + ', ' + fp.jalon + ')');
-
     // Noir et blanc.
     await page.click('[data-r="rendu"][value="nb"]');
     f = await fonds(page);
     const leg = await page.evaluate(() => { const c = document.querySelector('[data-r="legende"]'); return { grise: c.disabled, note: c.closest('label').textContent }; });
     verifier(f.colores.length === 0 && !f.legende && leg.grise && /inutile en noir et blanc/.test(leg.note) && f.chantiers.length === 3 && f.importantNoir,
       largeur + ' px : Noir et blanc — aucun fond coloré, noms écrits, légende retirée et grisée (' + leg.note.trim() + ')');
+    verifier(await page.evaluate(() => { const a = document.activeElement; return a && a.dataset.r === 'rendu' && a.value === 'nb' && a.checked; }), largeur + ' px : focus sur « Noir et blanc » après reconstruction');
     await page.emulateMedia({ media: 'print' });
     const np = await fonds(page);
     await page.emulateMedia({ media: 'screen' });
@@ -126,10 +114,9 @@ const ouvrirApercu = async (page) => {
       largeur + ' px : Noir et blanc à l\'impression — seulement du blanc (' + np.distincts.join(' ; ') + ')');
 
     // Retenu, puis Réinitialiser.
-    await page.click('[data-r="rendu"][value="gris"]');
     await ouvrirApercu(page);
     const retenu = await page.evaluate(() => ({ demis: document.querySelector('[data-r="demis"]').checked, rendu: document.querySelector('[data-r="rendu"]:checked').value, lignes: document.querySelectorAll('tr.print-demis').length }));
-    verifier(!retenu.demis && retenu.rendu === 'gris' && retenu.lignes === 0, largeur + ' px : réouverture — ligne masquée et niveaux de gris retenus (' + JSON.stringify(retenu) + ')');
+    verifier(!retenu.demis && retenu.rendu === 'nb' && retenu.lignes === 0, largeur + ' px : réouverture — ligne masquée et noir et blanc retenus (' + JSON.stringify(retenu) + ')');
     await page.click('.impr-reglages .f-reinit');
     const reinit = await page.evaluate(() => ({ demis: document.querySelector('[data-r="demis"]').checked, rendu: document.querySelector('[data-r="rendu"]:checked').value, lignes: document.querySelectorAll('tr.print-demis').length }));
     verifier(reinit.demis && reinit.rendu === 'couleurs' && reinit.lignes === 1, largeur + ' px : Réinitialiser — ligne Matin / Aprem et couleurs revenues');

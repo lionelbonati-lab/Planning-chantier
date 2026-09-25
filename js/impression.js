@@ -92,7 +92,11 @@
   // gris, nom du chantier écrit) ou "nb" (noir et blanc : aucun fond, nom
   // écrit) — remplace la case « Couleurs des chantiers » de la suite 38,
   // dont une valeur décochée encore retenue devient "nb".
-  var RENDUS_IMPRESSION_ = ["couleurs", "gris", "nb"];
+  // Suite 46 (même jour) — Lionel : « enlever niveau de gris des options
+  // de couleurs car les imprimantes gèrent ça. » Plus que "couleurs" ou
+  // "nb" ; un "gris" encore retenu repasse en couleurs (c'est l'imprimante
+  // qui les passera en gris).
+  var RENDUS_IMPRESSION_ = ["couleurs", "nb"];
   var CLE_REGLAGES_IMPRESSION = "planning.impression.reglages";
   function reglagesImpressionDefaut_() {
     return { horaires: true, demis: true, jalons: true, notes: true, personnel: true, intervenants: true, legende: true, statuts: true,
@@ -111,25 +115,6 @@
       }
     } catch (e) {}
     return r;
-  }
-  // Niveau de gris d'une couleur (suite 45, rendu "gris") : même clarté
-  // perçue (luminance Rec. 601), pour que 2 chantiers de teintes
-  // différentes restent le plus souvent distincts, clairs ou foncés comme
-  // à l'écran. Une couleur non lue (#rgb, #rrggbb, rgb()) donne un gris
-  // neutre : jamais de couleur en mode gris.
-  function grisCouleur_(c) {
-    var s = String(c || "").trim(), m, v;
-    if ((m = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/i.exec(s))) v = [m[1] + m[1], m[2] + m[2], m[3] + m[3]].map(function (x) { return parseInt(x, 16); });
-    else if ((m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(s))) v = [m[1], m[2], m[3]].map(function (x) { return parseInt(x, 16); });
-    else if ((m = /^rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/i.exec(s))) v = [+m[1], +m[2], +m[3]];
-    if (!v) return "#d9d9d9";
-    var g = Math.round(0.299 * v[0] + 0.587 * v[1] + 0.114 * v[2]), x = (g < 16 ? "0" : "") + g.toString(16);
-    return "#" + x + x + x;
-  }
-  // Fond d'un chantier (ou d'un statut) selon le rendu : sa couleur, son
-  // gris, ou rien du tout (null) en noir et blanc.
-  function couleurRendu_(r, c) {
-    return r.rendu === "nb" ? null : r.rendu === "gris" ? grisCouleur_(c) : c;
   }
   function ecrireReglagesImpression_(r) {
     try {
@@ -508,12 +493,11 @@
           // ligne `assignations` jamais réécrite, cf. celluleVue_), sinon
           // fond neutre — toujours UN SEUL fragment, comme n'importe quelle
           // case avant Option A.
-          // Suite 45 : gris ou noir et blanc, fond du chantier grisé ou
-          // retiré (couleurRendu_) et son nom écrit, comme sans couleurs.
+          // Noir et blanc (suite 45) : fond retiré et nom du chantier écrit.
           if (cell && cell.chantier) {
             var ch0 = etat.chantierParNom[cell.chantier];
-            var bg0 = couleurRendu_(r, ch0 ? ch0.couleur : "#e5e5e5");
-            return { fragments: [{ bg: bg0 || "var(--surface-2)", txt: r.rendu === "couleurs" ? "" : '<span class="print-chantier">' + esc(cell.chantier) + '</span>' }], empty: true };
+            if (r.rendu === "nb") return { fragments: [{ bg: "var(--surface-2)", txt: '<span class="print-chantier">' + esc(cell.chantier) + '</span>' }], empty: true };
+            return { fragments: [{ bg: ch0 ? ch0.couleur : "#e5e5e5", txt: "" }], empty: true };
           }
           return { fragments: [{ bg: "var(--surface-2)", txt: "" }], empty: true };
         }
@@ -538,18 +522,14 @@
           // (absences comprises : impression noir et blanc, économie
           // d'encre) et nom du chantier en petit sous le texte de la tâche.
           // Statuts des intervenants (« RÉSERVÉ »…) masquables.
-          // Suite 45 : trois rendus. Niveaux de gris : chaque fond passe à
-          // son gris (absences : --absence-bg grisée par .rendu-gris, cf.
-          // style.css) et le nom du chantier est écrit, 2 chantiers
-          // pouvant tomber sur des gris voisins. Noir et blanc : le « sans
-          // couleurs » ci-dessus, statuts compris (badge cerclé, sans fond).
-          var nomChantier = "";
-          if (r.rendu !== "couleurs") {
-            if (r.rendu === "nb") bg = "transparent";
-            else if (!estAbs && bg !== "transparent") bg = grisCouleur_(bg);
+          // Suite 45 : Noir et blanc = ce « sans couleurs », statuts compris
+          // (badge cerclé, sans fond).
+          var nb = r.rendu === "nb", nomChantier = "";
+          if (nb) {
+            bg = "transparent";
             if (t.chantier && !estAbs) nomChantier = '<span class="print-chantier">' + esc(t.chantier) + '</span>';
           }
-          var badge = (r.statuts && p.sousTraitant && t.statut && STATUTS[t.statut]) ? ' <span class="print-statut" style="background:' + (couleurRendu_(r, STATUTS[t.statut].couleur) || "transparent") + '">' + esc(STATUTS[t.statut].nom) + '</span>' : "";
+          var badge = (r.statuts && p.sousTraitant && t.statut && STATUTS[t.statut]) ? ' <span class="print-statut" style="background:' + (nb ? "transparent" : STATUTS[t.statut].couleur) + '">' + esc(STATUTS[t.statut].nom) + '</span>' : "";
           var ouvre = t.important ? '<span class="print-important">' : "";
           var ferme = t.important ? '</span>' : "";
           return { bg: bg === "transparent" ? "var(--surface-2)" : bg, txt: ouvre + esc(t.texte) + ferme + badge + nomChantier };
@@ -657,13 +637,13 @@
       h += '</table>';
 
       var legendKeys = Object.keys(chantiersUtilises);
-      // Légende (suite 45) : pastilles grises en niveaux de gris, aucune en
-      // noir et blanc (plus aucun fond à expliquer).
+      // Légende (suite 45) : aucune en noir et blanc (plus aucun fond à
+      // expliquer).
       if (r.legende && r.rendu !== "nb" && legendKeys.length) {
         h += '<div class="print-legend">';
         legendKeys.forEach(function (nomChantier) {
           var ch = etat.chantierParNom[nomChantier];
-          h += '<div class="legend-item"><span class="sw" style="background:' + couleurRendu_(r, ch ? ch.couleur : "#e5e5e5") + '"></span>' + esc(nomChantier) + '</div>';
+          h += '<div class="legend-item"><span class="sw" style="background:' + (ch ? ch.couleur : "#e5e5e5") + '"></span>' + esc(nomChantier) + '</div>';
         });
         h += '</div>';
       }
@@ -722,15 +702,14 @@
         caseR("legende", "Légende des chantiers", { off: r.rendu === "nb", note: r.rendu === "nb" ? "(inutile en noir et blanc)" : "" }) +
         caseR("statuts", "Statuts des intervenants") +
         caseR("vides", "Personnes sans tâche");
-      // Rendu (suite 45) : 3 boutons radio à la place de la case
-      // « Couleurs des chantiers » (suite 38).
+      // Rendu (suite 45) : boutons radio à la place de la case « Couleurs
+      // des chantiers » (suite 38) ; Niveaux de gris retiré (suite 46).
       function choixRendu(valeur, libelle, note) {
         return '<label class="impr-option"><input type="radio" name="impr-rendu" data-r="rendu" value="' + valeur + '"' + (r.rendu === valeur ? ' checked' : '') + '> <span>' + libelle +
           (note ? '<small class="impr-note">' + note + '</small>' : '') + '</span></label>';
       }
       h += '</fieldset><fieldset class="impr-rendu"><legend>Couleurs</legend>' +
         choixRendu("couleurs", "Couleurs des chantiers") +
-        choixRendu("gris", "Niveaux de gris", "(nom du chantier écrit dans la case)") +
         choixRendu("nb", "Noir et blanc", "(sans fond, nom du chantier écrit)");
       h += '</fieldset><fieldset class="impr-personnes"><legend>Personnes</legend>';
       function groupe(cle, libelle, entrees) {
@@ -800,7 +779,6 @@
       }
       docImpr.innerHTML = ligneEcran("impr-entete-ecran", z.haut) + construireDocImpression_(r) + ligneEcran("impr-pied-ecran", z.bas);
       docImpr.classList.toggle("sans-horaires", !r.horaires);
-      docImpr.classList.toggle("rendu-gris", r.rendu === "gris");
       docImpr.classList.toggle("rendu-nb", r.rendu === "nb");
       docImpr.classList.toggle("taille-petite", mep.taille === "petite");
       docImpr.classList.toggle("taille-grande", mep.taille === "grande");

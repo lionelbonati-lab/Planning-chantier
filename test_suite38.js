@@ -74,7 +74,7 @@ const rouvrir = async (page) => {
     // Suite 45 : fieldset Couleurs (3 boutons radio) entre Afficher et
     // Personnes, à la place de la case « Couleurs des chantiers ».
     verifier(libelles.length === 3 && ['Jalons', 'Notes', 'Légende des chantiers', 'Statuts des intervenants', 'Personnes sans tâche'].every((l) => libelles[0].includes(l)) &&
-      /^Couleurs Couleurs des chantiers Niveaux de gris/.test(libelles[1]) && ['Personnel', 'Intervenants'].every((l) => libelles[2].includes(l)),
+      /^Couleurs Couleurs des chantiers Noir et blanc/.test(libelles[1]) && ['Personnel', 'Intervenants'].every((l) => libelles[2].includes(l)),
       'panneau « Réglages » : Afficher / Couleurs / Personnes, rien d\'autre (' + libelles[0] + ')');
     const bas = await page.evaluate(() => ({ selects: document.querySelectorAll('.impr-reglages select, .impr-reglages input[type=text]').length,
       reinit: !!document.querySelector('.impr-reglages .f-reinit'), lien: (document.querySelector('.impr-reglages .impr-lien-mep') || {}).textContent }));
