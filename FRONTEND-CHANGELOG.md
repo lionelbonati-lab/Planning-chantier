@@ -7532,3 +7532,38 @@ Vérifié en local (Playwright) — **`test_suite29.js`** (nouveau), 6 vérifica
 - `html`/`body` non rognés à l'impression ;
 - PDF A4 de 24 personnes sur 2 pages (1 seule avant la correction).
 - **Suite complète** : mêmes 8 échecs que sur `main` (anciens tests, cf. §129).
+
+## 138. Round du 25.09.2026 (suite 30) — Bordures de l'impression : construction simplifiée, fiable dans Safari
+
+Lionel, capture de son aperçu d'impression à l'appui : « Verife encore la construction des bordures. Optimise les. »
+
+**Ce que montrait la capture.** Seules les sous-colonnes **Aprem** étaient abîmées, les sous-colonnes Matin étant intactes :
+- traits horizontaux amincis ou absents sous « APREM » et sous les horaires de l'après-midi ;
+- bas des lignes alternant épais et fin selon la colonne ;
+- trait matin/aprem plein et troué au lieu d'être pointillé.
+
+**Cause.** La case `.demi-aprem` était en `position: relative`, pour porter un masque `::before` (qui effaçait le trait plein) et un pointillé `::after` dessiné par-dessus (technique des rounds du 15-16.09).
+- Sous `border-collapse`, Safari/WebKit peint une case positionnée dans un calque à part, **après** les bordures partagées du tableau. Son fond recouvre la moitié des traits qui la bordent, et le masque et le pointillé tombent à côté.
+- Chrome ne le montre pas, d'où son absence dans tous nos PDF de contrôle (§137).
+
+**Correction** (`style.css`, `js/impression.js`) : tout ce montage est supprimé et remplacé par une **vraie bordure pointillée déclarée des 2 côtés de la frontière** :
+- le bord droit de la case matin, avec la nouvelle classe `.demi-matin` posée sur les en-têtes Matin, les horaires du matin et les cases matin ;
+- le bord gauche de la case aprem.
+
+Pourquoi ça marche :
+- `border-collapse` départage 2 bordures d'abord par la largeur (1px des 2 côtés : égalité), puis par le style, et « dotted » est déclaré des deux côtés : c'est lui qui est dessiné.
+- Au 16.09, seul l'aprem déclarait `dotted` : le `solid` de la case matin l'emportait, d'où toute la mécanique de masquage.
+- Il n'y a plus de case positionnée, plus de pseudo-élément ni de calcul de largeur qui « gagne ». Le pointillé est un trait natif : net à l'impression, en 1px comme la grille.
+- Aux croisements, les traits horizontaux (pleins, donc prioritaires) restent continus.
+- 9 lignes de CSS fragiles remplacées par 2.
+
+La géométrie reste identique au pixel près : même position de chaque trait, même épaisseur (1px/2px), mêmes écarts entre personnes.
+
+Vérifié en local (Playwright) — **`test_suite30.js`** (nouveau), 7 vérifications, toutes OK. Sur l'ancien code, les 4 premières échouent et le test s'arrête à la 5e.
+- aucun élément positionné ni `::before`/`::after` dans le tableau imprimé ;
+- chaque case matin a sa droite en pointillé 1px, chaque case aprem sa gauche ;
+- au pixel : la frontière matin/aprem est un pointillé (ni plein, ni absent) dans une ligne personne et dans la ligne Horaires ;
+- les traits horizontaux sous « APREM » et sous l'horaire de l'après-midi sont continus sur toute la sous-colonne.
+- `test_suite29.js` toujours OK (6/6) ; PDF Chrome : tous les traits à 1px ou 2px.
+- **Suite complète** : mêmes 8 échecs que sur `main` (cf. §129).
+- WebKit n'est pas installable dans l'environnement de test : la correction repose sur la suppression de la cause (aucune case positionnée), vérifiée par le test. Le rendu Safari est à confirmer sur l'appareil de Lionel.
