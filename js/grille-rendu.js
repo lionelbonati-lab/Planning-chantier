@@ -264,15 +264,13 @@
     if (telephone) {
       groupes.forEach(function (g) { insererAuRang(g, panneau, "rangMenu"); });
       legendeBarre.classList.add("toolbar-compacte");
-      // Round du 25.09.2026 (suite 50) — Lionel, capture de son téléphone :
-      // « Sur téléphone la toolbar déborde ». « À réserver » gardé d'office
-      // dans la barre poussait « ⋮ » hors de la pilule (mesuré : 11 px de
-      // trop à 360 px, 39 px à 320 px ; davantage avec une taille de texte
-      // agrandie dans les réglages du téléphone). Il suit maintenant la
-      // même règle que sur ordinateur : replié dans « ⋮ » (pastille sur
-      // « ⋮ ») quand il ne tient plus, dans la barre sinon.
-      var aReserver = document.getElementById("groupeAReserver");
-      if (aReserver && barreDeborde(legendeBarre, panneau)) insererAuRang(aReserver, panneau, "rangMenu");
+      // « À réserver » : sur téléphone, plus dans cette barre du tout, mais
+      // dans la barre du bas (round du 25.09.2026, suite 53 — Lionel : « A
+      // réservé pourrait être placer sur la barre du bas en mode mobile »,
+      // #btnAReserverNavBas) ; #groupeAReserver y est masqué en CSS
+      // (style-mobile.css), il reste ici dans la barre, sans largeur. Il
+      // était auparavant replié dans « ⋮ » quand la barre débordait (suite
+      // 50, « Sur téléphone la toolbar déborde »).
       return;
     }
     var ordre = REPLIS_ORDRE.map(function (id) { return document.getElementById(id); }).filter(Boolean);

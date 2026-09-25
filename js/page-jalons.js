@@ -113,11 +113,14 @@
     var couleur = c ? c.couleur : "var(--jalon-bg)";
     return '<div class="ligne-intervenant" data-id-debut="' + esc2(j.idDebut) + '">' +
       '<span class="gauche-chantier"><span class="swatch-chantier" style="background:' + esc2(couleur) + '"></span><b>' + esc(j.texte) + '</b></span>' +
-      (j.important ? '<span class="compte" title="Important" style="color:var(--important-ink)">' + ICONE_DRAPEAU.replace('class="icon"', 'class="icon" style="width:12px;height:12px;vertical-align:-2px"') + '</span>' : '') +
+      // Drapeau « important » : l'icône des onglets (suite 53 ; ICONE_DRAPEAU,
+      // plein, ne donnait qu'un petit carré noir à cette taille).
+      (j.important ? '<span class="compte jalon-important" title="Important">' + ICONS.flag + '</span>' : '') +
       '<span class="plage-jalon">' + esc(libellePlageJalon(j)) + '</span>' +
       '<span class="ligne-actions">' +
-      '<button type="button" class="lien-modifier">Modifier</button>' +
-      '<button type="button" class="lien-supprimer">Supprimer</button></span></div>';
+      // Icônes (suite 53, cf. boutonIconeLigne).
+      boutonIconeLigne("lien-modifier", ICONS.pencil, "Modifier") +
+      boutonIconeLigne("lien-supprimer", ICONS.trash, "Supprimer") + '</span></div>';
   }
   // Revue du 24.09.2026 (suite 22) : cette page écrit les jalons sans
   // passer par la grille, qui gardait donc sa vue d'avant (jusqu'à la

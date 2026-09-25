@@ -11,8 +11,9 @@
   function ligneFicheStatut(s) {
     return '<div class="ligne-intervenant" data-cle="' + esc2(s.cle) + '">' +
       '<span class="gauche-chantier"><span class="swatch-chantier" style="background:' + esc2(s.couleur) + '"></span><b>' + esc(s.nom) + '</b></span>' +
-      '<span class="ligne-actions"><button type="button" class="lien-modifier">Modifier</button>' +
-      '<button type="button" class="lien-supprimer">Supprimer</button></span></div>';
+      // Icônes (suite 53, cf. boutonIconeLigne).
+      '<span class="ligne-actions">' + boutonIconeLigne("lien-modifier", ICONS.pencil, "Modifier") +
+      boutonIconeLigne("lien-supprimer", ICONS.trash, "Supprimer") + '</span></div>';
   }
   function renderStatuts() {
     var zone = document.getElementById("listeStatuts");

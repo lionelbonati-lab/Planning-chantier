@@ -38,16 +38,19 @@ const BD = {
   for (const largeur of [1400, 360]) {
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: largeur, height: 820 }, hasTouch: largeur < 600, bd: BD });
     await page.waitForTimeout(1800);
-    const b = await page.evaluate(() => {
-      const btn = document.getElementById('btnAReserver'), r = btn.getBoundingClientRect(), badge = btn.querySelector('.compte-a-reserver');
-      return { visible: r.width > 0 && !!btn.closest('#legendeBarre') && !btn.closest('#toolbarSecondaire'), compte: badge.hidden ? '' : badge.textContent,
+    // Téléphone : dans la barre du bas depuis la suite 53 (#btnAReserverNavBas).
+    const selBtn = largeur < 600 ? '#btnAReserverNavBas' : '#btnAReserver';
+    const b = await page.evaluate((sel) => {
+      const btn = document.querySelector(sel), r = btn.getBoundingClientRect(), badge = btn.querySelector('.compte-a-reserver');
+      const place = sel === '#btnAReserver' ? !!btn.closest('#legendeBarre') && !btn.closest('#toolbarSecondaire') : !!btn.closest('#navBas');
+      return { visible: r.width > 0 && place, compte: badge.hidden ? '' : badge.textContent,
         fond: getComputedStyle(badge).backgroundColor, titre: btn.title, deborde: document.documentElement.scrollWidth > window.innerWidth + 1 };
-    });
+    }, selBtn);
     verifier(b.visible && b.compte === '3' && b.fond === 'rgb(249, 200, 200)' && b.titre === 'À réserver — 3 tâches à partir d’aujourd’hui' && !b.deborde,
-      largeur + ' px : bouton dans la barre, compteur 3 à la couleur du statut (' + JSON.stringify(b) + ')');
+      largeur + ' px : bouton dans la barre' + (largeur < 600 ? ' du bas' : '') + ', compteur 3 à la couleur du statut (' + JSON.stringify(b) + ')');
     if (CAPTURES) await page.screenshot({ path: CAPTURES + '/s47-barre-' + largeur + '.png' });
 
-    await page.click('#btnAReserver');
+    await page.click(selBtn);
     await page.waitForTimeout(300);
     const l = await page.evaluate(() => ({
       chips: [...document.querySelectorAll('.pop-a-reserver .ar-statuts .chip')].map((c) => c.textContent.trim() + (c.classList.contains('actif') ? '*' : '')).join(' | '),

@@ -167,6 +167,27 @@
        bas ») : même pilule fixe qu'ailleurs (style.css), étirée sur toute
        la largeur à la place de .nav-bas (masquée par body.selection-active,
        posée par majBarreSelection). */
+    /* « À réserver » dans la barre du bas (round du 25.09.2026, suite 53 —
+       Lionel : « A réservé pourrait être placer sur la barre du bas en mode
+       mobile. ») : même taille que l'avatar, compteur en pastille dans le
+       coin (règle .compte-a-reserver de style.css). Plus dans la barre
+       d'outils du planning sur téléphone. */
+    .nav-bas-a-reserver {
+      position: relative; flex-shrink: 0; width: 44px; height: 38px; border-radius: 10px;
+      display: grid; place-items: center; padding: 0; cursor: pointer;
+      border: 1px solid var(--border); background: var(--surface-2); color: var(--ink);
+    }
+    .nav-bas-a-reserver[hidden] { display: none; }
+    .nav-bas-a-reserver svg { width: 19px; height: 19px; }
+    #groupeAReserver { display: none !important; }
+    /* Listes des onglets (suite 53) : icônes à la place des textes (cf.
+       .btn-icone-ligne, style.css), « Actif » sans son libellé (title),
+       lignes un peu moins rembourrées. */
+    .ligne-intervenant { padding: 8px 8px 8px 10px; }
+    .ligne-intervenant .champ-actif-texte { display: none; }
+    .ligne-intervenant .champ-actif { margin-right: 2px; }
+    .ligne-intervenant .ligne-actions { padding-left: 6px; }
+    .ligne-intervenant > span.compte, .ligne-intervenant > span.plage-jalon { margin-left: 8px; flex-shrink: 0; max-width: 34%; }
     /* Pastille hors ligne (suite 52) : au-dessus de .nav-bas (56px). */
     .etat-hors-ligne { bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
     body.selection-active .nav-bas { display: none; }

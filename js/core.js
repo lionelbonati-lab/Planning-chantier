@@ -282,8 +282,21 @@
     // repère générique "grille de pages", mise à jour dynamiquement (cf.
     // cablerNavigation) avec l'icône de la page réellement active dès le
     // premier clic sur un onglet.
-    pages: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="2.5" y="4" width="15" height="13" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 8h15" stroke="currentColor" stroke-width="1.5"/><path d="M6 2.5v3M14 2.5v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>'
+    pages: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="2.5" y="4" width="15" height="13" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 8h15" stroke="currentColor" stroke-width="1.5"/><path d="M6 2.5v3M14 2.5v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    // Round du 25.09.2026 (suite 53) — boutons des listes (Jalons,
+    // Personnel, Intervenants, Chantiers, Statuts) en icônes : lien de
+    // consultation (maillons), couleur (palette), réactiver (flèche qui
+    // revient). Modifier/Renommer = pencil, supprimer = trash.
+    lien: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M8.6 11.4a3.2 3.2 0 0 0 4.5 0l2.6-2.6a3.2 3.2 0 0 0-4.5-4.5l-1.1 1.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M11.4 8.6a3.2 3.2 0 0 0-4.5 0l-2.6 2.6a3.2 3.2 0 0 0 4.5 4.5l1.1-1.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+    palette: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M10 2.5a7.5 7.5 0 0 0 0 15c1 0 1.6-.7 1.6-1.5 0-.5-.2-.8-.4-1.1-.3-.3-.4-.6-.4-1 0-.9.7-1.5 1.5-1.5h1.8a3.4 3.4 0 0 0 3.4-3.4C17.5 5.5 14.1 2.5 10 2.5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="6.4" cy="9.6" r="1.1" fill="currentColor"/><circle cx="8.6" cy="6.2" r="1.1" fill="currentColor"/><circle cx="12.6" cy="6.4" r="1.1" fill="currentColor"/></svg>',
+    restaurer: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M4 10a6 6 0 1 0 1.8-4.3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M4.2 2.8v3.4h3.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'
   };
+  // Bouton icône d'une ligne de liste (suite 53) : la classe d'origine
+  // (.lien-modifier, .lien-supprimer…) reste, c'est elle que les pages
+  // câblent ; le libellé passe dans title (survol) et aria-label.
+  function boutonIconeLigne(classe, icone, libelle) {
+    return '<button type="button" class="' + classe + ' btn-icone-ligne" title="' + libelle + '" aria-label="' + libelle + '">' + icone + '</button>';
+  }
 
   var app = document.getElementById("app");
   var progressEl = document.getElementById("progress");

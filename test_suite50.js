@@ -40,7 +40,8 @@ function mesurer(page) {
       deborde: plusLoin > bord + 1, ecart: Math.round(bord - plusLoin),
       cadre: [Math.round(cadre.left), Math.round(cadre.right)], entete: [Math.round(entete.left), Math.round(entete.right)],
       bordureCadre: getComputedStyle(document.querySelector('#page-planning .grille-cadre')).borderLeftWidth,
-      aReserverDansBarre: !!ar.closest('#legendeBarre') && !ar.closest('#toolbarSecondaire') && !ar.hidden,
+      aReserverDansBarre: !!ar.closest('#legendeBarre') && !ar.closest('#toolbarSecondaire') && !ar.hidden && ar.getBoundingClientRect().width > 0,
+      aReserverEnBas: (() => { const n = document.getElementById('btnAReserverNavBas'); return !!n && n.getBoundingClientRect().width > 0; })(),
       aReserverDansMenu: !!ar.closest('#toolbarSecondaire'),
       pastilleMenu: getComputedStyle(plus, '::after').content !== 'none' && getComputedStyle(plus, '::after').display !== 'none',
       finJour: cellule ? Math.round(cellule.getBoundingClientRect().right) : null,
@@ -55,7 +56,8 @@ function mesurer(page) {
   const toutesErreurs = [];
 
   // --- 1. Téléphones : pleine largeur, rien ne dépasse de la barre ---
-  const attendus = { 320: false, 360: true, 390: true, 412: true };
+  // Suite 53 : sur téléphone, « À réserver » a quitté cette barre pour la
+  // barre du bas (#btnAReserverNavBas), à toutes les largeurs.
   for (const largeur of [320, 360, 390, 412]) {
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: largeur, height: 760 }, hasTouch: true, bd: BD });
     await page.waitForTimeout(1800);
@@ -65,15 +67,13 @@ function mesurer(page) {
     verifier(m.cadre[0] === 0 && m.cadre[1] === largeur && m.entete[0] === 0 && m.entete[1] === largeur && m.bordureCadre === '0px',
       largeur + ' px : grille et en-tête de bord à bord (' + JSON.stringify([m.cadre, m.entete, m.bordureCadre]) + ')');
     verifier(!m.deborde && !m.pageDeborde, largeur + ' px : rien ne dépasse de la barre (marge restante ' + m.ecart + ' px)');
-    verifier(m.aReserverDansBarre === attendus[largeur] && m.aReserverDansMenu === !attendus[largeur] && m.pastilleMenu === !attendus[largeur],
-      largeur + ' px : « À réserver » ' + (attendus[largeur] ? 'dans la barre' : 'replié dans « ⋮ », pastille sur « ⋮ »') + ' (' + JSON.stringify(m) + ')');
+    verifier(!m.aReserverDansBarre && !m.aReserverDansMenu && !m.pastilleMenu && m.aReserverEnBas,
+      largeur + ' px : « À réserver » dans la barre du bas, ni dans la barre d\'outils ni dans « ⋮ » (' + JSON.stringify(m) + ')');
     verifier(m.finJour === largeur, largeur + ' px : le jour affiché va jusqu\'au bord droit (' + m.finJour + ')');
-    if (!attendus[largeur]) {
-      await page.click('#btnPlusOutils');
-      await page.waitForTimeout(200);
-      await page.click('#btnAReserver');
+    if (largeur === 320) {
+      await page.click('#btnAReserverNavBas');
       await page.waitForTimeout(300);
-      verifier(await page.$('.pop-a-reserver') !== null, largeur + ' px : « À réserver » s\'ouvre depuis « ⋮ »');
+      verifier(await page.$('.pop-a-reserver') !== null, largeur + ' px : « À réserver » s\'ouvre depuis la barre du bas');
     }
     toutesErreurs.push(...erreurs);
     await page.close();
@@ -84,13 +84,14 @@ function mesurer(page) {
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 360, height: 760 }, hasTouch: true, bd: BD12 });
     await page.waitForTimeout(1800);
     const m = await mesurer(page);
-    const compte = await page.$eval('#btnAReserver .compte-a-reserver', (e) => e.textContent);
-    verifier(compte === '12' && !m.deborde, '360 px, compteur 12 : rien ne dépasse de la barre (' + JSON.stringify({ compte, ecart: m.ecart, dansBarre: m.aReserverDansBarre }) + ')');
-    // Texte agrandi (réglage d'accessibilité du téléphone) : la barre se replie.
-    await page.addStyleTag({ content: '#legendeBarre .compte-a-reserver { font-size: 22px; } #legendeBarre .toolbar-btn { min-width: 40px; }' });
+    const compte = await page.$eval('#btnAReserverNavBas .compte-a-reserver', (e) => e.textContent);
+    const bas = await page.evaluate(() => { const n = document.getElementById('navBas'); return n.scrollWidth <= n.clientWidth + 1; });
+    verifier(compte === '12' && !m.deborde && bas, '360 px, compteur 12 (barre du bas) : rien ne dépasse (' + JSON.stringify({ compte, ecart: m.ecart, bas }) + ')');
+    // Texte agrandi (réglage d'accessibilité du téléphone) : rien ne dépasse.
+    await page.addStyleTag({ content: '#legendeBarre .toolbar-btn { min-width: 40px; }' });
     await page.evaluate(() => ajusterDebordementToolbar());
     const m2 = await mesurer(page);
-    verifier(!m2.deborde && m2.aReserverDansMenu, '360 px, texte agrandi : « À réserver » replié, rien ne dépasse (' + m2.ecart + ' px)');
+    verifier(!m2.deborde, '360 px, texte agrandi : rien ne dépasse de la barre (' + m2.ecart + ' px)');
     toutesErreurs.push(...erreurs);
     await page.close();
   }
