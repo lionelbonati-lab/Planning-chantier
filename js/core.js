@@ -779,6 +779,21 @@
   var LIMITE_UNDO = 50;
   var popFermerActuel = null, popValiderActuel = null;
   var DELAI_SELECTION = 300, SEUIL_DEFILEMENT = 10;
+  // RATIO_AXE_HORIZONTAL (round du 25.09.2026, suite 26) — Lionel :
+  // « Améliore le défilement tactile latéral et horizontal pour qu'il
+  // n'agisse que dans un sens à la fois. pour éviter de changer de jour sans
+  // faire exprès alors qu'on veut juste défiler verticalement. » Un glissé
+  // tactile n'est désormais HORIZONTAL que si son déplacement horizontal
+  // dépasse 1,5 fois le vertical (angle < ~34° par rapport à l'horizontale) ;
+  // tout le reste est VERTICAL. Biais volontaire en faveur du vertical : un
+  // pouce qui défile vers le bas dérive presque toujours un peu de côté,
+  // alors qu'un vrai swipe de jour est franchement horizontal. Partagé par
+  // creerDefilementManuel (grille-interactions.js) et le détecteur de swipe
+  // de semaine (grille-rendu.js) pour qu'ils tranchent toujours pareil.
+  var RATIO_AXE_HORIZONTAL = 1.5;
+  function axeDuGeste(dxTotal, dyTotal) {
+    return Math.abs(dxTotal) > RATIO_AXE_HORIZONTAL * Math.abs(dyTotal) ? "x" : "y";
+  }
   // DELAI_APPUI_LONG (round du 24.09.2026, suite 9) : durée d'appui sans
   // bouger au-delà de laquelle le relâchement vaut "sélection multiple"
   // plutôt qu'un simple clic (cf. onPointerDownGroupeSelection). Plus long
