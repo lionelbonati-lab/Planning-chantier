@@ -7963,3 +7963,30 @@ Lionel, capture du vendredi sur téléphone (cartes de 17 px, « B / é. », « 
   - jour atteint en tenant une bulle : calculé au lâcher.
 - `test_suite37.js` : une fois le mardi posé, la carte du lundi (la veille) sort de l'écran à sa largeur du lundi au lieu d'être masquée.
 - **Suite complète : 51/51** (`node lancer_tests.js`).
+
+## 150. Round du 25.09.2026 (suite 42) — Mobile : cartes qui s'élargissent pendant le glissement
+
+Lionel, captures du jeudi 01 et du mardi 22 (tâches d'un jour et demi) : « Lors d'un balayage à droite pour reculer d'un jour, la bulle ne fait que 1/2 journée avant fixation. Les tâches que tu vois font 1.5 jours, en reculant d'un jour elles conservent leur demi-journée avant recalcul. Est-ce possible que pendant le balayage le bord droit s'accroche à la fin du jour où l'on se dirige pour faire une sorte de transition. »
+
+### Cause
+- Depuis la suite 37, une carte déjà affichée garde sa largeur pendant tout le geste (texte stable), et n'est recalculée qu'une fois le jour posé.
+- Une tâche « mercredi entier + jeudi matin » arrivait donc sur le mercredi avec sa demi-journée du jeudi. Même défaut en avançant pour « jeudi après-midi + vendredi entier ».
+
+### Correction (`ajusterLargeurBullesJourMobile`, js/grille-rendu.js)
+- Au jour posé, la largeur de chaque carte est retenue (`largeursPosees`), avec le jour et la position du défilement.
+- Pendant le geste, le jour visé est le voisin dans le sens du glissement. Pour une carte déjà affichée dont la tâche occupe aussi ce jour, la largeur va de celle du jour posé à celle du jour visé :
+  - **carte qui s'élargit** : elle ne bouge pas tant que la fin du jour visé n'a pas rattrapé son bord droit, puis s'y accroche (bornée à la fin de la tâche) ;
+  - **carte qui rétrécit** : elle garde sa largeur tant que la tâche couvre son bord droit à l'écran, puis suit la fin de la tâche. Elle n'est jamais plus courte que ce que la tâche couvre réellement.
+- Inchangé :
+  - les cartes qui sortent (tâche absente du jour visé) gardent leur largeur ;
+  - les cartes qui entrent passent par le calcul d'entrée ;
+  - un retour au jour de départ sans lever le doigt rend les largeurs d'origine ;
+  - tout est recalculé au jour posé.
+
+### Tests
+- `test_suite42.js` (nouveau, 8 vérifications, 360 px) :
+  - recul jeudi → mercredi à 20, 45, 70 et 90 % du geste : la carte « mercredi + jeudi matin » suit la fin du mercredi, la carte « mercredi après-midi + jeudi » couvre l'écran jusqu'au bord droit, la carte « jeudi matin » seule garde sa largeur ;
+  - retour au jeudi sans lever le doigt : largeurs d'origine ;
+  - avance jeudi → vendredi : la carte « jeudi après-midi + vendredi » va jusqu'au bord droit pendant le geste ;
+  - largeurs finales une fois le jour posé.
+- **Suite complète : 52/52** (`node lancer_tests.js`).

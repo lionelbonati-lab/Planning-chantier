@@ -1205,6 +1205,31 @@
     // secours calculée pour le TEXTE sticky des autres vues (largeur − noms
     // − 16 px de marge), bridait la largeur posée ici. Les cartes des
     // jalons/notes y échappaient (max-width:none propre à leur ligne).
+    // Transition des cartes pendant le glissement (round du 25.09.2026,
+    // suite 42). Lionel, 2 captures à l'appui (tâches d'un jour et demi,
+    // jeudi 01 et mardi 22) : « Lors d'un balayage à droite pour reculer
+    // d'un jour, la bulle ne fait que 1/2 journée avant fixation. Les tâches
+    // que tu vois font 1.5 jours, en reculant d'un jour elles conservent
+    // leur demi-journée avant recalcul. Est-ce possible que pendant le
+    // balayage le bord droit s'accroche à la fin du jour où l'on se dirige
+    // pour faire une sorte de transition. » Depuis la suite 37, une carte
+    // affichée garde sa largeur pendant tout le geste : la demi-journée du
+    // jeudi matin arrivait telle quelle sur le mercredi, qu'elle occupe
+    // entièrement, et ne s'élargissait qu'une fois le jour posé.
+    // Désormais, pour une carte déjà à l'écran quand le jour a été posé ET
+    // dont la tâche occupe aussi le jour visé (le voisin dans le sens du
+    // glissement) : sa largeur passe de celle du jour posé (`largeursPosees`)
+    // à celle du jour visé, le bord droit suivant la fin de ce jour
+    // (bornée à la fin de la tâche). Carte qui s'élargit : la largeur ne
+    // bouge pas tant que la fin du jour visé n'a pas rattrapé son bord
+    // droit, puis s'y accroche. Carte qui rétrécit (tâche plus courte sur
+    // le jour visé) : elle garde sa largeur tant que son bord droit à
+    // l'écran reste couvert par la tâche, puis suit la fin de la tâche —
+    // jamais une carte plus courte que ce que la tâche couvre réellement à
+    // l'écran. Les cartes qui sortent (tâche absente du jour visé) gardent
+    // leur largeur (suite 37 : pas de texte ré-enroulé jusqu'à 1 px) ; celles
+    // qui entrent passent toujours par le calcul d'entrée plus bas.
+    var poseJour = -1, poseScroll = 0, largeursPosees = new WeakMap();
     function ajusterLargeurBullesJourMobile(pendantGlissement) {
       if (!enModeJourMobile) return;
       var zoom = (niveauZoomPlanning / 100) || 1;
@@ -1215,9 +1240,16 @@
       var cartes = bulles.map(function (b) { return b.querySelector(".b-carte"); });
       // Pendant le glissement, seules les cartes masquées sont à calculer.
       var aCalculer = bulles.map(function (b, i) { return !!cartes[i] && (!pendantGlissement || cartes[i].style.display === "none" || !cartes[i].style.width); });
-      var rects = bulles.map(function (b, i) { return aCalculer[i] ? b.getBoundingClientRect() : null; });
+      // Sens du glissement depuis le jour posé (suite 42) : jour visé.
+      var sensGlisse = 0;
+      if (pendantGlissement && poseJour >= 0) {
+        var ecart = scroller.scrollLeft - poseScroll;
+        if (Math.abs(ecart) >= 1) sensGlisse = ecart > 0 ? 1 : -1;
+      }
+      var enTransition = bulles.map(function (b, i) { return !!cartes[i] && pendantGlissement && !aCalculer[i] && (largeursPosees.get(cartes[i]) || 0) >= 1; });
+      var rects = bulles.map(function (b, i) { return aCalculer[i] || enTransition[i] ? b.getBoundingClientRect() : null; });
       var jours = null;
-      if (aCalculer.indexOf(true) >= 0) {
+      if (aCalculer.indexOf(true) >= 0 || enTransition.indexOf(true) >= 0) {
         jours = [].slice.call(grilleEntete.querySelectorAll(".th[data-gi]")).map(function (th) {
           var r = th.getBoundingClientRect(); return [r.left, r.right];
         });
@@ -1246,6 +1278,27 @@
           if (r > recouvrement) { recouvrement = r; jPose = j; }
         });
         if (jPose >= 0) voisins = [jours[jPose + 1], jours[jPose - 1]].filter(Boolean);
+        poseJour = jPose; poseScroll = scroller.scrollLeft;
+      }
+      // Jour visé : le voisin du jour posé dans le sens du geste (plus loin
+      // si le geste a déjà dépassé un jour entier).
+      var vise = null;
+      if (sensGlisse && jours && jours[poseJour]) {
+        var largeurJour = jours[poseJour][1] - jours[poseJour][0];
+        var pas = largeurJour > 0 ? Math.max(1, Math.ceil(Math.abs(scroller.scrollLeft - poseScroll) / largeurJour - 0.001)) : 1;
+        vise = jours[Math.max(0, Math.min(jours.length - 1, poseJour + sensGlisse * pas))];
+      }
+      for (var t = 0; t < bulles.length; t++) {
+        if (!enTransition[t]) continue;
+        var lPosee = largeursPosees.get(cartes[t]), l = lPosee;
+        if (vise) {
+          var r = rects[t];
+          var lVisee = Math.min(r.right, vise[1]) - Math.max(r.left, vise[0]);
+          var gauche = Math.max(debutVisible, r.left);
+          if (lVisee >= 1 && lVisee > lPosee) l = Math.min(lVisee, Math.max(lPosee, Math.min(r.right, vise[1]) - gauche));
+          else if (lVisee >= 1 && lVisee < lPosee) l = Math.max(lVisee, Math.min(lPosee, Math.min(r.right, Math.max(vise[1], finVisible)) - gauche));
+        }
+        if (Math.abs(parseFloat(cartes[t].style.width) * zoom - l) >= 0.5) cartes[t].style.width = cartes[t].style.maxWidth = (l / zoom) + "px";
       }
       for (var i = 0; i < bulles.length; i++) {
         var carte = cartes[i];
@@ -1295,6 +1348,7 @@
         if (!pendantGlissement) bulles[i].classList.toggle("jour-voisin", voisin);
         if (d - g < 1) { carte.style.display = "none"; }
         else { carte.style.display = ""; carte.style.width = carte.style.maxWidth = ((d - g) / zoom) + "px"; }
+        if (!pendantGlissement) largeursPosees.set(carte, d - g < 1 ? 0 : d - g);
         // Poignées d'une bulle hors du jour affiché masquées (suite 37) :
         // celles de la veille tombaient pile au bord de la colonne des noms
         // (traits parasites sur la capture de Lionel, x ≈ 108 px).
