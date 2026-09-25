@@ -7372,3 +7372,4 @@ Vérifié en local (Playwright) — **`test_suite25.js`** (nouveau), 17 vérific
 - tablette au doigt : matin ↔ après-midi du même jour, jeudi matin → vendredi après-midi, jeudi matin → vendredi matin ; écrit en base ;
 - téléphone au doigt : matin ↔ après-midi du même jour ;
 - tablette au doigt : tâche de Lionel mercredi matin → Mathis jeudi après-midi, écrite en base.
+- **Suite complète** : mêmes 8 échecs que sur `main` (anciens tests qui cherchent des fonctions dans `index.html`, cf. §129) ; tous les tests tactiles existants passent.
