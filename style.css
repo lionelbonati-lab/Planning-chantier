@@ -2130,7 +2130,7 @@
   .impression-modal .cp-titre { font-size: 13px; }
   .print-doc { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px; font-size: 12px; }
   table.print-table { width: 100%; border-collapse: collapse; }
-  table.print-table th, table.print-table td { border: 1px solid var(--border-strong); padding: 5px 7px; font-size: 11px; vertical-align: top; }
+  table.print-table th, table.print-table td { border: 1px solid var(--border-strong); padding: 5px 7px; font-size: calc(11px * var(--impr-echelle, 1)); vertical-align: top; }
   /* Option A — bande de couleur par tâche (round du 16.09.2026, choisie par
      Lionel via AskUserQuestion pour représenter plusieurs chantiers sur la
      même case à l'impression, cf. infoCase/celluleTache dans openPrintSheet) :
@@ -2209,7 +2209,7 @@
      discret que la ligne jour/date juste en dessous (petite majuscule,
      encre atténuée) pour ne pas rivaliser avec elle — c'est un repère,
      pas l'information principale de l'en-tête. */
-  .print-mois th { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-muted); }
+  .print-mois th { font-size: calc(10px * var(--impr-echelle, 1)); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-muted); }
   .print-mois .coin-annee { text-align: left; padding-left: 7px; }
   /* .coin-semaine (round du 15.09.2026, suite — "Inscription semaine N
      dans la case sous l'année") : même traitement que .coin-annee juste
@@ -2223,13 +2223,13 @@
      classe, 0 type) et "Semaine 38" restait centré au lieu d'être aligné
      avec "2026" et les noms de personnes juste en dessous (repéré sur un
      PDF réel, pas au premier coup d'œil dans le code). */
-  table.print-table .coin-semaine { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-muted); text-align: left; padding-left: 7px; }
+  table.print-table .coin-semaine { font-size: calc(10px * var(--impr-echelle, 1)); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-muted); text-align: left; padding-left: 7px; }
   /* Sous-en-tête Matin/Aprem (round du 15.09.2026, suite — "l'affichage
      matin/après-midi côte à côte, comme le planning") : même traitement
      discret que la ligne mois, pour ne pas rivaliser avec la ligne
      jour/date juste au-dessus (l'info qu'on cherche en premier sur la
      feuille reste "quel jour", pas "matin ou aprem"). */
-  .print-demis th { font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; color: var(--ink-faint); padding-top: 3px; padding-bottom: 3px; }
+  .print-demis th { font-size: calc(9.5px * var(--impr-echelle, 1)); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; color: var(--ink-faint); padding-top: 3px; padding-bottom: 3px; }
   /* Portage mockup — colonne des noms : bordure DROITE de la 1ère colonne
      (noms/"Jalons"/"Notes") aussi à 2px, pour la détacher nettement de la
      grille des jours. Exclut .print-demis (ligne Matin/Aprem — pas de
@@ -2466,9 +2466,9 @@
      membres de la semaine sous le nom de l'équipe, plus petits, repliés à
      la largeur de la colonne des noms ; un membre imprimé à part (absence,
      tâche à lui) est décalé sous son équipe. */
-  table.print-table .print-membres { display: block; max-width: 120px; white-space: normal; font-size: 8.5px; font-weight: 500; line-height: 1.25; color: var(--ink-muted); margin-top: 1px; }
+  table.print-table .print-membres { display: block; max-width: 120px; white-space: normal; font-size: calc(8.5px * var(--impr-echelle, 1)); font-weight: 500; line-height: 1.25; color: var(--ink-muted); margin-top: 1px; }
   table.print-table td.print-nom-membre { padding-left: 14px; }
-  .print-statut { display: inline-block; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; padding: 0 5px; border: 1px solid var(--border-strong); border-radius: 999px; margin-top: 3px; }
+  .print-statut { display: inline-block; font-size: calc(9px * var(--impr-echelle, 1)); font-weight: 700; text-transform: uppercase; letter-spacing: .02em; padding: 0 5px; border: 1px solid var(--border-strong); border-radius: 999px; margin-top: 3px; }
   .print-important { color: var(--important-ink); font-weight: 700; }
   .print-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
   .print-legend .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink); }
@@ -2478,10 +2478,42 @@
   /* Ligne des horaires sous Matin/Aprem (suite 27) : même discrétion que
      .print-demis ; masquée par la case « Afficher les horaires »
      (.sans-horaires sur .print-doc), à l'écran comme à l'impression. */
-  .print-horaires th { font-size: 9px; font-weight: 600; color: var(--ink-muted); padding-top: 2px; padding-bottom: 3px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  table.print-table .coin-horaires { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--ink-faint); text-align: left; padding-left: 7px; }
+  .print-horaires th { font-size: calc(9px * var(--impr-echelle, 1)); font-weight: 600; color: var(--ink-muted); padding-top: 2px; padding-bottom: 3px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.print-table .coin-horaires { font-size: calc(9.5px * var(--impr-echelle, 1)); font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--ink-faint); text-align: left; padding-left: 7px; }
   .print-doc.sans-horaires .print-horaires { display: none; }
-  .impression-actions .impr-option { margin-right: auto; display: flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; color: var(--ink); cursor: pointer; }
+  /* Réglages de l'aperçu d'impression — round du 25.09.2026 (suite 38).
+     Lionel : « Améliore la page impression pour pouvoir modifier
+     manuellement divers réglages. Afficher ou non certaines données. »
+     Panneau repliable (<details>) au-dessus de l'aperçu, 3 blocs côte à
+     côte (Afficher, Personnes, Mise en page), les uns sous les autres sur
+     téléphone. Jamais imprimé (cf. @media print). La case « Horaires »
+     (suite 27) y a rejoint les autres ; elle était dans la barre du bas. */
+  .impr-reglages { margin: 10px 0 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+  .impr-reglages > summary { cursor: pointer; padding: 8px 12px; font-size: 12.5px; font-weight: 700; color: var(--ink); user-select: none; }
+  .impr-grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px 14px; padding: 0 12px 12px; }
+  .impr-grille fieldset { border: none; margin: 0; padding: 0; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+  .impr-grille legend { padding: 0; margin-bottom: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-faint); }
+  .impr-option { display: flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; color: var(--ink); cursor: pointer; }
+  .impr-option small { font-weight: 500; color: var(--ink-faint); }
+  .impr-option small.impr-note { display: block; font-size: 10.5px; line-height: 1.2; }
+  .impr-option.impr-off { opacity: .45; cursor: default; }
+  .impr-option.impr-membre { padding-left: 16px; font-weight: 500; }
+  .impr-liste { display: flex; flex-direction: column; gap: 5px; max-height: 190px; overflow-y: auto; padding-right: 4px; }
+  .impr-sous-titre { margin-top: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-faint); }
+  .impr-champ { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--ink); }
+  .impr-champ select, .impr-champ input { font: inherit; font-weight: 500; min-width: 0; padding: 4px 6px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--surface-2); color: var(--ink); }
+  .impr-champ input { flex: 1; max-width: 170px; }
+  .impr-grille .f-reinit { align-self: flex-start; margin-top: 4px; }
+  /* Taille du texte (réglage) : une échelle appliquée aux tailles du
+     tableau (cases, en-têtes, statuts, horaires). */
+  .print-doc.taille-petite { --impr-echelle: .82; }
+  .print-doc.taille-grande { --impr-echelle: 1.2; }
+  /* Titre libre (réglage), imprimé en tête de feuille. */
+  .print-titre { font-size: calc(15px * var(--impr-echelle, 1)); font-weight: 700; color: var(--ink); margin-bottom: 8px; }
+  /* Sans couleurs (réglage) : nom du chantier en petit sous la tâche —
+     Lionel : « Si les couleurs sont enlevées, prévoir de noter le nom du
+     chantier ». */
+  table.print-table .print-chantier { display: block; font-size: calc(8.5px * var(--impr-echelle, 1)); font-weight: 600; color: var(--ink-muted); margin-top: 1px; }
 
   /* round du 15.09.2026 — Lionel : "on peut travailler sur la page
      d'impression ?", puis "impression du navigateur" une fois le choix
@@ -2540,7 +2572,7 @@
       --important-ink: #93362b; --absence-bg: #f6c893; --jalon-bg: #d7cdf0; --note-bg: #f7e6ab;
       color: var(--ink); background: #fff;
     }
-    .impression-actions { display: none !important; }
+    .impression-actions, .impr-reglages { display: none !important; }
     /* round du 15.09.2026 (suite) — Lionel : "Il reste une grande fenêtre
        rectangle sous le planning, la supprimer. je veux un fond blanc et
        uni". .print-doc est une carte pensée pour l'APERÇU À L'ÉCRAN (fond
