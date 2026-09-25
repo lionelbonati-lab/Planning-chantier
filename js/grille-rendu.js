@@ -1400,7 +1400,12 @@
         + (estAuj ? " today" : "");
       th.dataset.gi = gi;
       var infoJour = libelleJourGi(gi);
-      var dateHTML = '<span class="th-date">' + infoJour.jour + "</span>";
+      // Durée de travail du jour (round du 25.09.2026, suite 27 — page
+      // Horaires) sous la date, au format de la feuille PMB (8.75). Les
+      // horaires eux-mêmes vont dans la ligne « M | A » juste en dessous.
+      var horaireJour = horaireDuJour(isoDeGi(gi));
+      var dateHTML = '<span class="th-date">' + infoJour.jour + "</span>" +
+        (horaireJour ? '<span class="th-duree" title="Durée de travail (pause déduite)">' + formatDuree(horaireJour.duree) + " h</span>" : "");
       var ferJour = feriePourJour(gi);
       if (ferJour) {
         th.style.background = hexToRgba(ferJour.couleur, .55);
@@ -1437,8 +1442,21 @@
         thD.className = "th th-demi" + (demi === "aprem" ? " th-demi-aprem" : "")
           + (demi === "matin" && giD > 0 && giD % 5 === 0 ? " sem-frontiere" : "")
           + (demi === "matin" && giD > 0 && giD % 5 !== 0 ? " jour-frontiere" : "");
-        thD.textContent = demi === "matin" ? "M" : "A";
-        thD.title = demi === "matin" ? "Matin" : "Après-midi";
+        // Horaires dans la ligne « M | A » (suite 27) — Lionel : « Dans la
+        // ligne M|A, mais on peut afficher l'horaire complet » : l'horaire
+        // du matin sous M, celui de l'après-midi sous A (« — » quand le
+        // jour ne travaille que le matin). Sans horaire (week-end, période
+        // non saisie) : les lettres M / A comme avant.
+        var horaireD = horaireDuJour(isoDeGi(giD));
+        var texteDemi = horaireD ? (demi === "matin" ? horaireD.matin : (horaireD.aprem || "—")) : null;
+        if (texteDemi) {
+          thD.classList.add("th-horaire");
+          thD.innerHTML = esc(texteDemi).replace("–", "–<wbr>");
+          thD.title = (demi === "matin" ? "Matin " : "Après-midi ") + (texteDemi === "—" ? "non travaillé" : texteDemi);
+        } else {
+          thD.textContent = demi === "matin" ? "M" : "A";
+          thD.title = demi === "matin" ? "Matin" : "Après-midi";
+        }
         poser(thD, colonneDemi(giD, demi), row);
       });
       if (afficherWeekends && (giD + 1) % 5 === 0) {

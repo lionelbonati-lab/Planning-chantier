@@ -7395,3 +7395,62 @@ Vérifié en local (Playwright, vrais événements tactiles) — **`test_suite26
 - téléphone, vue 1 jour : défilement vertical avec 90 px de dérive → `scrollLeft` immobile pendant le geste, même jour après l'inertie, la page a défilé ; swipe horizontal avec 60 px de dérive verticale → jour suivant, aucun défilement vertical ; diagonale à 45° → défilement vertical seul ;
 - tablette, vue 1 semaine : défilement vertical avec 80 px de dérive → même semaine ; vrai swipe vers la droite → semaine précédente.
 - **Suite complète** : mêmes 8 échecs que sur `main` (anciens tests qui cherchent des fonctions dans `index.html`, cf. §129) ; tous les tests tactiles et de défilement existants passent.
+
+## 135. Round du 25.09.2026 (suite 27) — Page Horaires de travail ; horaires dans le planning, les Fériés et l'impression
+
+Lionel, photo de la feuille PMB « Horaire de travail 2026 » à l'appui : « J'aimerai une nouvelle page horaires de travail. Pouvoir entrer les horaires comme le tableau en bas à gauche. Les heures de travaille viennent s'afficher dans le tableau des fériés. On affichera dans les case des jour du planning les heures de travail, l'heure de début et l'heure de fin de la journée de travail. (Pas les heures de midi car toujours les mêmes). Sur la page d'impression. On rajoute une ligne sous matin et après-midi pour afficher les horaires du matin et de l'après-midi. Une case à cocher sur la page impression permet d'afficher ou non les horaires. »
+
+Choix de Lionel :
+- planning : « Dans la ligne M|A, mais on peut afficher l'horaire complet » ;
+- format : décimal (8.75), comme la feuille ;
+- Fériés : heures dans les cases et totaux du mois ;
+- jours colorés : « Oui, heures quand même ».
+
+**Base** (`sql/0014_horaires.sql`, appliquée sur le projet : migrations `horaires` et `horaires_pause_matin`) :
+- table `horaires` : une ligne par période, avec les dates (incluses), l'horaire du matin, l'horaire de l'après-midi (facultatif) et `pause_matin` (minutes, 15 par défaut) ;
+- un seul horaire pour toute l'entreprise, comme la feuille ;
+- RLS et droits identiques aux autres tables ;
+- chargée au démarrage sans bloquer : si la table ne répond pas, le planning s'affiche sans horaires.
+
+**Pause déduite du matin** : la feuille compte des heures TRAVAILLÉES. 07:00–12:00 y vaut 04:45, 07:45–12:00 vaut 04:00, et le 17 juillet (07:00–10:15, matin seul) vaut 03:00 : chaque fois un ¼ h de moins que l'amplitude (« il convient d'y ajouter 1/4 d'heure de pause par jour »). La durée d'un jour est donc : matin moins la pause, plus l'après-midi. Avec cette règle, mars et avril tombent exactement sur les totaux de la feuille (22 j / 192.50 h ; 20 j / 176.00 h).
+
+**Page Horaires** (nouvel onglet, `js/page-horaires.js`) :
+- l'année avec ‹ ›, une ligne par période : du, au, matin (début, fin, pause, durée), après-midi (début, fin, durée), durée par jour ;
+- « Ajouter une période » commence le lendemain de la dernière période et va jusqu'à la fin du mois, en reprenant ses horaires ;
+- « Enregistrer » avec compteur de modifications, comme les Fériés. Il refuse une date manquante, des heures à l'envers, un après-midi à moitié rempli ou deux périodes qui se chevauchent ; les lignes en cause sont marquées en rouge ;
+- les horaires ne valent que du lundi au vendredi : une période « du 2 au 31 mars » s'écrit d'un bloc ;
+- sur téléphone, chaque période devient une carte.
+
+**Planning** (`js/grille-rendu.js`) :
+- sous la date du jour, la durée (« 9.00 h ») ;
+- dans la ligne « M | A », l'horaire du matin sous M et celui de l'après-midi sous A (« 07:00–12:00 | 13:00–17:15 ») ;
+- « — » sous A quand le jour ne travaille que le matin ;
+- sans horaire (week-end, période non saisie), les lettres M | A comme avant.
+
+**Tableau des Fériés** (`js/page-feries.js`) :
+- chaque jour ouvré montre sa durée (8.75) ;
+- 2 colonnes par mois : J.trav. et H.trav. ; ligne « Total travaillé » de l'année ;
+- un jour coloré (férié, vacances, compensé) montre sa durée plus discrètement, mais ne compte pas dans les totaux : ce n'est pas un jour travaillé, comme sur la feuille ;
+- sur téléphone, la durée s'affiche sous le numéro du jour et le total du mois dans l'en-tête de chaque carte (« 20 j · 176.00 h »).
+
+**Impression** (`js/impression.js`) :
+- ligne « Horaires » sous Matin / Aprem, avec l'horaire de chaque demi-journée ;
+- case « Afficher les horaires » en bas de l'aperçu, cochée par défaut et retenue sur l'appareil ;
+- décochée, la ligne disparaît à l'écran et sur le papier ;
+- la ligne n'existe que si la semaine a au moins un horaire.
+
+Vérifié en local (Playwright) — **`test_suite27.js`** (nouveau), 33 vérifications, toutes OK :
+- planning : durées sous la date, horaires dans la ligne M | A, jour sans après-midi, jour sans horaire ;
+- impression : ligne des horaires, case à cocher, choix retenu à la réouverture ;
+- Fériés : heures dans les cases, jour coloré, totaux de mars et avril identiques à la feuille, total de l'année ;
+- page Horaires : liste triée, durée du matin avec la pause, ajout pré-rempli, refus d'un chevauchement et d'un après-midi incomplet (rien écrit en base), compteur, écriture en base (pause comprise), suppression, planning mis à jour ;
+- téléphone : cartes de mois des Fériés, cartes de la page Horaires sans défilement de côté ;
+- table `horaires` injoignable : le planning démarre quand même.
+- **Suite complète** : mêmes 8 échecs que sur `main` (anciens tests qui cherchent des fonctions dans `index.html`, cf. §129).
+
+**Défilement tactile sur tablette** — Lionel : « Applique les mêmes gestes au doigt sur tablette » (réponse : « Défilement dans un seul sens »).
+- Le verrouillage d'axe du §134 était déjà actif sur tablette : même code pour tous les écrans tactiles.
+- Vérifié zone par zone sur une tablette de 820 px en vue 2 semaines, où le tableau défile de côté. Glissé vertical avec 70 px de dérive → la page défile vers le bas et `scrollLeft` ne bouge pas, dans chacune de ces zones : case vide, bulle de tâche, nom, case et bulle de jalon, en-tête du jour, ligne M | A, ligne de section.
+- Aucune correction de code n'a été nécessaire ; ce balayage est ajouté à `test_suite26.js` (18 vérifications, toutes OK) pour que la tablette reste couverte.
+
+**Pause** — Lionel : « Mettre une case pour le temps de pause me permet de la modifier plus tard au besoin ». C'est la case « Pause (min) » de chaque période (15 par défaut), décrite plus haut.

@@ -386,7 +386,11 @@
       // VÉRITÉ — cf. js/page-couleurs.js. Non-bloquante comme
       // categories_feries juste au-dessus, pour la même raison (ne jamais
       // empêcher le reste de l'appli de démarrer si cette table a un souci).
-      sbClient.from("couleurs_perso").select("id, clair, sombre")
+      sbClient.from("couleurs_perso").select("id, clair, sombre"),
+      // Horaires de travail (round du 25.09.2026, suite 27 — sql/0014) :
+      // non bloquante, comme les 2 précédentes. Sans elle, le planning
+      // s'affiche simplement sans horaires.
+      sbClient.from("horaires").select(COLONNES_HORAIRES).order("date_debut", { ascending: true })
     ]).then(function (r) {
       r.slice(0, 4).forEach(function (res) { if (res.error) throw res.error; }); // ces 4-là restent bloquantes, comme avant
       var personnesBrutes = r[0].data || [], chantiersBruts = r[1].data || [], statutsBruts = r[2].data || [], feriesBruts = r[3].data || [];
@@ -419,6 +423,7 @@
       // commentaire de la requête ci-dessus.
       etat.categoriesFeriesServeur = categoriesFeriesBrutes.map(function (c) { return { id: c.id, nom: c.nom, couleur: c.couleur }; });
       reconstruireFeriesParIso();
+      etat.horairesServeur = (r[6] && !r[6].error) ? normaliserHoraires(r[6].data || []) : [];
 
       // etat.couleursPerso : null tant que le serveur n'a pas répondu (page-
       // couleurs.js retombe alors sur son cache localStorage, cf. son
@@ -977,6 +982,27 @@
   // CATEGORIES_FERIES_DEFAUT plus haut) : un update ciblé par id, jamais un
   // delete-then-append (contrairement à statuts/formulaires — ici il n'y a
   // ni ajout ni suppression possible, la table reste toujours à 3 lignes).
+  // Horaires de travail (suite 27) : même principe que enregistrerFeriesServeur
+  // juste au-dessus — mises à jour, ajouts et suppressions envoyés en
+  // parallèle, puis la liste complète relue pour repartir de l'état réel du
+  // serveur (ids des nouvelles périodes compris).
+  function enregistrerHorairesServeur(modifs, nouveaux, supprimes) {
+    var ligne = function (h) {
+      return { date_debut: h.du, date_fin: h.au, matin_debut: h.matinDebut, matin_fin: h.matinFin, aprem_debut: h.apremDebut || null, aprem_fin: h.apremFin || null, pause_matin: +h.pause || 0 };
+    };
+    var ops = modifs.map(function (h) {
+      return sbClient.from("horaires").update(ligne(h)).eq("id", h.id).then(function (res) { if (res.error) throw res.error; });
+    });
+    if (supprimes.length) ops.push(sbClient.from("horaires").delete().in("id", supprimes).then(function (res) { if (res.error) throw res.error; }));
+    if (nouveaux.length) ops.push(sbClient.from("horaires").insert(nouveaux.map(ligne)).then(function (res) { if (res.error) throw res.error; }));
+    return Promise.all(ops).then(function () {
+      return sbClient.from("horaires").select(COLONNES_HORAIRES).order("date_debut", { ascending: true });
+    }).then(function (res) {
+      if (res.error) throw res.error;
+      etat.horairesServeur = normaliserHoraires(res.data || []);
+      return etat.horairesServeur;
+    });
+  }
   function enregistrerCouleursCategoriesFeriesServeur(couleurs) {
     var maj = (couleurs || []).filter(function (c) { return c && c.id && estCouleurHexLocal_(c.couleur); });
     var chaine = maj.reduce(function (p, c) {
