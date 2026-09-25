@@ -486,7 +486,7 @@
       // renderFerieMoisMobile (page-feries.js) ; affichée à la place du
       // tableau par style-mobile.css.
       '<div class="mois-feries" id="ferieMoisMobile"></div>' +
-      '<div class="legende-feries">Semaines grisées, dates qui n’existent pas (ex. 30/31 février) en noir et non cliquables. Chaque jour montre sa durée de travail (page Horaires) ; J.trav. et H.trav. ne comptent pas les jours colorés.</div>' +
+      '<div class="legende-feries">Semaines grisées, dates qui n’existent pas (ex. 30/31 février) en noir et non cliquables. Chaque jour montre sa durée de travail (page Horaires). J.trav./H.trav. ne comptent pas les jours colorés, sauf un jour compensé qui a sa propre période d’un seul jour (demi-journée travaillée, ex. « du 9 au 9 »). Fériés et vacances comptent chacun 2112 h ÷ jours ouvrés de l’année ; les compensés 0 h.</div>' +
       '</div></div>';
   }
   // Page Horaires (round du 25.09.2026, suite 27) — cf. js/page-horaires.js.

@@ -7586,3 +7586,32 @@ Vérifié en local (Playwright) — **`test_suite31.js`** (nouveau), 4 vérifica
 - au pixel, le trait fait tout le tour.
 - Rendu contrôlé dans le PDF Chrome.
 - **Suite complète** : mêmes 8 échecs que sur `main` (cf. §129).
+
+## 140. Round du 25.09.2026 (suite 32) — Totaux des heures comme la feuille PMB : fériés, vacances, 2112 h
+
+Lionel : « Est-ce-que les totaux des heures correspondent entre ma photos et ton onglet horaires. Tu peux constater que certains jours compensées (jaune) ont des heures de travaille. C'est pour arriver à un total de 2112 heures de travaille à effectuer dans l'année, sont compté dedans les vacances et jours fériés. Les compensées sont le supplément de heures faites »
+
+### Comparaison faite (données de production du 25.09.2026 vs feuille « Horaire de travail 2026 »)
+
+J.trav./H.trav. identiques de février à décembre. Deux écarts, tous deux dans les **données**, pas dans le calcul :
+- **9 janvier** : la feuille compte 1.75 h (jour jaune ET travaillé : 16 j / 114.25 h en janvier). En production, aucune période ne couvre le 9 → 15 j / 112.50 h.
+- **22 juin** : vert (vacances) sur la feuille (J.vac. juin = 1), « compensé » en production.
+
+Il manquait aussi, dans le tableau, les colonnes fériés/vacances de la feuille et son total annuel.
+
+### Règles (js/page-feries.js)
+- **Fériés et vacances** : ne comptent jamais comme travaillés, mais chacun vaut `2112 ÷ jours ouvrés de l'année` (lundi → vendredi : 261 en 2026 → 8.0920 h). Cela reproduit exactement la feuille : 2 fériés = 16.18, 25 jours de vacances = 202.30, et 1845.00 + 64.74 + 202.30 = **2112.03**. `HEURES_ANNUELLES = 2112`, `joursOuvresAnnee_`, `heuresJourPaye_`.
+- **Compensés** : 0 h (rattrapés par les journées plus longues). Exception, comme le 9 janvier de la feuille (« du 9 au 9 » dans son tableau des horaires) : un compensé couvert par une **période d'un seul jour** compte comme travaillé, avec la durée de cette période. Le pont du 15 mai, compris dans la période du 4 au 29 mai, reste à 0 h — c'est ce qui distingue les deux cas. `horaireDuJour` (page-horaires.js) renvoie pour cela `jourSeul`.
+
+### Affichage
+- **Tableau** : 4 colonnes de plus, J.fér. / H.fér. / J.vac. / H.vac., mois par mois et sur la ligne « Total travaillé ».
+- **Pied du tableau** : une ligne « Nb. d'heures » (travaillées + fériés + vacances), avec le calcul du jour payé et le nombre de compensés. `min-width` du tableau porté à 1080px (défilement horizontal inchangé).
+- **Téléphone** : carte « Bilan 2026 » sous décembre (travaillé / fériés / vacances, total).
+- **Légende** mise à jour.
+
+Vérifié en local (Playwright) — **`test_suite32.js`** (nouveau), 28 vérifications, toutes OK :
+- avec les données de production corrigées des 2 écarts, les 12 mois et le total sont identiques à la feuille, cellule par cellule (220 1845.00 8 64.74 25 202.30), et le Nb. d'heures vaut 2112.03 h ;
+- 9 janvier compté (1.75), 15 mai et Vendredi Saint non comptés en travaillé ;
+- avec la production telle quelle : 219 j / 1843.25 h, 24 jours de vacances, total 2102.19 h ;
+- téléphone : carte Bilan correcte, pas de défilement horizontal.
+- `test_suite27.js` (lit maintenant les 2 premières colonnes) et `test_feries_mobile.js` (compte les 12 cartes de mois hors Bilan) adaptés : 33/33 et 16/16.

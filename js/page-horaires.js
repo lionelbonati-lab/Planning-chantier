@@ -59,7 +59,7 @@
   // Périodes qui se chevaucheraient malgré tout (la page les refuse, pas la
   // base) : la dernière qui commence l'emporte, choix stable et prévisible.
   // Renvoie { matin: "07:00–12:00", aprem: "13:00–17:00" | null, debut,
-  // fin, duree } — debut/fin = début et fin de la JOURNÉE (fin du matin
+  // fin, duree, jourSeul } — debut/fin = début et fin de la JOURNÉE (fin du matin
   // quand il n'y a pas d'après-midi).
   function horaireDuJour(iso) {
     if (!iso || estWeekendIso_(iso)) return null;
@@ -72,7 +72,11 @@
       aprem: aprem ? h.apremDebut + "–" + h.apremFin : null,
       debut: h.matinDebut,
       fin: aprem ? h.apremFin : h.matinFin,
-      duree: dureeHoraire(h)
+      duree: dureeHoraire(h),
+      // Période d'UN seul jour (« du 9 au 9 » sur la feuille PMB) : un jour
+      // compensé qui en porte une compte comme travaillé (suite 32, cf.
+      // heuresFerieJour_ dans page-feries.js).
+      jourSeul: h.du === h.au
     };
   }
 

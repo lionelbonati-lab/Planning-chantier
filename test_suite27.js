@@ -85,13 +85,14 @@ const toastTexte = (page) => page.evaluate(() => document.getElementById('toast'
       const ligne = (m) => [...document.querySelectorAll('#ferieCalendrier tbody tr')][m];
       const avril = ligne(3), mars = ligne(2);
       const caseJour = (tr, j) => tr.querySelector('td.jour[data-j="' + j + '"]');
-      const totaux = (tr) => [...tr.querySelectorAll('td.total')].map((x) => x.textContent);
+      // 2 premières colonnes (J.trav., H.trav.) : fériés/vacances ajoutés en suite 32.
+      const totaux = (tr) => [...tr.querySelectorAll('td.total')].slice(0, 2).map((x) => x.textContent);
       return {
         mars1: caseJour(mars, 2).textContent, mars7: caseJour(mars, 7).textContent,
         avril3: caseJour(avril, 3).textContent, avril3Pale: !!caseJour(avril, 3).querySelector('.h-non-compte'),
         avril27: caseJour(avril, 27).textContent,
         totMars: totaux(mars), totAvril: totaux(avril), totMai: totaux(ligne(4)),
-        annee: [...document.querySelectorAll('#ferieCalendrier tfoot td.total')].map((x) => x.textContent)
+        annee: [...document.querySelectorAll('#ferieCalendrier tfoot tr:first-child td.total')].slice(0, 2).map((x) => x.textContent)
       };
     });
     verifier(fer.mars1 === '8.75' && fer.mars7 === '', 'Fériés : lundi 2 mars « 8.75 », samedi 7 vide (' + fer.mars1 + ' / « ' + fer.mars7 + ' »)');
