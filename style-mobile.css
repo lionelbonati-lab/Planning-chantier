@@ -309,6 +309,7 @@
       background: var(--bg); border-top: 1px solid var(--border);
     }
     #page-horaires .actions-feries button { flex: 1 1 0; min-width: 0; padding: 10px 6px; font-size: 13px; white-space: nowrap; }
+    #page-horaires .actions-feries .lib-long { display: none; }
     #page-horaires .page-sous { font-size: 12.5px; }
     .horaire-entete { display: none; }
     .horaire-ligne { grid-template-columns: 1fr 1fr 58px; row-gap: 8px; padding: 10px; }

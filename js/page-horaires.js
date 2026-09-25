@@ -141,7 +141,7 @@
     var champ = function (nom, type, libelle) {
       return '<label class="hc hc-' + nom + '"><span class="hc-lib">' + libelle + '</span><input type="' + type + '"' + (type === "time" ? ' step="300"' : type === "number" ? ' min="0" max="120" step="5" inputmode="numeric" title="Pause retirée du matin, en minutes"' : "") + ' data-champ="' + nom + '" value="' + esc(h[nom] || "") + '"></label>';
     };
-    return '<div class="horaire-ligne" data-cle="' + h.cle + '">' +
+    return '<div class="horaire-ligne' + (h.aVerifier ? " a-verifier" : "") + '" data-cle="' + h.cle + '"' + (h.aVerifier ? ' title="Copiée de l’année précédente : jour seul ou tombé un week-end, à vérifier."' : "") + ">" +
       champ("du", "date", "Du") + champ("au", "date", "Au") +
       champ("matinDebut", "time", "Matin, début") + champ("matinFin", "time", "Matin, fin") + champ("pause", "number", "Pause (min)") +
       '<span class="hc hc-duree" data-duree="matin"><span class="hc-lib">Durée</span><b>' + celluleDureeHtml_(dureeMatin(h)) + "</b></span>" +
@@ -155,6 +155,7 @@
   function renderHoraires() {
     if (!horairesEdition) copierHorairesServeur_();
     document.getElementById("horaireAnneeLabel").textContent = horairesAnnee;
+    document.getElementById("btnCopierHoraires").innerHTML = "Copier<span class=\"lib-long\"> depuis</span> " + (horairesAnnee - 1);
     var debutAnnee = horairesAnnee + "-01-01", finAnnee = horairesAnnee + "-12-31";
     var visibles = horairesEdition.filter(function (h) {
       // Une période neuve encore sans dates reste visible là où on l'a créée.
@@ -214,6 +215,108 @@
     if (nouvelle) { nouvelle.scrollIntoView({ block: "nearest" }); nouvelle.classList.add("nouvelle"); }
   }
 
+  // Copier les horaires de l'année précédente (round du 25.09.2026, suite
+  // 28) — Lionel : « Possibilité de copier les horaires d'une année à
+  // l'autre pour éviter de tout rentrer. »
+  // Règle, dans cet ordre :
+  //  1. mêmes dates au calendrier (« du 2 au 31 mars » → « du 2 au 31
+  //     mars »), période coupée aux bornes de l'année ; un 29 février
+  //     devient le 28. Les horaires de la feuille changent au fil des mois
+  //     (saisons) : garder les dates évite toute dérive d'une année à
+  //     l'autre, contrairement à un décalage de 52 semaines qui recule
+  //     d'1 ou 2 jours chaque année ;
+  //  2. une coupure entre 2 périodes qui ne contenait QUE des jours de
+  //     week-end ou des fériés (catégorie « Férié » de la page Fériés)
+  //     l'année source est refermée : la période suivante commence au 1er
+  //     jour ouvré (ni week-end, ni férié s'il est déjà saisi) après la fin
+  //     de la précédente. Sans ça, les jours de la semaine ayant glissé,
+  //     « du 2 mars » (lundi en 2026) laisserait le lundi 1er mars 2027
+  //     sans horaire, et « du 4 mai » (après le vendredi 1er mai férié) le
+  //     lundi 3 mai 2027. Les vacances entreprise ne comptent PAS comme
+  //     fériés : leur coupure reste ;
+  //  3. les autres coupures (vacances, ponts) restent aux mêmes dates : à
+  //     vérifier, comme les périodes d'un seul jour (veille de vacances,
+  //     17 juillet 2026) qui peuvent tomber un week-end l'année suivante —
+  //     ces lignes sont surlignées (.a-verifier).
+  // Rien n'est écrit avant Enregistrer, comme toute modification de la page.
+  function estOuvre_(d, feries) { return d.getDay() !== 0 && d.getDay() !== 6 && !feries[isoDate_(d)]; }
+  function joursOuvresEntre_(debutIso, finIso, feries) {
+    // Nombre de jours ouvrés STRICTEMENT entre 2 dates.
+    var n = 0, d = new Date(debutIso + "T00:00:00"), fin = new Date(finIso + "T00:00:00");
+    d.setDate(d.getDate() + 1);
+    while (d < fin) { if (estOuvre_(d, feries)) n++; d.setDate(d.getDate() + 1); }
+    return n;
+  }
+  function premierOuvreApres_(iso, feries) {
+    var d = new Date(iso + "T00:00:00");
+    do { d.setDate(d.getDate() + 1); } while (!estOuvre_(d, feries));
+    return isoDate_(d);
+  }
+  function lendemain_(iso) { var d = new Date(iso + "T00:00:00"); d.setDate(d.getDate() + 1); return isoDate_(d); }
+  function versAnnee_(iso, annee) {
+    var md = iso.slice(5);
+    if (md === "02-29" && !(annee % 4 === 0 && (annee % 100 !== 0 || annee % 400 === 0))) md = "02-28";
+    return annee + "-" + md;
+  }
+  function aUnJourOuvre_(du, au) {
+    var d = new Date(du + "T00:00:00"), fin = new Date(au + "T00:00:00");
+    for (; d <= fin; d.setDate(d.getDate() + 1)) if (d.getDay() !== 0 && d.getDay() !== 6) return true;
+    return false;
+  }
+  function periodesDeLAnnee_(annee) {
+    var debut = annee + "-01-01", fin = annee + "-12-31";
+    return horairesEdition.filter(function (h) { return h.du && h.au && h.du <= fin && h.au >= debut; });
+  }
+  function copierAnneePrecedente() {
+    var source = horairesAnnee - 1, cible = horairesAnnee;
+    var debutSource = source + "-01-01", finSource = source + "-12-31";
+    var feries = {};
+    (etat.feriesServeur || []).forEach(function (f) { if (f.categorie === "ferie") feries[f.iso] = true; });
+    var periodes = periodesDeLAnnee_(source).map(function (h) {
+      return Object.assign({}, h, { du: h.du < debutSource ? debutSource : h.du, au: h.au > finSource ? finSource : h.au });
+    }).sort(function (a, b) { return a.du < b.du ? -1 : 1; });
+    if (!periodes.length) { toast("Aucun horaire en " + source + " à copier."); return; }
+    var copies = [];
+    periodes.forEach(function (h, i) {
+      var du = versAnnee_(h.du, cible), au = versAnnee_(h.au, cible);
+      var prec = copies[copies.length - 1];
+      if (prec) {
+        if (i > 0 && joursOuvresEntre_(periodes[i - 1].au, h.du, feries) === 0) {
+          var ouvre = premierOuvreApres_(prec.au, feries);
+          if (ouvre < du) du = ouvre;
+        }
+        if (du <= prec.au) du = lendemain_(prec.au); // 29 février ramené au 28
+      }
+      if (du > au) return;
+      copies.push({
+        cle: prochaineCleHoraire++, id: null, du: du, au: au,
+        matinDebut: h.matinDebut, matinFin: h.matinFin, apremDebut: h.apremDebut, apremFin: h.apremFin, pause: h.pause,
+        aVerifier: !aUnJourOuvre_(du, au) || du === au
+      });
+    });
+    function appliquer() {
+      // Les périodes de l'année cible sont remplacées. Une période à cheval
+      // sur 2 années (ex. du 21.12 au 08.01) n'est que raccourcie : sa partie
+      // hors de l'année cible est gardée, pas effacée avec le reste.
+      var debutCible = cible + "-01-01", finCible = cible + "-12-31";
+      horairesEdition = horairesEdition.filter(function (h) {
+        if (!h.du && h.anneeCreation === cible) return false;
+        if (!h.du || !h.au || h.du > finCible || h.au < debutCible) return true;
+        if (h.du < debutCible) { h.au = source + "-12-31"; return true; }
+        if (h.au > finCible) { h.du = (cible + 1) + "-01-01"; return true; }
+        return false;
+      }).concat(copies);
+      renderHoraires();
+      var aVerifier = copies.filter(function (c) { return c.aVerifier; }).length;
+      toast(copies.length + " période" + (copies.length > 1 ? "s" : "") + " copiée" + (copies.length > 1 ? "s" : "") + " depuis " + source + "." +
+        (aVerifier ? " " + aVerifier + " à vérifier (surlignée" + (aVerifier > 1 ? "s" : "") + ") : jour seul ou tombé un week-end." : "") +
+        " Vérifie les vacances, puis Enregistrer.");
+    }
+    var nbExistantes = periodesDeLAnnee_(cible).length;
+    if (nbExistantes) demanderConfirmation("Remplacer les " + nbExistantes + " période" + (nbExistantes > 1 ? "s" : "") + " de " + cible + " par celles de " + source + " ? (Rien n’est enregistré avant Enregistrer.)", appliquer);
+    else appliquer();
+  }
+
   function enregistrerHoraires() {
     var erreurs = erreursHoraires();
     document.querySelectorAll("#horairesListe .horaire-ligne").forEach(function (l) {
@@ -234,5 +337,6 @@
     document.getElementById("horaireAnneePrec").addEventListener("click", function () { horairesAnnee--; renderHoraires(); });
     document.getElementById("horaireAnneeSuiv").addEventListener("click", function () { horairesAnnee++; renderHoraires(); });
     document.getElementById("btnAjouterHoraire").addEventListener("click", ajouterPeriodeHoraire);
+    document.getElementById("btnCopierHoraires").addEventListener("click", copierAnneePrecedente);
     document.getElementById("btnEnregistrerHoraires").addEventListener("click", enregistrerHoraires);
   }

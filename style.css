@@ -2000,6 +2000,8 @@
   .horaire-ligne { background: var(--surface); border: 1px solid var(--border); border-radius: 9px; padding: 6px 10px; }
   .horaire-ligne.erreur { border-color: var(--important-ink); box-shadow: 0 0 0 1px var(--important-ink); }
   .horaire-ligne.nouvelle { border-color: var(--accent); }
+  /* Période copiée d'une autre année à vérifier (suite 28, cf. copierAnneePrecedente). */
+  .horaire-ligne.a-verifier { background: color-mix(in srgb, var(--jalon-bg, #f3e3a8) 55%, var(--surface)); border-color: color-mix(in srgb, var(--important-ink) 40%, var(--border)); }
   .horaire-ligne .hc { display: flex; flex-direction: column; min-width: 0; }
   .horaire-ligne .hc-lib { display: none; font-size: 10.5px; font-weight: 700; color: var(--ink-faint); margin-bottom: 2px; }
   .horaire-ligne input { font: inherit; font-size: 12.5px; padding: 6px 7px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface-2); color: var(--ink); width: 100%; min-width: 0; font-variant-numeric: tabular-nums; }
