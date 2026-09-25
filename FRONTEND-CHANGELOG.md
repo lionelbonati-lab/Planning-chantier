@@ -7454,3 +7454,36 @@ Vérifié en local (Playwright) — **`test_suite27.js`** (nouveau), 33 vérific
 - Aucune correction de code n'a été nécessaire ; ce balayage est ajouté à `test_suite26.js` (18 vérifications, toutes OK) pour que la tablette reste couverte.
 
 **Pause** — Lionel : « Mettre une case pour le temps de pause me permet de la modifier plus tard au besoin ». C'est la case « Pause (min) » de chaque période (15 par défaut), décrite plus haut.
+
+## 136. Round du 25.09.2026 (suite 28) — Copier les horaires d'une année à l'autre
+
+Lionel : « Possibilité de copier les horaires d'une année à l'autre pour éviter de tout rentrer. »
+
+**Bouton « Copier depuis 2026 »** sur la page Horaires (`js/page-horaires.js`, `copierAnneePrecedente`), à gauche d'« Ajouter ». Il copie les périodes de l'année précédente dans l'année affichée ; son libellé suit l'année (« Copier 2026 » sur téléphone).
+
+Règle de copie, dans cet ordre :
+1. **Mêmes dates au calendrier** : « du 2 au 31 mars » → « du 2 au 31 mars ». La période est coupée aux bornes de l'année, et un 29 février devient le 28. Les horaires de la feuille changent avec les saisons : garder les dates évite une dérive, alors qu'un décalage de 52 semaines reculerait d'1 à 2 jours chaque année.
+2. **Coupure de week-end ou de férié refermée**. Si l'année source n'avait entre deux périodes que du week-end ou des jours de catégorie « Férié », la période suivante commence au 1er jour ouvré après la précédente. Exemples 2026 → 2027 :
+   - « du 2 mars » devient « du 1er mars » (lundi) ;
+   - « du 4 mai », placé après le vendredi 1er mai férié, devient « du 3 mai » ;
+   - « du 1er juin » devient « du 31 mai ».
+   
+   Sans cette règle, ces lundis resteraient sans horaire.
+3. **Autres coupures gardées aux mêmes dates** : vacances entreprise, jours ouvrés sans horaire (lundi 16 novembre 2026).
+4. **Lignes surlignées à vérifier** : une période d'un seul jour (veille de vacances : 17 juillet, 18 décembre) ou sans aucun jour ouvré. En 2027, les deux tombent un samedi. Le message le dit : « 19 périodes copiées depuis 2026. 2 à vérifier (surlignées) : jour seul ou tombé un week-end. Vérifie les vacances, puis Enregistrer. »
+
+Remplacement et enregistrement :
+- Si l'année affichée a déjà des périodes, une confirmation s'affiche d'abord : « Remplacer les N périodes de 2027 par celles de 2026 ? ».
+- Une période à cheval sur 2 années (du 22.12 au 09.01) n'est que raccourcie à sa partie hors de l'année cible, pas effacée.
+- Comme toute modification de la page, rien n'est écrit en base avant « Enregistrer » : le compteur affiche le nombre de périodes à écrire, et le contrôle des chevauchements s'applique.
+
+Vérifié en local (Playwright) — **`test_suite28.js`** (nouveau), 31 vérifications, toutes OK. Données : les 19 périodes 2026 de la feuille PMB.
+- **Copie vers 2027** : 19 périodes, et les dates de janvier, février (×2), mars, fin avril, mai, août et novembre conformes à la règle.
+- **Contenu recopié** : horaires et pause, matin seul compris.
+- **Lignes à vérifier** : les 2 jours seuls sont surlignés, et le message le dit.
+- **Écriture** : rien en base avant Enregistrer (« Enregistrer 19 »), puis les 19 lignes en base ; 2026 reste intact ; le planning montre l'horaire du lundi 1er mars 2027.
+- **Recopie sur 2027 déjà rempli** : confirmation, Annuler ne change rien, Confirmer remplace (« Enregistrer 38 » = 19 suppressions + 19 nouvelles).
+- **Année source vide** : message « Aucun horaire en 2024 à copier. »
+- **Période à cheval** : raccourcie, pas effacée.
+- **Téléphone** : les 3 boutons tiennent dans la barre du bas, et les 19 cartes s'affichent sans défilement de côté.
+- **Suite complète** : mêmes 8 échecs que sur `main` (anciens tests, cf. §129) ; `test_suite26.js` et `test_suite27.js` restent OK.

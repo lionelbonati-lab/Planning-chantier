@@ -496,7 +496,7 @@
     return '<div class="page" id="page-horaires"><div class="page-scroll">' +
       '<div class="page-titre"><h1>Horaires</h1>' +
         '<div class="nav-annee"><button type="button" class="fleche" id="horaireAnneePrec">&larr;</button><span id="horaireAnneeLabel"></span><button type="button" class="fleche" id="horaireAnneeSuiv">&rarr;</button></div>' +
-        '<div class="actions-feries"><button class="btn-calculer" id="btnAjouterHoraire" type="button">Ajouter<span class="lib-long"> une période</span></button><button class="btn-enregistrer" id="btnEnregistrerHoraires" type="button">Enregistrer</button></div>' +
+        '<div class="actions-feries"><button class="btn-calculer" id="btnCopierHoraires" type="button">Copier</button><button class="btn-calculer" id="btnAjouterHoraire" type="button">Ajouter<span class="lib-long"> une période</span></button><button class="btn-enregistrer" id="btnEnregistrerHoraires" type="button">Enregistrer</button></div>' +
       '</div>' +
       '<p class="page-sous">Une ligne par période, comme la feuille « Horaire de travail » : dates (incluses), horaire du matin, horaire de l’après-midi (laisser vide s’il n’y a que le matin). Les horaires valent du lundi au vendredi ; ils s’affichent dans le planning, l’impression et le tableau des Fériés. Rien n’est écrit sur le serveur tant que tu n’as pas cliqué Enregistrer.</p>' +
       '<div class="horaires-liste" id="horairesListe"></div>' +
