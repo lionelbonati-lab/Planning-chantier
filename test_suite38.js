@@ -47,7 +47,12 @@ const apercu = (page) => page.evaluate(() => {
 const coche = (page, sel) => page.evaluate((s) => { const c = document.querySelector(s); return c && { coche: c.checked, grise: c.disabled }; }, sel);
 // Panneau replié à chaque ouverture et placé sous l'aperçu (suite 40) :
 // déplié avant d'y cliquer.
-const deplier = (page) => page.click('.impr-reglages summary');
+// Suite 43 : listes Personnel / Intervenants repliées sous leur case
+// générale (test_suite43.js) — dépliées elles aussi.
+const deplier = async (page) => {
+  await page.click('.impr-reglages summary');
+  for (const b of await page.$$('.impr-reglages .impr-deplier')) await b.click();
+};
 const rouvrir = async (page) => {
   await page.click('.impression-modal .f-fermer');
   await page.evaluate(() => openPrintSheet()); await page.waitForTimeout(200);
@@ -66,7 +71,8 @@ const rouvrir = async (page) => {
 
     // --- 1. Par défaut : comme avant ---
     const libelles = await page.evaluate(() => [...document.querySelectorAll('.impr-reglages fieldset')].map((f) => f.textContent.replace(/\s+/g, ' ').trim()));
-    verifier(libelles.length === 2 && ['Jalons', 'Notes', 'Intervenants', 'Légende des chantiers', 'Statuts des intervenants', 'Couleurs des chantiers', 'Personnes sans tâche'].every((l) => libelles[0].includes(l)),
+    verifier(libelles.length === 2 && ['Jalons', 'Notes', 'Légende des chantiers', 'Statuts des intervenants', 'Couleurs des chantiers', 'Personnes sans tâche'].every((l) => libelles[0].includes(l)) &&
+      ['Personnel', 'Intervenants'].every((l) => libelles[1].includes(l)),
       'panneau « Réglages » : Afficher / Personnes, rien d\'autre (' + libelles[0] + ')');
     const bas = await page.evaluate(() => ({ selects: document.querySelectorAll('.impr-reglages select, .impr-reglages input[type=text]').length,
       reinit: !!document.querySelector('.impr-reglages .f-reinit'), lien: (document.querySelector('.impr-reglages .impr-lien-mep') || {}).textContent }));

@@ -86,7 +86,7 @@
   // clé y sont reprises une fois (miseEnPageDepuisSuite38_).
   var CLE_REGLAGES_IMPRESSION = "planning.impression.reglages";
   function reglagesImpressionDefaut_() {
-    return { horaires: true, jalons: true, notes: true, intervenants: true, legende: true, statuts: true,
+    return { horaires: true, jalons: true, notes: true, personnel: true, intervenants: true, legende: true, statuts: true,
       couleurs: true, vides: false, masques: {} };
   }
   function lireReglagesImpression_() {
@@ -163,6 +163,7 @@
       var sautees = 0, decochees = 0;
       function garde(p) {
         if (p.sousTraitant && !r.intervenants) return false;
+        if (!p.sousTraitant && !r.personnel) return false;
         if (personneVide(p) && !(r.vides && roleComplet[idImpr(p)] !== "membre")) { sautees++; return false; }
         if (r.masques[idImpr(p)]) { decochees++; return false; }
         return true;
@@ -627,6 +628,18 @@
     // l'impression, sauf un membre d'équipe sans rien à lui (ses tâches
     // sont sur la ligne d'équipe, il n'a jamais de ligne propre).
     var choixPersonnes = ordreComplet.filter(function (e) { return !(e.role === "membre" && personneVide(e.p)); });
+    // Personnel / Intervenants en listes déroulantes — round du 25.09.2026
+    // (suite 43). Lionel : « Aperçu avant impression : ajouter case à
+    // cocher personnel. Rendre personnel et intervenants déroulant sous
+    // leur case à cocher générale pour réduire la longueur de la liste. »
+    // Le fieldset Personnes n'aligne plus toutes les personnes d'un bloc :
+    // une case générale par section (Personnel, nouvelle ; Intervenants,
+    // venue de « Afficher »), et sous chacune la liste des personnes,
+    // repliée, dépliée d'un appui sur le compteur à sa droite (« 3 / 4 » :
+    // personnes cochées sur celles proposées). Repliées à chaque ouverture
+    // de l'aperçu, comme le panneau Réglages (suite 40) ; l'état déplié
+    // survit à la reconstruction du panneau à chaque case cochée.
+    var groupesOuverts = { personnel: false, intervenants: false };
     function panneauReglages_() {
       function caseR(cle, libelle, opt) {
         opt = opt || {};
@@ -636,22 +649,32 @@
       }
       var h = '<fieldset><legend>Afficher</legend>';
       if (aDesHoraires) h += caseR("horaires", "Horaires", { classe: "f-horaires" });
-      h += caseR("jalons", "Jalons") + caseR("notes", "Notes") + caseR("intervenants", "Intervenants") +
+      h += caseR("jalons", "Jalons") + caseR("notes", "Notes") +
         caseR("legende", "Légende des chantiers", { off: !r.couleurs, note: r.couleurs ? "" : "(inutile sans couleurs)" }) +
         caseR("statuts", "Statuts des intervenants") +
         caseR("couleurs", "Couleurs des chantiers", { note: r.couleurs ? "" : "(nom du chantier écrit dans la case)" }) +
         caseR("vides", "Personnes sans tâche");
-      h += '</fieldset><fieldset class="impr-personnes"><legend>Personnes</legend><div class="impr-liste">';
-      var dejaIntervenants = false;
-      choixPersonnes.forEach(function (e) {
-        var p = e.p, id = idImpr(p), vide = personneVide(p);
-        if (p.sousTraitant && !dejaIntervenants) { dejaIntervenants = true; h += '<div class="impr-sous-titre">Intervenants</div>'; }
-        var off = (p.sousTraitant && !r.intervenants) || (vide && !r.vides);
-        h += '<label class="impr-option' + (e.role === "membre" ? ' impr-membre' : '') + (off ? ' impr-off' : '') + '">' +
-          '<input type="checkbox" data-p="' + esc(id) + '"' + (r.masques[id] ? '' : ' checked') + (off ? ' disabled' : '') + '> ' + esc(p.nom) +
-          (vide ? ' <small>(rien cette semaine)</small>' : '') + '</label>';
-      });
-      h += '</div></fieldset>';
+      h += '</fieldset><fieldset class="impr-personnes"><legend>Personnes</legend>';
+      function groupe(cle, libelle, entrees) {
+        var ouvert = groupesOuverts[cle];
+        var coches = entrees.filter(function (e) { return !r.masques[idImpr(e.p)]; }).length;
+        var g = '<div class="impr-groupe' + (ouvert ? ' ouvert' : '') + '"><div class="impr-groupe-tete">' + caseR(cle, libelle);
+        if (!entrees.length) return g + '</div></div>';
+        g += '<button type="button" class="impr-deplier" data-g="' + cle + '" aria-expanded="' + ouvert + '" title="Choisir personne par personne">' +
+          coches + ' / ' + entrees.length + '<span class="impr-chevron" aria-hidden="true">›</span></button></div>' +
+          '<div class="impr-liste"' + (ouvert ? '' : ' hidden') + '>';
+        entrees.forEach(function (e) {
+          var p = e.p, id = idImpr(p), vide = personneVide(p);
+          var off = !r[cle] || (vide && !r.vides);
+          g += '<label class="impr-option' + (e.role === "membre" ? ' impr-membre' : '') + (off ? ' impr-off' : '') + '">' +
+            '<input type="checkbox" data-p="' + esc(id) + '"' + (r.masques[id] ? '' : ' checked') + (off ? ' disabled' : '') + '> ' + esc(p.nom) +
+            (vide ? ' <small>(rien cette semaine)</small>' : '') + '</label>';
+        });
+        return g + '</div></div>';
+      }
+      h += groupe("personnel", "Personnel", choixPersonnes.filter(function (e) { return !e.p.sousTraitant; })) +
+        groupe("intervenants", "Intervenants", choixPersonnes.filter(function (e) { return e.p.sousTraitant; }));
+      h += '</fieldset>';
       return h;
     }
     pop.innerHTML = '<div class="cp-titre">Aperçu impression — semaine ' + esc(data.numero) + '</div>' +
@@ -716,7 +739,14 @@
       appliquerReglages_(true);
     });
     reglagesEl.addEventListener("click", function (e) {
-      if (e.target.closest(".f-reinit")) {
+      var deplier = e.target.closest(".impr-deplier");
+      if (deplier) {
+        var cleG = deplier.dataset.g, ouvert = !groupesOuverts[cleG];
+        groupesOuverts[cleG] = ouvert;
+        deplier.setAttribute("aria-expanded", String(ouvert));
+        deplier.closest(".impr-groupe").classList.toggle("ouvert", ouvert);
+        deplier.closest(".impr-groupe").querySelector(".impr-liste").hidden = !ouvert;
+      } else if (e.target.closest(".f-reinit")) {
         r = reglagesImpressionDefaut_();
         ecrireReglagesImpression_(r);
         appliquerReglages_(true);

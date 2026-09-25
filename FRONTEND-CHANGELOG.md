@@ -7990,3 +7990,28 @@ Lionel, captures du jeudi 01 et du mardi 22 (tâches d'un jour et demi) : « Lor
   - avance jeudi → vendredi : la carte « jeudi après-midi + vendredi » va jusqu'au bord droit pendant le geste ;
   - largeurs finales une fois le jour posé.
 - **Suite complète : 52/52** (`node lancer_tests.js`).
+
+## 151. Round du 25.09.2026 (suite 43) — Aperçu d'impression : case « Personnel », listes Personnel / Intervenants repliables
+
+Lionel : « Aperçu avant impression : ajouter case à cocher personnel. Rendre personnel et intervenants déroulant sous leur case à cocher générale pour réduire la longueur de la liste. »
+
+### Panneau Réglages (`openPrintSheet`, js/impression.js)
+- **Nouvelle case « Personnel »** (réglage `personnel`, coché par défaut, retenu comme les autres). Décochée, plus aucune ligne du personnel ni d'équipe n'est imprimée : seuls les intervenants restent.
+- La case « Intervenants » quitte « Afficher » pour le fieldset « Personnes » (même réglage `intervenants`).
+- Fieldset « Personnes » : une case générale par section, et sous chacune la liste de ses personnes, **repliée**.
+  - Un bouton-compteur à droite de la case (« 2 / 3 » : personnes cochées sur celles proposées, chevron ›) déplie ou replie la liste.
+  - Section décochée : ses personnes restent visibles une fois dépliées, mais grisées.
+  - Repliées à chaque ouverture de l'aperçu, comme le panneau Réglages (suite 40). L'état déplié survit à la reconstruction du panneau à chaque case cochée.
+  - Pas de bouton quand la section n'a personne cette semaine.
+- `style.css` : `.impr-groupe`, `.impr-groupe-tete`, `.impr-deplier`, `.impr-chevron`, liste en retrait. `.impr-sous-titre` retiré.
+
+### Tests
+- `test_suite43.js` (nouveau, 21 vérifications, à 1300 et 360 px) :
+  - « Intervenants » sorti d'« Afficher » ; cases générales et compteurs ;
+  - listes repliées à l'ouverture, dépliage de l'une sans l'autre ;
+  - liste restée dépliée après une personne décochée, compteur mis à jour ;
+  - Personnel décoché : seuls les intervenants imprimés, cases grisées ; les 2 décochées : plus personne ;
+  - repli d'un nouvel appui ; réouverture (réglages retenus, listes repliées) ; Réinitialiser ;
+  - pas de défilement horizontal à 360 px.
+- `test_suite38.js` : « Intervenants » attendu dans « Personnes » ; listes dépliées avant d'y cliquer.
+- **Suite complète : 53/53** (`node lancer_tests.js`).

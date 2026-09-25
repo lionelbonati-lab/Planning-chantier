@@ -2511,7 +2511,16 @@
   .impr-option.impr-off { opacity: .45; cursor: default; }
   .impr-option.impr-membre { padding-left: 16px; font-weight: 500; }
   .impr-liste { display: flex; flex-direction: column; gap: 5px; max-height: 190px; overflow-y: auto; padding-right: 4px; }
-  .impr-sous-titre { margin-top: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-faint); }
+  /* Personnel / Intervenants repliables sous leur case générale (suite 43,
+     cf. groupesOuverts dans js/impression.js). */
+  .impr-groupe { display: flex; flex-direction: column; gap: 5px; }
+  .impr-groupe-tete { display: flex; align-items: center; gap: 8px; }
+  .impr-groupe-tete .impr-option { flex: 1 1 auto; min-width: 0; }
+  .impr-deplier { display: inline-flex; align-items: center; gap: 6px; flex: none; min-height: 28px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface-2); color: var(--ink-muted); font: inherit; font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; cursor: pointer; }
+  .impr-chevron { display: inline-block; font-size: 14px; line-height: 1; transition: transform .15s; }
+  .impr-groupe.ouvert .impr-chevron { transform: rotate(90deg); }
+  .impr-groupe > .impr-liste { padding-left: 22px; }
+  .impr-liste[hidden] { display: none; }
   /* Taille du texte (réglage) : une échelle appliquée aux tailles du
      tableau (cases, en-têtes, statuts, horaires). */
   .print-doc.taille-petite { --impr-echelle: .82; }
