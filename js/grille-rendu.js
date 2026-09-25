@@ -1515,6 +1515,8 @@
         // du même empiètement anti-trait que .cell.cell-aprem ci-dessus.
         if (demiDebutIt === "aprem") b.classList.add("demi-aprem");
         var csStatique = colonneEtSpanDemi(it.giDebut, dureeVisible, demiDebutIt, demiFinIt);
+        // .une-case (suite 25) : poignées étroites, cf. son commentaire CSS.
+        if (csStatique[1] === 1) b.classList.add("une-case");
         poser(b, csStatique[0], row + it._piste, csStatique[1]);
       });
       row += nbPistes;
@@ -1649,6 +1651,7 @@
           // sur la colonne "aprem".
           if (demiDebutIt === "aprem") b.classList.add("demi-aprem");
           var cs = colonneEtSpanDemi(it.giDebut, dureeVisible, demiDebutIt, demiFinIt);
+          if (cs[1] === 1) b.classList.add("une-case"); // cf. .une-case (suite 25)
           poser(b, cs[0], row + it._piste, cs[1]);
         });
         row += nbPistes;

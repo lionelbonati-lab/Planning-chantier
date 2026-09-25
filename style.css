@@ -1241,6 +1241,17 @@
   .poignee.actif::after { opacity: .55; }
   @media (hover: hover) and (pointer: fine) { .poignee:hover::after { opacity: .55; } }
   .poignee.actif { background: rgba(0, 0, 0, .08); }
+  /* Round du 25.09.2026 (suite 25) — Lionel : « décaler une note de 1/2
+     jour de 1 jour complet crée une bulle de 1.5jour ». Une bulle d'UNE
+     case (une demi-journée, ~58px de large) perdait 2 × 12px de poignées :
+     près de la moitié de sa largeur étirait au lieu de déplacer. Attrapée
+     près du bord droit puis glissée d'un jour, elle s'étirait donc jusqu'au
+     lendemain (1,5 jour). Poignées réduites à 5px sur ces bulles (classe
+     posée au rendu, js/grille-rendu.js) : on les trouve encore au bord,
+     mais le corps de la bulle sert à la déplacer. */
+  .bulle.une-case .poignee { width: 5px; }
+  .bulle.une-case .poignee-g::after { left: 1px; }
+  .bulle.une-case .poignee-d::after { right: 1px; }
   /* Round du 23.09.2026 (suite ×13, puis suite 14 — correctif ci-dessous) —
      Lionel : « Intègre un vrai mode 1 jour, avec bulle sur le jour actif
      même si c'est une bulle sur plusieurs jours, pas de bulle coupée. » Le

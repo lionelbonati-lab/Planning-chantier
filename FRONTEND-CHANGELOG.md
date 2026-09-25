@@ -7348,3 +7348,27 @@ Lionel : « proposer une entrée rapide "coller" dans le popup ». (`collerSurCa
   - « Coller (1) » dans le menu d'une case ; jalon collé avec son chantier ; tâche d'une journée collée dans la semaine suivante, sur une autre personne, un mercredi après-midi → mercredi après-midi + jeudi matin ; presse-papiers vide : pas d'entrée.
 - **Les 4 tests réécrits** : 5 + 7 + 2 + 3 vérifications, toutes OK.
 - **Suite complète** : 8 échecs au lieu de 12. Ce sont les 8 anciens tests qui cherchent des fonctions dans `index.html` (cf. §129). Les 4 tests au chemin fixe sont réécrits et passent.
+
+## 133. Round du 25.09.2026 (suite 25) — Note d'une demi-journée étirée au lieu d'être déplacée ; demi-journée au doigt
+
+Lionel : « j'ai trouvé un bug. décaler un note de 1/2 jour de 1 jour complet crée une bulle de 1.5jour. déplacer une note de 1/2jours sur mobile n'est pas possible »
+
+**1. Note d'une demi-journée qui devenait une bulle de 1,5 jour** (`style.css`, `.une-case` ; `js/grille-rendu.js`) :
+- cause : chaque bulle porte une poignée d'étirement de 12 px de chaque côté. Sur une bulle d'UNE seule demi-journée (58 à 125 px de large), les 2 poignées couvraient jusqu'à 40 % de sa largeur. Attrapée près du bord droit et glissée d'un jour, la bulle s'ÉTIRAIT jusqu'au lendemain (mardi matin → mardi + mercredi matin) au lieu de se déplacer. Reproduit tel quel : attrapée à 8 px du bord, le résultat était exactement la bulle d'1,5 jour décrite ;
+- le déplacement lui-même (glisser par le milieu, flèches, Maj+flèches, séries) était correct ;
+- correctif : les bulles d'une seule case reçoivent la classe `.une-case` au rendu (notes, jalons, tâches, absences), et leurs poignées passent à 5 px. Le corps de la bulle sert à la déplacer ; tout au bord, on étire encore. Les bulles plus larges gardent leurs poignées de 12 px.
+
+**2. Déplacer à la demi-journée au doigt** (`js/grille-interactions.js`) :
+- cause : au doigt, le glisser ne connaissait que le jour entier. C'était un reste de l'ancien mode classique (1 colonne par jour, pas de position de demi-journée exploitable). Sur téléphone, où un seul jour est affiché, passer une note du matin à l'après-midi était donc impossible ; sur tablette, la note gardait toujours sa demi-journée d'origine ;
+- correctif : le doigt suit maintenant la demi-journée sous lui, exactement comme la souris, avec le même calcul pour l'aperçu et le lâcher. Concerne les notes, les jalons, les tâches et absences, et les glisser groupés. Les flèches de la pilule (sélection) marchaient déjà à la demi-journée et sont inchangées.
+
+**Outils de test** (`aide_tests.js`) :
+- le faux Supabase exécute la vraie logique `enregistrer-plage` (`planPlage`) et la fonction `remplacer_case_personne` ;
+- nouveau `glisserBulleDoigt` : un VRAI glisser au doigt (événements tactiles natifs via CDP, appui long compris) ;
+- nouveau `lancerNavigateur` : coupe le geste Chromium « page précédente » au glisser horizontal, qui faisait quitter la page pendant les tests au doigt.
+
+Vérifié en local (Playwright) — **`test_suite25.js`** (nouveau), 17 vérifications, toutes OK ; sur l'ancien code, 14 échouent :
+- souris : note d'une demi-journée attrapée à 8 px du bord droit et glissée d'un jour, elle est déplacée (pas étirée) et écrite en base ; tout au bord (2 px), elle s'étire encore ; poignées de 5 px sur une case, 12 px au-delà ;
+- tablette au doigt : matin ↔ après-midi du même jour, jeudi matin → vendredi après-midi, jeudi matin → vendredi matin ; écrit en base ;
+- téléphone au doigt : matin ↔ après-midi du même jour ;
+- tablette au doigt : tâche de Lionel mercredi matin → Mathis jeudi après-midi, écrite en base.
