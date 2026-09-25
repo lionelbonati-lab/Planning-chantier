@@ -8367,3 +8367,48 @@ Tablette et ordinateur : inchangés (marges, pilule, cadre arrondi).
   - compteur à 12 : rien ne dépasse ; texte agrandi : repli ;
   - 820 et 1400 px inchangés.
 - Suite complète : 60/60.
+
+## 159. Round du 25.09.2026 (suite 51) — Lien de consultation en lecture seule
+
+Proposition 10 retenue par Lionel : « Lien de consultation : un lien en lecture seule à donner aux ouvriers ou aux sous-traitants pour qu'ils voient leur planning sur leur téléphone, sans pouvoir rien modifier. »
+
+### Serveur (sql/0018_liens_consultation.sql, appliquée sur le projet)
+- Table `liens_consultation` : au plus un lien par personne, jeton de 32 caractères hexadécimaux (128 bits), date de création, dernière consultation (`vu_le`).
+  - RLS : utilisateur connecté seulement. La clé publique (anon) n'a aucun droit sur la table, vérifié : « permission denied ».
+- Fonction `consultation_planning(jeton, lundi)`, SECURITY DEFINER, seule chose exécutable avec la clé publique. Elle renvoie, pour la semaine demandée :
+  - le nom de la personne ;
+  - ses tâches et celles des équipes dont elle est membre cette semaine-là (texte, chantier et sa couleur, statut, important, absence, nom de l'équipe) ;
+  - les fériés et les horaires.
+- Rien d'autre : ni les autres personnes, ni les notes, ni les jalons.
+- Semaines consultables : de 4 semaines en arrière à 26 semaines en avant.
+- `vu_le` est mis à jour au plus une fois par heure.
+- Lien inconnu, remplacé ou supprimé → `null`.
+- Vérifié sur la vraie base, en rôle anon, dans des blocs annulés : 9 tâches de la semaine pour Lionel, jeton inconnu → null, semaine 2030 ramenée à la borne. Aucun lien n'a été laissé en base.
+
+### Page consultation.html + js/consultation.js (nouvelles)
+- Page autonome : pas de connexion, pas de supabase-js, pas le code de l'appli. Un seul appel `POST /rest/v1/rpc/consultation_planning`.
+- En-tête : nom, « Semaine 39 · 21 sept. – 27 sept. 2026 », ‹ › et « Auj. ». Un glissement horizontal change aussi de semaine.
+- Une carte par jour, du lundi au vendredi ; samedi et dimanche seulement s'ils ont quelque chose. Chaque carte montre :
+  - le jour, et les horaires du jour (la dernière période qui contient la date l'emporte) ;
+  - Matin puis Après-midi : texte (⚑ si important), chantier sur sa couleur, statut, « Équipe X » pour une tâche d'équipe, absence hachurée, « — » si rien ;
+  - « Aujourd'hui » encadré ; la page s'ouvre dessus ;
+  - férié : bandeau rouge, sans Matin/Après-midi vides.
+- Messages :
+  - lien incomplet (pas d'appel au serveur) ;
+  - « Ce lien ne marche plus » (remplacé ou supprimé) ;
+  - « Planning inaccessible » (pas de réseau).
+- Aucun champ modifiable. Thème clair et sombre suivant le téléphone. `noindex` et `no-referrer`.
+
+### Onglets Personnel / Intervenants : bouton « Lien » (js/liens-consultation.js, js/page-personnel.js, style.css)
+- Sur chaque ligne active, à côté de « Modifier ». Il ouvre une fenêtre :
+  - pas de lien : explication + « Créer le lien » (jeton tiré avec `crypto.getRandomValues`) ;
+  - sinon : l'adresse, « Copier », « Partager… » (feuille de partage du téléphone : SMS, WhatsApp…, si disponible), « Ouvrir », la dernière consultation ;
+  - « Nouveau lien » (confirmation ; l'ancien ne marche plus) et « Supprimer le lien » (confirmation).
+
+### Tests
+- Nouveau test_suite51.js, 30 vérifications, 30 OK :
+  - page de consultation : contenu jour par jour, horaires, férié, équipe, statut, absence, texte échappé ;
+  - navigation ‹ › / glissement / « Auj. », bornes ;
+  - les 4 cas d'erreur ;
+  - « Lien » à 1400 et 360 px : lien existant, copier, nouveau lien, suppression, création.
+- Suite complète : 61/61.

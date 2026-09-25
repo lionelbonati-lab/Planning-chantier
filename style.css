@@ -1998,8 +1998,8 @@
   .badge-intervenant { font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); white-space: nowrap; }
   .badge-type-absence { font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: var(--absence-bg); color: var(--ink); white-space: nowrap; }
   .carte-form .droite { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
-  .lien-modifier, .lien-renommer { font-size: 12px; font-weight: 600; color: var(--ink-muted); cursor: pointer; background: none; border: none; font-family: inherit; padding: 0; }
-  @media (hover: hover) and (pointer: fine) { .lien-modifier:hover, .lien-renommer:hover { color: var(--accent); } }
+  .lien-modifier, .lien-renommer, .lien-consultation { font-size: 12px; font-weight: 600; color: var(--ink-muted); cursor: pointer; background: none; border: none; font-family: inherit; padding: 0; }
+  @media (hover: hover) and (pointer: fine) { .lien-modifier:hover, .lien-renommer:hover, .lien-consultation:hover { color: var(--accent); } }
   .lien-supprimer { font-size: 12px; font-weight: 600; color: var(--ink-faint); cursor: pointer; background: none; border: none; font-family: inherit; padding: 0; }
   @media (hover: hover) and (pointer: fine) { .lien-supprimer:hover { color: var(--important-ink); } }
   .panneau-nouveau-form { margin-top: 16px; padding: 16px 18px; border: 1.5px dashed var(--border); border-radius: 12px; background: var(--surface); max-width: 420px; }
@@ -2069,6 +2069,22 @@
   .lien-telecharger, .lien-restaurer { font-size: 12px; font-weight: 600; color: var(--ink-muted); cursor: pointer; background: none; border: none; font-family: inherit; padding: 4px 0; }
   .lien-restaurer { color: var(--accent); }
   @media (hover: hover) and (pointer: fine) { .lien-telecharger:hover, .lien-restaurer:hover { color: var(--accent); text-decoration: underline; } }
+
+  /* Fenêtre « Lien de consultation » (suite 51, js/liens-consultation.js) :
+     adresse en lecture seule, Copier / Partager / Ouvrir, dernière
+     consultation, puis Nouveau lien / Supprimer en petits liens. */
+  .pop-lien-consultation { width: min(360px, calc(100vw - 20px)); }
+  .pop-lien-consultation .lc-aide { font-size: 12.5px; color: var(--ink-muted); line-height: 1.45; margin: 4px 0 10px; }
+  .pop-lien-consultation .lc-url { width: 100%; font: inherit; font-size: 12px; font-family: 'IBM Plex Mono', monospace; padding: 8px 10px;
+    border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); }
+  .pop-lien-consultation .lc-boutons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .pop-lien-consultation .lc-boutons > * { flex: 1 1 auto; text-align: center; text-decoration: none; }
+  .pop-lien-consultation .lc-vu { font-size: 11.5px; color: var(--ink-faint); margin: 10px 0 0; }
+  .pop-lien-consultation .lc-gestion { display: flex; gap: 16px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+  .pop-lien-consultation .lien-supprimer { color: var(--important-ink); }
+  /* Bouton principal (Copier, Créer le lien) : l'habillage des boutons de
+     .form-pop (gris) l'emportait sur .btn-enregistrer. */
+  .pop-lien-consultation .lc-boutons .btn-enregistrer { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 
   .categories { display: flex; gap: 10px; margin: 16px 0 14px; }
   .categorie { display: flex; align-items: center; gap: 8px; padding: 7px 12px 7px 8px; border-radius: 999px; border: 1.5px solid var(--border); background: var(--surface); cursor: pointer; font-family: inherit; }

@@ -76,6 +76,8 @@
       // aurait été inerte au clic pour de vrais utilisateurs aussi, pas
       // seulement pour le test.
       '<label class="champ-actif"><span class="interrupteur"><input type="checkbox" checked><span class="interrupteur-piste"></span></span>Actif</label>' +
+      // Lien de consultation en lecture seule (suite 51, js/liens-consultation.js).
+      '<button type="button" class="lien-consultation" title="Lien de consultation en lecture seule">Lien</button>' +
       '<button type="button" class="lien-modifier">Modifier</button>' +
       '</span></div>';
   }
@@ -126,6 +128,9 @@
     function nomDe(el) { return el.closest("[data-id]").querySelector("b").textContent; }
     zone.querySelectorAll(".lien-modifier").forEach(function (btn) {
       btn.addEventListener("click", function () { ouvrirModifierPersonne(idDe(btn), apresChangement); });
+    });
+    zone.querySelectorAll(".lien-consultation").forEach(function (btn) {
+      btn.addEventListener("click", function () { ouvrirLienConsultation(idDe(btn)); });
     });
     zone.querySelectorAll(".lien-reactiver").forEach(function (btn) {
       btn.addEventListener("click", function () {
