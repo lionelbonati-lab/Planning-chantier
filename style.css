@@ -2053,6 +2053,22 @@
   @media (hover: hover) and (pointer: fine) { .btn-effacer:hover { background: var(--interdit-bg); } }
   .btn-enregistrer { background: var(--accent); border: 1.5px solid var(--accent); color: var(--accent-ink); }
   .btn-enregistrer:disabled { opacity: .55; cursor: default; }
+  /* Sauvegardes (suite 49, onglet Général, js/page-sauvegardes.js) : titre
+     et boutons sur une ligne, texte d'aide dessous ; une ligne par
+     sauvegarde (date, type, nombre de lignes, Télécharger / Restaurer). */
+  .bloc-sauvegardes { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 26px; max-width: 540px; }
+  .bloc-sauvegardes > .titre-liste { flex: 1 1 auto; margin: 0; }
+  .bloc-sauvegardes > .page-sous { flex: 1 1 100%; max-width: none; margin: 4px 0 10px; }
+  #listeSauvegardes { display: flex; flex-direction: column; gap: 6px; max-width: 540px; }
+  .ligne-sauvegarde { gap: 10px; flex-wrap: wrap; }
+  .ligne-sauvegarde .sv-infos { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; flex: 1 1 auto; min-width: 0; font-variant-numeric: tabular-nums; }
+  .ligne-sauvegarde .sv-type { font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); color: var(--ink-muted); }
+  .ligne-sauvegarde .sv-type.sv-avant_restauration { color: var(--important-ink); }
+  .ligne-sauvegarde .sv-lignes { font-size: 11px; color: var(--ink-faint); }
+  .ligne-sauvegarde .ligne-actions { padding-left: 0; }
+  .lien-telecharger, .lien-restaurer { font-size: 12px; font-weight: 600; color: var(--ink-muted); cursor: pointer; background: none; border: none; font-family: inherit; padding: 4px 0; }
+  .lien-restaurer { color: var(--accent); }
+  @media (hover: hover) and (pointer: fine) { .lien-telecharger:hover, .lien-restaurer:hover { color: var(--accent); text-decoration: underline; } }
 
   .categories { display: flex; gap: 10px; margin: 16px 0 14px; }
   .categorie { display: flex; align-items: center; gap: 8px; padding: 7px 12px 7px 8px; border-radius: 999px; border: 1.5px solid var(--border); background: var(--surface); cursor: pointer; font-family: inherit; }

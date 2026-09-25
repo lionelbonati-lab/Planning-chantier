@@ -8280,3 +8280,54 @@ Deux choix en haut de l'aperçu. Ils ne sont jamais imprimés et ne sont pas ret
   - choix non retenus.
 - `test_suite40.js` : la barre Période / Pour prend place entre le titre et l'aperçu.
 - **Suite complète : 58/58** (`node lancer_tests.js`).
+
+## 157. Round du 25.09.2026 (suite 49) — Sauvegarde automatique
+
+Proposition 14 retenue par Lionel : « Sauvegarde automatique : un export régulier des données Supabase, pour pouvoir revenir en arrière après une grosse erreur. »
+
+### Serveur (sql/0017_sauvegardes.sql, appliquée sur le projet)
+- Nouvelle table `sauvegardes`. Chaque ligne est une copie complète des 16 tables de l'appli, en JSON : environ 8 Ko compressés pour 336 lignes aujourd'hui.
+- **Chaque nuit** : tâche pg_cron `sauvegarde-planning` à 02:17 UTC (04:17 en été, 03:17 en hiver). Elle n'enregistre une copie que si quelque chose a changé depuis la précédente.
+- Nombre de copies gardées :
+
+  | Type | Gardées |
+  |---|---|
+  | Automatiques | 30 |
+  | Manuelles | 20 |
+  | « Avant restauration » | 10 |
+  | Importées | 10 |
+
+- Fonctions, exécutables par un utilisateur connecté seulement :
+  - `creer_sauvegarde` ;
+  - `importer_sauvegarde` : refuse un fichier qui n'a pas la forme d'une sauvegarde ;
+  - `restaurer_sauvegarde` : tout est remplacé en une seule transaction.
+    - L'état actuel est d'abord sauvegardé (« Avant restauration »).
+    - Les tables sont vidées des enfants aux parents, puis remplies des parents aux enfants.
+    - Les identifiants d'origine sont gardés et les compteurs recalés.
+    - Une colonne ajoutée depuis la copie prend sa valeur par défaut.
+- La table n'accepte des clients que la lecture et la suppression.
+- Vérifié sur la vraie base, dans un bloc annulé à la fin (rien n'a été modifié) :
+  - une tâche, une note et une personne modifiées ou supprimées, puis restaurées → contenu identique à l'original, compteurs justes ;
+  - 2e sauvegarde auto identique → pas de doublon.
+- Première sauvegarde automatique faite.
+
+### Onglet Général : section « Sauvegardes » (js/page-sauvegardes.js, js/coquille.js, style.css)
+- La liste, plus récentes en haut : date et heure, type (Automatique, Manuelle, Avant restauration, Importée), nombre de lignes. Relue à chaque ouverture de l'onglet.
+- **Sauvegarder maintenant** : fait une sauvegarde manuelle.
+- **Télécharger** : fichier `planning-sauvegarde-AAAA-MM-JJ-HHMM.json`, pour une copie hors de Supabase.
+- **Importer un fichier…** : un fichier téléchargé plus tôt revient dans la liste ; il reste à le restaurer. Un autre fichier est refusé avec un message.
+- **Restaurer…** : demande confirmation, en rappelant la sauvegarde de l'état actuel. Puis la page se recharge. En cas d'échec, rien n'a changé et un message le dit.
+
+### Tests
+- `test_suite49.js` (nouveau, 20 vérifications, 1300 et 360 px) :
+  - liste et tri ;
+  - sauvegarder maintenant ;
+  - télécharger (contenu du fichier) ;
+  - importer, et refus d'un autre fichier ;
+  - restaurer : confirmation, annulation, appel serveur, rechargement ;
+  - table illisible ; liste vide.
+- `aide_tests.js` : le faux Supabase gère `creer_sauvegarde`, `importer_sauvegarde` et `restaurer_sauvegarde`.
+- **Suite complète : 59/59** (`node lancer_tests.js`, 2 passes de suite).
+- Échec de `test_suite35.js` : 1 échec sur 3 passes complètes, malgré le correctif de la suite 47.
+  - Il ne s'est pas reproduit en 8 lancements en parallèle, ni en 2 passes complètes.
+  - La vérification en cause n'a pas été notée : piste encore ouverte.
