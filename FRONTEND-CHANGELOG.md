@@ -7487,3 +7487,48 @@ Vérifié en local (Playwright) — **`test_suite28.js`** (nouveau), 31 vérific
 - **Période à cheval** : raccourcie, pas effacée.
 - **Téléphone** : les 3 boutons tiennent dans la barre du bas, et les 19 cartes s'affichent sans défilement de côté.
 - **Suite complète** : mêmes 8 échecs que sur `main` (anciens tests, cf. §129) ; `test_suite26.js` et `test_suite27.js` restent OK.
+
+## 137. Round du 25.09.2026 (suite 29) — Passe de vérification des bordures de l'impression
+
+Lionel : « Fait une passe de vérification des bordures de l'impression. »
+
+**Méthode**
+- Une semaine regroupant les cas délicats :
+  - ligne Horaires, avec un jour matin seul et un jour sans horaire ;
+  - jalon fusionné sur 2 jours ;
+  - note ;
+  - case à 2 bandes de chantier ;
+  - absence fusionnée matin/aprem ;
+  - frontière Personnel/Intervenants.
+- Rendu comme à l'impression, et vrai PDF Chrome (le même moteur que « Enregistrer en PDF ») rastérisé à 4× avec pdf.js.
+- L'épaisseur de chaque trait est mesurée au pixel, pas à l'œil. Ensuite, même chose sur 24 personnes en A4 paysage pour les coupures de page.
+
+**Ce qui était déjà juste, sur une page** : tous les traits font exactement 1px ou 2px dans le PDF, sans arrondi parasite (cf. §16.09).
+- **Cadres** : cadre extérieur et colonne des noms à 2px, séparation entre jours à 1px.
+- **Pointillé matin/aprem** : 1px, y compris dans la nouvelle ligne Horaires (§135).
+- **Case à 2 bandes** : séparation entre bandes à 1px.
+- **Personnes** : chacune encadrée à 2px en haut et en bas.
+
+**3 défauts trouvés et corrigés, tous sur les impressions de plus d'une page** :
+1. **Tout ce qui dépasse la 1re page était coupé** : le PDF de 24 personnes n'avait qu'une page, et Ouvrier 18 à 24 manquaient.
+   - Cause : `html, body { height: 100%; overflow: hidden; }` (`style.css`, pour l'appli à l'écran, depuis le 22.09) valait aussi à l'impression.
+   - Correction : annulé dans `@media print`. Le PDF a maintenant ses 2 pages.
+2. **Trait orphelin en bas de page 1** : le trait 2px du haut de la personne suivante restait seul sous la dernière ligne.
+3. **Page 2 : la 1re personne collée à l'en-tête répété**, sans l'espace ni le trait 2px qui séparent les autres.
+
+   Cause commune de 2 et 3 : avec `border-collapse`, Chrome partage chaque trait entre les 2 lignes qu'il sépare. Une coupure de page entre une personne et la ligne vide qui la suit tranchait donc le trait.
+   - Un premier essai (la ligne vide suit toujours la personne d'en dessous) laissait la dernière personne de la page avec un bas à 1px.
+   - Correction (`js/impression.js`, `style.css`) : la ligne vide entre 2 personnes est coupée en 2 demi-lignes (`print-spacer-fin` puis `print-spacer-personne`, même hauteur totale : 6px, 14px à la frontière Personnel/Intervenants). La première reste avec la personne du dessus (`break-before: avoid`), la seconde avec celle du dessous (`break-after: avoid`). La coupure tombe entre 2 demi-lignes vides, où il n'y a aucun trait à trancher.
+   - Résultat : la page 1 finit sur un bas à 2px, et la page 2 commence par l'en-tête, l'espace, puis le trait 2px de la personne.
+
+**Vu, non modifié** :
+- Sur les pages suivantes, le bas de l'en-tête répété reste à 1px : c'est le même trait qu'en page 1, où l'en-tête enchaîne sur la ligne Jalons.
+- Les colonnes des jours n'ont pas toutes la même largeur. Elles suivent leur contenu, et un jour sans horaire est plus étroit que les autres.
+
+Vérifié en local (Playwright) — **`test_suite29.js`** (nouveau), 6 vérifications, toutes OK :
+- épaisseur de chaque trait horizontal mesurée au pixel sur l'aperçu en média print ;
+- écarts entre personnes inchangés ;
+- structure des demi-lignes et leurs règles de coupure ;
+- `html`/`body` non rognés à l'impression ;
+- PDF A4 de 24 personnes sur 2 pages (1 seule avant la correction).
+- **Suite complète** : mêmes 8 échecs que sur `main` (anciens tests, cf. §129).

@@ -389,8 +389,20 @@
         // seulement à la frontière calculée plus haut. print-spacer-personne
         // (portage mockup, rounds 8-9) : posée sur TOUS ces spacers, cf. son
         // commentaire CSS pour le raisonnement complet.
-        var classeSpacer = "print-spacer print-spacer-personne" + (idx === indexFrontiereSection ? " print-spacer-section" : "");
-        h += '<tr class="' + classeSpacer + '"><td colspan="' + NB_COLS + '"></td></tr>';
+        // Passe de vérification des bordures (round du 25.09.2026, suite
+        // 29) — Lionel : « Fait une passe de vérification des bordures de
+        // l'impression. » Le spacer est coupé en 2 demi-lignes vides :
+        // print-spacer-fin reste sur la page de la personne du DESSUS (elle
+        // porte la moitié basse de son trait 2px), print-spacer-personne
+        // suit celle du DESSOUS (trait 2px du haut, cf. son CSS). Sous
+        // border-collapse, Chrome partage chaque trait entre les 2 lignes
+        // qu'il sépare ; une coupure de page entre une personne et son
+        // spacer tranchait donc le trait en 2 (1px en bas de page, trait
+        // orphelin ou personne collée à l'en-tête en page suivante). Entre
+        // 2 demi-lignes vides, il n'y a plus aucun trait à trancher.
+        var section = idx === indexFrontiereSection ? " print-spacer-section" : "";
+        h += '<tr class="print-spacer print-spacer-fin' + section + '"><td colspan="' + NB_COLS + '"></td></tr>';
+        h += '<tr class="print-spacer print-spacer-personne' + section + '"><td colspan="' + NB_COLS + '"></td></tr>';
       }
     });
 

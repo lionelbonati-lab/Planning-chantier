@@ -2164,6 +2164,11 @@
      plus, jamais seule), juste plus haut ; uniquement à la frontière
      Personnel/Intervenants (cf. openPrintSheet, indexFrontiereSection). */
   table.print-table tr.print-spacer-section td { height: 14px; }
+  /* Spacer entre 2 personnes coupé en 2 demi-lignes (suite 29, cf.
+     openPrintSheet) : même hauteur totale qu'avant (6px, 14px à la
+     frontière Personnel/Intervenants). */
+  table.print-table tr.print-spacer-fin td, table.print-table tr.print-spacer-fin + tr.print-spacer td { height: 3px; }
+  table.print-table tr.print-spacer-fin.print-spacer-section td, table.print-table tr.print-spacer-fin + tr.print-spacer-section td { height: 7px; }
   /* Portage mockup (rounds 7 à 10) — 3 nouvelles lignes de repère, toutes à
      2px : (1) sous Jalons, posée sur le PREMIER spacer qui suit la ligne
      Jalons (classe print-spacer-jalons — qu'il s'agisse du spacer avant
@@ -2387,6 +2392,15 @@
        sombre) remplit toute la page autour du document, gaspille de
        l'encre et ne ressemble pas à du papier. */
     body { background: #fff !important; }
+    /* Passe de vérification des bordures de l'impression (round du
+       25.09.2026, suite 29) — Lionel : « Fait une passe de vérification des
+       bordures de l'impression. » Trouvé en générant un PDF A4 de 24
+       personnes : UNE SEULE page, les lignes au-delà coupées net (Ouvrier 18
+       à 24 absents du PDF). Cause : `html, body { height: 100%; overflow:
+       hidden; }` (plus haut, pour l'appli à l'écran où seul #app défile)
+       vaut aussi à l'impression — le document imprimé est rogné à la
+       hauteur d'UNE page. Rendu à l'impression sa hauteur naturelle. */
+    html, body { height: auto !important; overflow: visible !important; }
     .voile-confirm { position: static !important; background: none !important; }
     .impression-modal {
       position: static !important; transform: none !important; left: auto !important; top: auto !important;
@@ -2426,5 +2440,16 @@
     }
     table.print-table { page-break-inside: auto; }
     table.print-table tr { page-break-inside: avoid; }
+    /* Même passe (suite 29), à la coupure de page d'un PDF de 24 personnes :
+       le spacer qui précède une personne porte le trait 2px du HAUT de
+       cette personne (border-bottom, cf. print-spacer-personne plus haut).
+       Coupé d'elle, il restait seul en bas de page (trait orphelin sous la
+       dernière personne) et la personne arrivait en page 2 collée à
+       l'en-tête répété, sans espace ni trait 2px. Le spacer suit donc
+       toujours la ligne d'en dessous sur la même page, et la demi-ligne
+       print-spacer-fin (cf. openPrintSheet) celle du dessus : la coupure
+       tombe entre les 2 demi-lignes vides, où aucun trait n'est partagé. */
+    table.print-table tr.print-spacer:not(.print-spacer-fin) { break-after: avoid; page-break-after: avoid; }
+    table.print-table tr.print-spacer-fin { break-before: avoid; page-break-before: avoid; }
     @page { size: landscape; margin: 12mm; }
   }
