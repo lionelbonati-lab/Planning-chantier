@@ -1198,7 +1198,7 @@
   // PERSONNE SEULE (plus "2 lignes par personne") — une bulle est créée par
   // personne touchée, jamais par demi-ligne.
   function personnesSecteurListe(secteur) {
-    return PERSONNES.filter(function (p) { return (p.sousTraitant ? "sous-traitant" : "personnel") === secteur; }).map(function (p) { return p.id; });
+    return personnesAffichees(secteur).map(function (p) { return p.id; }); // ordre affiché, équipes comprises (suite 33)
   }
   // Numéro de demi-slot (jour*2 + 0/1) sous une cellule DOM donnée. En mode
   // "personne" chaque cellule EST déjà une demi-journée précise (cf.

@@ -136,5 +136,5 @@ const lireTableau = (page) => page.evaluate(() => {
 
   verifier(toutesErreurs.length === 0, 'aucune erreur JS (' + toutesErreurs.join(' | ') + ')');
   await browser.close();
-  process.exit(bilan() ? 0 : 1);
+  process.exit(bilan());
 })();

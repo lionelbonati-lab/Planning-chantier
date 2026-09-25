@@ -1008,6 +1008,33 @@
   .grille-compacte .th.th-demi-aprem { margin-left: -1px; padding-left: 1px; }
   .grille-compacte .bulle.demi-aprem .b-carte { margin-left: -1px; padding-left: 9px; }
   .lbl-compacte { justify-content: center; }
+  /* Équipes (round du 25.09.2026, suite 33 — js/equipes.js). Ligne
+     d'équipe : trait d'accent à gauche, ▸/▾ pour déplier ses membres, noms
+     des membres de la semaine sous le nom (2 lignes au plus, liste
+     complète au survol). Membres : décalés sous leur équipe, trait plus
+     pâle — on voit d'un coup d'œil à quelle équipe ils appartiennent. */
+  .lbl-equipe { cursor: pointer; box-shadow: inset 3px 0 0 var(--accent); padding-left: 8px; }
+  .lbl-equipe .equipe-titre { display: flex; align-items: center; gap: 3px; min-width: 0; }
+  .lbl-equipe .equipe-titre b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lbl-equipe .equipe-repli {
+    flex-shrink: 0; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 4px;
+    background: transparent; color: var(--ink-muted); font-size: 11px; line-height: 18px; cursor: pointer;
+  }
+  @media (hover: hover) and (pointer: fine) { .lbl-equipe .equipe-repli:hover { background: var(--accent-soft); color: var(--accent); } }
+  .lbl .equipe-membres {
+    font-family: inherit; text-transform: none; letter-spacing: 0; font-size: 10.5px; line-height: 1.25;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .lbl-membre { padding-left: 20px; box-shadow: inset 3px 0 0 var(--accent-soft); }
+  .lbl-membre b { font-weight: 600; }
+  .composition-equipe { width: 300px; }
+  .composition-aide { margin: 0 0 8px; font-size: 11.5px; line-height: 1.4; color: var(--ink-faint); }
+  .composition-liste { display: flex; flex-direction: column; gap: 2px; max-height: 46vh; overflow-y: auto; margin-bottom: 10px; }
+  .composition-membre { display: flex; align-items: center; gap: 8px; padding: 6px 4px; border-radius: 6px; font-size: 13px; cursor: pointer; }
+  .composition-membre span { flex: 1; min-width: 0; }
+  .composition-membre small { font-size: 11px; color: var(--ink-faint); }
+  @media (hover: hover) and (pointer: fine) { .composition-membre:hover { background: var(--surface); } }
+  .composition-actions { flex-wrap: wrap; }
   /* .bulle-suite/.bulle-continue (segments de continuation d'une tâche
      multi-jours en mode compact) : supprimées au round du 08.09.2026,
      suite (§48) — une tâche/absence multi-jours est désormais fusionnée en
@@ -1785,6 +1812,9 @@
   @media (hover: hover) and (pointer: fine) { .reglage-couleur-reset:hover { color: var(--accent); } }
 
   .liste-intervenants { display: flex; flex-direction: column; gap: 8px; max-width: 520px; }
+  /* Page Personnel : 2 listes, Équipes puis Personnes (suite 33). */
+  .titre-liste { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-muted); margin: 22px 0 6px; }
+  #listeEquipes { margin-top: 8px; }
   .ligne-intervenant { display: flex; align-items: center; padding: 11px 14px; border: 1px solid var(--border); border-radius: 10px; font-size: 13px; background: var(--surface-2); }
   .ligne-intervenant b { font-weight: 700; }
   .ligne-intervenant > span.compte { color: var(--ink-faint); font-size: 11px; margin-left: 10px; }
@@ -2375,6 +2405,12 @@
      fractionnaires du 16.09) dans l'encre de la grille, pour rester dans le
      même langage que le reste du tableau. Le padding perd 1px de chaque côté :
      la pastille garde exactement sa taille, la hauteur des cases ne bouge pas. */
+  /* Équipes à l'impression (suite 33, cf. openPrintSheet) : noms des
+     membres de la semaine sous le nom de l'équipe, plus petits, repliés à
+     la largeur de la colonne des noms ; un membre imprimé à part (absence,
+     tâche à lui) est décalé sous son équipe. */
+  table.print-table .print-membres { display: block; max-width: 120px; white-space: normal; font-size: 8.5px; font-weight: 500; line-height: 1.25; color: var(--ink-muted); margin-top: 1px; }
+  table.print-table td.print-nom-membre { padding-left: 14px; }
   .print-statut { display: inline-block; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; padding: 0 5px; border: 1px solid var(--border-strong); border-radius: 999px; margin-top: 3px; }
   .print-important { color: var(--important-ink); font-weight: 700; }
   .print-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }

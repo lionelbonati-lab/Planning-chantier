@@ -7616,3 +7616,44 @@ Vérifié en local (Playwright) — **`test_suite32.js`** (nouveau), 28 vérific
 - téléphone : carte Bilan correcte, pas de défilement horizontal.
 - `test_suite27.js` (lit maintenant les 2 premières colonnes) et `test_feries_mobile.js` (compte les 12 cartes de mois hors Bilan) adaptés : 33/33 et 16/16.
 - **Suite complète** : mêmes 8 échecs que sur `main` (anciens tests qui cherchent des fonctions dans `index.html`, cf. §129).
+
+## 141. Round du 25.09.2026 (suite 33) — Équipes : ligne d'équipe, composition par semaine, impression
+
+Lionel : « J'aimerai pouvoir gérer mon personnel par équipe sur de plus grands chantiers. Plusieurs personnes auront les mêmes tâches sur toute la semaine. » Ses choix : **ligne d'équipe** (la tâche est saisie une fois pour toute l'équipe, les membres listés sous le nom), **composition par semaine**, **une ligne par équipe** à l'impression.
+
+### Base (sql/0015_equipes.sql, appliquée — migration `equipes`)
+- `personnes.equipe boolean` : une équipe est une ligne de `personnes`. Elle a ses propres tâches, donc grille, bulles, séries, copier/coller et impression marchent sans code à part.
+- `equipes_compositions (equipe_id, lundi, membres bigint[])` : un **instantané** vaut depuis son lundi jusqu'au prochain instantané de la même équipe. RLS « connecte_tout ».
+- RPC `remplacer_compositions_equipes(p_equipes, p_lignes)` : remplace tous les instantanés des équipes touchées en une transaction.
+
+### Client (js/equipes.js, nouveau)
+- `planCompositionEquipe` (pur) :
+  - « **Cette semaine** » : instantané de la semaine + un pour la semaine d'après, qui remet l'ancienne composition ;
+  - « **Et les suivantes** » : les instantanés suivants de l'équipe sont effacés.
+  - Une personne n'est que dans une équipe à la fois : l'ajouter la retire de son ancienne équipe sur la même portée.
+  - Les instantanés redondants sont retirés.
+- `personnesAffichees(secteur)` : chaque équipe, puis ses membres de la semaine affichée, puis le personnel hors équipe. Cet ordre sert au rendu, à la sélection par glisser et au copier/coller.
+- **Repli ▸/▾** (replié par défaut, mémorisé dans `planning.equipesDepliees`) : un membre replié reste visible sous son équipe s'il a une entrée à lui (absence, congé…).
+- Clic sur le nom de l'équipe → boîte « Équipe A — semaine N » : cases à cocher du personnel, avec l'autre équipe indiquée à côté ; boutons Annuler / Cette semaine / Et les suivantes.
+- Pas d'absence ni de congé sur une ligne d'équipe (menu et entrées rapides) : les absences restent individuelles.
+
+### Pages
+- **Personnel** : liste « Équipes » (+ Nouvelle équipe) au-dessus de « Personnes ».
+- **Barre d'outils** : ligne+ → « Équipe ».
+- **Impression** : une ligne par équipe, avec les noms des membres sous le nom ; un membre qui a une entrée à lui est imprimé sous son équipe.
+
+Vérifié en local (Playwright) — **`test_suite33.js`** (nouveau), 29 vérifications, toutes OK :
+- plan « cette semaine / et les suivantes » ;
+- déplacement d'un membre entre équipes ;
+- ordre replié et déplié ;
+- sélection par glisser ;
+- menu d'une case d'équipe sans Absence/Congé ;
+- boîte de composition et écriture en base ;
+- retour de l'ancienne composition la semaine d'après ;
+- impression ;
+- page Personnel, création d'une équipe ;
+- téléphone sans débordement.
+
+Également :
+- `test_suite32.js` : le code de sortie était inversé (`bilan() ? 0 : 1` alors que `bilan()` renvoie déjà 0/1) ; il passe maintenant à 0 quand tout est OK.
+- **Suite complète** : mêmes 8 échecs que sur `main` (cf. §129).

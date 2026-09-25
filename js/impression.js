@@ -105,7 +105,17 @@
     // disponible sur cette forme de données, cf. construireVueDepuisCache).
     var imprimesTous = (data.personnes || []).filter(function (p) { return !personneVide(p); });
     var sautees = (data.personnes || []).length - imprimesTous.length;
-    var imprPersonnel = imprimesTous.filter(function (p) { return !p.sousTraitant; });
+    // Équipes (round du 25.09.2026, suite 33) — Lionel : impression « Une
+    // ligne par équipe ». Même ordre qu'à l'écran : chaque équipe suivie de
+    // ses membres de CETTE semaine, puis le personnel hors équipe (cf.
+    // ordrePersonnesEquipes, js/equipes.js). La ligne d'équipe porte les
+    // tâches de toute l'équipe ; un membre n'a sa propre ligne que s'il a
+    // quelque chose à lui (absence, tâche ailleurs) — les autres sont
+    // sautés par personneVide, comme n'importe qui.
+    var lundiImpr = (data.isoDates || [])[0];
+    var roleImpr = {};
+    var imprPersonnel = ordrePersonnesEquipes(imprimesTous.filter(function (p) { return !p.sousTraitant; }), lundiImpr, function (p) { return String(p.ancre); })
+      .map(function (e) { roleImpr[String(e.p.ancre)] = e.role; return e.p; });
     var imprIntervenants = imprimesTous.filter(function (p) { return p.sousTraitant; });
     var imprimes = imprPersonnel.concat(imprIntervenants);
     // Index (dans `imprimes`) du dernier "Personnel" avant le 1er
@@ -365,7 +375,15 @@
 
     imprimes.forEach(function (p, idx) {
       h += '<tr>';
-      h += '<td style="font-weight:700;white-space:nowrap">' + esc(p.nom) + '</td>';
+      if (roleImpr[String(p.ancre)] === "equipe") {
+        var nomsEquipe = membresEquipe(p.ancre, lundiImpr).map(function (id) { var m = personneParAncre(id); return m ? m.nom : null; }).filter(Boolean);
+        h += '<td class="print-nom-equipe" style="font-weight:700;white-space:nowrap">' + esc(p.nom) +
+          (nomsEquipe.length ? '<span class="print-membres">' + esc(nomsEquipe.join(", ")) + '</span>' : '') + '</td>';
+      } else if (roleImpr[String(p.ancre)] === "membre") {
+        h += '<td class="print-nom-membre" style="font-weight:600;white-space:nowrap">' + esc(p.nom) + '</td>';
+      } else {
+        h += '<td style="font-weight:700;white-space:nowrap">' + esc(p.nom) + '</td>';
+      }
       for (var i = 0; i < jl.length; i++) {
         var infoMatin = infoCase(p, (p.matin || [])[i]);
         var infoAprem = infoCase(p, (p.aprem || [])[i]);
