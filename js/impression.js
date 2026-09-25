@@ -77,10 +77,17 @@
   // en fait partie ; son ancienne clé reste lue (réglage déjà retenu avant
   // cette suite) et tenue à jour.
   // masques : { ancre de la personne: true } pour chaque personne décochée.
+  // Suite 39 (même jour) — Lionel : « C'est peut-être plus judicieux de
+  // faire un onglet mise en pages. Et garde que les réglage à cocher dans
+  // la feuille impression. » Orientation, taille du texte et titre libre
+  // (devenu le texte libre de l'en-tête) sont partis dans l'onglet Mise en
+  // page (js/page-mise-en-page.js, lireMiseEnPage) ; ici ne restent que
+  // les cases à cocher. Les anciennes valeurs encore retenues sous cette
+  // clé y sont reprises une fois (miseEnPageDepuisSuite38_).
   var CLE_REGLAGES_IMPRESSION = "planning.impression.reglages";
   function reglagesImpressionDefaut_() {
     return { horaires: true, jalons: true, notes: true, intervenants: true, legende: true, statuts: true,
-      couleurs: true, vides: false, masques: {}, orientation: "paysage", taille: "normale", titre: "" };
+      couleurs: true, vides: false, masques: {} };
   }
   function lireReglagesImpression_() {
     var r = reglagesImpressionDefaut_();
@@ -92,8 +99,6 @@
         r.horaires = lireOptionHorairesImpression_();
       }
     } catch (e) {}
-    if (["paysage", "portrait"].indexOf(r.orientation) < 0) r.orientation = "paysage";
-    if (["petite", "normale", "grande"].indexOf(r.taille) < 0) r.taille = "normale";
     return r;
   }
   function ecrireReglagesImpression_(r) {
@@ -183,8 +188,9 @@
     var horairesSemaine = jl.map(function (j) { return horaireDuJour(j.iso); });
     var aDesHoraires = horairesSemaine.some(function (x) { return !!x; });
     // construireDocImpression_(r) — suite 38 : tout le contenu de
-    // .print-doc (titre libre, tableau, légende, mention des personnes
-    // masquées) selon les réglages `r`, reconstruit à chaque changement.
+    // .print-doc (tableau, légende, mention des personnes masquées) selon
+    // les réglages `r`, reconstruit à chaque changement. Le titre libre de
+    // la suite 38 est devenu le texte libre de l'en-tête (suite 39).
     function construireDocImpression_(r) {
       var h = '';
       // NB_COLS : 1 colonne "nom" + 2 sous-colonnes (matin/aprem) par jour —
@@ -193,7 +199,6 @@
       // qu'un nombre en dur, pour ne plus jamais désynchroniser un colspan
       // si le nombre de jours affichés change un jour.
       var NB_COLS = 1 + jl.length * 2;
-      if (r.titre) h += '<div class="print-titre">' + esc(r.titre) + '</div>';
       h += '<table class="print-table"><thead>';
       // round du 15.09.2026 (suite) — Lionel : "j'aimerai bien l'affichage
       // matin/après-midi côte à côte, comme le planning". La grille compacte
@@ -625,11 +630,6 @@
           (opt.classe ? ' class="' + opt.classe + '"' : '') + (r[cle] ? ' checked' : '') + (opt.off ? ' disabled' : '') + '> <span>' + libelle +
           (opt.note ? '<small class="impr-note">' + opt.note + '</small>' : '') + '</span></label>';
       }
-      function choix(cle, valeurs) {
-        return '<select data-r="' + cle + '">' + valeurs.map(function (v) {
-          return '<option value="' + v[0] + '"' + (r[cle] === v[0] ? ' selected' : '') + '>' + v[1] + '</option>';
-        }).join("") + '</select>';
-      }
       var h = '<fieldset><legend>Afficher</legend>';
       if (aDesHoraires) h += caseR("horaires", "Horaires", { classe: "f-horaires" });
       h += caseR("jalons", "Jalons") + caseR("notes", "Notes") + caseR("intervenants", "Intervenants") +
@@ -647,41 +647,58 @@
           '<input type="checkbox" data-p="' + esc(id) + '"' + (r.masques[id] ? '' : ' checked') + (off ? ' disabled' : '') + '> ' + esc(p.nom) +
           (vide ? ' <small>(rien cette semaine)</small>' : '') + '</label>';
       });
-      h += '</div></fieldset><fieldset><legend>Mise en page</legend>' +
-        '<label class="impr-champ">Orientation ' + choix("orientation", [["paysage", "Paysage"], ["portrait", "Portrait"]]) + '</label>' +
-        '<label class="impr-champ">Taille du texte ' + choix("taille", [["petite", "Petite"], ["normale", "Normale"], ["grande", "Grande"]]) + '</label>' +
-        '<label class="impr-champ">Titre <input type="text" data-r="titre" maxlength="120" placeholder="ex. Version du 25.09" value="' + esc(r.titre) + '"></label>' +
-        '<button type="button" class="f-reinit">Réinitialiser</button></fieldset>';
+      h += '</div></fieldset>';
       return h;
     }
     pop.innerHTML = '<div class="cp-titre">Aperçu impression — semaine ' + esc(data.numero) + '</div>' +
-      '<details class="impr-reglages" open><summary>Réglages</summary><div class="impr-grille"></div></details>' +
+      '<details class="impr-reglages" open><summary>Réglages</summary><div class="impr-grille"></div>' +
+        // Suite 39 : plus que des cases à cocher ici ; la mise en page
+        // (orientation, marges, en-tête…) a son onglet, rappelé d'un lien.
+        '<div class="impr-lien-mep"><button type="button" class="f-reinit">Réinitialiser</button>' +
+        '<span><span class="impr-resume-mep"></span> — <button type="button" class="lien-mep">Mise en page ›</button></span></div></details>' +
       '<div class="print-doc"></div>' +
       '<div class="impression-actions"><button type="button" class="f-fermer">Fermer</button><button type="button" class="btn-primaire f-genpdf">Imprimer / PDF</button></div>';
+    var reglagesEl = pop.querySelector(".impr-reglages");
     var grilleReglages = pop.querySelector(".impr-grille");
     var docImpr = pop.querySelector(".print-doc");
-    // Orientation : règle @page posée le temps de l'aperçu (elle suit celle
-    // de style.css, « size: landscape », et l'emporte donc), retirée à la
-    // fermeture.
+    // Mise en page (suite 39, onglet Mise en page) : règle @page complète
+    // (format, marges, en-tête et pied de page, cf. cssPageImpression)
+    // posée le temps de l'aperçu — elle suit celle de style.css (« size:
+    // landscape; margin: 12mm ») et l'emporte donc — retirée à la
+    // fermeture. Relue à chaque ouverture : ce qui a changé dans l'onglet,
+    // ici ou sur un autre appareil, s'applique à la prochaine impression.
+    var mep = lireMiseEnPage();
     var stylePage = document.createElement("style");
     stylePage.className = "style-page-impression";
     document.head.appendChild(stylePage);
     function appliquerReglages_(avecPanneau) {
       if (avecPanneau) {
         // Garde le focus sur le même réglage après reconstruction du panneau.
-        var actif = document.activeElement, cle = actif && grilleReglages.contains(actif) ? (actif.dataset.r || actif.dataset.p || (actif.classList.contains("f-reinit") ? "reinit" : null)) : null;
+        var actif = document.activeElement, cle = actif && grilleReglages.contains(actif) ? (actif.dataset.r || actif.dataset.p) : null;
         grilleReglages.innerHTML = panneauReglages_();
         if (cle) {
-          var cible = cle === "reinit" ? grilleReglages.querySelector(".f-reinit") : grilleReglages.querySelector('[data-r="' + cle + '"], [data-p="' + cle + '"]');
+          var cible = grilleReglages.querySelector('[data-r="' + cle + '"], [data-p="' + cle + '"]');
           if (cible) cible.focus();
         }
       }
-      docImpr.innerHTML = construireDocImpression_(r);
+      // En-tête et pied de page simulés à l'écran (masqués à l'impression,
+      // où le navigateur écrit les vrais dans les marges de chaque page).
+      var z = zonesMiseEnPage(mep, new Date());
+      function ligneEcran(classe, textes) {
+        if (!textes.some(Boolean)) return "";
+        return '<div class="' + classe + '">' + textes.map(function (t) { return '<span>' + esc(t === "page" ? "Page 1 / …" : t) + '</span>'; }).join("") + '</div>';
+      }
+      docImpr.innerHTML = ligneEcran("impr-entete-ecran", z.haut) + construireDocImpression_(r) + ligneEcran("impr-pied-ecran", z.bas);
       docImpr.classList.toggle("sans-horaires", !r.horaires);
       docImpr.classList.toggle("sans-couleurs", !r.couleurs);
-      docImpr.classList.toggle("taille-petite", r.taille === "petite");
-      docImpr.classList.toggle("taille-grande", r.taille === "grande");
-      stylePage.textContent = "@media print { @page { size: " + (r.orientation === "portrait" ? "portrait" : "landscape") + "; margin: 12mm; } }";
+      docImpr.classList.toggle("taille-petite", mep.taille === "petite");
+      docImpr.classList.toggle("taille-grande", mep.taille === "grande");
+      var vars = variablesEspacesImpression(mep);
+      Object.keys(vars).forEach(function (k) { docImpr.style.setProperty(k, vars[k]); });
+      stylePage.textContent = cssPageImpression(mep, new Date());
+      var mg = mep.marges;
+      pop.querySelector(".impr-resume-mep").textContent = (mep.orientation === "portrait" ? "Portrait" : "Paysage") + ", marges " +
+        (mg.haut === mg.bas && mg.bas === mg.gauche && mg.gauche === mg.droite ? mg.haut + " mm" : mg.haut + "/" + mg.droite + "/" + mg.bas + "/" + mg.gauche + " mm");
     }
     grilleReglages.addEventListener("change", function (e) {
       var el = e.target;
@@ -689,26 +706,27 @@
       else if (el.dataset.p) { if (el.checked) delete r.masques[el.dataset.p]; else r.masques[el.dataset.p] = true; }
       else return;
       ecrireReglagesImpression_(r);
-      appliquerReglages_(el.dataset.r !== "titre");
-    });
-    // Titre : aperçu mis à jour à chaque lettre, sans reconstruire le
-    // panneau (le curseur resterait sinon en début de champ).
-    grilleReglages.addEventListener("input", function (e) {
-      if (e.target.dataset.r !== "titre") return;
-      r.titre = e.target.value;
-      ecrireReglagesImpression_(r);
-      appliquerReglages_(false);
-    });
-    grilleReglages.addEventListener("click", function (e) {
-      if (!e.target.closest(".f-reinit")) return;
-      r = reglagesImpressionDefaut_();
-      ecrireReglagesImpression_(r);
       appliquerReglages_(true);
     });
+    reglagesEl.addEventListener("click", function (e) {
+      if (e.target.closest(".f-reinit")) {
+        r = reglagesImpressionDefaut_();
+        ecrireReglagesImpression_(r);
+        appliquerReglages_(true);
+      } else if (e.target.closest(".lien-mep")) {
+        nettoyer();
+        var onglet = document.querySelector('.onglet[data-page="mise-en-page"]');
+        if (onglet) onglet.click();
+      }
+    });
+    // Date d'impression remise à l'heure au moment d'imprimer (l'aperçu a
+    // pu rester ouvert plusieurs minutes).
+    function avantImpression() { stylePage.textContent = cssPageImpression(mep, new Date()); }
+    window.addEventListener("beforeprint", avantImpression);
     appliquerReglages_(true);
     document.body.appendChild(overlay);
     document.body.appendChild(pop);
-    function nettoyer() { overlay.remove(); pop.remove(); stylePage.remove(); if (popFermerActuel === nettoyer) popFermerActuel = null; }
+    function nettoyer() { overlay.remove(); pop.remove(); stylePage.remove(); window.removeEventListener("beforeprint", avantImpression); if (popFermerActuel === nettoyer) popFermerActuel = null; }
     overlay.addEventListener("pointerdown", nettoyer);
     pop.querySelector(".f-fermer").addEventListener("click", nettoyer);
     popFermerActuel = nettoyer;

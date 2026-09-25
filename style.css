@@ -2130,7 +2130,7 @@
   .impression-modal .cp-titre { font-size: 13px; }
   .print-doc { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px; font-size: 12px; }
   table.print-table { width: 100%; border-collapse: collapse; }
-  table.print-table th, table.print-table td { border: 1px solid var(--border-strong); padding: 5px 7px; font-size: calc(11px * var(--impr-echelle, 1)); vertical-align: top; }
+  table.print-table th, table.print-table td { border: 1px solid var(--border-strong); padding: var(--impr-pad-cases, 5px) 7px; font-size: calc(11px * var(--impr-echelle, 1)); vertical-align: top; }
   /* Option A — bande de couleur par tâche (round du 16.09.2026, choisie par
      Lionel via AskUserQuestion pour représenter plusieurs chantiers sur la
      même case à l'impression, cf. infoCase/celluleTache dans openPrintSheet) :
@@ -2148,7 +2148,7 @@
      que la bordure de grille normale, pour rester visible même quand 2
      bandes partagent la même couleur de chantier). */
   table.print-table td.td-tache { padding: 0; }
-  table.print-table .print-bande { padding: 5px 7px; }
+  table.print-table .print-bande { padding: var(--impr-pad-cases, 5px) 7px; }
   table.print-table .print-bande + .print-bande { border-top: 1px solid var(--border-strong); }
   /* Portage du mockup d'affinage des bordures (mockup-impression-bordures.html,
      rounds 1 à 13, validés par Lionel le 15.09.2026 — "super, passe à la
@@ -2251,7 +2251,7 @@
      donc silencieusement et affichait un trait plein là où "border: none"
      était déjà écrit. Ajout de "table.print-table tr" pour repasser devant,
      (0,1,3), sans toucher au reste (padding/height inchangés). */
-  table.print-table tr.print-spacer td { border: none; padding: 0; height: 6px; }
+  table.print-table tr.print-spacer td { border: none; padding: 0; height: var(--impr-esp-personnes, 6px); }
   /* round du 15.09.2026 (suite) — Lionel : "Ligne entre personnel et
      intervenants, vide et sans couleur aussi, un peu plus large que celle
      entre le personnel pour bien voir la distinction" — même séparateur
@@ -2259,12 +2259,12 @@
      ci-dessus s'applique déjà, .print-spacer-section vient toujours en
      plus, jamais seule), juste plus haut ; uniquement à la frontière
      Personnel/Intervenants (cf. openPrintSheet, indexFrontiereSection). */
-  table.print-table tr.print-spacer-section td { height: 14px; }
+  table.print-table tr.print-spacer-section td { height: var(--impr-esp-sections, 14px); }
   /* Spacer entre 2 personnes coupé en 2 demi-lignes (suite 29, cf.
      openPrintSheet) : même hauteur totale qu'avant (6px, 14px à la
      frontière Personnel/Intervenants). */
-  table.print-table tr.print-spacer-fin td, table.print-table tr.print-spacer-fin + tr.print-spacer td { height: 3px; }
-  table.print-table tr.print-spacer-fin.print-spacer-section td, table.print-table tr.print-spacer-fin + tr.print-spacer-section td { height: 7px; }
+  table.print-table tr.print-spacer-fin td, table.print-table tr.print-spacer-fin + tr.print-spacer td { height: calc(var(--impr-esp-personnes, 6px) / 2); }
+  table.print-table tr.print-spacer-fin.print-spacer-section td, table.print-table tr.print-spacer-fin + tr.print-spacer-section td { height: calc(var(--impr-esp-sections, 14px) / 2); }
   /* Portage mockup (rounds 7 à 10) — 3 nouvelles lignes de repère, toutes à
      2px : (1) sous Jalons, posée sur le PREMIER spacer qui suit la ligne
      Jalons (classe print-spacer-jalons — qu'il s'agisse du spacer avant
@@ -2470,7 +2470,7 @@
   table.print-table td.print-nom-membre { padding-left: 14px; }
   .print-statut { display: inline-block; font-size: calc(9px * var(--impr-echelle, 1)); font-weight: 700; text-transform: uppercase; letter-spacing: .02em; padding: 0 5px; border: 1px solid var(--border-strong); border-radius: 999px; margin-top: 3px; }
   .print-important { color: var(--important-ink); font-weight: 700; }
-  .print-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .print-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: var(--impr-esp-legende, 14px); padding-top: 12px; border-top: 1px solid var(--border); }
   .print-legend .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink); }
   .print-legend .legend-item .sw { width: 13px; height: 13px; border-radius: 3px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.15); }
   .skip-note { font-size: 11.5px; color: var(--ink-faint); font-style: italic; margin-top: 10px; }
@@ -2484,10 +2484,11 @@
   /* Réglages de l'aperçu d'impression — round du 25.09.2026 (suite 38).
      Lionel : « Améliore la page impression pour pouvoir modifier
      manuellement divers réglages. Afficher ou non certaines données. »
-     Panneau repliable (<details>) au-dessus de l'aperçu, 3 blocs côte à
-     côte (Afficher, Personnes, Mise en page), les uns sous les autres sur
-     téléphone. Jamais imprimé (cf. @media print). La case « Horaires »
-     (suite 27) y a rejoint les autres ; elle était dans la barre du bas. */
+     Panneau repliable (<details>) au-dessus de l'aperçu, blocs côte à
+     côte (Afficher, Personnes ; Mise en page partie dans son onglet à la
+     suite 39), les uns sous les autres sur téléphone. Jamais imprimé (cf.
+     @media print). La case « Horaires » (suite 27) y a rejoint les autres ;
+     elle était dans la barre du bas. */
   .impr-reglages { margin: 10px 0 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
   .impr-reglages > summary { cursor: pointer; padding: 8px 12px; font-size: 12.5px; font-weight: 700; color: var(--ink); user-select: none; }
   .impr-grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px 14px; padding: 0 12px 12px; }
@@ -2500,20 +2501,56 @@
   .impr-option.impr-membre { padding-left: 16px; font-weight: 500; }
   .impr-liste { display: flex; flex-direction: column; gap: 5px; max-height: 190px; overflow-y: auto; padding-right: 4px; }
   .impr-sous-titre { margin-top: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-faint); }
-  .impr-champ { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--ink); }
-  .impr-champ select, .impr-champ input { font: inherit; font-weight: 500; min-width: 0; padding: 4px 6px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--surface-2); color: var(--ink); }
-  .impr-champ input { flex: 1; max-width: 170px; }
-  .impr-grille .f-reinit { align-self: flex-start; margin-top: 4px; }
   /* Taille du texte (réglage) : une échelle appliquée aux tailles du
      tableau (cases, en-têtes, statuts, horaires). */
   .print-doc.taille-petite { --impr-echelle: .82; }
   .print-doc.taille-grande { --impr-echelle: 1.2; }
-  /* Titre libre (réglage), imprimé en tête de feuille. */
-  .print-titre { font-size: calc(15px * var(--impr-echelle, 1)); font-weight: 700; color: var(--ink); margin-bottom: 8px; }
   /* Sans couleurs (réglage) : nom du chantier en petit sous la tâche —
      Lionel : « Si les couleurs sont enlevées, prévoir de noter le nom du
      chantier ». */
   table.print-table .print-chantier { display: block; font-size: calc(8.5px * var(--impr-echelle, 1)); font-weight: 600; color: var(--ink-muted); margin-top: 1px; }
+  /* Mise en page (round du 25.09.2026, suite 39, js/page-mise-en-page.js).
+     Lionel : « En-tête, pied de pages, marges, espaces entre les éléments.
+     C'est peut-être plus judicieux de faire un onglet mise en pages. »
+     Onglet : réglages à gauche (mêmes fieldsets que le panneau de l'aperçu
+     d'impression, .impr-grille), aperçu schématique de la feuille à droite,
+     l'un sous l'autre sous 900 px. */
+  .mep-grille { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; max-width: 1180px; }
+  @media (max-width: 900px) { .mep-grille { grid-template-columns: minmax(0, 1fr); } }
+  .mep-formulaire.impr-grille { padding: 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px 18px; }
+  .mep-champ { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--ink); }
+  .mep-champ select, .mep-champ input { font: inherit; font-weight: 500; min-width: 0; padding: 4px 6px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--surface-2); color: var(--ink); }
+  .mep-champ input[type="number"] { width: 62px; text-align: right; font-variant-numeric: tabular-nums; }
+  .mep-champ.mep-texte input { flex: 1; max-width: 180px; }
+  .mep-unite { display: inline-flex; align-items: center; gap: 4px; font-weight: 500; color: var(--ink-muted); }
+  .mep-aide { font-size: 10.5px; line-height: 1.3; color: var(--ink-faint); }
+  .mep-etat { align-self: center; font-size: 12px; font-weight: 600; color: var(--ink-faint); }
+  .mep-etat.erreur { color: var(--important-ink, #93362b); }
+  .mep-apercu { position: sticky; top: 12px; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; }
+  .mep-feuille { position: relative; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.18), 0 6px 18px rgba(0,0,0,.08); border-radius: 2px; overflow: hidden; }
+  .mep-cadre { position: absolute; outline: 1px dashed #9aa3ad; overflow: hidden; }
+  .mep-tete { background: #cfd4da; }
+  .mep-ligne { position: relative; background: #eef0f2; border-top: 1px solid #dde1e5; }
+  .mep-ligne span { position: absolute; left: 0; top: 0; bottom: 0; width: 13%; background: #dfe3e7; }
+  .mep-ligne i { display: block; position: relative; left: 13%; height: 100%; max-width: 87%; background: #f3d7a6; opacity: .75; }
+  .mep-legende { display: flex; gap: 6%; }
+  .mep-legende i { width: 14%; background: #dfe3e7; border-radius: 2px; }
+  .mep-zone { position: absolute; display: flex; align-items: center; gap: 4px; color: #57616b; line-height: 1.1; white-space: nowrap; }
+  .mep-zone span { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .mep-z-c { text-align: center; }
+  .mep-z-d { text-align: right; }
+  .mep-legende-apercu { font-size: 11px; color: var(--ink-faint); text-align: center; }
+  /* Aperçu d'impression : en-tête et pied de page simulés à l'écran (le
+     vrai, dans les marges de la page, n'existe qu'à l'impression — cf.
+     cssPageImpression), jamais imprimés (cf. @media print). */
+  .impr-entete-ecran, .impr-pied-ecran { display: flex; gap: 10px; font-size: 10.5px; color: var(--ink-muted); }
+  .impr-entete-ecran { margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px dashed var(--border); }
+  .impr-pied-ecran { margin-top: 12px; padding-top: 6px; border-top: 1px dashed var(--border); }
+  .impr-entete-ecran span, .impr-pied-ecran span { flex: 1 1 0; min-width: 0; }
+  .impr-entete-ecran span:nth-child(2), .impr-pied-ecran span:nth-child(2) { text-align: center; }
+  .impr-entete-ecran span:nth-child(3), .impr-pied-ecran span:nth-child(3) { text-align: right; }
+  .impr-lien-mep { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 0 12px 12px; font-size: 12px; color: var(--ink-muted); }
+  .impr-lien-mep .lien-mep { border: none; background: none; padding: 0; font: inherit; font-weight: 700; color: var(--accent); cursor: pointer; }
 
   /* round du 15.09.2026 — Lionel : "on peut travailler sur la page
      d'impression ?", puis "impression du navigateur" une fois le choix
@@ -2572,7 +2609,7 @@
       --important-ink: #93362b; --absence-bg: #f6c893; --jalon-bg: #d7cdf0; --note-bg: #f7e6ab;
       color: var(--ink); background: #fff;
     }
-    .impression-actions, .impr-reglages { display: none !important; }
+    .impression-actions, .impr-reglages, .impr-entete-ecran, .impr-pied-ecran { display: none !important; }
     /* round du 15.09.2026 (suite) — Lionel : "Il reste une grande fenêtre
        rectangle sous le planning, la supprimer. je veux un fond blanc et
        uni". .print-doc est une carte pensée pour l'APERÇU À L'ÉCRAN (fond
