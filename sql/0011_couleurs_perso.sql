@@ -1,3 +1,7 @@
+-- Renuméroté 0010 -> 0011 le 24.09.2026 (suite 24) : le numéro 0010 est
+-- celui de taches_chantier_id (appliquée le 16.09.2026, citée sous ce nom
+-- dans le code), dont le fichier manquait au dépôt — cf.
+-- sql/0010_taches_chantier_id.sql. Ordre des fichiers = ordre d'application.
 -- Round B (24.09.2026) — Lionel : « Les couleurs devrait être les mêmes sur
 -- tous les appareils du même compte. Comme les chantiers. »
 -- Table de réglages minimaliste, même gabarit que categories_feries

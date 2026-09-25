@@ -299,6 +299,8 @@
     var qNotes = sbClient.from("notes").select("*").gte("date", infos.debut).lte("date", infos.fin);
     return Promise.all([qTaches, qAssignations, qJalons, qNotes]).then(function (r) {
       r.forEach(function (res) { if (res.error) throw res.error; });
+      return chargerDefinitionsSeries_([r[0].data, r[2].data, r[3].data]).then(function () { return r; });
+    }).then(function (r) {
       return construireDonneesSemaine(labG, {
         personnes: etat.personnesActives,
         taches: r[0].data || [],
@@ -307,6 +309,45 @@
         notes: r[3].data || []
       }, { chantiersParId: etat.chantiersParId, statutsParId: etat.statutsParId });
     });
+  }
+
+  // Définitions des séries présentes dans la semaine (suite 24, 24.09.2026
+  // — Lionel, réponse à la revue : « Série quotidienne séparée »). Seules
+  // `frequence` et `intervalle` servent (cf. limiteOccurrenceSerie_) : ce
+  // sont les 2 seuls champs d'une série qui ne changent jamais —
+  // `date_debut`, lui, n'est pas mis à jour quand series.js déplace les
+  // occurrences. Gardées en cache pour la session (etat.seriesParId) ; une
+  // série inconnue (créée depuis) est lue la 1re fois qu'elle apparaît.
+  // Non bloquant : en cas d'échec, les bulles fusionnent comme avant.
+  function chargerDefinitionsSeries_(listes) {
+    etat.seriesParId = etat.seriesParId || {};
+    var manquants = {};
+    listes.forEach(function (l) { (l || []).forEach(function (r) { if (r.serie_id && !etat.seriesParId[r.serie_id]) manquants[r.serie_id] = true; }); });
+    var ids = Object.keys(manquants).map(Number);
+    if (!ids.length) return Promise.resolve();
+    return Promise.resolve(sbClient.from("series").select("id, frequence, intervalle").in("id", ids)).then(function (res) {
+      if (res && !res.error) (res.data || []).forEach(function (sr) { etat.seriesParId[sr.id] = { frequence: sr.frequence, intervalle: sr.intervalle }; });
+    }, function () {});
+  }
+  // Date (ISO, exclue) où une occurrence de la série `serieId` commencée le
+  // `isoDebut` doit forcément s'arrêter : une période plus loin (1 jour,
+  // 1 semaine, 1 mois, 1 an × intervalle — même calcul que pasCalendaire,
+  // functions/enregistrer-serie/logic.js). Une occurrence ne peut pas
+  // atteindre ce jour-là sans chevaucher la suivante : c'est donc
+  // forcément une AUTRE occurrence qui commence, jamais la suite de
+  // celle-ci. null = pas de série, ou série inconnue (fusion inchangée).
+  function limiteOccurrenceSerie_(serieId, isoDebut) {
+    var sr = serieId && etat.seriesParId && etat.seriesParId[serieId];
+    if (!sr || !sr.frequence || !isoDebut) return null;
+    var p = isoDebut.split("-");
+    var d = new Date(Date.UTC(+p[0], +p[1] - 1, +p[2]));
+    var n = parseInt(sr.intervalle, 10) || 1;
+    if (sr.frequence === "jour") d.setUTCDate(d.getUTCDate() + n);
+    else if (sr.frequence === "semaine") d.setUTCDate(d.getUTCDate() + n * 7);
+    else if (sr.frequence === "mois") d.setUTCMonth(d.getUTCMonth() + n);
+    else if (sr.frequence === "annee") d.setUTCFullYear(d.getUTCFullYear() + n);
+    else return null;
+    return d.toISOString().slice(0, 10);
   }
 
   /* ============ DÉMARRAGE ============ */
@@ -977,7 +1018,13 @@
     // explicitement demandé la parité avec les notes ("je veux que le jalon
     // utilise aussi la demi journée, comme ça toutes les bulles se
     // comportent de la même manière") — cf. §47 du FRONTEND-CHANGELOG.
-    return { id: "b" + (idc++), type: type, texte: texte, important: !!opts.important, giDebut: giDebut, duree: Math.max(1, duree), serieId: opts.serieId || null, demiDebut: opts.demiDebut || null, demiFin: opts.demiFin || null };
+    var item = { id: "b" + (idc++), type: type, texte: texte, important: !!opts.important, giDebut: giDebut, duree: Math.max(1, duree), serieId: opts.serieId || null, demiDebut: opts.demiDebut || null, demiFin: opts.demiFin || null };
+    // chantierId (suite 24, 24.09.2026 — Lionel, réponse à la revue : « Jalon
+    // copié garde son chantier ») : toutes les copies (Ctrl+V, Maj+glisser,
+    // ⧉ + flèches) passent par ici avec chantierId: it.chantierId — avant,
+    // la copie d'un jalon rattaché à un chantier partait sans chantier.
+    if (type === "jalon") item.chantierId = opts.chantierId || null;
+    return item;
   }
   // demiDebut/demiFin (round du 08.09.2026, suite — §49) : une tâche/absence
   // porte désormais sa demi-journée PAR BORD, exactement comme un jalon/note
@@ -1095,8 +1142,14 @@
           var demiJ = jd.demi || null;
           var demiCourantJ = demiJ;
           var fin = gi;
+          // Série (suite 24) : une bulle de série ne déborde jamais sur
+          // l'occurrence suivante — une série quotidienne donne une bulle par
+          // jour, une hebdomadaire « toute la semaine » une bulle par
+          // semaine (cf. limiteOccurrenceSerie_).
+          var limiteJ = limiteOccurrenceSerie_(jd.serieId, isoDeGiFenetre(donnees, gi));
           while (fin + 1 < nJoursFenetre) {
             if (fin !== gi && demiCourantJ !== null) break;
+            if (limiteJ && isoDeGiFenetre(donnees, fin + 1) >= limiteJ) break;
             var jsuiv = jalonAuGi(donnees, fin + 1);
             if (!jsuiv || jsuiv.texte !== txt || !!jsuiv.important !== !!jd.important || (jsuiv.chantierId || null) !== (jd.chantierId || null)) break;
             fin++;
@@ -1183,8 +1236,10 @@
         var demiN = entree.demi || null;
         var demiCourant = demiN;
         var fin2 = giStart;
+        var limiteN = limiteOccurrenceSerie_(entree.serieId, isoDeGiFenetre(donnees, giStart)); // série, cf. jalons ci-dessus
         while (fin2 + 1 < nJoursFenetre) {
           if (fin2 !== giStart && demiCourant !== null) break;
+          if (limiteN && isoDeGiFenetre(donnees, fin2 + 1) >= limiteN) break;
           var idxSuiv = indexNonConsommeCorrespondant_(fin2 + 1, entree.texte, entree.important);
           if (idxSuiv === -1) break;
           var suiv = notesArrayAuGi_(fin2 + 1)[idxSuiv];
@@ -1276,7 +1331,9 @@
           var typT = (entreeT.absence || estAbsence(entreeT.texte)) ? "absence" : "tache";
           marquerConsommeT_(hiStart, idxStart);
           var finHi = hiStart;
+          var limiteT = limiteOccurrenceSerie_(entreeT.serieId, isoDeGiFenetre(donnees, Math.floor(hiStart / 2))); // série, cf. jalons plus haut
           while (finHi + 1 < nHalfFenetre && !estGiWeekend(Math.floor((finHi + 1) / 2))) {
+            if (limiteT && isoDeGiFenetre(donnees, Math.floor((finHi + 1) / 2)) >= limiteT) break;
             var idxSuivT = indexNonConsommeCorrespondantT_(finHi + 1, entreeT.texte, entreeT.important, entreeT.statut, chantierT, typT === "absence");
             if (idxSuivT === -1) break;
             finHi++;
@@ -1500,12 +1557,15 @@
   }
   function jalonsParId() {
     var out = {};
-    JALONS.forEach(function (j) { out[j.id] = { texte: j.texte, giDebut: j.giDebut, duree: j.duree, dateDebutIso: j.dateDebutIso, demiDebut: j.demiDebut || null, demiFin: j.demiFin || null, important: !!j.important, chantierId: j.chantierId || null }; });
+    JALONS.forEach(function (j) { out[j.id] = { texte: j.texte, giDebut: j.giDebut, duree: j.duree, dateDebutIso: j.dateDebutIso, demiDebut: j.demiDebut || null, demiFin: j.demiFin || null, important: !!j.important, chantierId: j.chantierId || null, serieId: j.serieId || null }; });
     return out;
   }
+  // serieId (suite 24) : transporté pour être REPOSÉ après l'écriture (cf.
+  // reposerSerie_ dans synchroniser), jamais comparé par les diffs — une
+  // série se gère par series.js, pas par le moteur de diff.
   function notesParId() {
     var out = {};
-    NOTES.forEach(function (n) { out[n.id] = { texte: n.texte, important: !!n.important, giDebut: n.giDebut, duree: n.duree, dateDebutIso: n.dateDebutIso, demiDebut: n.demiDebut || null, demiFin: n.demiFin || null }; });
+    NOTES.forEach(function (n) { out[n.id] = { texte: n.texte, important: !!n.important, giDebut: n.giDebut, duree: n.duree, dateDebutIso: n.dateDebutIso, demiDebut: n.demiDebut || null, demiFin: n.demiFin || null, serieId: n.serieId || null }; });
     return out;
   }
   // Nombre de semaines réellement chargées × 5 (et non plus deuxSemaines
@@ -1627,7 +1687,8 @@
   // rarement plus de 2-3 tâches : le risque d'un état transitoirement vide en
   // cas d'échec entre le delete et l'insert est jugé acceptable — même
   // limite déjà assumée par enregistrer-plage/enregistrer-serie/gerer-serie
-  // (opérations non transactionnelles, cf. leurs en-têtes).
+  // (opérations non transactionnelles, cf. leurs en-têtes). [Dépassé depuis
+  // la suite 24 : la case s'écrit en une transaction, cf. appelerRemplacerCase_.]
   //
   // Simplification permise par le nouveau schéma, pas un choix pris ici :
   // le week-end (jourIdx 6/7) n'a plus besoin de la mécanique de cellule
@@ -1667,14 +1728,42 @@
       if (chantier) ligne.chantier_id = chantier.ligne;
       return ligne;
     });
-    return sbClient.from("taches").delete().eq("personne_id", personneId).eq("date", iso).eq("demi", demi).then(function (res) {
-      if (res.error) throw res.error;
-      return sbClient.from("assignations").delete().eq("personne_id", personneId).eq("date", iso).eq("demi", demi);
-    }).then(function (res) {
-      if (res.error) throw res.error;
-      return lignesTaches.length ? sbClient.from("taches").insert(lignesTaches) : { error: null };
-    }).then(function (res) {
-      if (res.error) throw res.error;
+    // Suite 24 (24.09.2026) — Lionel, en réponse à la revue : « Case jamais
+    // vidée ». Les 3 requêtes ci-dessous (effacer, effacer le reste
+    // d'assignations, insérer) partaient séparément : une coupure réseau
+    // après l'effacement laissait la case VIDE en base, sans message — le
+    // risque « jugé acceptable » plus haut. Désormais une seule requête,
+    // la fonction SQL remplacer_case_personne (sql/0012_remplacer_case_personne.sql),
+    // qui fait tout dans une transaction : case entièrement remplacée, ou
+    // inchangée. Les 3 requêtes séparées ne restent qu'en secours si la
+    // fonction n'existe pas (base pas encore migrée : erreur PGRST202 /
+    // 42883, ou client sans rpc) — jamais après un autre échec, qui est
+    // remonté tel quel (la case est intacte, la synchro réessaiera).
+    return appelerRemplacerCase_(personneId, iso, demi, lignesTaches).then(function (fait) {
+      if (fait) return;
+      return sbClient.from("taches").delete().eq("personne_id", personneId).eq("date", iso).eq("demi", demi).then(function (res) {
+        if (res.error) throw res.error;
+        return sbClient.from("assignations").delete().eq("personne_id", personneId).eq("date", iso).eq("demi", demi);
+      }).then(function (res) {
+        if (res.error) throw res.error;
+        return lignesTaches.length ? sbClient.from("taches").insert(lignesTaches) : { error: null };
+      }).then(function (res) {
+        if (res.error) throw res.error;
+      });
+    });
+  }
+  // true = case écrite par la fonction SQL ; false = fonction absente (le
+  // secours non transactionnel prend le relais). Toute autre erreur est levée.
+  var rpcRemplacerCaseAbsente_ = false;
+  function appelerRemplacerCase_(personneId, iso, demi, lignesTaches) {
+    if (rpcRemplacerCaseAbsente_ || typeof sbClient.rpc !== "function") return Promise.resolve(false);
+    var lignes = lignesTaches.map(function (l) {
+      return { texte: l.texte, statut_id: l.statut_id, important: l.important, serie_id: l.serie_id, est_absence: l.est_absence, chantier_id: l.chantier_id != null ? l.chantier_id : null };
+    });
+    return sbClient.rpc("remplacer_case_personne", { p_personne_id: personneId, p_date: iso, p_demi: demi, p_lignes: lignes }).then(function (res) {
+      if (!res.error) return true;
+      if (res.error.code === "PGRST202" || res.error.code === "42883") { rpcRemplacerCaseAbsente_ = true; return false; }
+      throw res.error;
     });
   }
 
@@ -1814,7 +1903,7 @@
           kind: "jalon", dateDebut: dateDeb, dateFin: dateFin, demiDebut: demiDebJalon, demiFin: demiFinJalon,
           texte: texte, important: !!d.apres.important, chantierId: d.apres.chantierId || null,
           mode: "remplacement", origine: origine
-        });
+        }).then(function () { return reposerSerie_("jalons", dateDeb, dateFin, texte, d.apres.serieId); });
       });
     });
     dNot.forEach(function (d) {
@@ -1837,7 +1926,7 @@
         return invoquerFonctionServeur("enregistrer-plage", {
           kind: "note", dateDebut: dateDeb, dateFin: dateFin, demiDebut: demiDebNote, demiFin: demiFinNote,
           texte: texte, important: important, mode: mode, origine: origine
-        });
+        }).then(function () { return d.apres ? reposerSerie_("notes", dateDeb, dateFin, texte, d.apres.serieId) : null; });
       });
     });
     chaine.then(function () {
@@ -1895,6 +1984,21 @@
         assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); });
       });
     });
+  }
+  // Série d'une note/d'un jalon réécrit par enregistrer-plage (suite 24,
+  // 24.09.2026 — Lionel, réponse à la revue : « Séries : Ctrl+Z et
+  // Ctrl+X »). enregistrer-plage ne connaît pas `serie_id` : une ligne
+  // qu'elle (re)crée sort de sa série. C'est ce qui arrivait à une note de
+  // série supprimée puis rétablie par Ctrl+Z (l'instantané portait bien son
+  // serieId, jamais envoyé). Juste après l'écriture, on repose donc la
+  // série sur les lignes de la plage qui portent ce texte et n'ont plus de
+  // série (`is null` : une ligne déjà dans une série n'est jamais
+  // détournée). Sans série à reposer : rien.
+  function reposerSerie_(table, dateDeb, dateFin, texte, serieId) {
+    if (!serieId || !texte) return null;
+    return sbClient.from(table).update({ serie_id: serieId })
+      .gte("date", dateDeb).lte("date", dateFin).eq("texte", texte).is("serie_id", null)
+      .then(function (res) { if (res.error) throw res.error; });
   }
   function isoDeApres(item) {
     if (!item.dateDebutIso) return isoDeGi(item.giDebut + item.duree - 1);

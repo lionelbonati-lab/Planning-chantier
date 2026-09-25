@@ -616,14 +616,15 @@
   // bulles tâche/absence en compact ("1 tâche ne peut pas être mise sur 2
   // case, elle s'étend de 1 jour"), Lionel demande explicitement d'abandonner
   // le mode classique : « on reste sur la seule vue compact qui devient la
-  // standard ». `modeCompact` reste une CONSTANTE (jamais rebasculée, plus de
-  // réglage ni de bouton) uniquement pour ne pas devoir retoucher chaque site
-  // qui la lit encore (colsParJour, colonneDemi, colonneEtSpanDemi…) — ces
-  // sites restent corrects tels quels, simplement toujours du côté "compact"
-  // désormais. Le VRAI code propre au mode classique (le rendu ligne-par-demi-
+  // standard ». Le code propre au mode classique (le rendu ligne-par-demi-
   // journée, le bouton de bascule, les 2 règles CSS `.bulle-demi` qui ne
-  // s'appliquaient qu'à lui) a, lui, été supprimé — cf. FRONTEND-CHANGELOG §49.
-  var modeCompact = true;
+  // s'appliquaient qu'à lui) a été supprimé à ce moment-là — cf.
+  // FRONTEND-CHANGELOG §49. Restait une constante `modeCompact = true` que
+  // quelques sites lisaient encore (colonneDemi, colonneEtSpanDemi, en-tête
+  // "M | A", déplacement d'une note…) : retirée à son tour au round du
+  // 24.09.2026 (suite 24) — Lionel : « Le mode classique n'existe plus. le
+  // seul mode est celui actuel, anciennement compact. » — avec les branches
+  // mortes qu'elle gardait (cf. FRONTEND-CHANGELOG §132).
   // Nombre de colonnes CSS occupées par UN jour ouvré.
   function colsParJour() { return 2; }
   // Chantier par défaut des formulaires (round du 03.09.2026, demande de
@@ -633,7 +634,7 @@
   // où un formulaire propose un select "Chantier" — sans rien changer aux
   // tâches déjà posées, ni forcer le choix (le champ reste un select normal,
   // modifiable comme avant). Réglage LOCAL à l'appareil (même famille que
-  // modeCompact/afficherWeekends ci-dessus) : chacun garde le sien.
+  // afficherWeekends) : chacun garde le sien.
   var chantierParDefaut = null;
   try { chantierParDefaut = localStorage.getItem("planning.chantierParDefaut") || null; } catch (e) { chantierParDefaut = null; }
   function memoriserChantierParDefaut() {

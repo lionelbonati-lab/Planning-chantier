@@ -99,7 +99,7 @@
       if (copie) {
         var nouveau = p.liste === TACHES
           ? itemPlageTache(it.type, it.texte, it.personneId, nb.giDebut, nb.duree, { chantier: it.chantier, important: it.important, statut: it.statut, demiDebut: nb.demiDebut, demiFin: nb.demiFin })
-          : itemPlage(it.type, it.texte, nb.giDebut, nb.duree, { important: it.important, demiDebut: nb.demiDebut, demiFin: nb.demiFin });
+          : itemPlage(it.type, it.texte, nb.giDebut, nb.duree, { important: it.important, chantierId: it.chantierId, demiDebut: nb.demiDebut, demiFin: nb.demiFin });
         nouveau.dateDebutIso = isoDeGi(nouveau.giDebut);
         p.liste.push(nouveau);
         nouveaux.push(nouveau.id);
@@ -306,14 +306,108 @@
     if (!ids.length) { toast("Rien à copier."); return; }
     pressePapier = ids.map(function (id) {
       var plage = itemParId(id);
-      return plage ? Object.assign({}, plage.item) : null;
+      if (!plage) return null;
+      var copie = Object.assign({}, plage.item);
+      // Position ABSOLUE de la copie (suite 24, cf. collerSurCase) : `gi` ne
+      // vaut que pour la fenêtre affichée au moment de la copie ; la date
+      // et la ligne, elles, restent vraies dans n'importe quelle semaine.
+      if (!estGiWeekend(copie.giDebut)) {
+        var isoDebut = copie.dateDebutIso || isoDeGi(copie.giDebut);
+        var b = demiSlotsDepuisBornes(copie.giDebut, copie.duree, copie.demiDebut || null, copie.demiFin || null);
+        if (isoDebut) copie._collage = {
+          demiAbs: indexOuvreDeIso_(isoDebut) * 2 + (b.halfStart % 2),
+          longueur: b.halfFinIncl - b.halfStart,
+          ligne: copie.personneId !== undefined ? PERSONNES.map(function (p) { return String(p.id); }).indexOf(String(copie.personneId)) : null
+        };
+      }
+      return copie;
     }).filter(Boolean);
     toast("Copié (" + pressePapier.length + ").");
+  }
+  // Rang absolu d'un jour OUVRÉ (lundi 05.01.1970 = 0, +5 par semaine,
+  // samedi/dimanche ramenés au vendredi) et son inverse : compter des
+  // demi-journées ouvrées entre deux dates de semaines différentes, comme
+  // le fait déjà la grille à l'intérieur d'une fenêtre (demiSlotsDepuisBornes).
+  function indexOuvreDeIso_(iso) {
+    var p = iso.split("-");
+    var jours = Math.round((Date.UTC(+p[0], +p[1] - 1, +p[2]) - Date.UTC(1970, 0, 5)) / 86400000);
+    var sem = Math.floor(jours / 7), j = jours - sem * 7;
+    return sem * 5 + Math.min(j, 4);
+  }
+  function isoDeIndexOuvre_(n) {
+    var sem = Math.floor(n / 5), j = n - sem * 5;
+    var d = new Date(Date.UTC(1970, 0, 5) + (sem * 7 + j) * 86400000);
+    return d.toISOString().slice(0, 10);
+  }
+  // « Coller » du menu Ajouter d'une case (suite 24, 24.09.2026 — Lionel,
+  // réponse à la revue : « proposer une entrée rapide "coller" dans le
+  // popup »). Ctrl+V recolle au même `gi` que l'original (même place dans
+  // la fenêtre affichée) ; ce bouton-ci colle LÀ OÙ on a cliqué, y compris
+  // dans une autre semaine que celle de la copie :
+  // - la bulle copiée la plus tôt démarre sur la demi-journée cliquée, les
+  //   autres gardent leur écart avec elle (en demi-journées ouvrées) ;
+  // - tâches/absences : la 1re ligne copiée tombe sur la personne cliquée,
+  //   les autres gardent leur écart de lignes ; jalons/notes restent dans
+  //   leur propre ligne ;
+  // - une bulle qui tomberait hors de la fenêtre affichée, hors des lignes
+  //   de personnes, ou sur un week-end, n'est pas collée (message) ;
+  // - comme Ctrl+V : une copie de série sort de sa série.
+  function collerSurCase(personneId, gi, demi) {
+    var elements = pressePapier.filter(function (it) { return it._collage; });
+    if (!elements.length) { toast("Rien à coller ici (copie d'un week-end)."); return; }
+    var isoCible = isoDeGi(gi);
+    if (!isoCible) return;
+    var cibleAbs = indexOuvreDeIso_(isoCible) * 2 + (demi === "aprem" ? 1 : 0);
+    var ecart = cibleAbs - Math.min.apply(null, elements.map(function (it) { return it._collage.demiAbs; }));
+    var lignes = elements.filter(function (it) { return it._collage.ligne != null && it._collage.ligne >= 0; }).map(function (it) { return it._collage.ligne; });
+    var idsPersonnes = PERSONNES.map(function (p) { return String(p.id); });
+    var ecartLignes = lignes.length ? idsPersonnes.indexOf(String(personneId)) - Math.min.apply(null, lignes) : 0;
+    var nJours = fenetreLabGs().length * 5;
+    var aPoser = [], ignores = 0;
+    elements.forEach(function (it) {
+      var debutAbs = it._collage.demiAbs + ecart;
+      var giDebutNv = giDepuisIso(isoDeIndexOuvre_(Math.floor(debutAbs / 2)));
+      if (giDebutNv == null || estGiWeekend(giDebutNv)) { ignores++; return; }
+      var hs = giDebutNv * 2 + (debutAbs % 2), hf = hs + it._collage.longueur;
+      if (Math.floor(hf / 2) >= nJours) { ignores++; return; }
+      var f = bornesDepuisDemiSlots(hs, hf), nouveau;
+      if (it.personneId !== undefined) {
+        var p = idsPersonnes[(it._collage.ligne >= 0 ? it._collage.ligne : 0) + ecartLignes];
+        if (p === undefined) { ignores++; return; }
+        nouveau = itemPlageTache(it.type, it.texte, p, f.giDebut, f.duree, { chantier: it.chantier, important: it.important, statut: it.statut, demiDebut: f.demiDebut, demiFin: f.demiFin });
+        aPoser.push({ liste: TACHES, item: nouveau });
+      } else if (it.type === "jalon" || it.type === "note") {
+        nouveau = itemPlage(it.type, it.texte, f.giDebut, f.duree, { important: it.important, chantierId: it.chantierId, demiDebut: f.demiDebut, demiFin: f.demiFin });
+        aPoser.push({ liste: it.type === "jalon" ? JALONS : NOTES, item: nouveau });
+      } else { ignores++; return; }
+      nouveau.dateDebutIso = isoDeGi(f.giDebut);
+    });
+    if (!aPoser.length) { toast("Rien collé : la copie sortirait de la fenêtre affichée ou des lignes de personnes."); return; }
+    sauvegarderUndo();
+    var nouveauxIds = aPoser.map(function (a) { a.liste.push(a.item); return a.item.id; });
+    bullesSelectionnees = {};
+    nouveauxIds.forEach(function (id) { bullesSelectionnees[id] = true; });
+    render();
+    majBarreSelection();
+    toast("Collé (" + nouveauxIds.length + ")." + (ignores ? " " + ignores + " non collé" + (ignores > 1 ? "s" : "") + " (hors de la fenêtre affichée ou sans ligne de personne)." : ""));
   }
   function couperSelection() {
     var ids = Object.keys(bullesSelectionnees);
     if (!ids.length) { toast("Rien à couper."); return; }
     copierSelection();
+    // Bulle de série (suite 24, 24.09.2026 — Lionel, réponse à la revue :
+    // « Séries : Ctrl+Z et Ctrl+X ») : couper = copier + SUPPRIMER, donc même
+    // question « cet événement / les suivants / tous » que Suppr
+    // (supprimerSelection ci-dessus). Avant, l'occurrence était retirée
+    // localement puis réécrite par le moteur de diff, sans passer par la
+    // série — et « Annuler » sur la boîte n'existait pas. Le presse-papiers,
+    // lui, est déjà rempli : Annuler la boîte ne coupe rien mais laisse la
+    // copie disponible (comme Ctrl+C).
+    var plagesSerie = ids.map(function (id) { return itemParId(id); }).filter(Boolean);
+    if (plagesSerie.some(function (p) { return p.item.serieId; })) {
+      supprimerAvecPorteeSerie(plagesSerie, quitterModeSelection, "Coupé (" + ids.length + ").");
+      return;
+    }
     sauvegarderUndo();
     ids.forEach(function (id) {
       var plage = itemParId(id);
@@ -335,7 +429,7 @@
         nouveau = itemPlageTache(it.type, it.texte, it.personneId, it.giDebut, it.duree, { chantier: it.chantier, important: it.important, statut: it.statut, demiDebut: it.demiDebut, demiFin: it.demiFin });
         TACHES.push(nouveau);
       } else if (it.type === "jalon" || it.type === "note") {
-        nouveau = itemPlage(it.type, it.texte, it.giDebut, it.duree, { important: it.important, demiDebut: it.demiDebut, demiFin: it.demiFin });
+        nouveau = itemPlage(it.type, it.texte, it.giDebut, it.duree, { important: it.important, chantierId: it.chantierId, demiDebut: it.demiDebut, demiFin: it.demiFin });
         nouveau.dateDebutIso = isoDeGi(it.giDebut);
         (it.type === "jalon" ? JALONS : NOTES).push(nouveau);
       } else return;

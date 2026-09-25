@@ -85,7 +85,7 @@ anti-flash local (peint immédiatement au chargement, avant que
 couleurs par défaut).
 
 **Nouvelle table Supabase `couleurs_perso`** (déjà créée et vivante en prod
-— cf. `sql/0010_couleurs_perso.sql` fourni, qui documente la migration déjà
+— cf. `sql/0011_couleurs_perso.sql` fourni, qui documente la migration déjà
 appliquée, à NE PAS rejouer) : `id text primary key` (le "groupe" de
 couleur, ex. "principale", "fond", "jalons"...), `clair text`, `sombre
 text`, tous les deux nullable. RLS + grants standard de l'appli (policy
@@ -402,7 +402,7 @@ rien avant — même fond qu'au repos). Pas de changement sur l'état non-actif
 
 1. Cloner/ouvrir le repo réel, comparer aux fichiers de référence fournis
    (rounds A/B/D), appliquer les différences.
-2. Ajouter `sql/0010_couleurs_perso.sql` au repo (documentation seule, la
+2. Ajouter `sql/0011_couleurs_perso.sql` au repo (documentation seule, la
    migration est déjà vivante en prod — ne PAS la ré-exécuter sans
    vérifier d'abord qu'elle n'existe pas déjà).
 3. Faire tourner toute la suite `test_*.js`, confirmer seulement les 3

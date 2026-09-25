@@ -139,9 +139,18 @@
       if (!formulaireVisiblePour(f, personneId)) return;
       html += '<button type="button" data-form="' + i + '">' + esc(f.nom) + '</button>';
     });
+    // « Coller » (suite 24 — Lionel : « proposer une entrée rapide "coller"
+    // dans le popup ») : seulement quand quelque chose a été copié ou coupé.
+    // Colle sur la case cliquée, cf. collerSurCase (formulaires-communs.js).
+    if (pressePapier.length) html += '<button type="button" class="btn-coller" data-coller="1">Coller (' + pressePapier.length + ')</button>';
     return html;
   }
   function cablerBoutonsMenuAjout(pop, fermer, cell, x, y, cibles, giDebut, duree, plageInit, demiDebut, demiFin) {
+    var btnColler = pop.querySelector("button[data-coller]");
+    if (btnColler) btnColler.addEventListener("click", function () {
+      fermer();
+      collerSurCase(cibles[0].personne, giDebut, demiDebut || cibles[0].demi);
+    });
     pop.querySelectorAll("button[data-t]").forEach(function (btn) {
       btn.addEventListener("click", function () { var type = btn.dataset.t; fermer(); ouvrirEdition(cell, null, type, x, y, plageInit, demiDebut, demiFin); });
     });

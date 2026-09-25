@@ -1337,6 +1337,10 @@
   }
   @media (hover: hover) and (pointer: fine) { .pop button:hover { background: var(--accent-soft); border-color: var(--accent); } }
   .pop button.danger { color: var(--important-ink); }
+  /* « Coller » du menu Ajouter (suite 24, cf. collerSurCase) : séparé des
+     types d’entrée (espace, bord pointillé), en couleur d’accent — c'est une action sur
+     le presse-papiers, pas un type de bulle. */
+  .pop button.btn-coller { margin-top: 6px; border-style: dashed; color: var(--accent); }
   @media (hover: hover) and (pointer: fine) { .pop button.danger:hover { background: #f6dcd7; border-color: var(--important-ink); } }
 
   .voile-confirm { position: fixed; inset: 0; background: rgba(15, 21, 27, .38); z-index: 95; }
