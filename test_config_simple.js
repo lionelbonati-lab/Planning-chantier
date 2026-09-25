@@ -14,7 +14,7 @@
  *    directement dessus, round du 16.09.2026 — sql/0010_taches_chantier_id.sql),
  *    en reproduisant la fusion "même tâche reconduite sur des jours ouvrés
  *    consécutifs ne compte qu'une fois" (cf. WebApp.gs,
- *    compterTachesParPersonne_, et index.html, construireVueDepuisCache).
+ *    compterTachesParPersonne_, et js/donnees-sync.js, construireVueDepuisCache).
  *  - genererCleStatut_ (+ slugifierStatut_ dont elle dépend) : calcule la
  *    clé technique d'un nouveau statut, avec dédoublonnage si 2 noms
  *    différents se slugifient pareil (cle est UNIQUE en base, sql/0001).
@@ -26,15 +26,14 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const HTML = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
-const blocs = [...HTML.matchAll(/<script(?:\s+[^>]*)?>([\s\S]*?)<\/script>/g)];
-if (blocs.length === 0) throw new Error('aucun <script> trouvé dans index.html');
-const SRC = blocs[blocs.length - 1][1];
+// index.html + js/*.js : le <script> inline principal d'index.html a été
+// découpé en fichiers js/*.js le 17.09.2026 (cf. sourceApp, aide_tests.js).
+const SRC = require('./aide_tests').sourceApp();
 
 function extraireFonction(nom) {
   const re = new RegExp('\\n(\\s*)function ' + nom + '\\s*\\(');
   const m = re.exec(SRC);
-  if (!m) throw new Error('fonction introuvable dans le <script> d\'index.html : ' + nom);
+  if (!m) throw new Error('fonction introuvable dans le code de l\'appli : ' + nom);
   let i = SRC.indexOf('{', m.index + m[0].length - 1);
   let profondeur = 0;
   for (let j = i; j < SRC.length; j++) {

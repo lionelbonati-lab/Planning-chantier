@@ -139,6 +139,23 @@ const PERSONNES_TEST = [
 ];
 const CHANTIERS_TEST = [{ id: 1, nom: '26182 - Terrain de Padel', couleur: '#f7d9a8', actif: true, ordre: 1 }];
 
+// sourceApp() — round du 25.09.2026 (suite 36). Lionel : « Quels sont ces
+// huit erreurs et questionne-moi pour les résoudre. » Les tests de logique
+// pure (test_aller_a, test_chargement, test_grille_compacte…) extraient les
+// vraies fonctions du code source par leur nom ; ils lisaient encore
+// index.html, alors que le code en est sorti vers js/*.js (17.09.2026) :
+// ils s'arrêtaient tous avant leur première vérification, sans que rien
+// dans l'appli ne soit en cause. sourceApp() rend index.html suivi de tous
+// les js/*.js (ordre alphabétique — sans importance, chaque fonction est
+// retrouvée par son nom).
+function sourceApp() {
+  const fs = require('fs');
+  const dossier = path.join(__dirname, 'js');
+  return [fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8')]
+    .concat(fs.readdirSync(dossier).filter((f) => f.endsWith('.js')).sort().map((f) => fs.readFileSync(path.join(dossier, f), 'utf8')))
+    .join('\n');
+}
+
 // Ouvre la vraie page du dépôt sur une base de test. options :
 //   viewport, hasTouch, date (ISO, défaut jeudi 24.09.2026 10:00),
 //   bd (tables de départ, fusionnées avec personnes/chantiers de test),
@@ -218,4 +235,4 @@ async function glisserDoigt(page, departX, arriveeX, y) {
   await page.waitForTimeout(300);
 }
 
-module.exports = { FAUX_SUPABASE, ouvrirPlanning, verificateur, glisserDoigt, glisserBulleDoigt, lancerNavigateur };
+module.exports = { FAUX_SUPABASE, ouvrirPlanning, verificateur, glisserDoigt, glisserBulleDoigt, lancerNavigateur, sourceApp };

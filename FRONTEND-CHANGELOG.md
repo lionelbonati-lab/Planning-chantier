@@ -7763,3 +7763,33 @@ Vérifié en local (Playwright) — **`test_suite35.js`** (nouveau), 26 vérific
 - `test_suite34.js` : relevé des hauteurs doigt posé (sinon l'arrêt remesure), vérifie les lignes figées de la grille au lieu de `.bulle.hauteur-figee`.
 - `test_calendrier_mobile.js`, `test_defilement_jour_mobile.js`, `test_suite34.js` : 116 → `largeurNoms()`.
 - **Suite complète** : mêmes 8 échecs que sur `main` (cf. §129).
+
+## 144. Round du 25.09.2026 (suite 36) — Les 8 « échecs connus » réparés, tests automatiques sur GitHub
+
+Lionel : « Quels sont ces huit erreurs et questionne-moi pour les résoudre. »
+
+### Diagnostic
+- Aucun des 8 tests ne signalait un bug de l'appli : ils plantaient tous au démarrage, avant leur première vérification.
+- Cause commune : ce sont des tests de logique pure qui extraient les vraies fonctions du code source par leur nom. Ils lisaient encore `index.html`, alors que le code en est sorti vers `js/*.js` le 17.09.2026.
+- Une fois branchés sur les bons fichiers : 5 passent tels quels, 2 ont des attentes périmées, 1 ne teste plus que du code supprimé.
+
+### Correctifs
+- `aide_tests.js` : `sourceApp()` rend `index.html` suivi de tous les `js/*.js`. Les 7 tests conservés l'utilisent : `test_aller_a`, `test_chantier_defaut`, `test_chargement`, `test_config_simple`, `test_ecriture_case_personne`, `test_formulaires_assignation`, `test_grille_compacte`.
+- `test_chargement` : un jalon porte aussi `important` et `chantierId` depuis la suite 22 (renvoyés tels quels quand la grille le déplace).
+- `test_grille_compacte` :
+  - `colFinDernierJour_` ajoutée aux fonctions extraites (nouvelle dépendance de `spanColonnes`) ;
+  - poignée droite d'une note de plusieurs jours : un début « matin » est noté « journée » (null) depuis le §129, même rendu ;
+  - les 5 vérifications de `demiCiblePourDeplacementNote` (supprimée à la suite 24 avec le mode classique) sont réécrites sur `bordsDeplacementNoteMultiJours`, qui fait aujourd'hui tous les déplacements, plus une 6ᵉ pour le cas tranché par Lionel.
+- **Question à Lionel** — « Une note sur une journée entière, glissée d'une demi-journée vers la droite : que doit-elle devenir ? » → « Se décaler » : elle garde sa taille (mercredi après-midi → jeudi matin), comme il l'avait demandé le 08.09 (« une bulle de 2 case doit garder sa grandeur mais doit pouvoir se déplacer de 1 case »). L'ancienne règle « une journée entière reste entière » n'a plus cours ; l'appli ne change pas.
+- **Question à Lionel** — `test_edge_functions` ne testait que l'« ajout lointain », retiré le 11.09 à sa demande, et une conversion de date remplacée depuis → « Supprimer le test ». La conversion actuelle (`isoDeLabGJourIdxCase_`) reste couverte par `test_ecriture_case_personne`.
+
+### Tests automatiques à chaque PR
+- **Question à Lionel** — « Veux-tu que toute la suite tourne automatiquement sur GitHub à chaque PR ? » → « Oui, à chaque PR ».
+- `lancer_tests.js` (nouveau) : lance tous les `test_*.js` (4 à la fois par défaut, `TESTS_PARALLELES` pour changer), délai de 6 min par test, sortie complète des tests en échec réimprimée à la fin, code de sortie 1 au moindre échec. En local : `node lancer_tests.js` ou `node lancer_tests.js test_suite35.js`.
+- `.github/workflows/tests.yml` (nouveau) : à chaque PR, à chaque fusion dans `main`, ou à la main (onglet Actions).
+  - Node 22 et Playwright 1.56.1, comme l'environnement de développement.
+  - Le chemin de Chromium attendu par les tests (`/opt/pw-browsers/chromium`) est recréé vers le Chromium installé par Playwright.
+  - Une nouvelle poussée sur la même PR annule le passage précédent.
+- Désormais, une PR n'est fusionnée qu'une fois ses tests verts sur GitHub.
+
+Vérifié en local : **46/46 tests OK** (`node lancer_tests.js`, environ 1 min 30), au lieu de 38/46 avec les 8 échecs.

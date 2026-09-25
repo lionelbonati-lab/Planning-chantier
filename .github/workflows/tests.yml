@@ -1,0 +1,44 @@
+# Suite de tests du planning à chaque PR et à chaque fusion dans main.
+#
+# Round du 25.09.2026 (suite 36). Lionel, à la question « Veux-tu que toute
+# la suite tourne automatiquement sur GitHub à chaque PR ? » : « Oui, à
+# chaque PR ». 8 tests avaient cassé en silence le 17.09.2026 parce qu'ils
+# ne tournaient qu'à la main ; un test rouge est désormais signalé sur la PR
+# avant la fusion. Même lanceur qu'en local : node lancer_tests.js.
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Une nouvelle poussée sur la même PR annule le passage précédent.
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Même version de Playwright que l'environnement de développement.
+      # Les tests lancent Chromium par son chemin dans cet environnement
+      # (/opt/pw-browsers/chromium, cf. lancerNavigateur dans aide_tests.js) :
+      # ce chemin est recréé ici vers le Chromium installé par Playwright.
+      - name: Playwright et Chromium
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+          sudo mkdir -p /opt/pw-browsers
+          sudo ln -sf "$(node -e "console.log(require('playwright').chromium.executablePath())")" /opt/pw-browsers/chromium
+
+      - name: Tests
+        run: node lancer_tests.js

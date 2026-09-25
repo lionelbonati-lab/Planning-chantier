@@ -1,11 +1,11 @@
-// Teste isoDeLabGJourIdxCase_ (index.html) — le point le plus risqué du
+// Teste isoDeLabGJourIdxCase_ (js/donnees-sync.js) — le point le plus risqué du
 // correctif du 07.09.2026 (bug "google is not defined" à l'ajout d'une
 // tâche, cf. FRONTEND-CHANGELOG.md) : traduire un (labG, jourIdx 0..7) en la
 // bonne date ISO, y compris pour le week-end (jourIdx 6/7), qui n'a plus de
 // cellule fusionnée côté nouveau schéma — chaque jour est une vraie date
 // indépendante, cf. commentaire de tête d'enregistrerCellulePersonneServeur.
 //
-// Convention du projet : la fonction réelle est extraite d'index.html par
+// Convention du projet : la fonction réelle est extraite du code de l'appli par
 // regex + équilibrage d'accolades, jamais copiée à la main (cf. les autres
 // test_*.js).
 "use strict";
@@ -27,7 +27,9 @@ function extraireFonction(src, nom) {
   return src.slice(m.index + 1, fin);
 }
 
-const html = fs.readFileSync(path.join(__dirname, "index.html"), "utf8");
+// index.html + js/*.js (le code est sorti d'index.html le 17.09.2026, cf.
+// sourceApp, aide_tests.js).
+const html = require("./aide_tests").sourceApp();
 
 const source = [
   extraireFonction(html, "pad2_"),

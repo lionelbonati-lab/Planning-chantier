@@ -5,11 +5,11 @@
  * notion de "semaine" côté serveur).
  *
  * Contrairement aux autres test_*.js de ce projet (qui extraient depuis un
- * fichier functions/xxx/logic.js), les fonctions testées ici vivent directement dans
- * le <script> principal d'index.html — cf. section "CHARGEMENT DEPUIS
- * SUPABASE (phase 4, étape 2)". Même principe d'extraction (regex +
- * équilibrage d'accolades), juste une source différente : le contenu du
- * <script> inline (pas celui qui charge supabase-js depuis le CDN).
+ * fichier functions/xxx/logic.js), les fonctions testées ici vivent dans le
+ * code de l'appli — js/donnees-sync.js depuis le découpage d'index.html du
+ * 17.09.2026, cf. section "CHARGEMENT DEPUIS SUPABASE (phase 4, étape 2)".
+ * Même principe d'extraction (regex + équilibrage d'accolades), source
+ * fournie par sourceApp (aide_tests.js).
  *
  * Lancer : node test_chargement.js
  */
@@ -18,18 +18,14 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const HTML = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
-// 2 balises <script> dans le fichier : la 1ère charge supabase-js par CDN
-// (src="..."), la 2ème est le script inline principal — c'est celle-là
-// qu'on veut. On prend le dernier <script>...</script> du fichier.
-const blocs = [...HTML.matchAll(/<script(?:\s+[^>]*)?>([\s\S]*?)<\/script>/g)];
-if (blocs.length === 0) throw new Error('aucun <script> trouvé dans index.html');
-const SRC = blocs[blocs.length - 1][1];
+// index.html + js/*.js : le <script> inline principal d'index.html a été
+// découpé en fichiers js/*.js le 17.09.2026 (cf. sourceApp, aide_tests.js).
+const SRC = require('./aide_tests').sourceApp();
 
 function extraireFonction(nom) {
   const re = new RegExp('\\n(\\s*)function ' + nom + '\\s*\\(');
   const m = re.exec(SRC);
-  if (!m) throw new Error('fonction introuvable dans le <script> d\'index.html : ' + nom);
+  if (!m) throw new Error('fonction introuvable dans le code de l\'appli : ' + nom);
   let i = SRC.indexOf('{', m.index + m[0].length - 1);
   let profondeur = 0;
   for (let j = i; j < SRC.length; j++) {
@@ -43,7 +39,7 @@ function extraireFonction(nom) {
 function extraireVar(nom) {
   const re = new RegExp('\\n\\s*var ' + nom + '\\s*=\\s*(\\[[\\s\\S]*?\\]);');
   const m = re.exec(SRC);
-  if (!m) throw new Error('variable introuvable dans le <script> d\'index.html : ' + nom);
+  if (!m) throw new Error('variable introuvable dans le code de l\'appli : ' + nom);
   return 'var ' + nom + ' = ' + m[1] + ';';
 }
 
@@ -197,9 +193,11 @@ assertEqual(sandbox.lundiDeSemaineUTC('2026-09-13'), '2026-09-07', 'dimanche 13.
   // Jalon du mardi (index 1), reste des jours vides mais bien formés.
   // demi (round du 08.09.2026, §47 du FRONTEND-CHANGELOG) : un jalon porte
   // désormais lui aussi sa propre demi-journée, comme une note — ici la
-  // fixture n'en fournit pas, donc null.
-  assertEqual(d.jalons[1], { texte: 'Livraison béton', serieId: null, demi: null }, 'jalon du mardi correctement bucketé');
-  assertEqual(d.jalons[0], { texte: '', serieId: null, demi: null }, 'jour sans jalon -> {texte:"", serieId:null, demi:null}, jamais undefined');
+  // fixture n'en fournit pas, donc null. important / chantierId (revue du
+  // 24.09.2026, suite 22 : renvoyés tels quels quand la grille déplace le
+  // jalon) : absents de la fixture, donc false / null.
+  assertEqual(d.jalons[1], { texte: 'Livraison béton', serieId: null, demi: null, important: false, chantierId: null }, 'jalon du mardi correctement bucketé');
+  assertEqual(d.jalons[0], { texte: '', serieId: null, demi: null, important: false, chantierId: null }, 'jour sans jalon -> {texte:"", serieId:null, demi:null, important:false, chantierId:null}, jamais undefined');
 
   // Notes du mercredi (index 2) : 2 entrées, demi reporté tel quel (y compris null).
   assertEqual(d.notes[2], [
