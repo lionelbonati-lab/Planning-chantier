@@ -1396,11 +1396,24 @@
      doigt (22px — une demi-journée fait ici ~150px) et repérables (trait
      pâle, sans survol possible au doigt). Appui maintenu puis glisser pour
      étirer ; contre le bord de l'écran, jour suivant (creerAutoDefilement). */
-  .scroller.snap-jour-mobile .bulle .poignee { width: 22px; }
-  .scroller.snap-jour-mobile .bulle .poignee-g::after { left: 5px; }
-  .scroller.snap-jour-mobile .bulle .poignee-d::after { right: 5px; }
-  .scroller.snap-jour-mobile .poignee::after { opacity: .3; }
-  .scroller.snap-jour-mobile .poignee.actif::after { opacity: .7; }
+  /* Suite 37 — Lionel : « Les poignées doivent s'afficher uniquement quand
+     on clic dessus. » Toujours visibles, leurs traits encombraient chaque
+     bulle (et, pour celles de la veille, le bord de la colonne des noms).
+     Désormais invisibles ET inactives tant que la bulle n'est pas
+     sélectionnée : un tap sur le bord d'une bulle la sélectionne comme un
+     tap au milieu, un appui+glisser la déplace. Une fois la bulle
+     sélectionnée (entourée), ses poignées apparaissent : appui maintenu
+     puis glisser pour étirer. Bulle hors du jour affiché (.hors-jour, posée
+     par ajusterLargeurBullesJourMobile) : jamais de poignée. Règles posées
+     sur #racine.vue-jour-mobile (et plus .scroller.snap-jour-mobile) pour
+     valoir aussi aux jalons et notes, dont la grille est hors de .scroller. */
+  .vue-jour-mobile .bulle .poignee { width: 22px; pointer-events: none; }
+  .vue-jour-mobile .bulle .poignee-g::after { left: 5px; }
+  .vue-jour-mobile .bulle .poignee-d::after { right: 5px; }
+  .vue-jour-mobile .bulle.selectionnee .poignee { pointer-events: auto; }
+  .vue-jour-mobile .bulle.selectionnee .poignee::after { opacity: .45; }
+  .vue-jour-mobile .bulle .poignee.actif::after { opacity: .7; }
+  .vue-jour-mobile .bulle.hors-jour .poignee { display: none; }
   /* Vue « 1 jour » (round du 25.09.2026, suite 34 — Lionel : « éviter que
      les hauteurs de cellules ne change pendant un changement de jour » ;
      suite 35 : « la hauteur pourrait être calculée lors de la fixation du

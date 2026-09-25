@@ -7793,3 +7793,36 @@ Lionel : « Quels sont ces huit erreurs et questionne-moi pour les résoudre. »
 - Désormais, une PR n'est fusionnée qu'une fois ses tests verts sur GitHub.
 
 Vérifié en local : **46/46 tests OK** (`node lancer_tests.js`, environ 1 min 30), au lieu de 38/46 avec les 8 échecs.
+
+## 145. Round du 25.09.2026 (suite 37) — Actions GitHub sur Node 24, poignées à la sélection, texte recalculé au jour posé, largeur des bulles sur mobile
+
+Lionel, capture de son téléphone à l'appui (lundi 28, vue « 1 jour ») :
+« Mets à jour les actions GitHub vers Node 24. Les poignées doivent s'afficher uniquement quand on clic dessus. Recalculer le texte lors de la fixation du jour. Vérifie la largeur des bulle en mobile. »
+
+### Actions GitHub sur Node 24
+- `.github/workflows/tests.yml` : `actions/checkout@v6` et `actions/setup-node@v6` (au lieu des v4, qui tournaient sur Node 20 : avertissement « Node.js 20 is deprecated » sur le passage de la suite 36), et les tests eux-mêmes sous Node 24 (`node-version: 24`).
+
+### Poignées affichées seulement sur la bulle sélectionnée
+- Vue « 1 jour » : les poignées sont invisibles **et inactives** tant que la bulle n'est pas sélectionnée. Un tap sur le bord d'une bulle la sélectionne comme un tap au milieu ; un appui + glisser la déplace.
+- Bulle sélectionnée (entourée) : ses 2 poignées apparaissent ; appui maintenu puis glisser pour étirer, comme à la suite 35. Nouveau tap : désélectionnée, poignées de nouveau cachées.
+- Bulle hors du jour affiché (classe `.hors-jour`, posée par `ajusterLargeurBullesJourMobile`) : jamais de poignée. Ce sont celles de la veille qui laissaient les petits traits au bord de la colonne des noms sur la capture.
+- Règles posées sur `#racine.vue-jour-mobile` (et plus `.scroller.snap-jour-mobile`) : elles valent aussi pour les jalons et notes, dont la grille est hors de `.scroller`.
+
+### Texte recalculé à la fixation du jour
+- Jusque-là, la largeur des cartes était recalculée à chaque image du glissement : la carte à moitié sortie rétrécissait et son texte se ré-enroulait sans cesse, celle du jour qui arrive grandissait depuis 1 px.
+- Désormais, pendant le glissement, une carte affichée **garde sa largeur**, donc la mise en page de son texte (elle passe sous la colonne des noms en sortant). Une carte qui apparaît reçoit d'emblée sa largeur sur le jour où elle entre (sa part dans la colonne de ce jour, lue sur les en-têtes).
+- Tout est recalculé quand le jour est posé (`figerHauteursJourMobile`, depuis `defilementArrete`) : largeurs, texte, puis hauteurs des lignes (suite 35). Aussi au rendu et à l'aperçu d'une poignée.
+
+### Largeur des bulles sur mobile
+- Sur la capture, les cartes de tâches s'arrêtaient ~15 px avant le bord droit du jour, alors que jalons et notes le touchaient. Cause : la règle `max-width: var(--largeur-visible-bulle)` (largeur − noms − 16 px, prévue pour le texte sticky des autres vues) bridait la largeur calculée (216 px au lieu de 230 à 360 px de large). La largeur est désormais aussi posée en `max-width` sur la carte.
+- La colonne du jour faisait 3 px de plus que la zone visible : les 2 px de bordure du cadre et l'écart de 1 px entre matin et après-midi n'étaient pas déduits. Le bord droit du jour, et l'arrondi des bulles qui le touchent, passait sous le bord de l'écran. Matin + écart + après-midi = exactement la zone visible (week-end aussi).
+
+### Tests
+- `test_suite37.js` (nouveau, 23 vérifications) :
+  - workflow en v6 / Node 24 ;
+  - à 360 et 390 px : colonne du lundi = zone visible, carte de tâche d'un jour entier de bord à bord, même largeur que le jalon et la note, tâche du matin sur la case du matin ;
+  - poignées cachées et inactives avant sélection (tâche et note), aucune sur la bulle du vendredi, visibles et touchables après un tap, cachées sur l'autre bulle, de nouveau cachées après désélection ;
+  - doigt posé : largeurs inchangées à 40 % du glissement, carte du mardi après-midi à sa largeur finale dès son entrée ; mardi posé : carte du lundi retirée, largeurs et hauteurs recalculées.
+- `test_suite35.js` : tap sur Coffrage avant d'étirer sa poignée gauche (poignées actives seulement une fois la bulle sélectionnée).
+- `test_defilement_jour_mobile.js` : le jour affiché se repère au bord de sa colonne, bordure de début de semaine comprise, comme au rendu (`decalerSurColonne_`). Le bord du contenu ne tombait juste au retour sur le lundi que parce que la colonne, 3 px trop large, laissait l'aimantation s'arrêter 3 px plus loin.
+- **Suite complète : 47/47** (`node lancer_tests.js`).
