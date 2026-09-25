@@ -8066,3 +8066,79 @@ Lionel, onglet Mise en page : « Ajouter des petites flèches haut/bas pour pouv
 - `test_suite39.js` : bloc « Colonnes » et ses valeurs par défaut attendus.
 - Survol (`:hover`) des flèches et accolades sous `@media (hover: hover) and (pointer: fine)`, comme le reste (test_survol_tactile.js).
 - **Suite complète : 54/54** (`node lancer_tests.js`).
+
+## 153. Round du 25.09.2026 (suite 45) — Impression : ligne Matin / Aprem masquable, niveaux de gris ou noir et blanc ; formats de date des jours
+
+Lionel : « Aperçu avant impression : - option pour afficher/masquer le ligne matin | aprem - impression noir et blanc à la place de couleurs chantiers. Mise en page : - Possibilité de choisir d'afficher les dates sous différentes formes, différents formats. »
+
+Ses réponses aux questions posées :
+- noir et blanc : « Les deux au choix » (niveaux de gris, ou noir et blanc pur) ;
+- dates : « En-têtes des jours, Afficher le mois dans la case du jour enlève la ligne du mois car redondant. Idem pour l'année ».
+
+### Ligne Matin / Aprem (aperçu d'impression, js/impression.js)
+- Nouvelle case « Ligne Matin / Aprem » dans « Afficher », cochée par défaut.
+- Décochée, la ligne disparaît et la case « Semaine N » du coin ne couvre plus que la ligne des jours.
+- C'était elle qui donnait à chaque demi-colonne sa largeur minimale. Sans elle, une demi-journée vide toute la semaine (vendredi après-midi…) se réduisait à rien.
+- Ses mots restent donc, invisibles et sans hauteur, dans une dernière ligne sans bordure (`tfoot.print-cale`, groupe ordinaire : pas répété sur chaque page). Les demi-colonnes gardent leur largeur à 1 ou 2 px près.
+- Pas de ligne de calage avec des jours à largeur fixe (colonnes déjà posées).
+
+### Couleurs : 3 rendus au choix
+- Nouveau bloc « Couleurs » du panneau Réglages, 3 boutons radio. Il remplace la case « Couleurs des chantiers » (suite 38).
+- **Couleurs des chantiers** : comme avant.
+- **Niveaux de gris** :
+  - chaque fond de chantier passe à son gris de même clarté (luminance, `grisCouleur_`) ;
+  - statuts (« Réservé ») et pastilles de la légende en gris aussi ;
+  - absence, jalon et note : gris fixes, de la clarté de leur couleur (#d0d0d0, #d4d4d4, #e4e4e4) ;
+  - le nom du chantier est écrit dans la case, 2 chantiers pouvant tomber sur des gris voisins ;
+  - légende gardée.
+- **Noir et blanc** :
+  - aucun fond (l'ancien « sans couleurs », absences, jalons et notes compris) ;
+  - badge de statut cerclé, sans fond ;
+  - nom du chantier écrit ;
+  - légende retirée, sa case grisée « (inutile en noir et blanc) ».
+- Dans les 2 rendus, le rouge des tâches importantes passe à l'encre normale ; le gras les distingue toujours.
+- À l'impression, les en-têtes sont gris neutre (niveaux de gris) ou blancs (noir et blanc), au lieu du gris-vert habituel.
+- Aperçu à l'écran : une case vide y était grise, alors qu'elle est blanche sur le papier. Les gris des chantiers s'y confondaient avec elle. Dans ces 2 rendus, les cases vides prennent donc le fond de la feuille, comme sur le papier.
+- Un ancien réglage « Couleurs des chantiers » décoché, encore retenu sur l'appareil, est repris en Noir et blanc.
+- Retenu sur l'appareil (`rendu`, `demis`) et remis par Réinitialiser, comme les autres cases. Après un changement, le focus revient sur le bouton radio choisi.
+
+### Dates des en-têtes de jours (onglet Mise en page, js/page-mise-en-page.js)
+- Nouveau bloc « Dates », après « Colonnes » :
+  - **Jour de la semaine** : Abrégé (Lun, par défaut), Complet (Lundi), Initiale (L), Masqué ;
+  - **Mois** : « Ligne au-dessus des jours » (par défaut, comme avant), ou dans la case : 21.09, 21 sept., 21 septembre ;
+  - **Année dans la case** (21.09.2026, 21 sept. 2026) : grisée tant que le mois est sur sa ligne.
+- Premier du mois écrit « 1er » avec le mois en lettres (« Jeu 1er oct. »).
+- Une ligne d'exemple montre l'en-tête du lundi de la semaine et ce que deviennent la ligne des mois et l'année :
+  - « Exemple : « Lun 21 sept. » — plus de ligne des mois ; l'année passe dans le coin, avec la semaine. »
+- Aperçu d'impression (`libelleJourImpression`) :
+  - mois dans la case : plus de ligne des mois ;
+  - l'année, qui y avait sa case, passe dans le coin, au-dessus de « Semaine N » (« 2026 / 2027 » la semaine du nouvel an) ;
+  - année dans la case aussi : plus d'année dans le coin.
+- Par défaut rien ne change (« Lun 21 » sous la ligne des mois). Une mise en page enregistrée avant cette suite est complétée ainsi. Une valeur illisible reprend son défaut.
+- Enregistré sur le compte avec le reste (`dates: { jour, mois, annee }`).
+
+### Tests
+- `test_suite45.js` (nouveau, 46 vérifications, 1300 et 360 px) :
+  - ligne Matin / Aprem :
+    - cochée par défaut ;
+    - décochée : ligne retirée, coin sur 1 ligne, tableau moins haut ;
+    - demi-colonnes à au moins 90 % de leur largeur ;
+    - ligne de calage invisible ;
+    - focus gardé ;
+  - rendus :
+    - couleurs par défaut ;
+    - niveaux de gris : plus aucun fond coloré mais des gris distincts, noms écrits, légende grise, important à l'encre normale, vérifié aussi au papier ;
+    - noir et blanc : aucun fond, légende retirée, que du blanc au papier ;
+  - retenu à la réouverture, Réinitialiser ; ancien réglage « sans couleurs » repris en noir et blanc ;
+  - dates :
+    - bloc de l'onglet ;
+    - case Année grisée puis active, exemple à jour, focus gardé ;
+    - enregistrement sur le compte ;
+    - ligne des mois retirée, année dans le coin, puis dans la case ;
+    - formats (« Lundi 21.09.2026 », « J 1er octobre », « 1er janv. 2027 »…) ;
+    - valeurs illisibles ;
+    - semaine du nouvel an (« 2026 / 2027 » dans le coin).
+  - Téléphone : sans défilement horizontal.
+- `test_suite38.js` : bloc Couleurs attendu entre Afficher et Personnes ; « Couleurs décochées » devient le bouton Noir et blanc.
+- `test_suite39.js` : bloc « Dates » et ses valeurs par défaut attendus.
+- **Suite complète : 55/55** (`node lancer_tests.js`).

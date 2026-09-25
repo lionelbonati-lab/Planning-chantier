@@ -2235,6 +2235,18 @@
      avec "2026" et les noms de personnes juste en dessous (repéré sur un
      PDF réel, pas au premier coup d'œil dans le code). */
   table.print-table .coin-semaine { font-size: calc(10px * var(--impr-echelle, 1)); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-muted); text-align: left; padding-left: 7px; }
+  /* Année au-dessus de « Semaine N » quand la ligne des mois est retirée
+     (suite 45, mois dans la case du jour, cf. libelleJourImpression). */
+  table.print-table .coin-annee-semaine { display: block; }
+  /* Ligne Matin / Aprem masquée (suite 45) : ses mots gardés, invisibles,
+     dans une ligne de hauteur nulle en pied de tableau, pour que les
+     demi-colonnes gardent leur largeur (cf. openPrintSheet). Groupe
+     ordinaire (pas de pied répété sur chaque page imprimée). Police de la
+     ligne telle qu'elle s'affiche vraiment (11 px, gras : la règle
+     « table.print-table thead th » l'emporte sur .print-demis th). */
+  table.print-table tfoot.print-cale { display: table-row-group; }
+  table.print-table tr.print-spacer.print-cale td { height: 0; padding: 0 7px; line-height: 0; visibility: hidden; white-space: nowrap;
+    font-size: calc(11px * var(--impr-echelle, 1)); font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
   /* Sous-en-tête Matin/Aprem (round du 15.09.2026, suite — "l'affichage
      matin/après-midi côte à côte, comme le planning") : même traitement
      discret que la ligne mois, pour ne pas rivaliser avec la ligne
@@ -2541,6 +2553,24 @@
      Lionel : « Si les couleurs sont enlevées, prévoir de noter le nom du
      chantier ». */
   table.print-table .print-chantier { display: block; font-size: calc(8.5px * var(--impr-echelle, 1)); font-weight: 600; color: var(--ink-muted); margin-top: 1px; }
+  /* Rendus Niveaux de gris / Noir et blanc (round du 25.09.2026, suite 45
+     — Lionel : « impression noir et blanc à la place de couleurs
+     chantiers », « Les deux au choix »). Les fonds des chantiers et des
+     statuts sont calculés dans openPrintSheet (grisCouleur_) ; ici, les
+     fonds fixes du tableau. Gris : absence, jalon et note à la clarté de
+     leur couleur (#f6c893, #d7cdf0, #f7e6ab). Noir et blanc : plus aucun
+     fond (celui d'une case vide). Le rouge des tâches importantes passe à
+     l'encre normale, le gras les distingue toujours. Posées sur .print-doc,
+     elles l'emportent sur celles de .impression-modal à l'impression. */
+  .print-doc.rendu-gris { --absence-bg: #d0d0d0; --jalon-bg: #d4d4d4; --note-bg: #e4e4e4; --important-ink: var(--ink); }
+  .print-doc.rendu-nb { --absence-bg: var(--surface-2); --jalon-bg: var(--surface-2); --note-bg: var(--surface-2); --important-ink: var(--ink); }
+  /* Aperçu à l'écran : une case vide y est grise (--surface-2), blanche
+     sur le papier — en niveaux de gris, les fonds des chantiers s'y
+     confondaient. Cases vides au fond de la feuille, comme sur le papier.
+     À l'impression, en-têtes gris neutre (gris) ou blancs (noir et blanc)
+     plutôt que le gris-vert habituel. */
+  @media screen { .print-doc.rendu-gris, .print-doc.rendu-nb { --surface-2: var(--bg); } }
+  @media print { .print-doc.rendu-gris { --bg: #efefef; } .print-doc.rendu-nb { --bg: #ffffff; } }
   /* Mise en page (round du 25.09.2026, suite 39, js/page-mise-en-page.js).
      Lionel : « En-tête, pied de pages, marges, espaces entre les éléments.
      C'est peut-être plus judicieux de faire un onglet mise en pages. »
