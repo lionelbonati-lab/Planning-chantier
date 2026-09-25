@@ -150,30 +150,84 @@
   // « Oui, heures quand même »), plus discrète, mais ne compte PAS dans les
   // totaux — ce n'est pas un jour travaillé, comme sur la feuille.
   // heuresFerieJour_ renvoie { duree, compte } ou null (week-end / sans horaire).
+  //
+  // Round du 25.09.2026 (suite 32) — Lionel : « Tu peux constater que
+  // certains jours compensées (jaune) ont des heures de travaille. C'est
+  // pour arriver à un total de 2112 heures de travaille à effectuer dans
+  // l'année, sont compté dedans les vacances et jours fériés. Les
+  // compensées sont le supplément de heures faites ». Sur la feuille PMB,
+  // le 9 janvier est jaune ET compte 1.75 h dans J.trav./H.trav. (16 j,
+  // 114.25 h en janvier) : c'est une demi-journée travaillée, décrite par
+  // sa propre période « du 9 au 9 » dans le tableau des horaires. Alors
+  // que le vendredi 15 mai (pont, jaune aussi) tombe dans la période du
+  // 4 au 29 mai et ne compte PAS. D'où la règle : un jour COMPENSÉ compte
+  // comme travaillé seulement quand une période d'un seul jour le couvre
+  // (horaireDuJour(...).jourSeul). Férié et vacances ne comptent jamais
+  // comme travaillés : ils ont leurs propres colonnes (cf. ci-dessous).
   function heuresFerieJour_(m, j) {
     var h = horaireDuJour(isoFerie(ferieAnnee, m, j));
     if (!h) return null;
-    return { duree: h.duree, compte: !feriesAnneeCourante[m + "-" + j] };
+    var entree = feriesAnneeCourante[m + "-" + j];
+    return { duree: h.duree, compte: !entree || (entree.categorie === "compenses" && h.jourSeul) };
   }
-  function totauxMoisFeries_(m) {
-    var jours = 0, heures = 0, nb = joursDansMois(ferieAnnee, m);
-    for (var j = 1; j <= nb; j++) {
-      var hj = heuresFerieJour_(m, j);
-      if (hj && hj.compte) { jours++; heures += hj.duree; }
+  // Heures d'un jour férié ou de vacances (suite 32) : la feuille PMB
+  // compte chacun 8.09 h (2 fériés en avril = 16.18, 25 jours de vacances
+  // = 202.30) — les 2112 h annuelles réparties sur les jours ouvrés de
+  // l'année (lundi → vendredi, 261 en 2026) : 2112 ÷ 261 = 8.0920 h. Au
+  // centième près, la feuille retombe ainsi sur 1845.00 + 64.74 + 202.30
+  // = 2112.03 h. Une année à 260 jours ouvrés donnera 8.12 h.
+  var HEURES_ANNUELLES = 2112;
+  function joursOuvresAnnee_(annee) {
+    var n = 0;
+    for (var d = new Date(annee, 0, 1); d.getFullYear() === annee; d = ajoutJours(d, 1)) {
+      var wd = d.getDay();
+      if (wd !== 0 && wd !== 6) n++;
     }
-    return { jours: jours, heures: heures };
+    return n;
+  }
+  function heuresJourPaye_() { return HEURES_ANNUELLES / joursOuvresAnnee_(ferieAnnee); }
+  // Totaux d'un mois, colonnes de la feuille PMB : J.trav./H.trav.,
+  // J.fériés/H.fériés, J.vac./H.vac. — plus les compensés (0 h : ils sont
+  // rattrapés par les journées plus longues), comptés pour le bilan.
+  function totauxMoisFeries_(m) {
+    var t = { jours: 0, heures: 0, joursFeries: 0, joursVac: 0, joursComp: 0 }, nb = joursDansMois(ferieAnnee, m);
+    for (var j = 1; j <= nb; j++) {
+      var wd = new Date(ferieAnnee, m, j).getDay();
+      if (wd === 0 || wd === 6) continue;
+      var hj = heuresFerieJour_(m, j), entree = feriesAnneeCourante[m + "-" + j];
+      if (hj && hj.compte) { t.jours++; t.heures += hj.duree; }
+      else if (entree && entree.categorie === "ferie") t.joursFeries++;
+      else if (entree && entree.categorie === "vacances_entreprise") t.joursVac++;
+      else if (entree && entree.categorie === "compenses") t.joursComp++;
+    }
+    var hp = heuresJourPaye_();
+    t.heuresFeries = t.joursFeries * hp;
+    t.heuresVac = t.joursVac * hp;
+    return t;
+  }
+  // Cellules J./H. d'une paire de colonnes : vides quand le nombre de jours est 0.
+  function cellulesTotal_(jours, heures) {
+    return '<td class="total">' + (jours || "") + '</td><td class="total">' + (jours ? formatDuree(heures) : "") + "</td>";
+  }
+  // Libellé du bilan annuel (pied du tableau et carte de fin sur téléphone).
+  function texteBilanAnnuel_(an) {
+    return "Nb. d’heures " + ferieAnnee + " (travaillées + fériés + vacances, 1 jour payé = " + HEURES_ANNUELLES + " ÷ " +
+      joursOuvresAnnee_(ferieAnnee) + " = " + formatDuree(heuresJourPaye_()) + " h ; " + an.joursComp +
+      (an.joursComp > 1 ? " jours compensés" : " jour compensé") + " à 0 h) — objectif " + HEURES_ANNUELLES + " h";
   }
   function renderFerieCalendrier() {
     var table = document.getElementById("ferieCalendrier");
     if (!table) return;
     var html = '<colgroup><col style="width:78px">';
     for (var jc = 1; jc <= 31; jc++) html += "<col>";
-    html += '<col style="width:44px"><col style="width:58px">';
+    html += '<col style="width:40px"><col style="width:58px"><col style="width:40px"><col style="width:52px"><col style="width:40px"><col style="width:58px">';
     html += "</colgroup><thead><tr><th class=\"coin\"></th>";
     for (var j = 1; j <= 31; j++) html += "<th>" + j + "</th>";
-    html += '<th class="total" title="Jours travaillés">J.trav.</th><th class="total" title="Heures travaillées">H.trav.</th>';
+    html += '<th class="total" title="Jours travaillés">J.trav.</th><th class="total" title="Heures travaillées">H.trav.</th>' +
+      '<th class="total" title="Jours fériés payés">J.fér.</th><th class="total" title="Heures fériées">H.fér.</th>' +
+      '<th class="total" title="Jours de vacances">J.vac.</th><th class="total" title="Heures de vacances">H.vac.</th>';
     html += "</tr></thead><tbody>";
-    var totalJours = 0, totalHeures = 0;
+    var an = { jours: 0, heures: 0, joursFeries: 0, heuresFeries: 0, joursVac: 0, heuresVac: 0, joursComp: 0 };
     for (var m = 0; m < 12; m++) {
       html += '<tr><td class="mois">' + MOIS_FR[m] + "</td>";
       var nbJours = joursDansMois(ferieAnnee, m);
@@ -191,11 +245,18 @@
           (hj ? '<span class="h-jour' + (hj.compte ? "" : " h-non-compte") + '">' + formatDuree(hj.duree) + "</span>" : "") + "</td>";
       }
       var tm = totauxMoisFeries_(m);
-      totalJours += tm.jours; totalHeures += tm.heures;
-      html += '<td class="total">' + (tm.jours || "") + '</td><td class="total">' + (tm.jours ? formatDuree(tm.heures) : "") + "</td>";
+      Object.keys(an).forEach(function (k) { an[k] += tm[k]; });
+      html += cellulesTotal_(tm.jours, tm.heures) + cellulesTotal_(tm.joursFeries, tm.heuresFeries) + cellulesTotal_(tm.joursVac, tm.heuresVac);
       html += "</tr>";
     }
-    html += '</tbody><tfoot><tr><td class="mois" colspan="32">Total travaillé ' + ferieAnnee + '</td><td class="total">' + totalJours + '</td><td class="total">' + formatDuree(totalHeures) + "</td></tr></tfoot>";
+    // Pied : « Total travaillé 2026 » (ligne du bas de la feuille), puis le
+    // « Nb. d'heures » de son encadré — travaillées + fériées + vacances,
+    // à comparer aux 2112 h annuelles (suite 32).
+    html += '</tbody><tfoot><tr><td class="mois" colspan="32">Total travaillé ' + ferieAnnee + "</td>" +
+      '<td class="total">' + an.jours + '</td><td class="total">' + formatDuree(an.heures) + "</td>" +
+      cellulesTotal_(an.joursFeries, an.heuresFeries) + cellulesTotal_(an.joursVac, an.heuresVac) + "</tr>" +
+      '<tr class="bilan-annuel"><td class="mois" colspan="32">' + esc(texteBilanAnnuel_(an)) + "</td>" +
+      '<td class="total" colspan="6" title="Heures travaillées + fériées + vacances">' + formatDuree(an.heures + an.heuresFeries + an.heuresVac) + " h</td></tr></tfoot>";
     table.innerHTML = html;
     table.querySelectorAll("td.jour:not(.vide)").forEach(function (td) {
       if (td.dataset.weekend === "true") return; // week-end non cliquable (déjà chômé, cf. calculerFeries)
@@ -240,6 +301,7 @@
     if (!zone) return;
     var aujourdHui = new Date();
     var html = "";
+    var anM = { jours: 0, heures: 0, joursFeries: 0, heuresFeries: 0, joursVac: 0, heuresVac: 0, joursComp: 0 };
     for (var m = 0; m < 12; m++) {
       var nbJours = joursDansMois(ferieAnnee, m);
       var decalage = (new Date(ferieAnnee, m, 1).getDay() + 6) % 7; // lundi = 0
@@ -266,6 +328,7 @@
       // Totaux du mois (suite 27) : jours et heures travaillés, à côté du
       // nombre de jours colorés.
       var tmM = totauxMoisFeries_(m);
+      Object.keys(anM).forEach(function (k) { anM[k] += tmM[k]; });
       var comptes = [];
       if (tmM.jours) comptes.push(tmM.jours + " j · " + formatDuree(tmM.heures) + " h");
       if (liste.length) comptes.push(liste.length + (liste.length > 1 ? " jours colorés" : " jour coloré"));
@@ -276,6 +339,17 @@
         (liste.length ? '<ul class="mois-liste">' + liste.join("") + "</ul>" : "") +
         "</section>";
     }
+    // Bilan de l'année (suite 32) : l'encadré de la feuille PMB, en carte
+    // sous décembre — le tableau (et son pied) est masqué sur téléphone.
+    var ligneBilan = function (lib, jours, heures) {
+      return "<li><span class=\"libelle-jour\">" + lib + '</span><span class="date-jour">' + jours + " j</span><b>" + formatDuree(heures) + " h</b></li>";
+    };
+    html += '<section class="mois-carte bilan-annuel">' +
+      '<div class="mois-carte-titre"><span>Bilan ' + ferieAnnee + '</span><span class="mois-carte-compte">' +
+        formatDuree(anM.heures + anM.heuresFeries + anM.heuresVac) + " h</span></div>" +
+      '<ul class="mois-liste">' + ligneBilan("Travaillé", anM.jours, anM.heures) + ligneBilan("Fériés", anM.joursFeries, anM.heuresFeries) +
+        ligneBilan("Vacances", anM.joursVac, anM.heuresVac) + "</ul>" +
+      '<p class="bilan-note">' + esc(texteBilanAnnuel_(anM)) + "</p></section>";
     zone.innerHTML = html;
     zone.querySelectorAll("button.jm:not([disabled])").forEach(function (b) {
       b.addEventListener("click", function () { basculerJourFerie(+b.dataset.m, +b.dataset.j); });

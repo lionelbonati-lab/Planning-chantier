@@ -109,7 +109,7 @@ const FAUX_SUPABASE = '(' + function () {
 
   const vue = () => page.evaluate(() => {
     const vis = (el) => !!el && el.getBoundingClientRect().width > 0;
-    const cartes = document.querySelectorAll('#ferieMoisMobile .mois-carte');
+    const cartes = document.querySelectorAll('#ferieMoisMobile .mois-carte:not(.bilan-annuel)'); // + carte « Bilan » depuis la suite 32
     const sept = cartes[8];
     const j = (m, d) => document.querySelector('#ferieMoisMobile .jm[data-m="' + m + '"][data-j="' + d + '"]');
     const btn = document.getElementById('btnEnregistrerFeries');
@@ -167,7 +167,7 @@ const FAUX_SUPABASE = '(' + function () {
   await page.evaluate(() => { const a = document.getElementById('app'); a.scrollTop = a.scrollHeight; });
   await page.waitForTimeout(150);
   const finPage = await page.evaluate(() => {
-    const cartes = document.querySelectorAll('#ferieMoisMobile .mois-carte');
+    const cartes = document.querySelectorAll('#ferieMoisMobile .mois-carte:not(.bilan-annuel)');
     return { derniere: cartes[11].getBoundingClientRect().bottom, actions: document.querySelector('#page-feries .actions-feries').getBoundingClientRect().top };
   });
   verifier(finPage.derniere <= finPage.actions, 'fin de page : décembre entièrement visible au-dessus de la barre d\'actions');
