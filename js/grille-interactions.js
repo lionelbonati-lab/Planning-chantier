@@ -859,7 +859,7 @@
           // (Maj+glisser) donnait une copie en journée entière — la
           // demi-journée de l'originale disparaissait en silence.
           if (plage.liste === TACHES) plage.liste.push(itemPlageTache(it.type, it.texte, it.personneId, ni, it.duree, { important: it.important, chantier: it.chantier, statut: it.statut, demiDebut: it.demiDebut, demiFin: it.demiFin }));
-          else plage.liste.push(itemPlage(it.type, it.texte, ni, it.duree, { important: it.important, demiDebut: it.demiDebut, demiFin: it.demiFin }));
+          else plage.liste.push(itemPlage(it.type, it.texte, ni, it.duree, { important: it.important, chantierId: it.chantierId, demiDebut: it.demiDebut, demiFin: it.demiFin }));
         } else {
           it.giDebut = ni;
           // dateDebutIso (round du 07.09.2026, signalé par Lionel : "le
@@ -905,7 +905,7 @@
         var f = formeDecaleeDemis(it, dh);
         if (copieFinale) {
           if (plage.liste === TACHES) plage.liste.push(itemPlageTache(it.type, it.texte, it.personneId, f.giDebut, f.duree, { important: it.important, chantier: it.chantier, statut: it.statut, demiDebut: f.demiDebut, demiFin: f.demiFin }));
-          else plage.liste.push(itemPlage(it.type, it.texte, f.giDebut, f.duree, { important: it.important, demiDebut: f.demiDebut, demiFin: f.demiFin }));
+          else plage.liste.push(itemPlage(it.type, it.texte, f.giDebut, f.duree, { important: it.important, chantierId: it.chantierId, demiDebut: f.demiDebut, demiFin: f.demiFin }));
         } else {
           it.giDebut = f.giDebut; it.duree = f.duree;
           it.demiDebut = f.demiDebut; it.demiFin = f.demiFin;
@@ -916,29 +916,6 @@
       quitterModeSelection();
       var msgDemis = (copieFinale ? "Copié (" : "Déplacé (") + nb + ").";
       if (!rendreAvecPorteeSerie("deplacer", msgDemis)) toast(msgDemis);
-    }
-    // NOTE seule, glissée à la souris (round du 03.09.2026, signalé par
-    // Lionel : "les notes sont toujours pas extensible ni déplaçable en
-    // demi journée") : variante de appliquerDelta ci-dessus qui pose EN
-    // PLUS la demi-journée choisie par la position du relâchement (cf.
-    // resoudreCibleGroupe), plutôt que de se contenter de la reconduire
-    // telle quelle. Restreinte à un item unique (pas de sélection groupée) —
-    // étendre ce choix de demi-journée à un glissement de plusieurs bulles
-    // à la fois n'a pas été demandé et ouvrirait une ambiguïté (laquelle des
-    // bulles sélectionnées la position du relâchement concerne-t-elle ?).
-    function appliquerDeltaNote(delta, bordsCible, copieFinale) {
-      var nTotal = nbJoursAffiches();
-      nettoyerFantomes();
-      sauvegarderUndo();
-      var dom = document.querySelector('.bulle[data-id="' + idClic + '"]');
-      var plage = dom && itemDepuisBulle(dom);
-      if (!plage) { quitterModeSelection(); render(false); return; }
-      var it = plage.item;
-      var ni = Math.max(0, Math.min(nTotal - it.duree, it.giDebut + delta));
-      if (copieFinale) plage.liste.push(itemPlage(it.type, it.texte, ni, it.duree, { important: it.important, demiDebut: bordsCible.demiDebut, demiFin: bordsCible.demiFin }));
-      else { it.giDebut = ni; it.demiDebut = bordsCible.demiDebut; it.demiFin = bordsCible.demiFin; it.dateDebutIso = isoDeGi(it.giDebut); }
-      quitterModeSelection();
-      if (!rendreAvecPorteeSerie("deplacer", copieFinale ? "Copié." : "Déplacé.")) toast(copieFinale ? "Copié." : "Déplacé.");
     }
     // NOTE de PLUSIEURS jours (duree > 1), glissée à la souris en mode
     // compact (round du 07.09.2026, suite — Lionel : « je veux le déplacer
@@ -956,7 +933,7 @@
       if (!plage) { quitterModeSelection(); render(false); return; }
       var it = plage.item;
       if (copieFinale) {
-        plage.liste.push(itemPlage(it.type, it.texte, bords.giDebut, bords.duree, { important: it.important, demiDebut: bords.demiDebut, demiFin: bords.demiFin }));
+        plage.liste.push(itemPlage(it.type, it.texte, bords.giDebut, bords.duree, { important: it.important, chantierId: it.chantierId, demiDebut: bords.demiDebut, demiFin: bords.demiFin }));
       } else {
         it.giDebut = bords.giDebut; it.duree = bords.duree;
         it.demiDebut = bords.demiDebut; it.demiFin = bords.demiFin;
@@ -1067,26 +1044,13 @@
         // §42 préservé — cf. bornesDepuisDemiSlots) ; posée à cheval, elle
         // devient duree=2 avec un bord en demi-journée de chaque côté, sans
         // jamais rétrécir à une seule demi-journée ("garder sa grandeur",
-        // dixit Lionel). Restreint au mode compact — cf. le commentaire de
-        // colonneEtSpanDemi, la géométrie pixel-précise par demi-jour
-        // n'existe qu'en compact ; le mode classique garde l'ancien
-        // comportement par jour entier (demiCiblePourDeplacementNote
-        // ci-dessous, inchangé pour ce mode).
-        if (modeCompact) {
-          var demiSousPointeurMulti = demiDepuisPointeur(celluleCible, clientXFinal);
-          var bordsMulti = bordsDeplacementNoteMultiJours(itemClic.giDebut, itemClic.duree, demiDebutActuelNote, demiFinActuelNote, offsetHalvesClic, giCibleBrut, demiSousPointeurMulti, nbJoursAffiches());
-          if (bordsMulti.giDebut === itemClic.giDebut && bordsMulti.duree === itemClic.duree && bordsMulti.demiDebut === demiDebutActuelNote && bordsMulti.demiFin === demiFinActuelNote) { nettoyerFantomes(); render(false); return; }
-          appliquerDeltaNoteMultiJours(bordsMulti, copieActuelle);
-          return;
-        }
-        // Mode CLASSIQUE (pas de géométrie demi-jour pixel-précise) : granularité
-        // jour entier pour une note multi-jours (demiCiblePourDeplacementNote
-        // reconduit sa forme telle quelle dès que duree > 1), et choix de la
-        // demi-journée par la position du relâchement dans la case pour une
-        // note d'1 seul jour — comportement du round du 03.09.2026, inchangé.
-        var bordsCibleNote = demiCiblePourDeplacementNote(itemClic.duree, delta, demiDebutActuelNote, demiFinActuelNote, demiDepuisPointeur(celluleCible, clientXFinal));
-        if (!delta && bordsCibleNote.demiDebut === demiDebutActuelNote && bordsCibleNote.demiFin === demiFinActuelNote) { nettoyerFantomes(); render(false); return; }
-        appliquerDeltaNote(delta, bordsCibleNote, copieActuelle);
+        // dixit Lionel). (Suite 24 : la variante « mode classique » par jour
+        // entier — demiCiblePourDeplacementNote/appliquerDeltaNote — a été
+        // retirée avec ce mode, qui n'existe plus.)
+        var demiSousPointeurMulti = demiDepuisPointeur(celluleCible, clientXFinal);
+        var bordsMulti = bordsDeplacementNoteMultiJours(itemClic.giDebut, itemClic.duree, demiDebutActuelNote, demiFinActuelNote, offsetHalvesClic, giCibleBrut, demiSousPointeurMulti, nbJoursAffiches());
+        if (bordsMulti.giDebut === itemClic.giDebut && bordsMulti.duree === itemClic.duree && bordsMulti.demiDebut === demiDebutActuelNote && bordsMulti.demiFin === demiFinActuelNote) { nettoyerFantomes(); render(false); return; }
+        appliquerDeltaNoteMultiJours(bordsMulti, copieActuelle);
         return;
       }
       if (!delta) { nettoyerFantomes(); render(false); return; }

@@ -7270,3 +7270,81 @@ Vérifié en local (Playwright) :
   - catégories et barre d'actions collées, aucun bouton coupé, décembre visible en fin de page ;
   - Enregistrer écrit en base ;
   - ordinateur 1300px : tableau annuel inchangé.
+
+## 132. Round du 24.09.2026 (suite 24) — Corrections relevées par la revue : case jamais vidée, séries (Ctrl+Z, Ctrl+X, série quotidienne), jalon copié, « Coller » dans le menu d'une case, nettoyage
+
+Lionel : « pose moi les questions pour les corrections ». Ses réponses aux points laissés ouverts au §130 :
+- Planning : « Case jamais vidée », « Séries : Ctrl+Z et Ctrl+X », « Jalon copié garde son chantier », « Série quotidienne séparée » ;
+- Coller : « proposer une entrée rapide "coller" dans le popup » ;
+- Nettoyage : « Code du mode classique », « Fichiers inutiles en ligne », « Réécrire les 4 tests périmés », « Scripts SQL de rattrapage » ;
+- Supabase : « Ajouter les index ».
+
+### A. Planning
+
+**1. Une case de personne n'est plus jamais vidée par une coupure** (`enregistrerCellulePersonneServeur`, `js/donnees-sync.js` ; `sql/0012_remplacer_case_personne.sql`) :
+- avant : 3 requêtes séparées (effacer les tâches de la case, effacer son reste d'`assignations`, insérer les nouvelles). Une coupure ou une erreur après l'effacement laissait la case vide en base, sans message ;
+- désormais : une fonction SQL `remplacer_case_personne` fait les 3 dans UNE transaction, appelée par `rpc()`. Soit la case est entièrement remplacée, soit rien ne change (vérifié en base : une tâche au statut inexistant fait échouer l'appel, l'ancienne tâche reste) ;
+- `security invoker` : mêmes règles RLS que les requêtes directes ; exécution réservée aux utilisateurs connectés ;
+- repli : si la fonction n'existe pas (code PGRST202/42883, ex. base pas encore migrée), l'ancien chemin en 3 requêtes reprend, une seule fois détecté par session. Toute autre erreur remonte comme avant (message « non enregistré »).
+
+**2. Séries : Ctrl+Z garde la série** (`reposerSerie_`, `js/donnees-sync.js`) :
+- cause : les jalons et notes passent par la fonction `enregistrer-plage`, qui ne connaît pas `serie_id`. Une note de série supprimée puis rétablie par Ctrl+Z revenait comme note isolée ;
+- correctif : après l'écriture d'un jalon ou d'une note, le client repose `serie_id` sur les lignes recréées (même texte, mêmes dates, sans série). Pas de redéploiement de la fonction serveur.
+
+**3. Séries : Ctrl+X pose la question** (`couperSelection`, `js/formulaires-communs.js`) : couper une bulle de série ouvre la boîte « cet événement / les suivants / tous », comme Suppr. La copie est faite avant ; annuler la boîte ne supprime rien.
+
+**4. Jalon copié garde son chantier** (`itemPlage` ; les 6 sites de copie de `js/formulaires-communs.js` et `js/grille-interactions.js`) : la copie d'un jalon (Ctrl+C/V, Maj+glisser, copie par la pilule) perdait son `chantierId`.
+
+**5. Série quotidienne : une bulle par jour** (`chargerDefinitionsSeries_`, `limiteOccurrenceSerie_`, `js/donnees-sync.js`) :
+- cause : au chargement, les jours contigus de même texte sont fusionnés en une seule bulle. Les occurrences d'une série quotidienne (lundi, mardi, mercredi…) devenaient donc une seule bulle de 5 jours : impossible de toucher un seul jour ;
+- correctif : la fusion s'arrête à la fin de la période de la série (fréquence × intervalle : 1 jour, 7 jours, 1 mois, 1 an). Une série quotidienne donne une bulle par jour ; une série hebdomadaire d'une tâche sur toute la semaine garde une bulle par semaine ;
+- les définitions des séries sont lues au chargement de la semaine (seulement celles qui manquent au cache), sans bloquer l'affichage si la lecture échoue.
+
+### B. « Coller » dans le menu d'une case
+
+Lionel : « proposer une entrée rapide "coller" dans le popup ». (`collerSurCase`, `copierSelection`, `js/formulaires-communs.js` ; `boutonsMenuAjout`, `js/formulaires-edition.js` ; `style.css`)
+- le menu « Ajouter » d'une case montre « Coller (n) » quand le presse-papiers n'est pas vide (bordure pointillée, couleur d'accent) ;
+- la copie colle À PARTIR de cette case : le 1ᵉʳ élément copié tombe sur la demi-journée choisie, les autres gardent leur écart. En jours ouvrés : une tâche d'une journée collée un mercredi après-midi occupe mercredi après-midi + jeudi matin ;
+- une tâche copiée change de personne selon la ligne choisie (même écart de lignes pour plusieurs personnes) ;
+- fonctionne dans une autre semaine que l'original : c'est ce qui manquait à Ctrl+V (qui recolle au même endroit) ;
+- ce qui tomberait hors de la fenêtre affichée, sur un week-end ou sur une personne inexistante est ignoré, et le message le dit (« Collé (2). 1 non collé (hors de la fenêtre affichée ou sans ligne de personne). ») ;
+- un seul Ctrl+Z annule tout le collage. Rien à coller : la pile d'annulation n'est pas touchée.
+
+### C. Nettoyage
+
+**6. Code du mode classique retiré** (`js/core.js`, `js/grille-rendu.js`, `js/grille-interactions.js`) — Lionel : « Le mode classique n'existe plus. le seul mode est celui actuel, anciennement compact. »
+- la constante `modeCompact` (toujours vraie depuis le §49) est supprimée, avec toutes les branches qu'elle gardait : `colonneDemi`, `colonneEtSpanDemi`, classes de la grille, largeur minimale, ligne d'en-tête « M | A », frontière de jour, `.demi-aprem` ;
+- supprimées aussi `demiCiblePourDeplacementNote` et `appliquerDeltaNote` (déplacement d'une note par jour entier), qui ne servaient plus qu'à ce mode ;
+- commentaires qui décrivaient encore les « deux modes » mis à jour. Aucun changement visible.
+
+**7. Fichiers inutiles retirés du site** : `js/core-1.js`, `js/coquille-1.js`, `style-1.css`, `style-mobile-1.css`, `FRONTEND-CHANGELOG-1.md`, `MAJ-a-pousser-23-09-2026/` et `MAJ-a-pousser-23-09-2026.zip`. GitHub Pages servait ces anciennes copies publiquement. Aucune n'était chargée par `index.html`.
+
+**8. Les 4 tests périmés réécrits** (`test_bordure_lundi_2semaines.js`, `test_couleurs_sync_compte.js`, `test_selection_multijour_tablette.js`, `test_swipe_tablette_1semaine.js`) :
+- avant : ils ouvraient un `index.html` qui n'existait que sur la machine de leur auteur (`/home/claude/work/testenv/`), fabriquaient l'état à la main avec l'ancien modèle de données et se contentaient d'afficher des valeurs ;
+- désormais : vraie page du dépôt, date figée, faux Supabase en mémoire (l'appli charge ses données par son propre chemin), vraies vérifications avec code de sortie ;
+- le faux Supabase et les outils communs sont dans **`aide_tests.js`** (nouveau, pas un test : il ne commence pas par `test_`) ;
+- `test_couleurs_sync_compte` vérifie en plus qu'une couleur du serveur gagne sur un cache local périmé ; `test_swipe_tablette_1semaine`, le retour à la semaine précédente.
+
+**9. Scripts SQL de rattrapage** (`sql/`) :
+- `0010_taches_chantier_id.sql` (nouveau) : la colonne `taches.chantier_id`, appliquée le 16.09 sans fichier, que le code cite. SQL tel qu'appliqué (colonne, index, reprise depuis `assignations`) ;
+- `0010_couleurs_perso.sql` renuméroté **`0011_couleurs_perso.sql`** (deux fichiers portaient le 0010) ; références de `HANDOFF.md` mises à jour ;
+- `0012_remplacer_case_personne.sql` : cf. point 1 ;
+- correction du §130 : `formulaires_rapides.assigne_a` / `type_entree` ne manquaient pas, ils sont dans `0001_schema.sql`.
+
+### D. Supabase
+
+**10. Index des clés étrangères** (`sql/0013_index_cles_etrangeres.sql`, appliquée sur le projet) : les 10 clés étrangères sans index relevées par l'analyseur de performances de Supabase. Entre autres `serie_id` sur `taches`, `notes` et `jalons`, lu à chaque modification d'une série. Après application, l'analyseur ne relève plus de clé sans index. Il signale à la place ces 10 index comme « jamais utilisés » (niveau INFO) : c'est normal pour des index tout neufs, le compteur part de zéro. À ne pas supprimer.
+
+**Reste à faire par Lionel dans le tableau de bord Supabase** (pas faisable par l'outil de la session) :
+- Authentication → Sign In / Providers (section Email) → « Prevent use of leaked passwords » : activer. C'est le seul avertissement de sécurité restant ;
+- Authentication → Sign In / Providers → « Allow new users to sign up » : désactiver. Les règles RLS autorisent tout utilisateur connecté : tant que les inscriptions sont ouvertes, n'importe qui peut créer un compte et lire/modifier le planning. Les comptes existants continuent de fonctionner ; un nouveau compte se crée depuis Authentication → Users → « Add user ».
+
+### Vérifié en local (Playwright)
+
+- **`test_suite24.js`** (nouveau), 14 vérifications, toutes OK. Son faux Supabase exécute la vraie logique `planPlage` et simule la fonction SQL (réussite, échec, absence). Il couvre :
+  - case écrite en un seul appel ; échec → ancienne tâche intacte et message ; fonction absente → ancien chemin ;
+  - série quotidienne : 5 bulles d'un jour ; série hebdomadaire sur 2 semaines : 2 bulles ;
+  - Ctrl+X sur une note de série : boîte, seule l'occurrence choisie coupée, presse-papiers rempli ; Ctrl+Z : la note revient DANS sa série ;
+  - « Coller (1) » dans le menu d'une case ; jalon collé avec son chantier ; tâche d'une journée collée dans la semaine suivante, sur une autre personne, un mercredi après-midi → mercredi après-midi + jeudi matin ; presse-papiers vide : pas d'entrée.
+- **Les 4 tests réécrits** : 5 + 7 + 2 + 3 vérifications, toutes OK.
+- **Suite complète** : 8 échecs au lieu de 12. Ce sont les 8 anciens tests qui cherchent des fonctions dans `index.html` (cf. §129). Les 4 tests au chemin fixe sont réécrits et passent.

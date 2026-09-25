@@ -421,12 +421,11 @@
     }
     return 2 + gi * cpj + (afficherWeekends ? Math.floor(gi / 5) * 2 : 0);
   }
-  // Colonne CSS d'une DEMI-JOURNÉE précise. En mode classique les deux demis
-  // partagent la colonne du jour (elles sont sur 2 lignes distinctes) ; en
-  // mode compact elles sont côte à côte. Le week-end n'a qu'une seule case
-  // par personne (§2 du spec), donc jamais de décalage.
+  // Colonne CSS d'une DEMI-JOURNÉE précise : les deux demis d'un jour sont
+  // côte à côte (matin à gauche). Le week-end n'a qu'une seule case par
+  // personne (§2 du spec), donc jamais de décalage.
   function colonneDemi(gi, demi) {
-    if (!modeCompact || estGiWeekend(gi)) return colonneGrille(gi);
+    if (estGiWeekend(gi)) return colonneGrille(gi);
     return colonneGrille(gi) + (demi === "aprem" ? 1 : 0);
   }
   // Span en COLONNES CSS d'une bulle de plage (jalon/note/tâche multi-jours),
@@ -468,9 +467,6 @@
   // faisant sauter sur le mauvais emplacement pendant le geste, ce qui
   // rendait la note impossible à redimensionner correctement : signalé par
   // Lionel, "je n'arrive pas à étendre une bulle note sur une demi journée").
-  // En mode classique la largeur/le décalage restent gérés en CSS pur
-  // (.bulle-demi / .bulle-demi-aprem) : colonneGrille/spanColonnes normaux
-  // suffisent, colonneDemi() n'a d'effet qu'en mode compact.
   // demiDebut/demiFin (round du 03.09.2026, "je peux reduire de 1 jour à 1
   // demi jour, mais je ne peux pas augmenter à 1 jour et demi") : chaque
   // bord de la plage a désormais sa propre demi-journée — colDebut ne
@@ -478,12 +474,8 @@
   // ne dépend que de demiFin (raccourci éventuel du dernier jour). Pour une
   // plage d'un seul jour les 2 valent la même chose (invariant maintenu côté
   // appelants), donc ce cas particulier retombe naturellement sur
-  // l'ancien comportement (1 seule sous-colonne). En mode classique, comme
-  // avant, la géométrie de grille ne change pas (le rendu du bord se fait en
-  // CSS pur, cf. .bulle-demi, et seul un item d'UN SEUL jour reçoit cette
-  // classe — voir son appel plus bas).
+  // l'ancien comportement (1 seule sous-colonne).
   function colonneEtSpanDemi(gi, duree, demiDebut, demiFin) {
-    if (!modeCompact) return [colonneGrille(gi), spanColonnes(gi, duree)];
     var colDebut = (demiDebut === "matin" || demiDebut === "aprem") ? colonneDemi(gi, demiDebut) : colonneGrille(gi);
     var giFin = gi + Math.max(1, duree) - 1;
     // Seul demiFin === "matin" raccourcit visuellement la fin (le dernier
@@ -498,12 +490,10 @@
   // Moitié de journée survolée dans une cellule (round du 03.09.2026,
   // signalé par Lionel : "les notes sont toujours pas extensible ni
   // déplaçable en demi journée") — moitié gauche = matin, moitié droite =
-  // après-midi. Valable dans les DEUX modes d'affichage : en mode compact
-  // la cellule couvre déjà les 2 colonnes du jour (fond commun, cf.
-  // creerCelluleFond) donc son milieu tombe pile entre les 2 sous-colonnes ;
-  // en mode classique une bulle en demi-journée occupe déjà visuellement la
-  // moitié gauche/droite de sa case (.bulle-demi, cf. CSS) — c'est
-  // exactement l'inverse de cette règle. Une seule fonction, utilisée par le
+  // après-midi. La cellule couvre les 2 colonnes du jour (fond commun, cf.
+  // creerCelluleFond), donc son milieu tombe pile entre les 2 sous-colonnes
+  // (suite 24 : la mention de l'ancien mode classique, retiré, n'a plus lieu
+  // d'être ici). Une seule fonction, utilisée par le
   // redimensionnement (cablerPoigneeRedim) ET le déplacement d'une note
   // (onPointerDownGroupeSelection) ci-dessous.
   //
@@ -594,43 +584,12 @@
     if (cote === "droite") return { demiDebut: demiDebutOrig === "aprem" ? "aprem" : null, demiFin: pointAprem ? null : "matin" };
     return { demiDebut: pointAprem ? "aprem" : null, demiFin: demiFinOrig === "matin" ? "matin" : null };
   }
-  // Bords {demiDebut, demiFin} cibles d'une NOTE déplacée par glissement
-  // (bulle entière, onPointerDownGroupeSelection ci-dessous) — même
-  // principe : fonction pure, testable seule. Depuis le round du 08.09.2026
-  // (suite), sert uniquement au mode CLASSIQUE (granularité jour entier pour
-  // duree > 1, comme décrit ci-dessous) — le mode COMPACT passe désormais
-  // systématiquement par bordsDeplacementNoteMultiJours (modèle demi-slot,
-  // cf. son en-tête), y compris pour duree === 1.
-  //   plusieurs jours (duree > 1) : un simple déplacement (qui ne change
-  //     jamais la durée) reconduit la FORME des 2 bords telle quelle — un
-  //     glissement n'a pas vocation à réinterpréter laquelle des 2
-  //     extrémités le point de relâchement concerne.
-  //   1 seul jour, même jour (delta === 0) : si la note était DÉJÀ en
-  //     demi-journée, la position choisit la nouvelle demi-journée (bascule
-  //     matin<->aprem, cf. round du 03.09.2026) ; si elle était en JOURNÉE
-  //     ENTIÈRE, elle LE RESTE — exactement la même protection que la règle
-  //     "jour différent" juste en dessous (round du 08.09.2026, suite :
-  //     Lionel, « quand je déplace une note matin/aprem de 1/2 jour elle
-  //     est retrecie en 1/2 journée » — avant ce correctif, le moindre
-  //     micro-glissement d'une note en journée entière qui restait sur le
-  //     même jour la rétrécissait en demi-journée, sans lien avec l'intention
-  //     de l'utilisateur ; désormais les 2 cas "même jour" et "jour
-  //     différent" suivent la même règle, cf. FRONTEND-CHANGELOG §42).
-  //   1 seul jour, jour différent : si la note était déjà en demi-journée,
-  //     la position choisit sa nouvelle demi-journée sur le jour d'arrivée ;
-  //     si elle était en journée entière, elle LE RESTE (ne jamais réduire
-  //     une note "normale" à une demi-journée par un simple déplacement).
-  function demiCiblePourDeplacementNote(duree, delta, demiDebutActuel, demiFinActuel, demiAuPoint) {
-    if (duree !== 1) return { demiDebut: demiDebutActuel, demiFin: demiFinActuel };
-    var demiActuel = demiDebutActuel; // === demiFinActuel (duree === 1)
-    var cible = demiActuel ? demiAuPoint : demiActuel;
-    return { demiDebut: cible, demiFin: cible };
-  }
   // Modèle "demi-slot" (round du 07.09.2026, suite — Lionel, après le §37 :
   // « toujours impossible de déplacer une note qui mesure 2 demi/journée de
   // 1 demi journée », clarifié en « un après-midi et un matin [...] je veux
-  // le déplacer sur matin/après-midi »). Ci-dessus, demiCiblePourDeplacementNote
-  // (round du 03.09.2026/§25) reconduit TOUJOURS la forme des 2 bords telle
+  // le déplacer sur matin/après-midi »). demiCiblePourDeplacementNote
+  // (round du 03.09.2026/§25, retirée à la suite 24 avec le mode classique)
+  // reconduisait TOUJOURS la forme des 2 bords telle
   // quelle dès que duree > 1 — un déplacement de note à cheval sur plusieurs
   // jours ne pouvait donc bouger que par JOUR ENTIER, jamais par demi-journée :
   // ce n'était pas un bug caché, cette granularité n'avait simplement jamais
@@ -654,11 +613,7 @@
   // pas seulement duree > 1 comme avant ce round — cf. resoudreCibleGroupe.
   // Une note en JOURNÉE ENTIÈRE occupe exactement 2 demi-slots (autant
   // qu'une note "1 jour et demi" à cheval sur 2 jours calendaires) : rien ne
-  // justifiait de la traiter différemment. demiCiblePourDeplacementNote
-  // (round du 03.09.2026/§25) reste utilisée telle quelle, mais seulement en
-  // mode CLASSIQUE désormais (pas de géométrie demi-jour pixel-précise dans
-  // ce mode, cf. colonneEtSpanDemi) — cf. tests existants, comportement de ce
-  // mode inchangé.
+  // justifiait de la traiter différemment.
   function demiSlotsDepuisBornes(giDebut, duree, demiDebut, demiFin) {
     var halfStart = giDebut * 2 + (demiDebut === "aprem" ? 1 : 0);
     var halfFinIncl = (giDebut + Math.max(1, duree) - 1) * 2 + (demiFin === "matin" ? 0 : 1);
@@ -718,7 +673,7 @@
     cell.dataset.personne = extra.personne; cell.dataset.demi = extra.demi;
     // Round du 24.09.2026 — Lionel : « en mode 2 semaines, j'ai une mauvaise
     // bordure au niveau du lundi midi. » En mode compact (toujours actif,
-    // cf. modeCompact dans core.js), une ligne Personnel/Intervenants pose 2
+    // cf. le commentaire du mode unique dans core.js), une ligne Personnel/Intervenants pose 2
     // cellules DOM par jour (matin + aprem, cf. ligneGroupePersonnesCompact) —
     // cette fonction est donc appelée 2 fois par jour, une fois par demi.
     // "sem-frontiere" marque la frontière de SEMAINE (bordure gauche plus
@@ -1074,16 +1029,16 @@
     // les deux grilles restent visuellement synchronisées horizontalement.
     var cadre = document.createElement("div"); cadre.className = "grille-cadre";
     var scroller = document.createElement("div"); scroller.className = "scroller";
-    var grilleCorps = document.createElement("div"); grilleCorps.className = "grille" + (modeCompact ? " grille-compacte" : "");
+    var grilleCorps = document.createElement("div"); grilleCorps.className = "grille grille-compacte";
     var enteteFigee = document.createElement("div"); enteteFigee.className = "entete-planning-figee";
     var enteteScroll = document.createElement("div"); enteteScroll.className = "entete-planning-scroll";
-    var grilleEntete = document.createElement("div"); grilleEntete.className = "grille" + (modeCompact ? " grille-compacte" : "");
-    // En compact, chaque jour est scindé en 2 colonnes : la largeur minimale
-    // par demi-journée est donc réduite (58px au lieu de 108px), pour que la
-    // semaine tienne dans la même largeur qu'avant plutôt que d'obliger à
-    // scroller deux fois plus. C'est le compromis assumé du mode compact :
-    // moitié moins de largeur pour le texte, moitié moins de hauteur.
-    var largeurMin = modeCompact ? 58 : 108;
+    var grilleEntete = document.createElement("div"); grilleEntete.className = "grille grille-compacte";
+    // Chaque jour est scindé en 2 colonnes : la largeur minimale par
+    // demi-journée est donc réduite (58px, contre 108px par jour à l'époque
+    // du mode classique), pour que la semaine tienne dans la même largeur
+    // plutôt que d'obliger à scroller deux fois plus : moitié moins de
+    // largeur pour le texte, moitié moins de hauteur.
+    var largeurMin = 58;
     // Round du 23.09.2026 (suite 4) — Lionel : « sur la vue mobile ne soit
     // afficher que 1 jours. Un bouton permettrait d'afficher la vue 1
     // semaine (à la place du 2 semaines qu'on retrouve sur desktop et
@@ -1428,7 +1383,7 @@
       // multiple de bulles de V3 couvre désormais cet usage, cf.
       // FRONTEND-CHANGELOG.md §5).
       th.className = "th" + (gi > 0 && gi % 5 === 0 ? " sem-frontiere" : "")
-        + (modeCompact && gi > 0 && gi % 5 !== 0 ? " jour-frontiere" : "")
+        + (gi > 0 && gi % 5 !== 0 ? " jour-frontiere" : "")
         + (estAuj ? " today" : "");
       th.dataset.gi = gi;
       var infoJour = libelleJourGi(gi);
@@ -1456,35 +1411,33 @@
       }
     }
     row++;
-    // Mode compact : fine ligne d'en-tête "M | A" sous chaque jour. Sans elle,
+    // Fine ligne d'en-tête "M | A" sous chaque jour. Sans elle,
     // rien ne dirait laquelle des deux colonnes d'un jour est le matin — le
     // reste de la grille ne porte plus l'étiquette "Matin"/"Après-midi",
     // puisque les deux demi-journées partagent désormais une seule ligne.
-    if (modeCompact) {
-      var coinDemi = document.createElement("div");
-      coinDemi.className = "th coin th-demi";
-      poser(coinDemi, 1, row);
-      for (var giD = 0; giD < n; giD++) {
-        DEMIS.forEach(function (demi) {
-          var thD = document.createElement("div");
-          thD.className = "th th-demi" + (demi === "aprem" ? " th-demi-aprem" : "")
-            + (demi === "matin" && giD > 0 && giD % 5 === 0 ? " sem-frontiere" : "")
-            + (demi === "matin" && giD > 0 && giD % 5 !== 0 ? " jour-frontiere" : "");
-          thD.textContent = demi === "matin" ? "M" : "A";
-          thD.title = demi === "matin" ? "Matin" : "Après-midi";
-          poser(thD, colonneDemi(giD, demi), row);
+    var coinDemi = document.createElement("div");
+    coinDemi.className = "th coin th-demi";
+    poser(coinDemi, 1, row);
+    for (var giD = 0; giD < n; giD++) {
+      DEMIS.forEach(function (demi) {
+        var thD = document.createElement("div");
+        thD.className = "th th-demi" + (demi === "aprem" ? " th-demi-aprem" : "")
+          + (demi === "matin" && giD > 0 && giD % 5 === 0 ? " sem-frontiere" : "")
+          + (demi === "matin" && giD > 0 && giD % 5 !== 0 ? " jour-frontiere" : "");
+        thD.textContent = demi === "matin" ? "M" : "A";
+        thD.title = demi === "matin" ? "Matin" : "Après-midi";
+        poser(thD, colonneDemi(giD, demi), row);
+      });
+      if (afficherWeekends && (giD + 1) % 5 === 0) {
+        var semIdxD = Math.floor(giD / 5);
+        [0, 1].forEach(function (j) {
+          var vide = document.createElement("div");
+          vide.className = "th th-demi th-weekend";
+          poser(vide, colonneGrille(giWeekend(semIdxD, j)), row);
         });
-        if (afficherWeekends && (giD + 1) % 5 === 0) {
-          var semIdxD = Math.floor(giD / 5);
-          [0, 1].forEach(function (j) {
-            var vide = document.createElement("div");
-            vide.className = "th th-demi th-weekend";
-            poser(vide, colonneGrille(giWeekend(semIdxD, j)), row);
-          });
-        }
       }
-      row++;
     }
+    row++;
 
     [["jalon", JALONS, "Jalons"], ["note", NOTES, "Notes"]].forEach(function (spec) {
       var kind = spec[0], liste = spec[1], label = spec[2];
@@ -1539,20 +1492,12 @@
         // Bulle d'une DEMI-JOURNÉE (round du 02.09.2026, étendu aux jalons le
         // 08.09.2026 — §47 du FRONTEND-CHANGELOG : jalon et note partagent
         // maintenant demiDebut/demiFin et ce même rendu) :
-        //  - en compact, chaque jour a déjà 2 colonnes -> l'entrée se pose
-        //    exactement sur la bonne, largeur naturelle ;
-        //  - en classique, un jour n'a qu'UNE colonne -> la bulle occupe la
-        //    moitié de la case, calée à gauche (matin) ou à droite (aprem).
-        //    Une classe CSS suffit : la géométrie de la grille ne change pas.
-        // demiDebut/demiFin (round du 03.09.2026) : la classe CSS .bulle-demi
-        // (largeur 50 % en mode classique) reste réservée aux notes d'UN SEUL
-        // jour — sur plusieurs jours elle rétrécirait toute la largeur de la
-        // bulle au lieu de son seul bord, cf. sa définition CSS pensée pour
-        // une bulle d'un seul jour. Le rendu du bord d'une note multi-jours
-        // reste donc correct côté géométrie (colonneEtSpanDemi, mode compact
-        // uniquement) ; le mode classique affiche alors un simple rectangle
-        // plein sans notch visuel sur le bord concerné — le texte du titre
-        // continue de le signaler.
+        // chaque jour a 2 colonnes, l'entrée se pose exactement sur la bonne
+        // (colonneEtSpanDemi), largeur naturelle. Les classes .bulle-demi-*
+        // ne portent plus de géométrie depuis le retrait du mode classique
+        // (suite 24, cf. core.js) : elles restent de simples repères, posés
+        // sur les bulles d'UN SEUL jour ; pour une bulle de plusieurs jours,
+        // c'est le titre (infobulle) qui signale le bord en demi-journée.
         var demiDebutIt = it.demiDebut || null, demiFinIt = it.demiFin || null;
         if (it.duree === 1 && (demiDebutIt === "matin" || demiDebutIt === "aprem")) {
           b.classList.add("bulle-demi", demiDebutIt === "matin" ? "bulle-demi-matin" : "bulle-demi-aprem");
@@ -1568,7 +1513,7 @@
         // "aprem" dès que demiDebutIt === "aprem" (seul ce bord-là compte pour
         // la colonne de départ, cf. sa définition) — cette bulle a donc besoin
         // du même empiètement anti-trait que .cell.cell-aprem ci-dessus.
-        if (modeCompact && demiDebutIt === "aprem") b.classList.add("demi-aprem");
+        if (demiDebutIt === "aprem") b.classList.add("demi-aprem");
         var csStatique = colonneEtSpanDemi(it.giDebut, dureeVisible, demiDebutIt, demiFinIt);
         poser(b, csStatique[0], row + it._piste, csStatique[1]);
       });
