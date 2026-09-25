@@ -7615,3 +7615,4 @@ Vérifié en local (Playwright) — **`test_suite32.js`** (nouveau), 28 vérific
 - avec la production telle quelle : 219 j / 1843.25 h, 24 jours de vacances, total 2102.19 h ;
 - téléphone : carte Bilan correcte, pas de défilement horizontal.
 - `test_suite27.js` (lit maintenant les 2 premières colonnes) et `test_feries_mobile.js` (compte les 12 cartes de mois hors Bilan) adaptés : 33/33 et 16/16.
+- **Suite complète** : mêmes 8 échecs que sur `main` (anciens tests qui cherchent des fonctions dans `index.html`, cf. §129).
