@@ -291,17 +291,6 @@
     });
     return out;
   }
-  function assignerPistes(items) {
-    var finsPistes = [];
-    items.slice().sort(function (a, b) { return a.giDebut - b.giDebut; }).forEach(function (it) {
-      var giFin = it.giDebut + it.duree;
-      var piste = finsPistes.findIndex(function (fin) { return fin <= it.giDebut; });
-      if (piste === -1) { piste = finsPistes.length; finsPistes.push(giFin); }
-      else finsPistes[piste] = giFin;
-      it._piste = piste;
-    });
-    return finsPistes.length;
-  }
   // Empilement en mode compact : matin et après-midi d'une même personne
   // partagent maintenant UNE ligne, il faut donc décider quelles tâches
   // peuvent cohabiter sur la même piste. Deux tâches ne se gênent que si
@@ -310,7 +299,9 @@
   // peuvent donc rester sur la même piste — c'est tout l'intérêt du mode,
   // sinon on n'aurait rien gagné en hauteur. On raisonne donc sur l'ensemble
   // des demi-journées occupées (jour × 2 + 0/1), pas sur des intervalles de
-  // jours comme assignerPistes() classique.
+  // jours. Round du 25.09.2026 (suite 35) : sert aussi aux lignes Jalons et
+  // Notes, qui passaient encore par l'ancien assignerPistes() À LA JOURNÉE
+  // (supprimé) — cf. la ligne jalons/notes plus bas.
   function assignerPistesCompact(items) {
     var pistes = []; // pistes[i] = { "<hi>": true } : demi-journées déjà prises
     items.slice().sort(function (a, b) { return a.giDebut - b.giDebut; }).forEach(function (it) {
@@ -887,6 +878,12 @@
   // reconstruit. Onglet Planning masqué : fait à son retour (coquille.js,
   // RENDU_PAR_PAGE.planning) — renvoie true si une reconstruction est lancée.
   var modeJourMobileRendu = null, labsRendusDernier = null;
+  // reajusterBullesJourMobile() (suite 35) : recalcule, à l'image suivante,
+  // la largeur visible des cartes de bulles en vue « 1 jour » (cf.
+  // ajusterLargeurBullesJourMobile dans construireGrille, qui la
+  // rebranche à chaque rendu) — pour l'aperçu d'une poignée, qui change la
+  // taille d'une bulle sans aucun défilement. Sans effet hors de ce mode.
+  var reajusterBullesJourMobile = function () {};
   function verifierModeFenetre() {
     var page = document.getElementById("page-planning");
     if (!page || !page.classList.contains("actif") || modeJourMobileRendu === null) return false;
@@ -968,6 +965,9 @@
   function construireGrille() {
     if (!racineEl) racineEl = document.getElementById("racine");
     if (!racineEl || !fenetrePrete()) return;
+    // Largeur de la colonne des noms (suite 35, cf. largeurNoms, core.js) :
+    // lue une fois par rendu, pour tous les calculs ci-dessous.
+    var LN = largeurNoms();
     var scrollerPrecedent = racineEl.querySelector(".scroller");
     var scrollLeftPrecedent = scrollerPrecedent ? scrollerPrecedent.scrollLeft : 0;
     // Vue "1 jour" (round du 24.09.2026, suite 6) : le rendu se cale sur
@@ -981,7 +981,7 @@
     // la semaine affichée (sinon, c'est ‹ › ou la pilule qui viennent d'en
     // changer — jourMobileCourant se charge alors du bon jour).
     if (scrollerPrecedent && modeJourMobileRendu && modeJourMobileActif() && !cibleApresRendu && labsRendusDernier === fenetreLabGs().join(",")) {
-      var bordNomsPrec = scrollerPrecedent.getBoundingClientRect().left + 116, thVisible = null, ecartVisible = Infinity;
+      var bordNomsPrec = scrollerPrecedent.getBoundingClientRect().left + LN, thVisible = null, ecartVisible = Infinity;
       racineEl.querySelectorAll(".entete-planning-figee .th[data-gi]").forEach(function (th) {
         var e = Math.abs(th.getBoundingClientRect().left + th.clientLeft - bordNomsPrec);
         if (e < ecartVisible) { ecartVisible = e; thVisible = th; }
@@ -1092,21 +1092,21 @@
     // enModeJourMobile. Variable globale (:root) plutôt que posée sur
     // .scroller/racineEl : plus simple à référencer depuis ces sélecteurs
     // (héritage CSS normal), pas de risque de portée manquante.
-    document.documentElement.style.setProperty("--largeur-visible-bulle", (racineEl.clientWidth - 132) + "px");
-    var gabarit = "116px";
+    document.documentElement.style.setProperty("--largeur-visible-bulle", (racineEl.clientWidth - LN - 16) + "px");
+    var gabarit = LN + "px";
     for (var sTpl = 0; sTpl < nbSemainesAffichees; sTpl++) {
       if (enModeJourMobile) {
-        gabarit += " repeat(" + (5 * colsParJour()) + ", minmax(calc((" + largeurEcranJour + " - 116px) / " + colsParJour() + "), 1fr))";
-        if (afficherWeekends) gabarit += " repeat(2, minmax(calc(" + largeurEcranJour + " - 116px), 1fr))";
+        gabarit += " repeat(" + (5 * colsParJour()) + ", minmax(calc((" + largeurEcranJour + " - " + LN + "px) / " + colsParJour() + "), 1fr))";
+        if (afficherWeekends) gabarit += " repeat(2, minmax(calc(" + largeurEcranJour + " - " + LN + "px), 1fr))";
       } else {
         gabarit += " repeat(" + (5 * colsParJour()) + ", minmax(" + largeurMin + "px, 1fr))";
         if (afficherWeekends) gabarit += " repeat(2, 46px)";
       }
     }
     var largeurMiniTotale = enModeJourMobile
-      ? "calc(116px + " + (nbSemainesAffichees * 5 * colsParJour()) + " * ((" + largeurEcranJour + " - 116px) / " + colsParJour() + ")"
-        + (afficherWeekends ? " + " + (nbSemainesAffichees * 2) + " * (" + largeurEcranJour + " - 116px)" : "") + ")"
-      : (116 + nbSemainesAffichees * (5 * colsParJour() * largeurMin + (afficherWeekends ? 2 * 46 : 0))) + "px";
+      ? "calc(" + LN + "px + " + (nbSemainesAffichees * 5 * colsParJour()) + " * ((" + largeurEcranJour + " - " + LN + "px) / " + colsParJour() + ")"
+        + (afficherWeekends ? " + " + (nbSemainesAffichees * 2) + " * (" + largeurEcranJour + " - " + LN + "px)" : "") + ")"
+      : (LN + nbSemainesAffichees * (5 * colsParJour() * largeurMin + (afficherWeekends ? 2 * 46 : 0))) + "px";
     grilleEntete.style.gridTemplateColumns = gabarit;
     grilleEntete.style.minWidth = largeurMiniTotale;
     grilleCorps.style.gridTemplateColumns = gabarit;
@@ -1159,18 +1159,29 @@
     // offsetParent (grilleCorps ou grilleEntete pour Jalons/Notes, cf.
     // trouverScroller) — sans rapport avec le scroll, donc stables entre 2
     // appels tant que la grille elle-même n'est pas reconstruite.
+    //
+    // Round du 25.09.2026 (suite 35) : mesures en coordonnées ÉCRAN
+    // (getBoundingClientRect) plutôt qu'en offsetLeft/scrollLeft. Sous zoom
+    // du planning (grilles en `zoom: .8`…), offsetLeft reste dans le repère
+    // non zoomé de la grille alors que scrollLeft est dans celui, zoomé, du
+    // scroller : à 80 %, une bulle de la VEILLE passait pour visible (carte
+    // affichée, largeur fausse) — ce qui faussait aussi la mesure des
+    // hauteurs du jour posé (figerHauteursJourMobile, juste en dessous).
+    // Toutes les lectures d'abord, puis toutes les écritures : une seule
+    // mise en page par image. Largeur ramenée en px CSS de la carte (÷ zoom).
     function ajusterLargeurBullesJourMobile() {
       if (!enModeJourMobile) return;
-      var debutVisible = scroller.scrollLeft + 116;
-      var finVisible = scroller.scrollLeft + scroller.clientWidth;
-      var bulles = grilleCorps.querySelectorAll(".bulle");
-      var bullesEntete = grilleEntete.querySelectorAll(".bulle");
-      for (var i = 0; i < bulles.length + bullesEntete.length; i++) {
-        var b = i < bulles.length ? bulles[i] : bullesEntete[i - bulles.length];
-        var carte = b.querySelector(".b-carte");
+      var zoom = (niveauZoomPlanning / 100) || 1;
+      var rS = scroller.getBoundingClientRect();
+      var debutVisible = rS.left + scroller.clientLeft + LN * zoom;
+      var finVisible = rS.left + scroller.clientLeft + scroller.clientWidth;
+      var bulles = [].slice.call(grilleCorps.querySelectorAll(".bulle")).concat([].slice.call(grilleEntete.querySelectorAll(".bulle")));
+      var rects = bulles.map(function (b) { return b.getBoundingClientRect(); });
+      for (var i = 0; i < bulles.length; i++) {
+        var carte = bulles[i].querySelector(".b-carte");
         if (!carte) continue;
-        var g = Math.max(debutVisible, b.offsetLeft);
-        var d = Math.min(finVisible, b.offsetLeft + b.offsetWidth);
+        var g = Math.max(debutVisible, rects[i].left);
+        var d = Math.min(finVisible, rects[i].right);
         // width (pas seulement max-width) : .b-carte a align-self:flex-start
         // (rétrécit à son contenu, cf. son commentaire CSS) — livré seul,
         // max-width borne le débordement mais ne fait JAMAIS grandir la
@@ -1191,65 +1202,65 @@
         // 0, donc le rendu réel plafonne à ~22px de padding pur) — une bulle
         // censée être totalement hors écran redevenait visible avec un
         // bandeau vide de 22px. display:none n'a pas ce plancher.
-        if (d <= g) { carte.style.display = "none"; }
-        else { carte.style.display = ""; carte.style.width = (d - g) + "px"; }
+        if (d - g < 1) { carte.style.display = "none"; }
+        else { carte.style.display = ""; carte.style.width = ((d - g) / zoom) + "px"; }
       }
     }
-    // figerHauteursBullesJourMobile() — round du 25.09.2026 (suite 34).
-    // Lionel : « Sur mobile, éviter que les hauteurs de cellules ne change
-    // pendant un changement de jour. » Cause : ajusterLargeurBullesJourMobile
-    // (juste au-dessus) MASQUE les cartes hors écran (display:none) et
-    // RÉTRÉCIT celles à moitié visibles pendant le glissement. Or la
-    // hauteur d'une piste (ligne de grille, cf. assignerPistes) est celle de
-    // sa plus haute bulle AFFICHÉE : elle suivait donc le jour visible
-    // (Mathis 55 px le jeudi, 109 px le mercredi avec 2 bulles l'une
-    // sous l'autre) et bougeait même en plein geste (texte qui passe sur 2
-    // lignes quand la carte rétrécit).
-    // Correctif : une fois par rendu, chaque bulle reçoit une hauteur FIXE,
-    // celle de sa carte à sa largeur la plus étroite « au repos »,
-    // c.-à-d. sa plus petite part sur un jour (une demi-journée de début ou
-    // de fin, sinon le jour entier, bornée à la largeur visible). Cette
-    // largeur donne le plus de lignes de texte, donc une hauteur qui tient
-    // sur tous ses jours. Les cartes masquées ou rétrécies ne changent
-    // plus rien à la grille : les lignes gardent la même hauteur sur toute
-    // la fenêtre de 2 semaines, comme en vue « 1 semaine ». La carte
-    // remplit cette hauteur (.hauteur-figee, style.css), texte centré.
-    // Mesures en getBoundingClientRect (même repère pour en-têtes et
-    // bulles, quelle que soit leur grille), ramenées en px CSS par le
-    // zoom avant d'être posées en style.
-    function figerHauteursBullesJourMobile() {
+    // figerHauteursJourMobile() — round du 25.09.2026 (suite 35), remplace
+    // figerHauteursBullesJourMobile de la suite 34. Historique : Lionel,
+    // « Sur mobile, éviter que les hauteurs de cellules ne change pendant un
+    // changement de jour. » ajusterLargeurBullesJourMobile (juste au-dessus)
+    // masque les cartes hors écran et rétrécit celles à moitié visibles
+    // pendant le glissement ; or la hauteur d'une piste (ligne de grille,
+    // cf. assignerPistesCompact) est celle de sa plus haute bulle affichée :
+    // elle bougeait en plein geste. La suite 34 figeait donc chaque bulle à
+    // une hauteur valable pour TOUS ses jours — lignes stables, mais
+    // calibrées sur le jour le plus chargé de la fenêtre (Mathis à 109 px
+    // le jeudi à cause des 2 bulles empilées du mercredi).
+    // Suite 35 — Lionel : « sur mobile, lors du défilement, la hauteur
+    // pourrait être calculée lors de la fixation du jour. Ainsi pendant le
+    // switch la hauteur reste la même et est recalculée lorsque le jour est
+    // fixé. » Désormais : une fois le jour posé (rendu, puis arrêt du
+    // défilement — defilementArrete plus bas), on mesure les lignes pour CE
+    // jour seulement (bulles des autres jours retirées de la mise en page le
+    // temps de la mesure, cartes à leur largeur du jour), puis on fige ces
+    // hauteurs sur la grille elle-même (gridTemplateRows en px). Pendant le
+    // glissement suivant, rien ne peut plus pousser une ligne : les bulles du
+    // jour qui arrive remplissent leur piste, texte coupé si besoin
+    // (.grille.hauteurs-figees, style.css), jusqu'au prochain arrêt.
+    // `cleHauteursJour` évite de remesurer quand le jour n'a pas changé (un
+    // défilement vertical passe aussi par defilementArrete).
+    var cleHauteursJour = null;
+    function figerHauteursJourMobile(forcer) {
       if (!enModeJourMobile) return;
+      var cle = Math.round(scroller.scrollLeft) + "|" + scroller.clientWidth;
+      if (!forcer && cle === cleHauteursJour) return;
+      cleHauteursJour = cle;
+      ajusterLargeurBullesJourMobile();
+      var grilles = [grilleEntete, grilleCorps];
+      var horsJour = [];
+      // Hors du jour posé : carte masquée, ou simple lamelle de moins de
+      // 30 px à l'écran (sous zoom, l'aimantation laisse voir quelques px de
+      // la veille ; une carte si étroite, tout en padding, compterait une
+      // hauteur absurde, une ligne par mot).
       var zoom = (niveauZoomPlanning / 100) || 1;
-      var rEntete = grilleEntete.getBoundingClientRect();
-      var largeurVisible = scroller.clientWidth - 116;
-      var jours = [];
-      grilleEntete.querySelectorAll(".th[data-gi]").forEach(function (th) {
-        var r = th.getBoundingClientRect();
-        jours.push([r.left - rEntete.left, r.right - rEntete.left]);
-      });
-      var bulles = [].slice.call(grilleCorps.querySelectorAll(".bulle")).concat([].slice.call(grilleEntete.querySelectorAll(".bulle")));
-      var mesures = [];
-      bulles.forEach(function (b) {
-        var carte = b.querySelector(".b-carte");
-        if (!carte) return;
-        b.classList.remove("hauteur-figee");
-        b.style.height = "";
-        var rGrille = (b.parentNode === grilleEntete ? grilleEntete : grilleCorps).getBoundingClientRect();
-        var rB = b.getBoundingClientRect(), g = rB.left - rGrille.left, d = rB.right - rGrille.left;
-        var plusEtroite = Math.min(largeurVisible, rB.width);
-        jours.forEach(function (j) {
-          var part = Math.min(d, j[1]) - Math.max(g, j[0]);
-          if (part > 1 && part < plusEtroite) plusEtroite = part;
+      grilles.forEach(function (g) {
+        g.classList.remove("hauteurs-figees");
+        g.style.gridTemplateRows = "";
+        g.querySelectorAll(".bulle").forEach(function (b) {
+          var carte = b.querySelector(".b-carte");
+          if (carte && (carte.style.display === "none" || parseFloat(carte.style.width) * zoom < 30)) { b.style.display = "none"; horsJour.push(b); }
         });
-        carte.style.display = "";
-        carte.style.width = (plusEtroite / zoom) + "px";
-        mesures.push([b, carte]);
       });
-      // Lecture groupée APRÈS toutes les écritures : une seule mise en page.
-      var hauteurs = mesures.map(function (m) { return m[1].getBoundingClientRect().height / zoom; });
-      mesures.forEach(function (m, i) {
-        m[0].style.height = Math.ceil(hauteurs[i]) + "px";
-        m[0].classList.add("hauteur-figee");
+      // Lecture groupée : une seule mise en page. getComputedStyle rend les
+      // pistes RÉSOLUES (« 41px 55px 30px… »), dans le repère de la grille
+      // elle-même — zoom compris, puisqu'on les lui rend telles quelles.
+      var pistes = grilles.map(function (g) { return getComputedStyle(g).gridTemplateRows; });
+      horsJour.forEach(function (b) { b.style.display = ""; });
+      grilles.forEach(function (g, i) {
+        if (!pistes[i] || pistes[i] === "none") return;
+        g.style.gridTemplateRows = pistes[i];
+        g.classList.add("hauteurs-figees");
       });
     }
     // rAF-throttlé : "scroll" peut se déclencher plusieurs fois par frame
@@ -1261,6 +1272,7 @@
       rafAjustLargeurBulles = requestAnimationFrame(function () { rafAjustLargeurBulles = null; ajusterLargeurBullesJourMobile(); });
     }
     scroller.addEventListener("scroll", function () { enteteScroll.scrollLeft = scroller.scrollLeft; planifierAjustLargeurBulles(); });
+    reajusterBullesJourMobile = planifierAjustLargeurBulles;
     // Round du 23.09.2026 (suite 5) — Lionel : « Swipper un vendredi permet
     // de passer au lundi de la semaine suivante ? ». Réattaché à chaque
     // rendu (comme le mirroir de scroll juste au-dessus) puisque .scroller
@@ -1548,7 +1560,17 @@
       var repliee = kind === "jalon" ? replierJalons : replierNotes;
       if (repliee) return;
       var visibles = liste.filter(function (it) { return giVisible(it.giDebut, n); });
-      var nbPistes = Math.max(1, assignerPistes(visibles));
+      // Pistes à la DEMI-JOURNÉE (round du 25.09.2026, suite 35). Lionel :
+      // « Comportement anormal des notes qui se trouvent sur des lignes
+      // différentes sur le planning. » Les notes et jalons se posent pourtant
+      // au demi-slot près (colonneEtSpanDemi, plus bas) depuis le §47, mais
+      // leurs pistes étaient encore attribuées À LA JOURNÉE (ancien
+      // assignerPistes) : « Remorque plateau » (mercredi matin) et « Tri
+      // déchets dépôt » (mercredi après-midi) ne se chevauchent pas, et
+      // tombaient pourtant sur 2 lignes l'une sous l'autre, en escalier.
+      // Même empilement que les lignes de personnes en compact : deux notes ne
+      // se gênent que si elles occupent une même demi-journée.
+      var nbPistes = Math.max(1, assignerPistesCompact(visibles));
       // Titre de ligne ("Jalons"/"Notes") : retiré le 02.09.2026 (retour de
       // Lionel : "on peut réduire les hauteurs de ligne en enlevant... les
       // titres notes et jalons. on a déjà une légende"), puis REMIS le
@@ -1710,7 +1732,10 @@
         lbl.className = "lbl lbl-compacte";
         // Ligne d'équipe (nom, membres, ▸/▾) ou membre d'une équipe
         // (décalé sous elle) — suite 33, cf. js/equipes.js.
-        lbl.innerHTML = "<b>" + esc(p.nom) + "</b>";
+        // nomSurDeuxLignes (suite 35) : césure permise après « / » ; nom
+        // complet au survol s'il est coupé après 2 lignes.
+        lbl.innerHTML = "<b>" + nomSurDeuxLignes(p.nom) + "</b>";
+        lbl.title = p.nom;
         remplirEtiquetteEquipe(lbl, p);
         poser(lbl, 1, row, null, nbPistes);
         for (var gi4 = 0; gi4 < n; gi4++) {
@@ -1804,7 +1829,7 @@
     function decalerSurColonne_(th) {
       if (!th) return 0;
       var rGrilleEntete = grilleEntete.getBoundingClientRect(), rTh = th.getBoundingClientRect();
-      return Math.max(0, Math.round((rTh.left - rGrilleEntete.left) - 116));
+      return Math.max(0, Math.round((rTh.left - rGrilleEntete.left) - LN));
     }
     if (enModeJourMobile) {
       // Round du 24.09.2026 (suite 6) — vue "1 jour" : TOUJOURS calé sur le
@@ -1838,19 +1863,6 @@
     } else if (scrollerPrecedent) {
       cibleScrollLeft = scrollLeftPrecedent;
     }
-    // Hauteurs figées AVANT le calage horizontal et le premier
-    // ajusterLargeurBullesJourMobile (qui repose ensuite les largeurs du
-    // jour visible) — cf. figerHauteursBullesJourMobile. Si les polices ne
-    // sont pas encore chargées (premier affichage), la mesure est refaite
-    // une fois qu'elles le sont : le texte n'occupe pas la même place.
-    figerHauteursBullesJourMobile();
-    if (enModeJourMobile && document.fonts && document.fonts.status !== "loaded") {
-      document.fonts.ready.then(function () {
-        if (!scroller.isConnected) return;
-        figerHauteursBullesJourMobile();
-        ajusterLargeurBullesJourMobile();
-      });
-    }
     scroller.scrollLeft = cibleScrollLeft;
     // enteteScroll doit refléter le même défilement horizontal dès ce même
     // rendu (sans attendre l'événement "scroll" ci-dessus, asynchrone dans
@@ -1864,6 +1876,17 @@
     // en cours, ex. re-rendu sans changement de semaine/jour) — cf. le
     // commentaire de ajusterLargeurBullesJourMobile plus haut.
     ajusterLargeurBullesJourMobile();
+    // Hauteurs du jour affiché (suite 35, cf. figerHauteursJourMobile),
+    // APRÈS le calage horizontal : c'est ce jour-là qu'on mesure. Si les
+    // polices ne sont pas encore chargées (premier affichage), la mesure est
+    // refaite une fois qu'elles le sont : le texte n'occupe pas la même place.
+    figerHauteursJourMobile(true);
+    if (enModeJourMobile && document.fonts && document.fonts.status !== "loaded") {
+      document.fonts.ready.then(function () {
+        if (!scroller.isConnected) return;
+        figerHauteursJourMobile(true);
+      });
+    }
     // Round du 24.09.2026 (suite 6) — défilement "infini" de la vue "1 jour"
     // (cf. fenetreLabGs, core.js). Une fois le défilement ARRÊTÉ (plus
     // d'événement "scroll" depuis 200ms, aucun doigt posé, aucun glisser de
@@ -1886,6 +1909,10 @@
       var defilementArrete = function () {
         if (!scroller.isConnected || doigtsPoses > 0 || document.body.classList.contains("en-glissement")) return;
         if (syncEnCours) { minuteurArret = setTimeout(defilementArrete, 400); return; }
+        // Jour posé : ses hauteurs de lignes (suite 35, cf.
+        // figerHauteursJourMobile) — même si la fenêtre se recentre juste
+        // après, la nouvelle grille remesure ce même jour à l'identique.
+        figerHauteursJourMobile(false);
         var thJour = null, ecart = Infinity;
         grilleEntete.querySelectorAll(".th[data-gi]").forEach(function (th) {
           var e = Math.abs(decalerSurColonne_(th) - scroller.scrollLeft);

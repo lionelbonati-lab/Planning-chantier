@@ -36,19 +36,80 @@
   }
 
   var BORD_ZONE = 46, BORD_VITESSE_MAX = 16;
-  function creerAutoDefilement(scroller) {
+  // Vue « 1 jour » (round du 25.09.2026, suite 35) — Lionel : « Changer de
+  // jour en glissant une bulle contre le bord du jour ne fonctionne pas sur
+  // mobile. » Deux causes :
+  //   - le défilement continu ci-dessous (scrollLeft += quelques px par
+  //     image) est aussitôt RAMENÉ sur le jour de départ par l'aimantation
+  //     obligatoire du mode (scroll-snap mandatory, cf. le commentaire de
+  //     desactiverSnapSiBesoin_ plus bas : même mécanisme) ;
+  //   - la zone de gauche (46px depuis le bord du .scroller) tombait sous
+  //     la colonne des noms, figée par-dessus.
+  // Dans ce mode, le bord devient un SAUT D'UN JOUR ENTIER : doigt tenu
+  // près du bord droit du jour (ou sur son bord gauche, colonne des noms
+  // comprise) → au bout de DELAI_SAUT_JOUR, défilement animé jusqu'au jour
+  // voisin (repère .snap-jour, donc toujours bien calé), puis un jour de
+  // plus toutes les INTERVALLE_SAUT_JOUR tant que le doigt y reste. `rappel`
+  // (optionnel) est appelé une fois le saut fini : le geste en cours
+  // (déplacer, étirer, sélectionner) refait alors son calcul sous le doigt,
+  // qui n'a pas bougé mais survole maintenant une autre case.
+  var BORD_ZONE_JOUR = 36, DELAI_SAUT_JOUR = 450, INTERVALLE_SAUT_JOUR = 900, DUREE_SAUT_JOUR = 350;
+  function repereJourVoisin_(scroller, dir) {
+    var LN = largeurNoms(), maxScroll = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+    var cibles = [].map.call(scroller.querySelectorAll(".snap-jour"), function (r) { return Math.max(0, Math.min(maxScroll, r.offsetLeft - LN)); })
+      .sort(function (a, b) { return a - b; });
+    if (!cibles.length) return null;
+    var idx = 0;
+    cibles.forEach(function (c, i) { if (Math.abs(c - scroller.scrollLeft) < Math.abs(cibles[idx] - scroller.scrollLeft)) idx = i; });
+    var cible = cibles[idx + dir];
+    return cible === undefined || cible === cibles[idx] ? null : cible;
+  }
+  // Abscisse de recherche de la case sous le doigt, en vue « 1 jour »
+  // (suite 35) : ramenée dans le jour visible. Un doigt qui déborde sur la
+  // colonne des noms (bord gauche) ne survole plus « rien » — il vise la
+  // première case du jour, comme on s'y attend en poussant la bulle contre
+  // ce bord (cf. creerAutoDefilement juste en dessous).
+  function xDansJourVisible_(scroller, x) {
+    if (!scroller || !scroller.classList.contains("snap-jour-mobile")) return x;
+    var r = scroller.getBoundingClientRect();
+    return Math.max(r.left + largeurNoms() + 2, Math.min(r.right - 2, x));
+  }
+  function creerAutoDefilement(scroller, rappel) {
     var raf = null, dx = 0;
+    var sautDir = 0, minuteurSaut = null, minuteurFinSaut = null;
     function tick() { if (dx !== 0 && scroller) { scroller.scrollLeft += dx; raf = requestAnimationFrame(tick); } else raf = null; }
+    function sauterJour() {
+      minuteurSaut = null;
+      if (!sautDir || !scroller.isConnected) return;
+      var cible = repereJourVoisin_(scroller, sautDir);
+      if (cible === null) return; // bout de la fenêtre chargée : on n'insiste pas
+      scroller.scrollTo({ left: cible, behavior: "smooth" });
+      clearTimeout(minuteurFinSaut);
+      minuteurFinSaut = setTimeout(function () { if (rappel) rappel(); }, DUREE_SAUT_JOUR);
+      minuteurSaut = setTimeout(sauterJour, INTERVALLE_SAUT_JOUR);
+    }
     return {
       maj: function (clientX) {
         if (!scroller) return;
         var r = scroller.getBoundingClientRect();
+        if (scroller.classList.contains("snap-jour-mobile")) {
+          var dir = clientX < r.left + largeurNoms() + BORD_ZONE_JOUR ? -1 : (clientX > r.right - BORD_ZONE_JOUR ? 1 : 0);
+          if (dir !== sautDir) {
+            clearTimeout(minuteurSaut); minuteurSaut = null;
+            sautDir = dir;
+            if (dir) minuteurSaut = setTimeout(sauterJour, DELAI_SAUT_JOUR);
+          }
+          return;
+        }
         if (clientX < r.left + BORD_ZONE) dx = -BORD_VITESSE_MAX * (1 - Math.max(0, clientX - r.left) / BORD_ZONE);
         else if (clientX > r.right - BORD_ZONE) dx = BORD_VITESSE_MAX * (1 - Math.max(0, r.right - clientX) / BORD_ZONE);
         else dx = 0;
         if (dx !== 0 && raf === null) raf = requestAnimationFrame(tick);
       },
-      arreter: function () { dx = 0; if (raf) { cancelAnimationFrame(raf); raf = null; } }
+      arreter: function () {
+        dx = 0; if (raf) { cancelAnimationFrame(raf); raf = null; }
+        sautDir = 0; clearTimeout(minuteurSaut); clearTimeout(minuteurFinSaut); minuteurSaut = minuteurFinSaut = null;
+      }
     };
   }
 
@@ -65,7 +126,7 @@
     var maxScroll = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
     var meilleur = null, meilleureDistance = Infinity;
     for (var i = 0; i < reperes.length; i++) {
-      var cible = Math.max(0, Math.min(maxScroll, reperes[i].offsetLeft - 116));
+      var cible = Math.max(0, Math.min(maxScroll, reperes[i].offsetLeft - largeurNoms()));
       var distance = Math.abs(cible - scroller.scrollLeft);
       if (distance < meilleureDistance) { meilleureDistance = distance; meilleur = cible; }
     }
@@ -252,7 +313,15 @@
   // §47, aux tâches/absences ici).
   function cablerPoigneeRedim(handleEl, bulleDom, it, cote) {
     handleEl.addEventListener("pointerdown", function (e) {
-      if (bullesSelectionnees[bulleDom.dataset.id]) { basculerSelection(bulleDom.dataset.id); e.preventDefault(); e.stopPropagation(); return; }
+      // Au doigt (round du 25.09.2026, suite 35 — Lionel : « Je n'arrive
+      // pas à actionner les poignées gauche et droite sur mobile ») : la
+      // poignée d'une bulle SÉLECTIONNÉE s'étire aussi (appui maintenu),
+      // un simple tap y fait ce que fait un tap sur la bulle (cf. onUp).
+      // Avant, toucher la poignée d'une bulle sélectionnée la
+      // désélectionnait d'office — or au téléphone on commence justement
+      // par toucher la bulle. Souris : inchangé.
+      var tactile = e.pointerType === "touch";
+      if (bullesSelectionnees[bulleDom.dataset.id] && !tactile) { basculerSelection(bulleDom.dataset.id); e.preventDefault(); e.stopPropagation(); return; }
       if (estGiWeekend(it.giDebut)) { e.preventDefault(); e.stopPropagation(); return; } // isolée, jamais redimensionnable
       e.preventDefault(); e.stopPropagation();
       var sx = e.clientX, sy = e.clientY, dernierX = sx, dernierY = sy, dernierT = e.timeStamp;
@@ -263,6 +332,11 @@
       // défilement manuel (ci-dessous) l'inertie qui lui manquait au lâcher
       // du doigt.
       var defilementManuel = creerDefilementManuel(scroller);
+      // Bord du jour en vue « 1 jour » (suite 35) : étirer jusqu'au bord
+      // de l'écran fait passer au jour voisin (cf. creerAutoDefilement) ;
+      // l'aperçu est recalculé sous le doigt une fois le saut fini.
+      var derniereMove = null;
+      var autoDefil = creerAutoDefilement(scroller, function () { if (derniereMove) onMove(derniereMove); });
       var nTotal = nbJoursAffiches();
       var giDebutOrig = it.giDebut, dureeOrig = it.duree;
       var giFinExclusifFixe = giDebutOrig + dureeOrig;
@@ -292,6 +366,7 @@
       function appliquerPrevisu() {
         var cs = colonneEtSpanDemi(giDebutPrevisu, dureePrevisu, demiDebutPrevisu, demiFinPrevisu);
         bulleDom.style.gridColumn = cs[0] + " / span " + cs[1];
+        reajusterBullesJourMobile(); // vue « 1 jour » : carte à la nouvelle largeur visible
       }
       function armer() { arme = true; document.body.classList.add("en-glissement"); handleEl.classList.add("actif"); }
       function detacher() {
@@ -301,6 +376,7 @@
         // haut. Appelé ici (donc identiquement depuis onUp ET onCancel) pour
         // ne jamais l'oublier sur l'un des deux chemins de sortie.
         if (enDefilement) defilementManuel.relacher();
+        autoDefil.arreter();
         document.body.classList.remove("en-glissement");
         handleEl.classList.remove("actif");
         document.removeEventListener("pointermove", onMove);
@@ -317,8 +393,11 @@
           dernierX = e2.clientX; dernierY = e2.clientY; dernierT = e2.timeStamp;
           return;
         }
+        derniereMove = e2;
+        autoDefil.maj(e2.clientX);
+        var xCible = xDansJourVisible_(scroller, e2.clientX);
         bulleDom.style.visibility = "hidden";
-        var sous = document.elementFromPoint(e2.clientX, e2.clientY);
+        var sous = document.elementFromPoint(xCible, e2.clientY);
         bulleDom.style.visibility = "";
         var cel = sous && sous.closest(".cell");
         if (!cel || !kindEtPersonneOk(it, cel)) return;
@@ -327,12 +406,12 @@
         if (cote === "droite") {
           dureePrevisu = Math.max(1, Math.min(nTotal - giDebutOrig, giSurvol - giDebutOrig + 1));
           giDebutPrevisu = giDebutOrig;
-          var bordsD = demiPourRedimNote(cote, dureePrevisu, demiDebutOrig, demiFinOrig, demiDepuisPointeur(cel, e2.clientX));
+          var bordsD = demiPourRedimNote(cote, dureePrevisu, demiDebutOrig, demiFinOrig, demiDepuisPointeur(cel, xCible));
           demiDebutPrevisu = bordsD.demiDebut; demiFinPrevisu = bordsD.demiFin;
         } else {
           giDebutPrevisu = Math.max(0, Math.min(giFinExclusifFixe - 1, giSurvol));
           dureePrevisu = giFinExclusifFixe - giDebutPrevisu;
-          var bordsG = demiPourRedimNote(cote, dureePrevisu, demiDebutOrig, demiFinOrig, demiDepuisPointeur(cel, e2.clientX));
+          var bordsG = demiPourRedimNote(cote, dureePrevisu, demiDebutOrig, demiFinOrig, demiDepuisPointeur(cel, xCible));
           demiDebutPrevisu = bordsG.demiDebut; demiFinPrevisu = bordsG.demiFin;
         }
         appliquerPrevisu();
@@ -354,11 +433,15 @@
       function reappliquerFormeOrigine() {
         var cs = colonneEtSpanDemi(giDebutOrig, giFinExclusifFixe - giDebutOrig, demiDebutOrig, demiFinOrig);
         bulleDom.style.gridColumn = cs[0] + " / span " + cs[1];
+        reajusterBullesJourMobile();
       }
       function onUp(e2) {
         if (e2.pointerId !== pointerId) return;
         detacher();
         if (enDefilement) { reappliquerFormeOrigine(); return; }
+        // Tap bref au doigt (suite 35) : la poignée fait partie de la bulle
+        // — même effet qu'un tap sur elle (sélection).
+        if (!arme && tactile) { reappliquerFormeOrigine(); basculerSelection(bulleDom.dataset.id); return; }
         if (!arme) { reappliquerFormeOrigine(); return; }
         if (giDebutPrevisu === giDebutOrig && dureePrevisu === dureeOrig && demiDebutPrevisu === demiDebutOrig && demiFinPrevisu === demiFinOrig) { reappliquerFormeOrigine(); return; }
         sauvegarderUndo();
@@ -481,7 +564,10 @@
     var sx = e.clientX, sy = e.clientY, dernierX = sx, dernierY = sy, dernierT = e.timeStamp;
     var pointerId = e.pointerId;
     var scroller = trouverScroller(bulleDom);
-    var autoDefil = creerAutoDefilement(scroller);
+    // Bord du jour en vue « 1 jour » (suite 35) : après un saut de jour,
+    // la cible de dépôt est recalculée sous le doigt immobile.
+    var derniereMoveArmee = null;
+    var autoDefil = creerAutoDefilement(scroller, function () { if (derniereMoveArmee) onMove(derniereMoveArmee); });
     // defilementManuel (round du 23.09.2026, suite ×12) : cf. son
     // commentaire dans creerDefilementManuel plus haut — même inertie au
     // relâchement que pour le redimensionnement (cablerPoigneeRedim), pour
@@ -872,10 +958,12 @@
       var dx = e2.clientX - sx, dy = e2.clientY - sy;
       fantomes.forEach(function (f) { f.clone.style.left = (f.left + dx) + "px"; f.clone.style.top = (f.top + dy) + "px"; });
       if (badge) { badge.style.left = (e2.clientX + 14) + "px"; badge.style.top = (e2.clientY + 14) + "px"; }
+      derniereMoveArmee = e2;
       autoDefil.maj(e2.clientX);
-      var sous = document.elementFromPoint(e2.clientX, e2.clientY);
+      var xCible = xDansJourVisible_(scroller, e2.clientX);
+      var sous = document.elementFromPoint(xCible, e2.clientY);
       cibleActuelle = sous && sous.closest(".cell");
-      survolerCible(cibleActuelle, e2.clientX);
+      survolerCible(cibleActuelle, xCible);
     }
     function appliquerDelta(delta, copieFinale) {
       var nTotal = nbJoursAffiches();
@@ -1102,7 +1190,7 @@
       if (enDefilement) { nettoyerFantomes(); return; }
       // appuiLong : la sélection a déjà été faite par le minuteur (suite 11).
       if (!arme || !bouge) { nettoyerFantomes(); if (!appuiLong) resoudreClicBulle(idClic, !tactile && (e2.ctrlKey || e2.metaKey)); return; }
-      resoudreCibleGroupe(celluleCible, e2.clientX);
+      resoudreCibleGroupe(celluleCible, xDansJourVisible_(scroller, e2.clientX));
     }
     function onCancel(e2) { if (e2.pointerId !== pointerId) return; detacher(); nettoyerFantomes(); }
 
@@ -1436,7 +1524,8 @@
   function demarrerSelectionRapide(e, celluleDebut) {
     var pointerId = e.pointerId;
     var scroller = trouverScroller(celluleDebut);
-    var autoDefil = creerAutoDefilement(scroller);
+    var derniereMove = null;
+    var autoDefil = creerAutoDefilement(scroller, function () { if (derniereMove) onMove(derniereMove); });
     var kind = celluleDebut.dataset.kind;
     // Même modèle "case par case" que cablerAjoutCellule (round du
     // 12.09.2026) : demi-slot de départ + personne de départ (au lieu d'une
@@ -1451,12 +1540,14 @@
     else surlignerPlageJalonNote(kind, halfDebut, halfDebut);
     function onMove(e2) {
       if (e2.pointerId !== pointerId) return;
-      var sous = document.elementFromPoint(e2.clientX, e2.clientY);
+      derniereMove = e2;
+      var xCible = xDansJourVisible_(scroller, e2.clientX);
+      var sous = document.elementFromPoint(xCible, e2.clientY);
       var c2 = sous && sous.closest(".cell");
       if (c2 && c2.dataset.kind === kind) {
         var giCandidat = +c2.dataset.jour;
         if (!estGiWeekend(giCandidat)) {
-          var halfCandidat = demiSlotCellule(kind, c2, e2.clientX);
+          var halfCandidat = demiSlotCellule(kind, c2, xCible);
           if (kind === "personne") {
             var pIdxCandidat = personnesListe.indexOf(c2.dataset.personne);
             if (pIdxCandidat !== -1) {

@@ -909,7 +909,7 @@
      d'ancrage avec elle. Résultat : tout défilement (glissé au doigt ou
      inertie) se recale TOUJOURS exactement sur un jour entier, plus jamais
      entre 2 demi-journées de jours différents. */
-  .scroller.snap-jour-mobile { scroll-snap-type: x mandatory; scroll-padding-left: 116px; }
+  .scroller.snap-jour-mobile { scroll-snap-type: x mandatory; scroll-padding-left: var(--largeur-noms); }
   .snap-jour { height: 0; scroll-snap-align: start; }
   .grille { display: grid; gap: 1px; background: var(--border); }
   .th, .lbl, .cell { background: var(--surface-2); }
@@ -925,8 +925,21 @@
   .th-date { display: block; font-size: 14px; font-weight: 700; margin-top: 2px; color: var(--ink); text-transform: none; letter-spacing: normal; }
   .th.today { background: var(--accent-soft); }
   .th.today .th-date { color: var(--accent); }
-  .lbl { padding: 9px 11px; display: flex; flex-direction: column; justify-content: center; gap: 1px; }
-  .lbl b { font-size: 12.5px; font-weight: 700; }
+  /* Colonne des noms — round du 25.09.2026 (suite 35). Lionel : « Rétréci
+     la largeur des colonnes nom. Un nom composé ou avec / peut être mis
+     sur 2 lignes. » 116px → 92px : le plus étroit où le mot le plus long de
+     la liste (« Echafaudage », 79px en Archivo 700 12.5px, mesuré) tient
+     encore sans être coupé en plein mot, avec 8px/4px de marge. Valeur
+     UNIQUE, relue par le JS (largeurNoms, core.js) pour le gabarit de la
+     grille et le calage de la vue « 1 jour ». Nom sur 2 lignes au plus
+     (espaces, tirets et « / », cf. nomSurDeuxLignes), « … » au-delà, nom
+     complet au survol. */
+  :root { --largeur-noms: 92px; }
+  .lbl { padding: 9px 4px 9px 8px; display: flex; flex-direction: column; justify-content: center; gap: 1px; }
+  .lbl b {
+    font-size: 12.5px; font-weight: 700; line-height: 1.2;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: break-word;
+  }
   .lbl span { font-size: 10px; color: var(--ink-faint); font-family: 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: .04em; }
   .lbl-speciale { background: var(--surface); }
   .lbl-speciale b { color: var(--ink-muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
@@ -1022,7 +1035,7 @@
      pâle — on voit d'un coup d'œil à quelle équipe ils appartiennent. */
   .lbl-equipe { cursor: pointer; box-shadow: inset 3px 0 0 var(--accent); padding-left: 8px; }
   .lbl-equipe .equipe-titre { display: flex; align-items: center; gap: 3px; min-width: 0; }
-  .lbl-equipe .equipe-titre b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lbl-equipe .equipe-titre b { min-width: 0; }
   .lbl-equipe .equipe-repli {
     flex-shrink: 0; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 4px;
     background: transparent; color: var(--ink-muted); font-size: 11px; line-height: 18px; cursor: pointer;
@@ -1032,7 +1045,7 @@
     font-family: inherit; text-transform: none; letter-spacing: 0; font-size: 10.5px; line-height: 1.25;
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
   }
-  .lbl-membre { padding-left: 20px; box-shadow: inset 3px 0 0 var(--accent-soft); }
+  .lbl-membre { padding-left: 14px; box-shadow: inset 3px 0 0 var(--accent-soft); }
   .lbl-membre b { font-weight: 600; }
   .composition-equipe { width: 300px; }
   .composition-aide { margin: 0 0 8px; font-size: 11.5px; line-height: 1.4; color: var(--ink-faint); }
@@ -1260,7 +1273,7 @@
      avoir besoin (Lionel : « la case jour... déborde à droite »). Fallback
      calc(100vw - 132px) conservé au cas où cette variable ne serait pas
      encore posée (avant le tout premier rendu). */
-  .b-txt, .b-statut, .b-serie { position: sticky; left: 116px; max-width: var(--largeur-visible-bulle, calc(100vw - 132px)); }
+  .b-txt, .b-statut, .b-serie { position: sticky; left: var(--largeur-noms); max-width: var(--largeur-visible-bulle, calc(100vw - var(--largeur-noms) - 16px)); }
   .b-txt { align-self: flex-start; }
   .b-statut {
     align-self: flex-start; margin-top: 1px; display: inline-flex; align-items: center; gap: 4px;
@@ -1365,20 +1378,38 @@
      débordait sur un dernier jour en demi-journée, ou qui ne remplissait
      pas un jour entier). */
   .scroller.snap-jour-mobile .bulle > .b-carte {
-    position: sticky; left: 116px; align-self: flex-start; max-width: var(--largeur-visible-bulle, calc(100vw - 132px));
+    position: sticky; left: var(--largeur-noms); align-self: flex-start; max-width: var(--largeur-visible-bulle, calc(100vw - var(--largeur-noms) - 16px));
   }
   .scroller.snap-jour-mobile .bulle > .b-carte .b-txt,
   .scroller.snap-jour-mobile .bulle > .b-carte .b-statut,
   .scroller.snap-jour-mobile .bulle > .b-carte .b-serie {
     position: static; max-width: none;
   }
-  .scroller.snap-jour-mobile .poignee { display: none; }
+  /* Poignées en vue « 1 jour » — round du 25.09.2026 (suite 35). Lionel :
+     « Je n'arrive pas à actionner les poignées gauche et droite sur
+     mobile. » Elles étaient MASQUÉES ici (display:none, cf. le commentaire
+     ci-dessus : à l'époque la bulle entière était collée au jour visible,
+     ses poignées tombaient sur les bords de l'écran). Depuis la suite 14
+     c'est la CARTE qui est collée, les poignées restent sur la .bulle, donc
+     sur les VRAIS début et fin de la tâche : visibles seulement le jour où
+     ce bord est à l'écran, ce qui est juste. Réaffichées, élargies pour le
+     doigt (22px — une demi-journée fait ici ~150px) et repérables (trait
+     pâle, sans survol possible au doigt). Appui maintenu puis glisser pour
+     étirer ; contre le bord de l'écran, jour suivant (creerAutoDefilement). */
+  .scroller.snap-jour-mobile .bulle .poignee { width: 22px; }
+  .scroller.snap-jour-mobile .bulle .poignee-g::after { left: 5px; }
+  .scroller.snap-jour-mobile .bulle .poignee-d::after { right: 5px; }
+  .scroller.snap-jour-mobile .poignee::after { opacity: .3; }
+  .scroller.snap-jour-mobile .poignee.actif::after { opacity: .7; }
   /* Vue « 1 jour » (round du 25.09.2026, suite 34 — Lionel : « éviter que
-     les hauteurs de cellules ne change pendant un changement de jour ») :
-     la bulle a une hauteur fixe posée par figerHauteursBullesJourMobile
-     (js/grille-rendu.js) ; la carte la remplit, et coupe son texte au lieu
-     d'agrandir la ligne quand elle est rétrécie en plein glissement. */
-  .bulle.hauteur-figee > .b-carte { height: 100%; max-height: 100%; overflow: hidden; box-sizing: border-box; }
+     les hauteurs de cellules ne change pendant un changement de jour » ;
+     suite 35 : « la hauteur pourrait être calculée lors de la fixation du
+     jour ») : les lignes de la grille ont des hauteurs fixes, mesurées pour
+     le jour affiché par figerHauteursJourMobile (js/grille-rendu.js) et
+     reprises à chaque arrêt sur un autre jour. La carte remplit sa piste, et
+     coupe son texte au lieu d'agrandir la ligne quand le jour qui arrive en
+     plein glissement est plus chargé. */
+  .grille.hauteurs-figees .bulle > .b-carte { height: 100%; max-height: 100%; overflow: hidden; box-sizing: border-box; }
   .ghost { border: 1.5px dashed var(--border-strong); border-radius: 9px; opacity: .5; }
 
   .pop {
