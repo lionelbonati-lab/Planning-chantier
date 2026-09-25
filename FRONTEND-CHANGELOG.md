@@ -7921,3 +7921,21 @@ Lionel : « Je pensais aussi à une mise en page. En-tête, pied de pages, marge
 - `test_suite38.js` : le panneau n'a plus que 2 blocs, aucune liste ni champ texte ; orientation, taille et titre vérifiés par `test_suite39.js`.
 - `test_suite29.js` (écarts 6 et 14 px) inchangé et vert avec les variables CSS.
 - **Suite complète : 49/49** (`node lancer_tests.js`).
+
+## 148. Round du 25.09.2026 (suite 40) — Aperçu d'impression sur téléphone : page à la largeur de la grille, Réglages repliés sous l'aperçu
+
+Lionel, capture sur téléphone à l'appui : « La page sur l'aperçu avant impression est dessinée à la largeur de l'écran, tandis que la grille est dessinée correctement. Réglages Toujours fermés à l'ouverture. Descendre les réglage sous l'aperçu. Comme le bouton imprimer. »
+
+### Page de l'aperçu (style.css)
+- Sur téléphone, le tableau ne peut pas descendre sous sa largeur minimale (noms, horaires…) et débordait de la carte `.print-doc`, restée à la largeur de l'écran : bord droit au milieu du tableau, en-tête simulé replié sur 2 lignes (« 26028 - / Filisetti »).
+- `.print-doc` en `width: fit-content; min-width: 100%` : la carte suit le tableau quand il est plus large que l'écran (elle défile d'un bloc avec lui) et reste à la largeur de la fenêtre sinon. Rien ne change sur ordinateur. À l'impression, largeur automatique comme avant.
+
+### Réglages (js/impression.js)
+- Repliés à chaque ouverture de l'aperçu.
+- Placés sous l'aperçu, juste au-dessus de Fermer / Imprimer.
+- Dépliés, ils sont amenés à l'écran (ils s'ouvrent vers le bas).
+
+### Tests
+- `test_suite40.js` (nouveau, 13 vérifications, à 360 et 1300 px) : ordre aperçu / Réglages / boutons, repliés à l'ouverture et à la réouverture (réglages retenus), carte qui contient la grille sur téléphone et en-tête sur une ligne, inchangée sur ordinateur, panneau amené à l'écran une fois déplié, largeur du papier à l'impression.
+- `test_suite27.js`, `test_suite38.js`, `test_suite39.js` : panneau déplié avant d'y cliquer.
+- **Suite complète : 50/50** (`node lancer_tests.js`).

@@ -2129,6 +2129,17 @@
   .impression-modal { width: 900px; max-width: calc(100vw - 32px); max-height: calc(100vh - 40px); text-align: left; padding: 20px 22px; }
   .impression-modal .cp-titre { font-size: 13px; }
   .print-doc { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px; font-size: 12px; }
+  /* Round du 25.09.2026 (suite 40) — Lionel, capture sur téléphone : « La
+     page sur l'aperçu avant impression est dessinée à la largeur de
+     l'écran, tandis que la grille est dessinée correctement. » Sur
+     téléphone, le tableau ne peut pas descendre sous sa largeur minimale
+     (noms, « 07:00–12:00 »…) et débordait de la carte, qui restait à la
+     largeur de l'écran (en-tête simulé replié sur 2 lignes, bord droit
+     au milieu du tableau). fit-content : la carte suit le tableau quand il
+     est plus large que l'écran (on la fait défiler d'un bloc), et reste à
+     la largeur de la fenêtre sinon (min-width: 100%) — rien ne change sur
+     ordinateur. */
+  .print-doc { width: fit-content; min-width: 100%; box-sizing: border-box; }
   table.print-table { width: 100%; border-collapse: collapse; }
   table.print-table th, table.print-table td { border: 1px solid var(--border-strong); padding: var(--impr-pad-cases, 5px) 7px; font-size: calc(11px * var(--impr-echelle, 1)); vertical-align: top; }
   /* Option A — bande de couleur par tâche (round du 16.09.2026, choisie par
@@ -2489,7 +2500,7 @@
      suite 39), les uns sous les autres sur téléphone. Jamais imprimé (cf.
      @media print). La case « Horaires » (suite 27) y a rejoint les autres ;
      elle était dans la barre du bas. */
-  .impr-reglages { margin: 10px 0 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+  .impr-reglages { margin: 14px 0 0; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
   .impr-reglages > summary { cursor: pointer; padding: 8px 12px; font-size: 12.5px; font-weight: 700; color: var(--ink); user-select: none; }
   .impr-grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px 14px; padding: 0 12px 12px; }
   .impr-grille fieldset { border: none; margin: 0; padding: 0; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
@@ -2624,7 +2635,7 @@
        modale elle-même en garde un, cf. .impression-modal, et la marge de
        @page ci-dessous) pour ne pas laisser un cadre de respiration qui
        ferait encore deviner l'ancienne carte. */
-    .print-doc { background: #fff; border: none; border-radius: 0; padding: 0; }
+    .print-doc { background: #fff; border: none; border-radius: 0; padding: 0; width: auto; min-width: 0; }
     /* Lionel : "Pas besoin de aperçu avant impression - semaine N, ni de
        la légende de la personne masquée" — 2 mentions utiles pour se
        repérer À L'ÉCRAN avant d'imprimer (quelle semaine ? qui a été
