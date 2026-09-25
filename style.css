@@ -957,6 +957,12 @@
     padding: 2px 0 3px; font-size: 8.5px; letter-spacing: .1em; opacity: .75;
     background: var(--surface);
   }
+  /* Horaires dans la ligne M | A et durée sous la date (suite 27) :
+     « 07:00–12:00 » doit tenir dans une demi-colonne de 58px — pas
+     d'espacement de lettres, retour à la ligne permis après le tiret
+     (<wbr>) si la colonne est plus étroite. */
+  .th.th-demi.th-horaire { letter-spacing: 0; font-size: 8.5px; line-height: 1.25; opacity: .9; padding: 2px 1px 3px; font-variant-numeric: tabular-nums; }
+  .th-duree { display: block; font-size: 9.5px; font-weight: 600; margin-top: 1px; color: var(--ink-muted); text-transform: none; letter-spacing: 0; font-variant-numeric: tabular-nums; }
   .cell.cell-aprem { background: color-mix(in srgb, var(--surface-2) 88%, var(--ink-faint)); }
   .th.th-demi-aprem { background: color-mix(in srgb, var(--surface) 92%, var(--ink-faint)); }
   /* Frontière entre deux JOURS : plus de trait dédié. Historique le même
@@ -1959,12 +1965,50 @@
   .calendrier td.jour.vide { background: var(--border-strong); cursor: default; }
   @media (hover: hover) and (pointer: fine) { .calendrier td.jour.vide:hover { box-shadow: none; } }
   .calendrier td.jour.coloree { background: var(--jour-couleur) !important; }
+  /* Heures du jour et totaux (suite 27, cf. renderFerieCalendrier) : la
+     durée tient dans une case de ~22px en 9px ; celle d'un jour coloré
+     (non comptée dans les totaux) est plus discrète. */
+  .calendrier { min-width: 900px; }
+  .calendrier .h-jour { font-size: 9px; font-variant-numeric: tabular-nums; color: var(--ink-muted); letter-spacing: -.02em; pointer-events: none; }
+  .calendrier .h-jour.h-non-compte { opacity: .55; }
+  .calendrier td.jour.coloree .h-jour { color: var(--bubble-ink); }
+  .calendrier th.total { color: var(--ink-muted); }
+  .calendrier td.total { background: var(--surface); font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink); padding: 0 4px; text-align: right; }
+  .calendrier tfoot td { border-top: 2px solid var(--border-strong); height: 26px; }
   .legende-feries { margin-top: 12px; font-size: 11.5px; color: var(--ink-faint); max-width: 68ch; line-height: 1.5; }
   /* Version téléphone de la page Fériés (round du 24.09.2026, suite 23) :
      construite en permanence (cf. renderFerieMoisMobile, page-feries.js),
      montrée seulement par style-mobile.css (≤600px). Compteur de
      modifications non enregistrées sur Enregistrer : commun aux 2 vues. */
   .mois-feries, .page-sous-mobile { display: none; }
+  /* Page Horaires (round du 25.09.2026, suite 27 — js/page-horaires.js).
+     Lignes façon « tableau en bas à gauche » de la feuille PMB : dates,
+     matin (début, fin, durée), après-midi (début, fin, durée), total du
+     jour. Grille CSS partagée par l'en-tête et les lignes pour que les
+     colonnes restent alignées. Sur téléphone (style-mobile.css), chaque
+     ligne devient une carte avec ses libellés (.hc-lib). */
+  .horaires-liste { margin-top: 16px; display: flex; flex-direction: column; gap: 6px; max-width: 980px; }
+  .horaire-entete, .horaire-ligne {
+    display: grid; align-items: center; column-gap: 8px;
+    grid-template-columns: minmax(128px, 1.3fr) minmax(128px, 1.3fr) repeat(2, minmax(84px, 1fr)) 58px 52px repeat(2, minmax(84px, 1fr)) 52px 60px 32px;
+  }
+  .horaire-entete { font-size: 11px; font-weight: 700; color: var(--ink-faint); text-transform: uppercase; letter-spacing: .03em; padding: 0 10px; }
+  .horaire-entete .he-dates { grid-column: 1 / span 2; }
+  .horaire-entete .he-demi { grid-column: span 3; border-bottom: 1px solid var(--border); padding-bottom: 3px; }
+  .horaire-entete .he-matin { grid-column: span 4; }
+  .horaire-entete .he-total { grid-column: 10; text-align: right; }
+  .horaire-ligne { background: var(--surface); border: 1px solid var(--border); border-radius: 9px; padding: 6px 10px; }
+  .horaire-ligne.erreur { border-color: var(--important-ink); box-shadow: 0 0 0 1px var(--important-ink); }
+  .horaire-ligne.nouvelle { border-color: var(--accent); }
+  .horaire-ligne .hc { display: flex; flex-direction: column; min-width: 0; }
+  .horaire-ligne .hc-lib { display: none; font-size: 10.5px; font-weight: 700; color: var(--ink-faint); margin-bottom: 2px; }
+  .horaire-ligne input { font: inherit; font-size: 12.5px; padding: 6px 7px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface-2); color: var(--ink); width: 100%; min-width: 0; font-variant-numeric: tabular-nums; }
+  .horaire-ligne .hc-duree b, .horaire-ligne .hc-total b { font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--ink-muted); text-align: center; }
+  .horaire-ligne .hc-total b { color: var(--ink); text-align: right; font-weight: 800; }
+  .horaire-ligne .hc-suppr { width: 30px; height: 30px; border-radius: 7px; border: 1px solid transparent; background: none; color: var(--important-ink); cursor: pointer; display: grid; place-items: center; }
+  @media (hover: hover) and (pointer: fine) { .horaire-ligne .hc-suppr:hover { background: var(--interdit-bg); } }
+  .horaires-vide { color: var(--ink-faint); font-size: 13px; }
+
   .btn-enregistrer .compte-modifs {
     display: inline-block; min-width: 18px; padding: 1px 5px; margin-left: 4px; border-radius: 999px;
     background: var(--accent-ink); color: var(--accent); font-size: 11px; line-height: 16px; text-align: center; font-variant-numeric: tabular-nums;
@@ -2296,6 +2340,13 @@
   .print-legend .legend-item .sw { width: 13px; height: 13px; border-radius: 3px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.15); }
   .skip-note { font-size: 11.5px; color: var(--ink-faint); font-style: italic; margin-top: 10px; }
   .impression-actions { display: flex; gap: 10px; margin-top: 16px; justify-content: flex-end; }
+  /* Ligne des horaires sous Matin/Aprem (suite 27) : même discrétion que
+     .print-demis ; masquée par la case « Afficher les horaires »
+     (.sans-horaires sur .print-doc), à l'écran comme à l'impression. */
+  .print-horaires th { font-size: 9px; font-weight: 600; color: var(--ink-muted); padding-top: 2px; padding-bottom: 3px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.print-table .coin-horaires { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--ink-faint); text-align: left; padding-left: 7px; }
+  .print-doc.sans-horaires .print-horaires { display: none; }
+  .impression-actions .impr-option { margin-right: auto; display: flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; color: var(--ink); cursor: pointer; }
 
   /* round du 15.09.2026 — Lionel : "on peut travailler sur la page
      d'impression ?", puis "impression du navigateur" une fois le choix

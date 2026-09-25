@@ -141,14 +141,39 @@
       toast("Couleur enregistrée.");
     }).catch(function (err) { toast("Échec de l’enregistrement : " + (err && err.message ? err.message : err)); });
   }
+  // Heures de travail dans le tableau (round du 25.09.2026, suite 27) —
+  // Lionel : « Les heures de travail viennent s'afficher dans le tableau
+  // des fériés », avec les totaux du mois (« Heures + totaux ») comme les
+  // colonnes J.trav. / H.trav. de la feuille PMB. Chaque jour ouvré couvert
+  // par un horaire (page Horaires) montre sa durée (8.75). Jour coloré
+  // (férié, vacances, compensé…) : la durée s'affiche quand même (Lionel :
+  // « Oui, heures quand même »), plus discrète, mais ne compte PAS dans les
+  // totaux — ce n'est pas un jour travaillé, comme sur la feuille.
+  // heuresFerieJour_ renvoie { duree, compte } ou null (week-end / sans horaire).
+  function heuresFerieJour_(m, j) {
+    var h = horaireDuJour(isoFerie(ferieAnnee, m, j));
+    if (!h) return null;
+    return { duree: h.duree, compte: !feriesAnneeCourante[m + "-" + j] };
+  }
+  function totauxMoisFeries_(m) {
+    var jours = 0, heures = 0, nb = joursDansMois(ferieAnnee, m);
+    for (var j = 1; j <= nb; j++) {
+      var hj = heuresFerieJour_(m, j);
+      if (hj && hj.compte) { jours++; heures += hj.duree; }
+    }
+    return { jours: jours, heures: heures };
+  }
   function renderFerieCalendrier() {
     var table = document.getElementById("ferieCalendrier");
     if (!table) return;
     var html = '<colgroup><col style="width:78px">';
     for (var jc = 1; jc <= 31; jc++) html += "<col>";
+    html += '<col style="width:44px"><col style="width:58px">';
     html += "</colgroup><thead><tr><th class=\"coin\"></th>";
     for (var j = 1; j <= 31; j++) html += "<th>" + j + "</th>";
+    html += '<th class="total" title="Jours travaillés">J.trav.</th><th class="total" title="Heures travaillées">H.trav.</th>';
     html += "</tr></thead><tbody>";
+    var totalJours = 0, totalHeures = 0;
     for (var m = 0; m < 12; m++) {
       html += '<tr><td class="mois">' + MOIS_FR[m] + "</td>";
       var nbJours = joursDansMois(ferieAnnee, m);
@@ -161,11 +186,16 @@
         var classes = "jour" + (estWeekend ? " weekend" : "") + (cat ? " coloree" : "");
         var style = cat ? ' style="--jour-couleur:' + cat.couleur + '"' : "";
         var titre = entree ? ' title="' + esc(entree.libelle) + '"' : "";
-        html += '<td class="' + classes + '" data-m="' + m + '" data-j="' + j2 + '" data-weekend="' + estWeekend + '"' + style + titre + "></td>";
+        var hj = heuresFerieJour_(m, j2);
+        html += '<td class="' + classes + '" data-m="' + m + '" data-j="' + j2 + '" data-weekend="' + estWeekend + '"' + style + titre + ">" +
+          (hj ? '<span class="h-jour' + (hj.compte ? "" : " h-non-compte") + '">' + formatDuree(hj.duree) + "</span>" : "") + "</td>";
       }
+      var tm = totauxMoisFeries_(m);
+      totalJours += tm.jours; totalHeures += tm.heures;
+      html += '<td class="total">' + (tm.jours || "") + '</td><td class="total">' + (tm.jours ? formatDuree(tm.heures) : "") + "</td>";
       html += "</tr>";
     }
-    html += "</tbody>";
+    html += '</tbody><tfoot><tr><td class="mois" colspan="32">Total travaillé ' + ferieAnnee + '</td><td class="total">' + totalJours + '</td><td class="total">' + formatDuree(totalHeures) + "</td></tr></tfoot>";
     table.innerHTML = html;
     table.querySelectorAll("td.jour:not(.vide)").forEach(function (td) {
       if (td.dataset.weekend === "true") return; // week-end non cliquable (déjà chômé, cf. calculerFeries)
@@ -223,17 +253,25 @@
         var cat = entree && catsFeries().filter(function (c) { return c.id === entree.categorie; })[0];
         var estAujourdHui = ferieAnnee === aujourdHui.getFullYear() && m === aujourdHui.getMonth() && j === aujourdHui.getDate();
         var classes = "jm" + (estWeekend ? " weekend" : "") + (cat ? " coloree" : "") + (estAujourdHui ? " aujourdhui" : "");
+        var hjM = heuresFerieJour_(m, j);
         cases += '<button type="button" class="' + classes + '" data-m="' + m + '" data-j="' + j + '"' +
           (cat ? ' style="--jour-couleur:' + cat.couleur + '"' : "") +
           (estWeekend ? " disabled" : "") +
-          ' aria-label="' + j + " " + MOIS_FR[m] + (entree ? " — " + esc(entree.libelle) : "") + '">' + j + "</button>";
+          ' aria-label="' + j + " " + MOIS_FR[m] + (entree ? " — " + esc(entree.libelle) : "") + (hjM ? ", " + formatDuree(hjM.duree) + " h" : "") + '">' + j +
+          (hjM ? '<small class="h-jour' + (hjM.compte ? "" : " h-non-compte") + '">' + formatDuree(hjM.duree) + "</small>" : "") + "</button>";
         if (entree) liste.push('<li><span class="pastille-jour" style="background:' + (cat ? cat.couleur : "var(--border)") + '"></span>' +
           '<span class="date-jour">' + JOURS_ABREGES_FR[jourSemaine] + " " + j + "</span>" +
           '<span class="libelle-jour">' + esc(entree.libelle) + "</span></li>");
       }
+      // Totaux du mois (suite 27) : jours et heures travaillés, à côté du
+      // nombre de jours colorés.
+      var tmM = totauxMoisFeries_(m);
+      var comptes = [];
+      if (tmM.jours) comptes.push(tmM.jours + " j · " + formatDuree(tmM.heures) + " h");
+      if (liste.length) comptes.push(liste.length + (liste.length > 1 ? " jours colorés" : " jour coloré"));
       html += '<section class="mois-carte">' +
         '<div class="mois-carte-titre"><span>' + MOIS_FR[m] + "</span>" +
-          (liste.length ? '<span class="mois-carte-compte">' + liste.length + (liste.length > 1 ? " jours" : " jour") + "</span>" : "") + "</div>" +
+          (comptes.length ? '<span class="mois-carte-compte">' + comptes.join(" — ") + "</span>" : "") + "</div>" +
         '<div class="mois-grille">' + cases + "</div>" +
         (liste.length ? '<ul class="mois-liste">' + liste.join("") + "</ul>" : "") +
         "</section>";

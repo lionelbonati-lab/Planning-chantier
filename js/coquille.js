@@ -29,13 +29,14 @@
             '<button type="button" class="onglet" data-page="chantiers">' + ICONS.building + 'Chantiers</button>' +
             '<button type="button" class="onglet" data-page="statuts">' + ICONS.tag + 'Statuts</button>' +
             '<button type="button" class="onglet" data-page="feries">' + ICONS.star + 'Fériés</button>' +
+            '<button type="button" class="onglet" data-page="horaires">' + ICONS.clock + 'Horaires</button>' +
             '<button type="button" class="onglet" data-page="entree-rapide">' + ICONS.bolt + 'Entrée rapide</button>' +
           '</div>' +
           '<button type="button" class="avatar-nav" id="lienDeconnexionNav" title="Se déconnecter" aria-label="Se déconnecter">L</button>' +
         '</nav>' +
         '<div class="app-main">' +
           htmlPagePlanning() + htmlPageJalons() + htmlPageGeneral() + htmlPagePersonnel() + htmlPageIntervenants() +
-          htmlPageChantiers() + htmlPageStatuts() + htmlPageEntreeRapide() + htmlPageFeries() +
+          htmlPageChantiers() + htmlPageStatuts() + htmlPageEntreeRapide() + htmlPageFeries() + htmlPageHoraires() +
         '</div>' +
         // §91 (round du 22.09.2026, suite) — Lionel, mockup mockup-nav-mobile.html
         // validé (croquis Google Sheets à l'appui : « j'aime bien la
@@ -72,6 +73,7 @@
             '<button type="button" class="onglet switcher-item" data-page="chantiers">' + ICONS.building + 'Chantiers</button>' +
             '<button type="button" class="onglet switcher-item" data-page="statuts">' + ICONS.tag + 'Statuts</button>' +
             '<button type="button" class="onglet switcher-item" data-page="feries">' + ICONS.star + 'Fériés</button>' +
+            '<button type="button" class="onglet switcher-item" data-page="horaires">' + ICONS.clock + 'Horaires</button>' +
             '<button type="button" class="onglet switcher-item" data-page="entree-rapide">' + ICONS.bolt + 'Entrée rapide</button>' +
           '</div>' +
         '</div>' +
@@ -80,6 +82,7 @@
     cablerPagePlanning();
     cablerPageEntreeRapide();
     cablerPageFeries();
+    cablerPageHoraires();
     // §80 : le lien flottant (position:fixed, cf. afficherLienDeconnexion) ne
     // sert plus qu'à la fenêtre entre connexion et 1er rendu — la vraie
     // coquille étant maintenant construite, il devient redondant avec le
@@ -483,7 +486,20 @@
       // renderFerieMoisMobile (page-feries.js) ; affichée à la place du
       // tableau par style-mobile.css.
       '<div class="mois-feries" id="ferieMoisMobile"></div>' +
-      '<div class="legende-feries">Semaines grisées, dates qui n’existent pas (ex. 30/31 février) en noir et non cliquables.</div>' +
+      '<div class="legende-feries">Semaines grisées, dates qui n’existent pas (ex. 30/31 février) en noir et non cliquables. Chaque jour montre sa durée de travail (page Horaires) ; J.trav. et H.trav. ne comptent pas les jours colorés.</div>' +
+      '</div></div>';
+  }
+  // Page Horaires (round du 25.09.2026, suite 27) — cf. js/page-horaires.js.
+  // En-tête sur le modèle de la page Fériés (année ‹ › + boutons), liste
+  // des périodes façon « tableau en bas à gauche » de la feuille PMB.
+  function htmlPageHoraires() {
+    return '<div class="page" id="page-horaires"><div class="page-scroll">' +
+      '<div class="page-titre"><h1>Horaires</h1>' +
+        '<div class="nav-annee"><button type="button" class="fleche" id="horaireAnneePrec">&larr;</button><span id="horaireAnneeLabel"></span><button type="button" class="fleche" id="horaireAnneeSuiv">&rarr;</button></div>' +
+        '<div class="actions-feries"><button class="btn-calculer" id="btnAjouterHoraire" type="button">Ajouter<span class="lib-long"> une période</span></button><button class="btn-enregistrer" id="btnEnregistrerHoraires" type="button">Enregistrer</button></div>' +
+      '</div>' +
+      '<p class="page-sous">Une ligne par période, comme la feuille « Horaire de travail » : dates (incluses), horaire du matin, horaire de l’après-midi (laisser vide s’il n’y a que le matin). Les horaires valent du lundi au vendredi ; ils s’affichent dans le planning, l’impression et le tableau des Fériés. Rien n’est écrit sur le serveur tant que tu n’as pas cliqué Enregistrer.</p>' +
+      '<div class="horaires-liste" id="horairesListe"></div>' +
       '</div></div>';
   }
   // afficherVersionServeur()/apiVersionServeur supprimés le 07.09.2026 (phase
@@ -525,7 +541,7 @@
       jalons: function () { JALONS_TOUS = null; renderJalons(); },
       personnel: renderPersonnel, intervenants: renderIntervenants,
       chantiers: renderChantiers, statuts: renderStatuts,
-      "entree-rapide": renderFormulaires, feries: renderFeries,
+      "entree-rapide": renderFormulaires, feries: renderFeries, horaires: renderHoraires,
       // Round du 16.09.2026 (suite, encore) : la page Planning elle-même
       // n'a pas besoin d'un re-rendu complet à chaque activation (ses
       // données restent à jour en tâche de fond, cf. synchroniser()) — mais

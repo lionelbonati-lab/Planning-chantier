@@ -57,6 +57,13 @@
      source la plus sûre pour un aperçu fidèle, indépendante du moteur de
      bulles. apiGenererPdf(labG) est INCHANGÉE côté serveur — ce fichier
      relaie juste son résultat. */
+  // Choix « Afficher les horaires » de l'aperçu d'impression (suite 27) :
+  // retenu par appareil (localStorage), comme un réglage d'affichage ; coché
+  // si rien n'est retenu ou si le stockage est indisponible.
+  var CLE_HORAIRES_IMPRESSION = "planning.impression.horaires";
+  function lireOptionHorairesImpression_() {
+    try { return localStorage.getItem(CLE_HORAIRES_IMPRESSION) !== "0"; } catch (e) { return true; }
+  }
   function openPrintSheet() {
     var labG = labGCourant();
     var data = etat.cache[labG];
@@ -170,7 +177,24 @@
     h += '</tr>';
     h += '<tr class="print-demis">';
     jl.forEach(function () { h += '<th>Matin</th><th class="demi-aprem">Aprem</th>'; });
-    h += '</tr></thead><tbody>';
+    h += '</tr>';
+    // Ligne des horaires (round du 25.09.2026, suite 27) — Lionel : « Sur la
+    // page d'impression. On rajoute une ligne sous matin et après-midi pour
+    // afficher les horaires du matin et de l'après-midi. Une case à cocher
+    // sur la page impression permet d'afficher ou non les horaires. » Même
+    // source que le planning (horaireDuJour, page-horaires.js). Posée
+    // seulement si au moins un jour de la semaine a un horaire ; la case à
+    // cocher (en bas de la fenêtre) masque la ligne à l'écran ET au papier.
+    var horairesSemaine = jl.map(function (j) { return horaireDuJour(j.iso); });
+    var aDesHoraires = horairesSemaine.some(function (x) { return !!x; });
+    if (aDesHoraires) {
+      h += '<tr class="print-horaires"><th class="coin-horaires">Horaires</th>';
+      horairesSemaine.forEach(function (x) {
+        h += '<th>' + (x ? esc(x.matin) : '') + '</th><th class="demi-aprem">' + (x ? esc(x.aprem || '—') : '') + '</th>';
+      });
+      h += '</tr>';
+    }
+    h += '</thead><tbody>';
 
     // round du 15.09.2026 (suite, suite, suite) — Lionel : "ajoute les
     // libellé jalon et note dans la colonne gauche" (même demande, et
@@ -386,7 +410,12 @@
     }
     h += '</div>'; // .print-doc
 
-    h += '<div class="impression-actions"><button type="button" class="f-fermer">Fermer</button><button type="button" class="btn-primaire f-genpdf">Imprimer / PDF</button></div>';
+    // Case « Afficher les horaires » (suite 27) : cochée par défaut, retenue
+    // sur l'appareil (réglage de confort, cf. lireOptionHorairesImpression_).
+    var avecHoraires = lireOptionHorairesImpression_();
+    h += '<div class="impression-actions">' +
+      (aDesHoraires ? '<label class="impr-option"><input type="checkbox" class="f-horaires"' + (avecHoraires ? ' checked' : '') + '> Afficher les horaires</label>' : '') +
+      '<button type="button" class="f-fermer">Fermer</button><button type="button" class="btn-primaire f-genpdf">Imprimer / PDF</button></div>';
     pop.innerHTML = h;
     document.body.appendChild(overlay);
     document.body.appendChild(pop);
@@ -407,6 +436,13 @@
     // .impression-modal, plus haut dans <style>) — "Enregistrer en PDF"
     // dans la boîte qui s'ouvre donne le même fichier, sans aller-retour
     // serveur ni dépendance nouvelle.
+    var docImpr = pop.querySelector(".print-doc");
+    docImpr.classList.toggle("sans-horaires", !avecHoraires);
+    var caseHoraires = pop.querySelector(".f-horaires");
+    if (caseHoraires) caseHoraires.addEventListener("change", function () {
+      docImpr.classList.toggle("sans-horaires", !caseHoraires.checked);
+      try { localStorage.setItem(CLE_HORAIRES_IMPRESSION, caseHoraires.checked ? "1" : "0"); } catch (e) {}
+    });
     var genBtn = pop.querySelector(".f-genpdf");
     genBtn.addEventListener("click", function () { window.print(); });
   }
