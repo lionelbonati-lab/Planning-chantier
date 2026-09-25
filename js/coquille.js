@@ -521,7 +521,7 @@
       '<div class="page-titre"><h1>Mise en page</h1>' +
         '<div class="actions-feries"><span class="mep-etat" id="mepEtat"></span><button class="btn-calculer" id="btnReinitMep" type="button">Réinitialiser</button></div>' +
       '</div>' +
-      '<p class="page-sous">La feuille imprimée depuis le planning (bouton Imprimer) : orientation, marges, espacements, en-tête et pied de page. Enregistré sur ton compte à chaque changement, mêmes réglages sur téléphone et ordinateur. Ce qui s’imprime ou non (jalons, notes, personnes…) se coche dans l’aperçu d’impression.</p>' +
+      '<p class="page-sous">La feuille imprimée depuis le planning (bouton Imprimer) : orientation, marges, largeur des colonnes, espacements, en-tête et pied de page. Enregistré sur ton compte à chaque changement, mêmes réglages sur téléphone et ordinateur. Ce qui s’imprime ou non (jalons, notes, personnes…) se coche dans l’aperçu d’impression.</p>' +
       '<div class="mep-grille"><div class="mep-formulaire impr-grille" id="mepFormulaire"></div><div class="mep-apercu" id="mepApercu"></div></div>' +
       '</div></div>';
   }
