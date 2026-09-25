@@ -2086,6 +2086,20 @@
      .form-pop (gris) l'emportait sur .btn-enregistrer. */
   .pop-lien-consultation .lc-boutons .btn-enregistrer { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 
+  /* Mode hors ligne (suite 52, js/hors-ligne.js) : pastille en bas à
+     gauche — « Hors ligne », changements en attente, « Envoi… ». Orange
+     quand le réseau manque, couleur du thème pendant l'attente/l'envoi.
+     Au-dessus de la barre du bas sur téléphone (style-mobile.css). */
+  .etat-hors-ligne {
+    position: fixed; left: 12px; bottom: 12px; z-index: 92; max-width: calc(100vw - 24px);
+    padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 700;
+    background: var(--accent-soft); color: var(--accent); border: 1px solid var(--border);
+    box-shadow: 0 4px 14px var(--shadow-lg); pointer-events: none;
+  }
+  .etat-hors-ligne.hl-coupe { background: #fde7c7; color: #7a4a00; border-color: #f2c27a; }
+  .etat-hors-ligne[hidden] { display: none; }
+  .pop-refus-hors-ligne .liste-refus { margin: 0 0 12px; padding-left: 18px; font-size: 12.5px; line-height: 1.45; text-align: left; color: var(--ink); max-height: 40vh; overflow-y: auto; }
+
   .categories { display: flex; gap: 10px; margin: 16px 0 14px; }
   .categorie { display: flex; align-items: center; gap: 8px; padding: 7px 12px 7px 8px; border-radius: 999px; border: 1.5px solid var(--border); background: var(--surface); cursor: pointer; font-family: inherit; }
   .categorie.active { border-color: var(--cat-couleur); background: color-mix(in srgb, var(--cat-couleur) 16%, var(--surface-2)); }

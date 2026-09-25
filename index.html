@@ -58,6 +58,8 @@
 <!-- Client Supabase (phase 4, migration hors Google, cf. MIGRATION-GITHUB-PLAN.md §6bis).
      Chargé depuis le CDN officiel — crée le global window.supabase.createClient. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Mode hors ligne (suite 52) : avant core.js, qui passe fetchHorsLigne à supabase-js. -->
+<script src="js/hors-ligne.js"></script>
 <script src="js/page-couleurs.js"></script>
 <script src="js/core.js"></script>
 <script src="js/coquille.js"></script>

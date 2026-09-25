@@ -167,6 +167,8 @@
        bas ») : même pilule fixe qu'ailleurs (style.css), étirée sur toute
        la largeur à la place de .nav-bas (masquée par body.selection-active,
        posée par majBarreSelection). */
+    /* Pastille hors ligne (suite 52) : au-dessus de .nav-bas (56px). */
+    .etat-hors-ligne { bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
     body.selection-active .nav-bas { display: none; }
     .panneau-selection {
       left: 10px; right: 10px; transform: none;

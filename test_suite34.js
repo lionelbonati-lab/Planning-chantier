@@ -47,7 +47,10 @@ const TELEPHONE = { viewport: { width: 390, height: 844 }, hasTouch: true, bd: B
         body: JSON.stringify(refus ? { code: 'PGRST303', message } : [{ ok: 1 }]) });
     });
     const r = await page.evaluate(async () => {
-      const passe = window.__OPTIONS_CLIENT && window.__OPTIONS_CLIENT.global && window.__OPTIONS_CLIENT.global.fetch === fetchAvecRejeuJwt_;
+      // Suite 52 (mode hors ligne) : global.fetch passe d'abord par
+      // fetchHorsLigne, qui fait le vrai envoi avec fetchAvecRejeuJwt_.
+      const f = window.__OPTIONS_CLIENT && window.__OPTIONS_CLIENT.global && window.__OPTIONS_CLIENT.global.fetch;
+      const passe = f === fetchAvecRejeuJwt_ || (typeof fetchHorsLigne === 'function' && /fetchHorsLigne\(entree, options, fetchAvecRejeuJwt_\)/.test(String(f)));
       const t0 = performance.now();
       const futur = await fetchAvecRejeuJwt_('https://exemple.test/futur', { method: 'GET' });
       const duree = performance.now() - t0;

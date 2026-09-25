@@ -42,7 +42,13 @@
     }
     return tenter();
   }
-  var sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { global: { fetch: fetchAvecRejeuJwt_ } });
+  // Mode hors ligne (suite 52, js/hors-ligne.js) : chaque requête passe
+  // d'abord par fetchHorsLigne (copie des lectures, file d'attente des
+  // changements de la grille), qui appelle fetchAvecRejeuJwt_ pour le vrai
+  // envoi. Sans hors-ligne.js (tests de logique pure), directement.
+  var sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { global: {
+    fetch: typeof fetchHorsLigne === "function" ? function (entree, options) { return fetchHorsLigne(entree, options, fetchAvecRejeuJwt_); } : fetchAvecRejeuJwt_
+  } });
 
   function afficherEcranConnexion(messageErreur) {
     app.innerHTML =
@@ -113,10 +119,25 @@
   // avoir à se reconnecter) avant d'afficher l'écran de connexion.
   function verifierSessionEtDemarrer() {
     afficherChargement("Vérification de la connexion…");
+    // Sans réseau (suite 52) : une session gardée sur l'appareil mais
+    // expirée ne peut pas être renouvelée, getSession() ne rend rien.
+    // L'appli démarre quand même sur le planning en mémoire (hors-ligne.js) ;
+    // le jeton sera renouvelé par supabase-js au retour du réseau.
+    var sansReseau = function (r) {
+      return typeof hlSessionMemorisee === "function" && hlSessionMemorisee() &&
+        (navigator.onLine === false || !!(r && r.error && hlErreurReseau(r.error)) || /fetch|network/i.test(String(r && r.error && r.error.message)));
+    };
     sbClient.auth.getSession().then(function (r) {
-      if (r.data && r.data.session) { demarrerApresConnexion(); return; }
+      // Session renouvelée hors ligne la dernière fois (jeton provisoire,
+      // cf. hors-ligne.js) : vrai renouvellement d'abord, s'il y a du réseau.
+      if (r.data && r.data.session) {
+        if (typeof hlRenouvelerSiProvisoire === "function") hlRenouvelerSiProvisoire().then(demarrerApresConnexion);
+        else demarrerApresConnexion();
+        return;
+      }
+      if (sansReseau(r)) { demarrerApresConnexion(); return; }
       afficherEcranConnexion();
-    }).catch(function () { afficherEcranConnexion(); });
+    }).catch(function (err) { if (sansReseau({ error: err })) demarrerApresConnexion(); else afficherEcranConnexion(); });
   }
 
   /* ============================================================
@@ -347,6 +368,8 @@
     // Suite 34 : si même les 3 rejeux de fetchAvecRejeuJwt_ (plus haut)
     // n'ont pas suffi, dire ce qui se passe plutôt que le message anglais.
     if (/issued at future/i.test(texte)) texte = "Le serveur a refusé la session qui venait d'être renouvelée (léger décalage d'horloge chez Supabase). Réessaie dans quelques secondes.";
+    // Hors ligne (suite 52) : le message de hors-ligne.js dit déjà quoi faire.
+    else if (/Failed to fetch|NetworkError|Load failed/i.test(texte)) texte = "Pas de connexion internet. Reconnecte-toi au réseau puis réessaie.";
     app.innerHTML =
       '<div class="error-screen">' +
       '<div class="mark-err">' + ICONS.close + '</div>' +
