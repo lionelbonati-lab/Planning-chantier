@@ -21,7 +21,8 @@ const path = require('path');
 // départ viennent de window.__BD_INITIALE (posée par addInitScript) ;
 // window.__BD est la « base » en mémoire, window.__ECRITURES le journal des
 // écritures (« table:mode », + la charge utile d'un upsert).
-const FAUX_SUPABASE = '(' + function () {
+const LOGIQUE_PLAGE = require('fs').readFileSync(path.join(__dirname, 'functions/enregistrer-plage/logic.js'), 'utf8').replace(/export\s*\{[\s\S]*$/, '');
+const FAUX_SUPABASE = LOGIQUE_PLAGE + '\n(' + function () {
   var initiale = window.__BD_INITIALE || {};
   var BD = window.__BD = {
     personnes: [], chantiers: [], statuts: [], feries: [], categories_feries: [],
@@ -84,8 +85,38 @@ const FAUX_SUPABASE = '(' + function () {
         signOut: function () { return Promise.resolve({}); }
       },
       from: requete,
-      rpc: function () { return Promise.resolve({ data: null, error: null }); },
-      functions: { invoke: function () { return Promise.resolve({ data: {}, error: null }); } },
+      // remplacer_case_personne (sql/0012) : même effet que la vraie
+      // fonction — la case (personne, date, demi) est vidée puis remplie.
+      rpc: function (nom, a) {
+        if (nom === 'remplacer_case_personne') {
+          var garde = function (r) { return !(String(r.personne_id) === String(a.p_personne_id) && r.date === a.p_date && r.demi === a.p_demi); };
+          BD.taches = BD.taches.filter(garde);
+          BD.assignations = BD.assignations.filter(garde);
+          (a.p_lignes || []).forEach(function (l, i) {
+            BD.taches.push({ id: prochainId++, personne_id: a.p_personne_id, date: a.p_date, demi: a.p_demi, ordre: i, texte: l.texte, statut_id: l.statut_id || null,
+              important: !!l.important, serie_id: l.serie_id || null, est_absence: !!l.est_absence, chantier_id: l.chantier_id || null });
+          });
+        }
+        window.__ECRITURES.push('rpc:' + nom);
+        return Promise.resolve({ data: null, error: null });
+      },
+      functions: { invoke: function (nom, opts) {
+        // enregistrer-plage : VRAIE logique serveur (planPlage, injectée
+        // depuis functions/enregistrer-plage/logic.js), appliquée à la base
+        // en mémoire — comme la vraie fonction, elle ignore serie_id.
+        var b = (opts && opts.body) || {};
+        if (nom === 'enregistrer-plage' && typeof planPlage === 'function') {
+          var t = b.kind === 'jalon' ? 'jalons' : 'notes';
+          var plan = planPlage(b, BD[t].map(function (r) { return Object.assign({}, r); }));
+          plan.ops.forEach(function (op) {
+            var v = Object.assign({}, op); delete v.type; delete v.table;
+            if (op.type === 'delete') BD[t] = BD[t].filter(function (r) { return r.id !== op.id; });
+            else if (op.type === 'update') { delete v.id; Object.assign(BD[t].find(function (r) { return r.id === op.id; }), v); }
+            else BD[t].push(Object.assign({ id: prochainId++, serie_id: null }, v));
+          });
+        }
+        return Promise.resolve({ data: {}, error: null });
+      } },
       channel: function () { var c = { on: function () { return c; }, subscribe: function () { return c; } }; return c; },
       removeChannel: function () {}
     };
@@ -141,6 +172,29 @@ function verificateur() {
 // touchend). Playwright ne rejoue pas le double canal PointerEvent +
 // TouchEvent d'un vrai doigt : seuls les TouchEvent sont émis, ce qui
 // suffit au détecteur de bord de semaine (js/grille-rendu.js).
+// Navigateur de test : Chromium avec le geste « page précédente au glisser
+// horizontal » coupé. Sans ça, un vrai glisser au doigt (glisserBulleDoigt,
+// Input.dispatchTouchEvent) sur la grille ramène la page à about:blank.
+function lancerNavigateur(chromium) {
+  return chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--disable-features=OverscrollHistoryNavigation'] });
+}
+// VRAI glisser au doigt (suite 25) : événements tactiles natifs via CDP,
+// que Chromium convertit en PointerEvent pointerType "touch" + TouchEvent,
+// exactement comme un doigt. Appui long (attente) avant de bouger :
+// l'appli n'arme un glisser tactile qu'après DELAI_SELECTION (300 ms).
+async function glisserBulleDoigt(page, de, vers) {
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: de.x, y: de.y }] });
+  await page.waitForTimeout(500);
+  for (let i = 1; i <= 10; i++) {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: de.x + (vers.x - de.x) * i / 10, y: de.y + (vers.y - de.y) * i / 10 }] });
+    await page.waitForTimeout(30);
+  }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await page.waitForTimeout(400);
+  await cdp.detach();
+}
+
 async function glisserDoigt(page, departX, arriveeX, y) {
   const toucher = (type, x) => page.evaluate(([type, x, y]) => {
     var el = document.querySelector('.scroller');
@@ -154,4 +208,4 @@ async function glisserDoigt(page, departX, arriveeX, y) {
   await page.waitForTimeout(300);
 }
 
-module.exports = { FAUX_SUPABASE, ouvrirPlanning, verificateur, glisserDoigt };
+module.exports = { FAUX_SUPABASE, ouvrirPlanning, verificateur, glisserDoigt, glisserBulleDoigt, lancerNavigateur };

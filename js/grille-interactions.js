@@ -426,13 +426,16 @@
     // totale est rapportée au nombre de demi-slots RÉELLEMENT occupés (`L`,
     // cf. demiSlotsDepuisBornes), qui peut différer de `duree * 2` quand un
     // bord est déjà en demi-journée.
+    // Round du 25.09.2026 (suite 25) — Lionel : « déplacer une note de
+    // 1/2jours sur mobile n'est pas possible ». Le « tactile n'en a pas
+    // besoin » ci-dessus datait de l'ancien mode classique (1 colonne par
+    // jour) : depuis que chaque demi-journée a sa colonne, le doigt a la même
+    // géométrie que la souris. Calculé désormais au doigt aussi.
     var offsetHalvesClic = 0;
-    if (e.pointerType !== "touch") {
-      var bClicSlots = demiSlotsDepuisBornes(itemClic.giDebut, itemClic.duree, itemClic.demiDebut || null, itemClic.demiFin || null);
-      var lClic = bClicSlots.halfFinIncl - bClicSlots.halfStart + 1;
-      var rectClicHalf = bulleDom.getBoundingClientRect();
-      if (rectClicHalf.width > 0) offsetHalvesClic = Math.max(0, Math.min(lClic - 1, Math.floor(((e.clientX - rectClicHalf.left) / rectClicHalf.width) * lClic)));
-    }
+    var bClicSlots = demiSlotsDepuisBornes(itemClic.giDebut, itemClic.duree, itemClic.demiDebut || null, itemClic.demiFin || null);
+    var lClic = bClicSlots.halfFinIncl - bClicSlots.halfStart + 1;
+    var rectClicHalf = bulleDom.getBoundingClientRect();
+    if (rectClicHalf.width > 0) offsetHalvesClic = Math.max(0, Math.min(lClic - 1, Math.floor(((e.clientX - rectClicHalf.left) / rectClicHalf.width) * lClic)));
     var dejaSelectionnee = !!bullesSelectionnees[idClic];
     var groupeIds = dejaSelectionnee ? Object.keys(bullesSelectionnees) : [idClic];
     // fantomesARefaire (round du 24.09.2026, suite 11) : cf. appuiLong
@@ -542,12 +545,14 @@
     // Lionel), puis aux tâches/absences au §49 (Lionel : "1 tâche ne peux
     // pas etre mise sur 2 case, elle s'étent de 1 jour" — désormais dotées
     // nativement de demiDebut/demiFin comme les notes/jalons, cf.
-    // FRONTEND-CHANGELOG) : le tactile n'a pas la géométrie pixel-précise
-    // par demi-jour (cf. colonneEtSpanDemi), et le week-end n'a qu'une seule
-    // case par personne (§2 du spec). Renvoie null dans ces cas : le survol
-    // retombe alors sur previsionsJourEntier ci-dessous (suite 13).
+    // FRONTEND-CHANGELOG) : le week-end n'a qu'une seule case par personne
+    // (§2 du spec). Renvoie null dans ce cas : le survol retombe alors sur
+    // previsionsJourEntier ci-dessous (suite 13). Au doigt aussi depuis la
+    // suite 25 (Lionel : « déplacer une note de 1/2jours sur mobile n'est
+    // pas possible ») : l'aperçu montrait le jour entier, le doigt ne pouvait
+    // viser que le même demi-jour d'un autre jour.
     function cibleNotePreciseCompacte(cible, clientX) {
-      if (tactile || groupeIds.length !== 1 || clientX == null) return null;
+      if (groupeIds.length !== 1 || clientX == null) return null;
       if (!celluleValidePourGeste(cible)) return null;
       var giCibleBrut = +cible.dataset.jour;
       if (estGiWeekend(giCibleBrut)) return null;
@@ -624,13 +629,14 @@
     // toutes les autres — comme les flèches de la pilule (decalerSelection)
     // qui décalent déjà un groupe d'une demi-journée. Butée : l'écart est
     // réduit pour qu'aucune bulle ne sorte de la fenêtre chargée, pour que
-    // le groupe garde sa forme. Renvoie null (repli sur le jour entier,
-    // inchangé) au doigt, pour une bulle seule, ou quand le pointeur ou la
+    // le groupe garde sa forme. Au doigt comme à la souris depuis la suite
+    // 25. Renvoie null (repli sur le jour entier) pour une bulle seule, ou
+    // quand le pointeur ou la
     // bulle tenue est sur un week-end (une seule case par personne). Les
     // bulles de week-end du groupe restent en place (même règle que
     // decalerSelection).
     function deltaDemisGroupe(cible, clientX) {
-      if (tactile || groupeIds.length < 2 || clientX == null || !cible) return null;
+      if (groupeIds.length < 2 || clientX == null || !cible) return null;
       var giBrut = +cible.dataset.jour;
       if (estGiWeekend(giBrut) || estGiWeekend(itemClic.giDebut)) return null;
       var nTotal = nbJoursAffiches();
@@ -981,7 +987,7 @@
           // création (cf. itemPlageTache dans la boucle week-end de
           // construireVueDepuisCache).
           cible = { personneId: celluleCible.dataset.personne, giDebut: giCibleBrut, duree: 1, demiDebut: "matin", demiFin: "matin" };
-        } else if (!tactile && clientXFinal != null) {
+        } else if (clientXFinal != null) {
           // §49 (Lionel : "1 tâche ne peux pas etre mise sur 2 case, elle
           // s'étent de 1 jour (de 1 a 3 ,5 ou 7 case)") : une tâche/absence
           // porte désormais nativement demiDebut/demiFin comme une note ou
@@ -993,9 +999,9 @@
           var bordsTache = bordsDeplacementNoteMultiJours(itemClic.giDebut, itemClic.duree, demiDebutActuelTache, demiFinActuelTache, offsetHalvesClic, giCibleBrut, demiSousPointeurTache, nbJoursAffiches());
           cible = { personneId: celluleCible.dataset.personne, giDebut: bordsTache.giDebut, duree: bordsTache.duree, demiDebut: bordsTache.demiDebut, demiFin: bordsTache.demiFin };
         } else {
-          // Repli tactile (pas de position de relâchement pixel-précise
-          // exploitable de la même façon qu'à la souris) : granularité jour
-          // entier, forme reconduite telle quelle — comportement inchangé.
+          // Repli sans position de relâchement (clientX absent) :
+          // granularité jour entier, forme reconduite telle quelle. Le doigt
+          // passe par la branche demi-journée ci-dessus depuis la suite 25.
           var giCible = Math.max(0, Math.min(nbJoursAffiches() - itemClic.duree, giCibleBrut - offsetJoursClic));
           cible = { personneId: celluleCible.dataset.personne, giDebut: giCible, duree: itemClic.duree, demiDebut: demiDebutActuelTache, demiFin: demiFinActuelTache };
         }
@@ -1021,7 +1027,7 @@
       // FRONTEND-CHANGELOG) : la demi-journée cible se choisit par la
       // position horizontale du relâchement dans la case visée.
       var kindGesteFinal = kindOrigineGeste();
-      if (!tactile && groupeIds.length === 1 && (kindGesteFinal === "note" || kindGesteFinal === "jalon") && clientXFinal != null) {
+      if (groupeIds.length === 1 && (kindGesteFinal === "note" || kindGesteFinal === "jalon") && clientXFinal != null) {
         var demiDebutActuelNote = itemClic.demiDebut || null, demiFinActuelNote = itemClic.demiFin || null;
         // Modèle demi-slot (bordsDeplacementNoteMultiJours, §38) en mode
         // compact — pour TOUTE note, y compris duree === 1 (round du
