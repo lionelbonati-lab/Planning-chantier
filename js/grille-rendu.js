@@ -1217,23 +1217,53 @@
       var aCalculer = bulles.map(function (b, i) { return !!cartes[i] && (!pendantGlissement || cartes[i].style.display === "none" || !cartes[i].style.width); });
       var rects = bulles.map(function (b, i) { return aCalculer[i] ? b.getBoundingClientRect() : null; });
       var jours = null;
-      if (pendantGlissement && aCalculer.indexOf(true) >= 0) {
+      if (aCalculer.indexOf(true) >= 0) {
         jours = [].slice.call(grilleEntete.querySelectorAll(".th[data-gi]")).map(function (th) {
           var r = th.getBoundingClientRect(); return [r.left, r.right];
         });
+      }
+      // Veille et lendemain du jour posé (round du 25.09.2026, suite 41).
+      // Lionel, capture à l'appui (vendredi aux cartes de 17 px, « B / é. ») :
+      // « En mode mobile, faire les calcul de texte et bulles sur le jour
+      // avant et après le jour affiché, pour éviter ce genre de petites
+      // bulles. » Une carte hors écran était masquée (display:none), puis
+      // calculée seulement en entrant à l'écran pendant le glissement —
+      // d'après la mince lamelle visible à cet instant dès que la colonne
+      // de son jour n'était pas retrouvée à temps, et gardée ainsi jusqu'à
+      // la fixation suivante. Désormais, à chaque calcul complet (rendu,
+      // jour posé), les cartes des 2 jours voisins reçoivent déjà leur
+      // largeur définitive — leur part dans la colonne de LEUR jour, comme
+      // si ce jour était affiché — et restent en place hors écran, texte
+      // déjà enroulé : le glissement n'a plus rien à calculer pour elles.
+      // Seules les cartes de plus loin (2 jours d'un coup) passent encore
+      // par le calcul d'entrée ci-dessous. Classe .jour-voisin : exclues
+      // de la mesure des hauteurs du jour posé (figerHauteursJourMobile).
+      var voisins = null;
+      if (!pendantGlissement && jours) {
+        var jPose = -1, recouvrement = 0;
+        jours.forEach(function (c, j) {
+          var r = Math.min(c[1], finVisible) - Math.max(c[0], debutVisible);
+          if (r > recouvrement) { recouvrement = r; jPose = j; }
+        });
+        if (jPose >= 0) voisins = [jours[jPose + 1], jours[jPose - 1]].filter(Boolean);
       }
       for (var i = 0; i < bulles.length; i++) {
         var carte = cartes[i];
         if (!aCalculer[i]) continue;
         var g = Math.max(debutVisible, rects[i].left);
         var d = Math.min(finVisible, rects[i].right);
-        if (jours && d - g >= 1) {
+        if (pendantGlissement && jours && d - g >= 1) {
           // Carte qui entre à l'écran : sa part dans la colonne du jour où
           // se trouve son premier point visible (= sa largeur une fois ce
           // jour posé), au lieu de la mince lamelle visible à cet instant.
+          var trouve = false;
           for (var j = 0; j < jours.length; j++) {
-            if (g >= jours[j][0] - 0.5 && g < jours[j][1] - 0.5) { d = Math.min(rects[i].right, jours[j][1]); break; }
+            if (g >= jours[j][0] - 0.5 && g < jours[j][1] - 0.5) { d = Math.min(rects[i].right, jours[j][1]); trouve = true; break; }
           }
+          // Colonne introuvable (en-tête pas encore recalé sur le
+          // défilement) : au plus un jour visible, jamais la lamelle
+          // (suite 41, les « B / é. » de 17 px de la capture de Lionel).
+          if (!trouve) d = Math.min(rects[i].right, g + (finVisible - debutVisible));
         }
         // width (pas seulement max-width) : .b-carte a align-self:flex-start
         // (rétrécit à son contenu, cf. son commentaire CSS) — livré seul,
@@ -1255,12 +1285,20 @@
         // 0, donc le rendu réel plafonne à ~22px de padding pur) — une bulle
         // censée être totalement hors écran redevenait visible avec un
         // bandeau vide de 22px. display:none n'a pas ce plancher.
+        var voisin = false;
+        if (d - g < 1 && voisins) {
+          for (var v = 0; v < voisins.length && !voisin; v++) {
+            var gv = Math.max(voisins[v][0], rects[i].left), dv = Math.min(voisins[v][1], rects[i].right);
+            if (dv - gv >= 1) { voisin = true; g = gv; d = dv; }
+          }
+        }
+        if (!pendantGlissement) bulles[i].classList.toggle("jour-voisin", voisin);
         if (d - g < 1) { carte.style.display = "none"; }
         else { carte.style.display = ""; carte.style.width = carte.style.maxWidth = ((d - g) / zoom) + "px"; }
         // Poignées d'une bulle hors du jour affiché masquées (suite 37) :
         // celles de la veille tombaient pile au bord de la colonne des noms
         // (traits parasites sur la capture de Lionel, x ≈ 108 px).
-        bulles[i].classList.toggle("hors-jour", d - g < 1);
+        bulles[i].classList.toggle("hors-jour", d - g < 1 || voisin);
       }
     }
     // figerHauteursJourMobile() — round du 25.09.2026 (suite 35), remplace
@@ -1309,7 +1347,7 @@
         g.style.gridTemplateRows = "";
         g.querySelectorAll(".bulle").forEach(function (b) {
           var carte = b.querySelector(".b-carte");
-          if (carte && (carte.style.display === "none" || parseFloat(carte.style.width) * zoom < 30)) { b.style.display = "none"; horsJour.push(b); }
+          if (carte && (carte.style.display === "none" || b.classList.contains("jour-voisin") || parseFloat(carte.style.width) * zoom < 30)) { b.style.display = "none"; horsJour.push(b); }
         });
       });
       // Lecture groupée : une seule mise en page. getComputedStyle rend les
@@ -1974,8 +2012,12 @@
       scroller.addEventListener("touchcancel", function (e) { doigtsPoses = e.touches.length; programmerArret(); }, { passive: true });
       scroller.addEventListener("scroll", programmerArret, { passive: true });
       var defilementArrete = function () {
-        if (!scroller.isConnected || doigtsPoses > 0 || document.body.classList.contains("en-glissement")) return;
-        if (syncEnCours) { minuteurArret = setTimeout(defilementArrete, 400); return; }
+        if (!scroller.isConnected || doigtsPoses > 0) return;
+        // Bulle tenue au doigt (changement de jour en l'amenant au bord,
+        // suite 26) : jour posé repris une fois la bulle lâchée (suite 41 —
+        // l'arrêt était abandonné jusqu'ici, et avec lui le calcul des
+        // largeurs du jour atteint si plus aucun défilement ne suivait).
+        if (syncEnCours || document.body.classList.contains("en-glissement")) { minuteurArret = setTimeout(defilementArrete, 400); return; }
         // Jour posé : ses hauteurs de lignes (suite 35, cf.
         // figerHauteursJourMobile) — même si la fenêtre se recentre juste
         // après, la nouvelle grille remesure ce même jour à l'identique.
