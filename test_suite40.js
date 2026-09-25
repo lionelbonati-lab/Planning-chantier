@@ -36,7 +36,8 @@ const mesure = (page) => page.evaluate(() => {
       localStorage: { 'planning.chantierParDefaut': '26028 - Filisetti' } });
     await page.evaluate(() => openPrintSheet()); await page.waitForTimeout(200);
     const m = await mesure(page);
-    verifier(m.ordre === 'cp-titre,print-doc,impr-reglages,impression-actions', largeur + ' px : aperçu, puis Réglages, puis Fermer / Imprimer (' + m.ordre + ')');
+    // Suite 48 : choix Période / Pour (.impr-periode) entre le titre et l'aperçu.
+    verifier(m.ordre === 'cp-titre,impr-periode,print-doc,impr-reglages,impression-actions', largeur + ' px : aperçu, puis Réglages, puis Fermer / Imprimer (' + m.ordre + ')');
     verifier(m.ouvert === false, largeur + ' px : Réglages repliés à l\'ouverture');
     if (tel) {
       verifier(m.contientTableau && m.tableau > m.fenetre, '360 px : la page de l\'aperçu suit la grille, plus large que l\'écran (carte ' + m.carte + ' px, grille ' + m.tableau + ' px, écran ' + m.fenetre + ' px)');
