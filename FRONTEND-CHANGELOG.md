@@ -7394,3 +7394,4 @@ Lionel : « Améliore le défilement tactile latéral et horizontal pour qu'il n
 Vérifié en local (Playwright, vrais événements tactiles) — **`test_suite26.js`** (nouveau), 10 vérifications, toutes OK ; sur l'ancien code, 5 échouent :
 - téléphone, vue 1 jour : défilement vertical avec 90 px de dérive → `scrollLeft` immobile pendant le geste, même jour après l'inertie, la page a défilé ; swipe horizontal avec 60 px de dérive verticale → jour suivant, aucun défilement vertical ; diagonale à 45° → défilement vertical seul ;
 - tablette, vue 1 semaine : défilement vertical avec 80 px de dérive → même semaine ; vrai swipe vers la droite → semaine précédente.
+- **Suite complète** : mêmes 8 échecs que sur `main` (anciens tests qui cherchent des fonctions dans `index.html`, cf. §129) ; tous les tests tactiles et de défilement existants passent.
