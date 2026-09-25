@@ -1248,9 +1248,19 @@
     // commentaires respectifs) : un signal déjà fiable pour distinguer "ce
     // doigt est en train de faire autre chose" d'un vrai swipe de
     // navigation, sans dupliquer leur propre logique de détection ici.
-    var seuilBordSemaine = 46, toucheDebutX = null, toucheBord = null;
+    //
+    // toucheDebutY/toucheAxe (round du 25.09.2026, suite 26) — Lionel :
+    // « Améliore le défilement tactile latéral et horizontal pour qu'il
+    // n'agisse que dans un sens à la fois. » Même règle que le défilement
+    // manuel (axeDuGeste, core.js, décidé une fois le doigt parti de
+    // SEUIL_DEFILEMENT) : un geste reconnu VERTICAL ne peut plus changer de
+    // semaine, même si le doigt a dérivé de plus de seuilBordSemaine de
+    // côté pendant un long défilement vers le bas.
+    var seuilBordSemaine = 46, toucheDebutX = null, toucheDebutY = null, toucheAxe = null, toucheBord = null;
     scroller.addEventListener("touchstart", function (e) {
       toucheDebutX = (e.touches.length === 1) ? e.touches[0].clientX : null;
+      toucheDebutY = (e.touches.length === 1) ? e.touches[0].clientY : null;
+      toucheAxe = null;
       toucheBord = null;
     }, { passive: true });
     scroller.addEventListener("touchmove", function (e) {
@@ -1261,6 +1271,9 @@
       if (toucheDebutX === null || e.touches.length !== 1) return;
       if (document.body.classList.contains("en-glissement")) { toucheBord = null; return; }
       var dx = e.touches[0].clientX - toucheDebutX;
+      var dy = e.touches[0].clientY - toucheDebutY;
+      if (!toucheAxe && Math.abs(dx) + Math.abs(dy) > SEUIL_DEFILEMENT) toucheAxe = axeDuGeste(dx, dy);
+      if (toucheAxe !== "x") { toucheBord = null; return; }
       var maxScroll = scroller.scrollWidth - scroller.clientWidth;
       // "<= 1"/">= maxScroll - 1", pas une comparaison stricte à 0/maxScroll :
       // decalerSurColonne_ (plus bas) peut caler le repos sur 1px près de la
@@ -1274,7 +1287,7 @@
       if (document.body.classList.contains("en-glissement")) { toucheDebutX = null; toucheBord = null; return; }
       if (toucheBord === "debut") naviguerSemaineDepuisBordJour(-1);
       else if (toucheBord === "fin") naviguerSemaineDepuisBordJour(1);
-      toucheDebutX = null; toucheBord = null;
+      toucheDebutX = null; toucheDebutY = null; toucheAxe = null; toucheBord = null;
     }, { passive: true });
 
     // Round du 23.09.2026 (suite ×11) — Lionel : « L'action de swiper d'une

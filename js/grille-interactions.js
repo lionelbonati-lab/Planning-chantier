@@ -160,12 +160,32 @@
   // sites concernés (l'inertie de tick() ci-dessous, le suivi direct du
   // geste dans suivre(), et l'ancien demarrerDefilementSimple, mort mais
   // corrigé par cohérence).
+  //
+  // Verrouillage d'axe — round du 25.09.2026 (suite 26). Lionel : « Améliore
+  // le défilement tactile latéral et horizontal pour qu'il n'agisse que dans
+  // un sens à la fois. pour éviter de changer de jour sans faire exprès alors
+  // qu'on veut juste défiler verticalement. » Jusqu'ici suivre() appliquait
+  // dx ET dy à chaque échantillon : un défilement vertical au pouce, qui
+  // dérive toujours un peu de côté, déplaçait aussi scrollLeft — et en vue
+  // "1 jour" mobile, le calage de fin de geste (finirSurRepere) pouvait alors
+  // retomber sur le jour VOISIN, ou l'inertie horizontale l'y emmener. Chaque
+  // geste choisit maintenant UN axe (axeDuGeste, core.js) et n'applique plus
+  // que celui-là, inertie comprise ; l'autre composante est ignorée jusqu'au
+  // lâcher. Le choix se fait sur le déplacement CUMULÉ depuis le poser du
+  // doigt (verrouillerAxe, appelé par les sites d'appel au franchissement de
+  // SEUIL_DEFILEMENT) plutôt que sur le seul dernier échantillon, trop court
+  // pour être fiable ; à défaut (demarrerDefilementOuSortieSelection, qui n'a
+  // pas de seuil), suivre() cumule lui-même et ne bouge rien avant d'avoir
+  // tranché, comme la zone morte des autres sites.
   function creerDefilementManuel(scroller) {
     var vx = 0, vy = 0, raf = null;
     var etatSnap = { snapDesactive: false, snapTypeOrigine: "" };
+    var axe = null, cumulX = 0, cumulY = 0;
     function finirSurRepere() {
       raf = null;
-      if (scroller) {
+      // axe "y" (suite 26) : un geste vertical n'a jamais bougé scrollLeft,
+      // il ne le recale pas non plus.
+      if (scroller && axe !== "y") {
         var cible = plusProcheRepereJour_(scroller);
         if (cible !== null) scroller.scrollLeft = cible;
       }
@@ -188,9 +208,19 @@
       // dx/dy : déplacement depuis le dernier échantillon (comme avant) ;
       // dt : temps écoulé en ms depuis ce même échantillon (0 au tout
       // premier appel — pas de vitesse mesurable, juste le déplacement).
+      verrouillerAxe: function (dxTotal, dyTotal) { if (!axe) axe = axeDuGeste(dxTotal, dyTotal); },
       suivre: function (dx, dy, dt) {
-        desactiverSnapSiBesoin_(scroller, etatSnap);
-        if (scroller) scroller.scrollLeft -= dx;
+        if (!axe) {
+          cumulX += dx; cumulY += dy;
+          if (Math.abs(cumulX) + Math.abs(cumulY) <= SEUIL_DEFILEMENT) return;
+          axe = axeDuGeste(cumulX, cumulY);
+        }
+        if (axe === "x") dy = 0; else dx = 0;
+        // Snap CSS coupé seulement pour un geste horizontal : un geste
+        // vertical ne touche jamais scrollLeft, le laisser actif garde le
+        // jour exactement calé.
+        if (axe === "x") desactiverSnapSiBesoin_(scroller, etatSnap);
+        if (dx && scroller) scroller.scrollLeft -= dx;
         if (dy && app) app.scrollTop -= dy;
         if (dt > 0) { vx = vx * 0.7 + (dx / dt) * 0.3; vy = vy * 0.7 + (dy / dt) * 0.3; }
       },
@@ -282,7 +312,7 @@
         if (e2.pointerId !== pointerId) return;
         if (!arme) {
           var dist = Math.abs(e2.clientX - sx) + Math.abs(e2.clientY - sy);
-          if (!enDefilement && dist > SEUIL_DEFILEMENT) { enDefilement = true; clearTimeout(minuteur); }
+          if (!enDefilement && dist > SEUIL_DEFILEMENT) { enDefilement = true; clearTimeout(minuteur); defilementManuel.verrouillerAxe(e2.clientX - sx, e2.clientY - sy); }
           if (enDefilement) defilementManuel.suivre(e2.clientX - dernierX, e2.clientY - dernierY, e2.timeStamp - dernierT);
           dernierX = e2.clientX; dernierY = e2.clientY; dernierT = e2.timeStamp;
           return;
@@ -821,7 +851,7 @@
       if (e2.pointerId !== pointerId) return;
       if (!arme) {
         var dist = Math.abs(e2.clientX - sx) + Math.abs(e2.clientY - sy);
-        if (!enDefilement && dist > SEUIL_DEFILEMENT) { enDefilement = true; clearTimeout(minuteur); }
+        if (!enDefilement && dist > SEUIL_DEFILEMENT) { enDefilement = true; clearTimeout(minuteur); defilementManuel.verrouillerAxe(e2.clientX - sx, e2.clientY - sy); }
         if (enDefilement) defilementManuel.suivre(e2.clientX - dernierX, e2.clientY - dernierY, e2.timeStamp - dernierT);
         dernierX = e2.clientX; dernierY = e2.clientY; dernierT = e2.timeStamp;
         return;
@@ -1323,7 +1353,7 @@
         if (e2.pointerId !== pointerId) return;
         if (!arme) {
           var dist = Math.abs(e2.clientX - sx) + Math.abs(e2.clientY - sy);
-          if (!enDefilement && dist > SEUIL_DEFILEMENT) { enDefilement = true; clearTimeout(minuteur); }
+          if (!enDefilement && dist > SEUIL_DEFILEMENT) { enDefilement = true; clearTimeout(minuteur); defilementManuel.verrouillerAxe(e2.clientX - sx, e2.clientY - sy); }
           if (enDefilement) defilementManuel.suivre(e2.clientX - dernierX, e2.clientY - dernierY, e2.timeStamp - dernierT);
           dernierX = e2.clientX; dernierY = e2.clientY; dernierT = e2.timeStamp;
           return;

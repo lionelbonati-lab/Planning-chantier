@@ -7373,3 +7373,25 @@ Vérifié en local (Playwright) — **`test_suite25.js`** (nouveau), 17 vérific
 - téléphone au doigt : matin ↔ après-midi du même jour ;
 - tablette au doigt : tâche de Lionel mercredi matin → Mathis jeudi après-midi, écrite en base.
 - **Suite complète** : mêmes 8 échecs que sur `main` (anciens tests qui cherchent des fonctions dans `index.html`, cf. §129) ; tous les tests tactiles existants passent.
+
+## 134. Round du 25.09.2026 (suite 26) — Défilement tactile : un seul sens à la fois
+
+Lionel : « Améliore le défilement tactile latéral et horizontal pour qu'il n'agisse que dans un sens à la fois. pour éviter de changer de jour sans faire exprès alors qu'on veut juste défiler verticalement. »
+
+**Cause** (`js/grille-interactions.js`, `creerDefilementManuel`) :
+- sur le tableau, le défilement tactile est fait à la main (les cases et bulles portent `touch-action: none`, cf. round du 23.09.2026, suite ×12) ;
+- à chaque mouvement du doigt, il appliquait le déplacement horizontal ET vertical. Un pouce qui défile vers le bas dérive toujours un peu de côté : `scrollLeft` bougeait aussi, puis l'inertie horizontale et le calage de fin de geste pouvaient emmener la vue 1 jour du téléphone sur le jour voisin ;
+- reproduit : glissé vers le haut de 260 px avec 90 px de dérive → la vue passait au jour précédent.
+
+**Correctif** :
+- chaque glissé choisit UN axe dès que le doigt a bougé de 10 px (`axeDuGeste`, `js/core.js`) et n'applique plus que celui-là jusqu'au lâcher, inertie comprise ;
+- l'axe est choisi sur le déplacement total depuis le poser du doigt, pas sur le dernier mouvement ;
+- horizontal seulement si le déplacement horizontal dépasse 1,5 fois le vertical (moins de ~34° par rapport à l'horizontale). Tout le reste est vertical, diagonale à 45° comprise. C'est un biais volontaire : un vrai swipe de jour est franchement horizontal, un défilement vertical dérive souvent ;
+- un geste vertical ne touche plus du tout au jour affiché : ni pendant le geste, ni au calage final ;
+- même règle pour le swipe de semaine sur tablette/ordinateur tactile (`js/grille-rendu.js`) : un défilement vertical qui dérive de plus de 46 px de côté ne change plus de semaine ;
+- la colonne des noms garde le défilement natif du navigateur, qui verrouille déjà son axe (vérifié : glissé vertical avec dérive → `scrollLeft` inchangé).
+
+Vérifié en local (Playwright, vrais événements tactiles) — **`test_suite26.js`** (nouveau), 10 vérifications, toutes OK ; sur l'ancien code, 5 échouent :
+- téléphone, vue 1 jour : défilement vertical avec 90 px de dérive → `scrollLeft` immobile pendant le geste, même jour après l'inertie, la page a défilé ; swipe horizontal avec 60 px de dérive verticale → jour suivant, aucun défilement vertical ; diagonale à 45° → défilement vertical seul ;
+- tablette, vue 1 semaine : défilement vertical avec 80 px de dérive → même semaine ; vrai swipe vers la droite → semaine précédente.
+- **Suite complète** : mêmes 8 échecs que sur `main` (anciens tests qui cherchent des fonctions dans `index.html`, cf. §129) ; tous les tests tactiles et de défilement existants passent.
