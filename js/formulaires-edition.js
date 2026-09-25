@@ -680,8 +680,13 @@
     // date de départ SANS jamais remplacer ce qui existe déjà ce jour-là, cf.
     // construireOccurrencesSerie côté fonctions/enregistrer-serie/logic.js) —
     // nécessiterait de supprimer l'item existant en même temps que la série
-    // est créée, pas encore câblé ici.
-    var champSerie = itemExisting ? (itemExisting.serieId ? serieInfoExistanteHTML() : "") : serieChampsHTML();
+    // est créée. Câblé depuis le round du 25.09.2026 (suite 47 — Lionel,
+    // à la liste d'améliorations proposée : « Terminer les restes ») : la
+    // case est proposée aussi pour une tâche/absence existante hors série ;
+    // cochée, l'enregistrement supprime la tâche d'origine sur le serveur
+    // PUIS crée la série à sa place (cf. convertirEnSerie plus bas) — plus
+    // de doublon le 1er jour.
+    var champSerie = itemExisting && itemExisting.serieId ? serieInfoExistanteHTML() : serieChampsHTML();
     var nomGrand;
     if (typeAffiche === "tache") {
       var pAffiche = itemExisting ? personneParAncre(itemExisting.personneId) : (cibles.length === 1 ? personneParAncre(cibles[0].personne) : null);
@@ -888,6 +893,28 @@
           itemExisting.demiFin = demiFinFinal;
           itemExisting.dateDebutIso = isoDeGi(giDebutFinal);
           fermer(); render(); toast("Modifié.");
+        }
+        // Tâche existante hors série, case « Série (se répète) » cochée
+        // (suite 47) : la tâche d'origine est retirée du serveur (toutes ses
+        // lignes, même hors de la semaine affichée), puis la série est créée
+        // avec les dates, textes et champs de la fiche. Dans cet ordre :
+        // enregistrer-serie ne remplace jamais ce qui existe déjà le jour de
+        // départ. Une synchronisation encore en cours (tâche tout juste
+        // posée) est d'abord attendue, pour que ses lignes soient bien en
+        // base au moment de les retirer.
+        var choixConversion = !itemExisting.serieId ? lireChoixSerie() : null;
+        if (choixConversion) {
+          enregistrementEnCours = true;
+          ecrireHorsFenetre(function () {
+            return attendreFinSynchro_().then(function () { return lignesTacheServeur(itemExisting); }).then(function (r) {
+              return enregistrerTacheEnDatesServeur(ancreDe(itemExisting.personneId), r.lignes.map(function (l) { return l.id; }), [], {});
+            }).then(function () {
+              return creerSerieServeur(typeAffiche, [{ personne: itemExisting.personneId }], giDebutFinal, texte, important,
+                chantier || itemExisting.chantier, statutRow ? statutActuel : (itemExisting.statut || null), choixConversion, function () {},
+                nbJoursOuvresEntre(isoDebutFinal, isoFinFinal), demiDebutFinal, demiFinFinal, isoDebutFinal);
+            });
+          }, "Série créée à partir de cette " + (typeAffiche === "absence" ? "absence." : "tâche."));
+          return;
         }
         // Bulle de série (round du 24.09.2026, suite 20) : boîte « Modifier
         // l’événement récurrent » (cet événement / les suivants / tous), puis

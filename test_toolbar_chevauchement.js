@@ -101,8 +101,9 @@ function mesurer() {
   // 1) Rétrécissement 1400 -> 320px : jamais de chevauchement ; les groupes
   //    partent dans "⋮" un par un (round du 24.09.2026, suite 3), Zoom en
   //    premier (suite 10 — Lionel : « c'est la moins utilisé des
-  //    fonctions »), puis Masquages, Navigation, Imprimer.
-  const ORDRE_REPLI = ['groupeZoom', 'controlesAffichage', 'groupeNavSemaine', 'groupeImprimer'];
+  //    fonctions »), puis Masquages, Navigation, Imprimer. Suite 47 :
+  //    « À réserver » après Masquages, avant la navigation.
+  const ORDRE_REPLI = ['groupeZoom', 'controlesAffichage', 'groupeAReserver', 'groupeNavSemaine', 'groupeImprimer'];
   const TOUJOURS_BARRE = ['groupeAnnulerRefaire', 'groupeChantier', 'groupeAujourdhui', 'groupeAjoutElement'];
   let largeursOk = 0, nbLargeurs = 0, replis = [], ordreRespecte = true, toujoursLa = true;
   for (let w = 1400; w >= 320; w -= 10) {
@@ -143,7 +144,7 @@ function mesurer() {
   //    sur une ligne ; 4 masquages sur une ligne ; ‹ utilisable depuis le menu.
   await largeur(700);
   e = await etatBarre();
-  verifier(JSON.stringify(e.menu) === JSON.stringify(['groupeZoom', 'groupeNavSemaine', 'controlesAffichage']), 'ordre du menu à 700px : ' + e.menu);
+  verifier(JSON.stringify(e.menu) === JSON.stringify(['groupeAReserver', 'groupeZoom', 'groupeNavSemaine', 'controlesAffichage']), 'ordre du menu à 700px (« À réserver » juste après Imprimer, suite 47) : ' + e.menu);
   await page.click('#btnPlusOutils');
   await page.waitForTimeout(100);
   const lignes = await page.evaluate(() => {

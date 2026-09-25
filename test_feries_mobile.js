@@ -103,7 +103,7 @@ const FAUX_SUPABASE = '(' + function () {
   const page = await nouvellePage({ viewport: { width: 390, height: 800 }, hasTouch: true, isMobile: true });
   await page.tap('#switcherBtn');
   await page.waitForTimeout(150);
-  await page.tap('.switcher-item[data-page="feries"]');
+  await page.tap('.switcher-item[data-page="horaires"]');
   await page.waitForTimeout(400);
   if (CAPTURES) await page.screenshot({ path: CAPTURES + '/feries_mobile_haut.png' });
 
@@ -125,7 +125,7 @@ const FAUX_SUPABASE = '(' + function () {
       couleur24: getComputedStyle(j(8, 24)).backgroundColor, couleur21: getComputedStyle(j(8, 21)).backgroundColor,
       couleurOct12: getComputedStyle(j(9, 12)).backgroundColor,
       enregistrer: btn.textContent.trim(),
-      aide: vis(document.querySelector('#page-feries .page-sous-mobile')) && !vis(document.querySelector('#page-feries .page-sous'))
+      aide: vis(document.querySelector('#blocCalendrier .page-sous-mobile')) && !vis(document.querySelector('#blocCalendrier .page-sous'))
     };
   });
   let v = await vue();
@@ -158,17 +158,17 @@ const FAUX_SUPABASE = '(' + function () {
   if (CAPTURES) await page.screenshot({ path: CAPTURES + '/feries_mobile_defile.png' });
   const g = await page.evaluate(() => {
     const r = (s) => document.querySelector(s).getBoundingClientRect();
-    return { cats: Math.round(r('#ferieCategories').top), actions: r('#page-feries .actions-feries'), nav: r('.nav-bas') };
+    return { cats: Math.round(r('#ferieCategories').top), actions: r('#blocCalendrier .actions-feries'), nav: r('.nav-bas') };
   });
   verifier(Math.abs(g.cats) <= 1, 'catégories collées en haut pendant le défilement (top ' + g.cats + ')');
   verifier(Math.abs(g.actions.bottom - g.nav.top) <= 1 && g.actions.height >= 44, 'Calculer / Effacer / Enregistrer collés juste au-dessus de la barre du bas');
-  const coupes = await page.evaluate(() => Array.from(document.querySelectorAll('#page-feries .actions-feries button')).filter((b) => b.scrollWidth > b.clientWidth).map((b) => b.textContent));
+  const coupes = await page.evaluate(() => Array.from(document.querySelectorAll('#blocCalendrier .actions-feries button')).filter((b) => b.scrollWidth > b.clientWidth).map((b) => b.textContent));
   verifier(!coupes.length, 'libellés courts, aucun bouton coupé (' + coupes.join(', ') + ')');
   await page.evaluate(() => { const a = document.getElementById('app'); a.scrollTop = a.scrollHeight; });
   await page.waitForTimeout(150);
   const finPage = await page.evaluate(() => {
     const cartes = document.querySelectorAll('#ferieMoisMobile .mois-carte:not(.bilan-annuel)');
-    return { derniere: cartes[11].getBoundingClientRect().bottom, actions: document.querySelector('#page-feries .actions-feries').getBoundingClientRect().top };
+    return { derniere: cartes[11].getBoundingClientRect().bottom, actions: document.querySelector('#blocCalendrier .actions-feries').getBoundingClientRect().top };
   });
   verifier(finPage.derniere <= finPage.actions, 'fin de page : décembre entièrement visible au-dessus de la barre d\'actions');
 
@@ -180,12 +180,12 @@ const FAUX_SUPABASE = '(' + function () {
 
   // Ordinateur : tableau annuel inchangé, pas de cartes.
   const bureau = await nouvellePage({ viewport: { width: 1300, height: 800 } });
-  await bureau.locator('.onglet[data-page="feries"]:visible').first().click();
+  await bureau.locator('.onglet[data-page="horaires"]:visible').first().click();
   await bureau.waitForTimeout(400);
   const vb = await bureau.evaluate(() => ({
     tableau: document.getElementById('ferieCalendrier').getBoundingClientRect().width > 0,
     cartes: document.getElementById('ferieMoisMobile').getBoundingClientRect().height,
-    actionsFixe: getComputedStyle(document.querySelector('#page-feries .actions-feries')).position
+    actionsFixe: getComputedStyle(document.querySelector('#blocCalendrier .actions-feries')).position
   }));
   if (CAPTURES) await bureau.screenshot({ path: CAPTURES + '/feries_bureau.png' });
   verifier(vb.tableau && vb.cartes === 0 && vb.actionsFixe === 'static', 'ordinateur : tableau annuel inchangé, pas de cartes, boutons à leur place');

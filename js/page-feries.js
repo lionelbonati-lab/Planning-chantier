@@ -381,14 +381,13 @@
   }
   function renderFeries() {
     chargerFeriesAnnee(ferieAnnee);
-    document.getElementById("ferieAnneeLabel").textContent = ferieAnnee;
+    // Suite 47 : plus de ‹ année › propre au calendrier — celle de l'onglet
+    // Horaires (horaireAnneeLabel, cf. cablerPageHoraires) vaut pour les 2
+    // blocs de la page.
     renderFerieCategories();
     renderFerieCalendrier();
   }
   function cablerPageFeries() {
-    var prec = document.getElementById("ferieAnneePrec"), suiv = document.getElementById("ferieAnneeSuiv");
-    if (prec) prec.addEventListener("click", function () { ferieAnnee--; renderFeries(); });
-    if (suiv) suiv.addEventListener("click", function () { ferieAnnee++; renderFeries(); });
     var btnCalc = document.getElementById("btnCalculerFeries");
     if (btnCalc) btnCalc.addEventListener("click", function () {
       calculerFeries(ferieAnnee).forEach(function (it) {

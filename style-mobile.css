@@ -270,47 +270,41 @@
      Le texte d'aide long et la légende du tableau sont remplacés par une
      phrase courte (.page-sous-mobile). */
   @media (max-width: 600px) {
-    #page-feries .page-sous, #page-feries .legende-feries, #page-feries .calendrier-wrap { display: none; }
-    #page-feries .page-sous-mobile { display: block; color: var(--ink-muted); font-size: 12.5px; line-height: 1.5; margin: 4px 0 0; }
-    #page-feries .page-scroll { padding-bottom: calc(40px + 56px + 60px + env(safe-area-inset-bottom, 0px)); }
-    #page-feries .page-titre { flex-wrap: nowrap; }
-    #page-feries .nav-annee button.fleche { width: 36px; height: 36px; font-size: 15px; }
-    #page-feries .nav-annee { font-size: 15px; }
-
-    #page-feries .actions-feries {
-      position: fixed; left: 0; right: 0; bottom: calc(56px + env(safe-area-inset-bottom, 0px)); z-index: 40;
-      display: flex; flex-wrap: nowrap; gap: 8px; padding: 8px 10px;
-      background: var(--bg); border-top: 1px solid var(--border);
-    }
-    #page-feries .actions-feries button { flex: 1 1 0; min-width: 0; padding: 10px 6px; font-size: 13px; white-space: nowrap; }
-    #page-feries .actions-feries .btn-enregistrer { flex-grow: 1.3; }
-    /* libellés courts (« Calculer », « Effacer ») : les 3 boutons tiennent sur 320px */
-    #page-feries .actions-feries .lib-long { display: none; }
-
-    #page-feries .categories {
-      position: sticky; top: 0; z-index: 5; margin: 12px -18px 4px; padding: 8px 18px;
-      background: var(--bg); overflow-x: auto; scrollbar-width: none; gap: 8px;
-    }
-    #page-feries .categories::-webkit-scrollbar { display: none; }
-    #page-feries .categorie { flex-shrink: 0; padding: 9px 14px 9px 9px; }
-    #page-feries .categorie .pastille-cat { width: 20px; height: 20px; }
-
-    /* Page Horaires (suite 27) : même barre d'actions collée en bas que
-       les Fériés ; chaque période en carte à 3 colonnes (début, fin,
-       durée), une rangée pour les dates, une pour le matin (+ sa pause
-       dessous), une pour l'après-midi, le total du jour en bas. */
-    #page-horaires .page-scroll { padding-bottom: calc(40px + 56px + 60px + env(safe-area-inset-bottom, 0px)); }
+    /* Suite 47 : Fériés et Horaires ne font plus qu'un onglet (calendrier
+       en haut, horaires en bas). Une barre de boutons par bloc, placée à
+       la fin du bloc (order) et collée en bas (sticky) : elle reste à
+       portée du pouce tant que son bloc est à l'écran, puis laisse la
+       place à celle du bloc suivant — au lieu des 2 barres fixes des 2
+       anciennes pages, qui se seraient superposées. */
+    #blocCalendrier .page-sous, #blocCalendrier .legende-feries, #blocCalendrier .calendrier-wrap { display: none; }
+    #blocCalendrier .page-sous-mobile { display: block; color: var(--ink-muted); font-size: 12.5px; line-height: 1.5; margin: 4px 0 0; }
     #page-horaires .page-titre { flex-wrap: nowrap; }
     #page-horaires .nav-annee button.fleche { width: 36px; height: 36px; font-size: 15px; }
     #page-horaires .nav-annee { font-size: 15px; }
+    #page-horaires .bloc-horaires { display: flex; flex-direction: column; align-items: stretch; }
+    #page-horaires .bloc-horaires > * { flex: none; }
     #page-horaires .actions-feries {
-      position: fixed; left: 0; right: 0; bottom: calc(56px + env(safe-area-inset-bottom, 0px)); z-index: 40;
-      display: flex; flex-wrap: nowrap; gap: 8px; padding: 8px 10px;
+      order: 99; position: sticky; bottom: calc(56px + env(safe-area-inset-bottom, 0px)); z-index: 40;
+      display: flex; flex-wrap: nowrap; gap: 8px; margin: 12px -18px 0; padding: 8px 10px;
       background: var(--bg); border-top: 1px solid var(--border);
     }
     #page-horaires .actions-feries button { flex: 1 1 0; min-width: 0; padding: 10px 6px; font-size: 13px; white-space: nowrap; }
+    #blocCalendrier .actions-feries .btn-enregistrer { flex-grow: 1.3; }
+    /* libellés courts (« Calculer », « Effacer ») : les 3 boutons tiennent sur 320px */
     #page-horaires .actions-feries .lib-long { display: none; }
     #page-horaires .page-sous { font-size: 12.5px; }
+
+    #blocCalendrier .categories {
+      position: sticky; top: 0; z-index: 5; margin: 12px -18px 4px; padding: 8px 18px;
+      background: var(--bg); overflow-x: auto; scrollbar-width: none; gap: 8px;
+    }
+    #blocCalendrier .categories::-webkit-scrollbar { display: none; }
+    #blocCalendrier .categorie { flex-shrink: 0; padding: 9px 14px 9px 9px; }
+    #blocCalendrier .categorie .pastille-cat { width: 20px; height: 20px; }
+
+    /* Horaires (suite 27) : chaque période en carte à 3 colonnes (début,
+       fin, durée), une rangée pour les dates, une pour le matin (+ sa
+       pause dessous), une pour l'après-midi, le total du jour en bas. */
     .horaire-entete { display: none; }
     .horaire-ligne { grid-template-columns: 1fr 1fr 58px; row-gap: 8px; padding: 10px; }
     .horaire-ligne .hc-lib { display: block; }
@@ -328,7 +322,7 @@
     .horaire-ligne .hc-total { grid-column: 1 / -1; grid-row: 5; flex-direction: row; justify-content: space-between; border-top: 1px solid var(--border); padding-top: 6px; }
     .horaire-ligne .hc-duree { align-self: end; padding-bottom: 9px; }
 
-    #page-feries .mois-feries { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
+    #blocCalendrier .mois-feries { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
     .mois-carte { border: 1px solid var(--border); border-radius: 12px; background: var(--surface); padding: 10px 10px 12px; }
     .mois-carte-titre { display: flex; align-items: baseline; justify-content: space-between; padding: 0 4px 8px; font-size: 14px; font-weight: 800; color: var(--ink); }
     .mois-carte-compte { font-size: 11.5px; font-weight: 700; color: var(--ink-faint); }

@@ -28,7 +28,6 @@
             '<button type="button" class="onglet" data-page="general">' + ICONS.gear + 'Général</button>' +
             '<button type="button" class="onglet" data-page="chantiers">' + ICONS.building + 'Chantiers</button>' +
             '<button type="button" class="onglet" data-page="statuts">' + ICONS.tag + 'Statuts</button>' +
-            '<button type="button" class="onglet" data-page="feries">' + ICONS.star + 'Fériés</button>' +
             '<button type="button" class="onglet" data-page="horaires">' + ICONS.clock + 'Horaires</button>' +
             '<button type="button" class="onglet" data-page="mise-en-page">' + ICONS.miseEnPage + 'Mise en page</button>' +
             '<button type="button" class="onglet" data-page="entree-rapide">' + ICONS.bolt + 'Entrée rapide</button>' +
@@ -37,7 +36,7 @@
         '</nav>' +
         '<div class="app-main">' +
           htmlPagePlanning() + htmlPageJalons() + htmlPageGeneral() + htmlPagePersonnel() + htmlPageIntervenants() +
-          htmlPageChantiers() + htmlPageStatuts() + htmlPageEntreeRapide() + htmlPageFeries() + htmlPageHoraires() + htmlPageMiseEnPage() +
+          htmlPageChantiers() + htmlPageStatuts() + htmlPageEntreeRapide() + htmlPageHoraires() + htmlPageMiseEnPage() +
         '</div>' +
         // §91 (round du 22.09.2026, suite) — Lionel, mockup mockup-nav-mobile.html
         // validé (croquis Google Sheets à l'appui : « j'aime bien la
@@ -73,7 +72,6 @@
             '<button type="button" class="onglet switcher-item" data-page="general">' + ICONS.gear + 'Général</button>' +
             '<button type="button" class="onglet switcher-item" data-page="chantiers">' + ICONS.building + 'Chantiers</button>' +
             '<button type="button" class="onglet switcher-item" data-page="statuts">' + ICONS.tag + 'Statuts</button>' +
-            '<button type="button" class="onglet switcher-item" data-page="feries">' + ICONS.star + 'Fériés</button>' +
             '<button type="button" class="onglet switcher-item" data-page="horaires">' + ICONS.clock + 'Horaires</button>' +
             '<button type="button" class="onglet switcher-item" data-page="mise-en-page">' + ICONS.miseEnPage + 'Mise en page</button>' +
             '<button type="button" class="onglet switcher-item" data-page="entree-rapide">' + ICONS.bolt + 'Entrée rapide</button>' +
@@ -82,6 +80,7 @@
       '</div>';
     cablerNavigation();
     cablerPagePlanning();
+    cablerAReserver();
     cablerPageEntreeRapide();
     cablerPageFeries();
     cablerPageHoraires();
@@ -204,6 +203,15 @@
         // les cible à chaque rendu), seul leur affichage y change
         // (style-mobile.css). Habillage "pilule" comme Zoom/Sem. N et largeur
         // fixe de 25 caractères, cf. .select-chantier-btn dans style.css.
+        // Résumé « À réserver » (round du 25.09.2026, suite 47 — Lionel :
+        // « Un résumé facilement accessible des statuts à réserver ») :
+        // icône + compteur dans la barre ; replié dans « ⋮ » (avec son
+        // libellé) seulement quand la place manque, après Zoom et Masquages
+        // (cf. REPLIS_ORDRE, grille-rendu.js) ; toujours dans la barre sur
+        // téléphone. Cf. js/a-reserver.js.
+        '<div class="toolbar-groupe sep-avant" id="groupeAReserver" data-rang="25" data-rang-menu="15" hidden>' +
+          '<button type="button" class="toolbar-btn" id="btnAReserver" title="À réserver">' + ICONS.reserver + '<span class="toolbar-btn-label">À réserver</span><span class="compte-a-reserver" hidden></span></button>' +
+        '</div>' +
         '<div class="toolbar-groupe sep-avant" id="groupeChantier" data-rang="30">' +
           '<div class="select-chantier" id="selectChantier">' +
             '<button type="button" class="select-chantier-btn" id="btnSelectChantier"><span class="swatch"></span><span class="nom-chantier">Chantier</span><span class="caret">▾</span></button>' +
@@ -483,34 +491,42 @@
       '</div>' +
       '</div></div>';
   }
-  function htmlPageFeries() {
-    return '<div class="page" id="page-feries"><div class="page-scroll">' +
-      '<div class="page-titre"><h1>Fériés</h1>' +
-        '<div class="nav-annee"><button type="button" class="fleche" id="ferieAnneePrec">&larr;</button><span id="ferieAnneeLabel"></span><button type="button" class="fleche" id="ferieAnneeSuiv">&rarr;</button></div>' +
-        '<div class="actions-feries"><button class="btn-calculer" id="btnCalculerFeries" type="button">Calculer<span class="lib-long"> les fériés</span></button><button class="btn-effacer" id="btnEffacerFeries" type="button">Effacer<span class="lib-long"> l’année</span></button><button class="btn-enregistrer" id="btnEnregistrerFeries" type="button">Enregistrer</button></div>' +
-      '</div>' +
-      '<p class="page-sous">Choisis une catégorie ci-dessous puis clique les dates à colorer (reclic = efface). « Calculer les fériés » ajoute les jours fériés suisses fixes/mobiles de l’année et les ponts qui en dépendent, en catégorie Férié — vacances d’entreprise restent à poser à la main. Rien n’est écrit sur le serveur tant que tu n’as pas cliqué Enregistrer.</p>' +
-      '<div class="categories" id="ferieCategories"></div>' +
-      '<p class="page-sous-mobile">Choisis une catégorie, puis touche les jours à colorer (retoucher = efface). Rien n’est envoyé avant Enregistrer.</p>' +
-      '<div class="calendrier-wrap"><table class="calendrier" id="ferieCalendrier"></table></div>' +
-      // Version téléphone (suite 23) : 12 mois l'un sous l'autre, cf.
-      // renderFerieMoisMobile (page-feries.js) ; affichée à la place du
-      // tableau par style-mobile.css.
-      '<div class="mois-feries" id="ferieMoisMobile"></div>' +
-      '<div class="legende-feries">Semaines grisées, dates qui n’existent pas (ex. 30/31 février) en noir et non cliquables. Chaque jour montre sa durée de travail (page Horaires). J.trav./H.trav. ne comptent pas les jours colorés, sauf un jour compensé qui a sa propre période d’un seul jour (demi-journée travaillée, ex. « du 9 au 9 »). Fériés et vacances comptent chacun 2112 h ÷ jours ouvrés de l’année ; les compensés 0 h.</div>' +
-      '</div></div>';
-  }
-  // Page Horaires (round du 25.09.2026, suite 27) — cf. js/page-horaires.js.
-  // En-tête sur le modèle de la page Fériés (année ‹ › + boutons), liste
-  // des périodes façon « tableau en bas à gauche » de la feuille PMB.
+  // Page Horaires = ancienne page Fériés + ancienne page Horaires (round du
+  // 25.09.2026, suite 47). Lionel : « Regrouper les onglets fériés et
+  // horaires. Nom d'onglet horaires, placer le calendrier en haut de page et
+  // les horaires en bas de page. » Une seule année ‹ › pour les 2 blocs (le
+  // calendrier montre les heures de ces mêmes horaires) ; chaque bloc garde
+  // ses propres boutons et son propre Enregistrer, comme avant — rien ne
+  // change dans ce qui est écrit sur le serveur. Sur téléphone, la barre de
+  // boutons de chaque bloc reste collée en bas tant que ce bloc est à
+  // l'écran (style-mobile.css) : celle du calendrier, puis celle des
+  // horaires en descendant. Calendrier : js/page-feries.js ; horaires :
+  // js/page-horaires.js (en-tête et liste des périodes façon « tableau en
+  // bas à gauche » de la feuille PMB, suite 27).
   function htmlPageHoraires() {
     return '<div class="page" id="page-horaires"><div class="page-scroll">' +
       '<div class="page-titre"><h1>Horaires</h1>' +
         '<div class="nav-annee"><button type="button" class="fleche" id="horaireAnneePrec">&larr;</button><span id="horaireAnneeLabel"></span><button type="button" class="fleche" id="horaireAnneeSuiv">&rarr;</button></div>' +
-        '<div class="actions-feries"><button class="btn-calculer" id="btnCopierHoraires" type="button">Copier</button><button class="btn-calculer" id="btnAjouterHoraire" type="button">Ajouter<span class="lib-long"> une période</span></button><button class="btn-enregistrer" id="btnEnregistrerHoraires" type="button">Enregistrer</button></div>' +
       '</div>' +
-      '<p class="page-sous">Une ligne par période, comme la feuille « Horaire de travail » : dates (incluses), horaire du matin, horaire de l’après-midi (laisser vide s’il n’y a que le matin). Les horaires valent du lundi au vendredi ; ils s’affichent dans le planning, l’impression et le tableau des Fériés. Rien n’est écrit sur le serveur tant que tu n’as pas cliqué Enregistrer.</p>' +
-      '<div class="horaires-liste" id="horairesListe"></div>' +
+      '<section class="bloc-horaires" id="blocCalendrier">' +
+        '<h2>Calendrier</h2>' +
+        '<div class="actions-feries"><button class="btn-calculer" id="btnCalculerFeries" type="button">Calculer<span class="lib-long"> les fériés</span></button><button class="btn-effacer" id="btnEffacerFeries" type="button">Effacer<span class="lib-long"> l’année</span></button><button class="btn-enregistrer" id="btnEnregistrerFeries" type="button">Enregistrer</button></div>' +
+        '<p class="page-sous">Choisis une catégorie ci-dessous puis clique les dates à colorer (reclic = efface). « Calculer les fériés » ajoute les jours fériés suisses fixes/mobiles de l’année et les ponts qui en dépendent, en catégorie Férié — vacances d’entreprise restent à poser à la main. Rien n’est écrit sur le serveur tant que tu n’as pas cliqué Enregistrer.</p>' +
+        '<div class="categories" id="ferieCategories"></div>' +
+        '<p class="page-sous-mobile">Choisis une catégorie, puis touche les jours à colorer (retoucher = efface). Rien n’est envoyé avant Enregistrer.</p>' +
+        '<div class="calendrier-wrap"><table class="calendrier" id="ferieCalendrier"></table></div>' +
+        // Version téléphone (suite 23) : 12 mois l'un sous l'autre, cf.
+        // renderFerieMoisMobile (page-feries.js) ; affichée à la place du
+        // tableau par style-mobile.css.
+        '<div class="mois-feries" id="ferieMoisMobile"></div>' +
+        '<div class="legende-feries">Semaines grisées, dates qui n’existent pas (ex. 30/31 février) en noir et non cliquables. Chaque jour montre sa durée de travail (Horaires de travail, plus bas). J.trav./H.trav. ne comptent pas les jours colorés, sauf un jour compensé qui a sa propre période d’un seul jour (demi-journée travaillée, ex. « du 9 au 9 »). Fériés et vacances comptent chacun 2112 h ÷ jours ouvrés de l’année ; les compensés 0 h.</div>' +
+      '</section>' +
+      '<section class="bloc-horaires" id="blocHoraires">' +
+        '<h2>Horaires de travail</h2>' +
+        '<div class="actions-feries"><button class="btn-calculer" id="btnCopierHoraires" type="button">Copier</button><button class="btn-calculer" id="btnAjouterHoraire" type="button">Ajouter<span class="lib-long"> une période</span></button><button class="btn-enregistrer" id="btnEnregistrerHoraires" type="button">Enregistrer</button></div>' +
+        '<p class="page-sous">Une ligne par période, comme la feuille « Horaire de travail » : dates (incluses), horaire du matin, horaire de l’après-midi (laisser vide s’il n’y a que le matin). Les horaires valent du lundi au vendredi ; ils s’affichent dans le planning, l’impression et le calendrier ci-dessus. Rien n’est écrit sur le serveur tant que tu n’as pas cliqué Enregistrer.</p>' +
+        '<div class="horaires-liste" id="horairesListe"></div>' +
+      '</section>' +
       '</div></div>';
   }
   // Page Mise en page (round du 25.09.2026, suite 39) — cf.
@@ -564,7 +580,10 @@
       jalons: function () { JALONS_TOUS = null; renderJalons(); },
       personnel: renderPersonnel, intervenants: renderIntervenants,
       chantiers: renderChantiers, statuts: renderStatuts,
-      "entree-rapide": renderFormulaires, feries: renderFeries, horaires: renderHoraires,
+      "entree-rapide": renderFormulaires,
+      // Suite 47 : un seul onglet Horaires pour le calendrier (ex-Fériés) et
+      // les horaires de travail.
+      horaires: function () { renderFeries(); renderHoraires(); },
       "mise-en-page": renderMiseEnPage,
       // Round du 16.09.2026 (suite, encore) : la page Planning elle-même
       // n'a pas besoin d'un re-rendu complet à chaque activation (ses
