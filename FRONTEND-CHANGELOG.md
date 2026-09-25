@@ -7826,3 +7826,49 @@ Lionel, capture de son téléphone à l'appui (lundi 28, vue « 1 jour ») :
 - `test_suite35.js` : tap sur Coffrage avant d'étirer sa poignée gauche (poignées actives seulement une fois la bulle sélectionnée).
 - `test_defilement_jour_mobile.js` : le jour affiché se repère au bord de sa colonne, bordure de début de semaine comprise, comme au rendu (`decalerSurColonne_`). Le bord du contenu ne tombait juste au retour sur le lundi que parce que la colonne, 3 px trop large, laissait l'aimantation s'arrêter 3 px plus loin.
 - **Suite complète : 47/47** (`node lancer_tests.js`).
+
+## 146. Round du 25.09.2026 (suite 38) — Réglages de l'aperçu d'impression
+
+Lionel : « Améliore la page impression pour pouvoir modifier manuellement divers réglages. Afficher ou non certaines données. »
+
+### Questions à Lionel
+- « Quelles parties du planning veux-tu pouvoir masquer ou afficher ? » → Jalons, Notes, Intervenants, Personne par personne.
+- « Quels détails ? » → Légende des chantiers, Statuts intervenants, Personnes sans tâche, Couleurs des chantiers, et : « Si les couleurs sont enlevées, prévoir de noter le nom du chantier ».
+- « Quels réglages de mise en page ? » → Orientation, Taille du texte, Titre libre.
+- « Les réglages doivent-ils être retenus ? » → « Retenus » (sur l'appareil, avec un bouton Réinitialiser).
+
+### Panneau « Réglages » (`openPrintSheet`, js/impression.js)
+- Au-dessus de l'aperçu, repliable d'un clic sur son titre, 3 blocs : **Afficher**, **Personnes**, **Mise en page** (les uns sous les autres sur téléphone). Jamais imprimé.
+- Chaque changement reconstruit l'aperçu (`construireDocImpression_(r)`) : ce qui s'affiche est exactement ce qui s'imprime.
+- **Afficher** :
+  - Horaires (la case de la suite 27, qui était dans la barre du bas) ;
+  - Jalons, Notes ;
+  - Intervenants (toute la section) ;
+  - Légende des chantiers ;
+  - Statuts des intervenants (« RÉSERVÉ »…) ;
+  - Couleurs des chantiers ;
+  - Personnes sans tâche (masquées d'office jusqu'ici).
+- **Couleurs décochées** : fond blanc dans toutes les cases (absences comprises, impression noir et blanc) et **nom du chantier écrit en petit sous chaque tâche**. La légende, inutile, est alors retirée et sa case grisée.
+- **Personnes** : une case par personne de la semaine, dans l'ordre de la feuille (Intervenants à part). Une personne sans tâche est proposée mais grisée tant que « Personnes sans tâche » est décoché ; un intervenant, tant que la section Intervenants est masquée. Un membre d'équipe sans rien à lui n'est jamais proposé : ses tâches sont sur la ligne d'équipe.
+- Sous l'aperçu (à l'écran seulement) : « N personne(s) décochée(s) dans les réglages », à côté de la mention existante des personnes sans tâche.
+- **Mise en page** :
+  - Orientation paysage/portrait : règle `@page` posée le temps de l'aperçu, retirée à la fermeture ;
+  - Taille du texte petite/normale/grande : échelle ×0,82 / ×1 / ×1,2 sur les tailles du tableau (`--impr-echelle`) ;
+  - Titre libre, imprimé en tête de feuille, mis à jour à chaque lettre ;
+  - Réinitialiser.
+- Sans jalons, les notes restent séparées de l'en-tête par un simple espace.
+- **Mémoire** : un seul objet JSON (`planning.impression.reglages`) sur l'appareil. L'ancienne clé des horaires (suite 27) est reprise si le nouvel objet n'existe pas encore, et tenue à jour.
+
+### Tests
+- `test_suite38.js` (nouveau, 24 vérifications) :
+  - panneau et valeurs par défaut (feuille identique à avant) ;
+  - chaque section et chaque détail masqué puis réaffiché ;
+  - personne décochée ;
+  - sans couleurs : fonds blancs et noms des chantiers ;
+  - personnes sans tâche ;
+  - portrait, taille grande/petite, titre ;
+  - panneau masqué et titre imprimé en mode impression ;
+  - réglages retenus à la réouverture, Réinitialiser (retenu aussi), règle `@page` retirée à la fermeture ;
+  - ancienne clé des horaires reprise.
+- Tests d'impression existants (suites 27, 29, 30, 31, 33, 35) inchangés et verts.
+- **Suite complète : 48/48** (`node lancer_tests.js`).
