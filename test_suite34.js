@@ -8,8 +8,12 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //   2. « Il reste un horaire qui s'affiche dans la première colonne » :
 //      la case de gauche de la ligne M | A est opaque (style.css) ;
 //   3. « Sur mobile, éviter que les hauteurs de cellules ne change pendant
-//      un changement de jour » : hauteurs de bulles figées en vue « 1 jour »
-//      (figerHauteursBullesJourMobile, js/grille-rendu.js).
+//      un changement de jour » : hauteurs figées en vue « 1 jour ». Depuis
+//      la suite 35 (« la hauteur pourrait être calculée lors de la fixation
+//      du jour »), elles sont mesurées pour le jour POSÉ et restent figées
+//      pendant le glissement (figerHauteursJourMobile, js/grille-rendu.js) :
+//      ce test garde la stabilité EN PLEIN geste (doigt posé), la
+//      remesure à l'arrêt est couverte par test_suite35.js.
 //
 // Lancer : node test_suite34.js
 
@@ -76,13 +80,16 @@ const TELEPHONE = { viewport: { width: 390, height: 844 }, hasTouch: true, bd: B
 
     // Hauteurs des lignes à différents moments d'un changement de jour
     // (aimantation coupée pour pouvoir s'arrêter à mi-chemin).
+    // Doigt posé pendant tout le relevé (suite 35) : sans lui, l'arrêt du
+    // défilement remesurerait les lignes pour le jour atteint.
     const releve = (decalage) => page.evaluate(async (dec) => {
       const s = document.querySelector('.scroller');
+      s.dispatchEvent(new TouchEvent('touchstart', { touches: [new Touch({ identifier: 1, target: s, clientX: 200, clientY: 400 })] }));
       s.style.scrollSnapType = 'none';
       const th = document.querySelector('.entete-planning-figee .th.today');
       const grille = document.querySelector('.entete-planning-figee .grille');
       const w = th.getBoundingClientRect().width;
-      s.scrollLeft = Math.round(th.getBoundingClientRect().left - grille.getBoundingClientRect().left - 116 + dec * w);
+      s.scrollLeft = Math.round(th.getBoundingClientRect().left - grille.getBoundingClientRect().left - largeurNoms() + dec * w);
       await new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(ok)));
       // Texte visible au travers de la case de gauche : l'élément au point
       // (60, milieu de la ligne M | A) doit être cette case elle-même.
@@ -97,18 +104,19 @@ const TELEPHONE = { viewport: { width: 390, height: 844 }, hasTouch: true, bd: B
     const jeudi = await releve(0);
     const etapes = [];
     for (const d of [-0.25, -0.5, -0.75, -1, 0.5, 1]) etapes.push([d, await releve(d)]);
-    verifier(/Mathis=1\d\d/.test(jeudi.lignes), 'jeudi : Mathis garde la place de ses 2 bulles du mercredi (' + jeudi.lignes + ')');
-    etapes.forEach(([d, e]) => verifier(e.lignes === jeudi.lignes, 'décalage ' + d + ' jour : mêmes hauteurs de lignes que jeudi (' + e.lignes + ')'));
+    etapes.forEach(([d, e]) => verifier(e.lignes === jeudi.lignes, 'doigt posé, décalage ' + d + ' jour : mêmes hauteurs de lignes que jeudi (' + e.lignes + ')'));
     verifier([jeudi].concat(etapes.map((e) => e[1])).every((e) => e.coinDessus), 'la case de gauche de la ligne M | A reste au-dessus des jours qui défilent');
-    verifier([jeudi].concat(etapes.map((e) => e[1])).every((e) => e.debord.length === 0), 'jour posé : aucun texte de bulle coupé par la hauteur figée');
-    const cartes = await page.evaluate(() => [...document.querySelectorAll('.scroller .bulle')].every((b) => b.classList.contains('hauteur-figee') && b.style.height));
-    verifier(cartes, 'toutes les bulles ont une hauteur figée en vue « 1 jour »');
+    verifier(jeudi.debord.length === 0, 'jour posé : aucun texte de bulle coupé par la hauteur figée');
+    const figees = await page.evaluate(() => [...document.querySelectorAll('.planning-racine .grille, .grille')].filter((g) => g.classList.contains('hauteurs-figees') && g.style.gridTemplateRows).length);
+    verifier(figees === 2, 'en-tête et corps : lignes de hauteur figée en vue « 1 jour » (' + figees + ')');
+    await page.evaluate(() => document.querySelector('.scroller').dispatchEvent(new TouchEvent('touchend', { touches: [] })));
 
     // Zoom 80 % : même stabilité.
     await page.evaluate(() => { niveauZoomPlanning = 80; render(false); });
     await page.waitForTimeout(150);
     const z0 = await releve(0), z1 = await releve(-0.5), z2 = await releve(-1);
-    verifier(z0.lignes === z1.lignes && z1.lignes === z2.lignes && z0.debord.length === 0 && z2.debord.length === 0, 'zoom 80 % : hauteurs stables, rien de coupé (' + z0.lignes + ')');
+    verifier(z0.lignes === z1.lignes && z1.lignes === z2.lignes && z0.debord.length === 0, 'zoom 80 % : hauteurs stables pendant le geste, rien de coupé au jour posé (' + z0.lignes + ')');
+    await page.evaluate(() => document.querySelector('.scroller').dispatchEvent(new TouchEvent('touchend', { touches: [] })));
     toutesErreurs.push(...erreurs);
     await page.close();
   }
@@ -116,7 +124,7 @@ const TELEPHONE = { viewport: { width: 390, height: 844 }, hasTouch: true, bd: B
   // --- Ordinateur : rien de figé (vue semaine inchangée) ---
   {
     const { page, erreurs } = await ouvrirPlanning(browser, { bd: BD });
-    const figees = await page.evaluate(() => document.querySelectorAll('.bulle.hauteur-figee').length);
+    const figees = await page.evaluate(() => document.querySelectorAll('.grille.hauteurs-figees').length);
     verifier(figees === 0, 'ordinateur : aucune hauteur figée (' + figees + ')');
     toutesErreurs.push(...erreurs);
     await page.close();

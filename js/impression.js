@@ -166,12 +166,10 @@
     // faisait l'inverse (cf. plus bas : 1 ligne "matin" + 1 ligne "aprem"
     // par personne). Reprend le même principe qu'à l'écran : chaque jour
     // devient 2 SOUS-COLONNES ("th colspan=2" pour son en-tête), chaque
-    // personne tient sur UNE SEULE ligne. Jalons/notes restent au niveau
-    // du JOUR (data.jalons[i]/data.notes[i] n'ont pas de granularité demi
-    // côté forme serveur brute, contrairement aux cases personne — cf.
-    // personneVide juste au-dessus) : leur cellule s'étale sur
-    // les 2 sous-colonnes de son jour (colspan=2), comme une plage en
-    // "journée entière" dans la grille à l'écran.
+    // personne tient sur UNE SEULE ligne. Jalons/notes : longtemps restés
+    // au niveau du JOUR (colspan=2 d'office), ils suivent désormais leur
+    // demi-journée comme à l'écran — cf. segmentsDemiImpression_ plus bas
+    // (round du 25.09.2026, suite 35).
     h += '<tr class="print-mois"><th class="coin-annee">' + esc(anneesSemaine.join(" / ")) + '</th>';
     groupesMois.forEach(function (g) { h += '<th colspan="' + (g.span * 2) + '">' + esc(g.mois) + '</th>'; });
     h += '</tr>';
@@ -217,7 +215,6 @@
     // Round du 16.09.2026 (suite) — Lionel : "il reste le mot 'note' dans
     // l'imprimé. le supprimer." Revient uniquement sur "Notes" (cf. plus bas,
     // print-notes) : "Jalons" reste, lui, toujours demandé et donc affiché.
-    h += '<tr class="print-jalons"><td style="font-weight:700;white-space:nowrap">Jalons</td>';
     // round du 16.09.2026 — Lionel : "tout jalons identique doit être lié".
     // Jusqu'ici chaque JOUR avait sa propre cellule (colspan=2, un jalon
     // n'ayant qu'un texte par jour, pas de granularité demi comme les cases
@@ -236,21 +233,107 @@
     // sans jalon ne "partagent" rien, donc restent des cases distinctes
     // (mêmes choix, même raisonnement que le commentaire de infoCase plus
     // bas).
-    var jalonsImpr = data.jalons || [];
-    for (var ij = 0; ij < jalonsImpr.length; ij++) {
-      var txtJ = jalonsImpr[ij] ? jalonsImpr[ij].texte : "";
-      if (!txtJ) {
-        h += '<td colspan="2"></td>';
-        continue;
+    //
+    // segmentsDemiImpression_ / lignesDemiImpression_ — round du 25.09.2026
+    // (suite 35). Lionel, captures à l'appui : « Comportement anormal des
+    // notes qui se trouvent sur des lignes différentes sur le planning. En
+    // impression les notes sont regroupées sous le même jour. » Le mercredi,
+    // « Remorque plateau » (matin) et « Tri déchets dépôt » (après-midi)
+    // sortaient dans UNE seule case « journée » (textes joints par <br>), et
+    // « Libérer garage BINE » (jeudi matin) couvrait tout le jeudi : la
+    // demi-journée (n.demi, posée depuis le §47) était lue par le planning
+    // mais jamais par l'impression. Les jalons avaient la même lacune (fusion
+    // « tout jalons identique doit être lié » au jour près, demi ignorée).
+    // Même découpe que construireVueDepuisCache (js/donnees-sync.js) pour
+    // que papier et écran coïncident : une entrée démarre un segment, qui se
+    // prolonge au jour suivant tant qu'on y retrouve le même texte (même
+    // important, même chantier pour un jalon), sans franchir la fin d'une
+    // occurrence de série, et seuls les 2 BORDS du segment peuvent être une
+    // demi-journée. Les bornes passent ensuite en demi-slots
+    // (demiSlotsDepuisBornes, js/grille-rendu.js : matin du jour i = 2i,
+    // après-midi = 2i+1) — une case couvre ainsi exactement ses
+    // sous-colonnes Matin/Aprem. Les segments sont enfin répartis en
+    // lignes (même règle que assignerPistesCompact à l'écran : deux entrées
+    // ne se gênent que si elles occupent une même demi-journée), une <tr>
+    // par ligne.
+    function segmentsDemiImpression_(parJour, avecChantier) {
+      var consommes = parJour.map(function () { return {}; });
+      function suivante(i, ref) {
+        var arr = parJour[i] || [];
+        for (var k = 0; k < arr.length; k++) {
+          var e = arr[k];
+          if (consommes[i][k] || e.texte !== ref.texte || !!e.important !== !!ref.important) continue;
+          if (avecChantier && (e.chantierId || null) !== (ref.chantierId || null)) continue;
+          return k;
+        }
+        return -1;
       }
-      var runLen = 1;
-      while (ij + runLen < jalonsImpr.length && jalonsImpr[ij + runLen] && jalonsImpr[ij + runLen].texte === txtJ) {
-        runLen++;
-      }
-      h += '<td colspan="' + (runLen * 2) + '" class="filled">' + esc(txtJ) + '</td>';
-      ij += runLen - 1;
+      var segs = [];
+      parJour.forEach(function (arr, i) {
+        (arr || []).forEach(function (e, k) {
+          if (consommes[i][k] || !e.texte) return;
+          consommes[i][k] = true;
+          var demiCourant = e.demi || null, fin = i;
+          var limite = limiteOccurrenceSerie_(e.serieId, data.isoDates[i]);
+          while (fin + 1 < parJour.length) {
+            if (fin !== i && demiCourant !== null) break;
+            if (limite && data.isoDates[fin + 1] >= limite) break;
+            var k2 = suivante(fin + 1, e);
+            if (k2 === -1) break;
+            fin++;
+            consommes[fin][k2] = true;
+            demiCourant = parJour[fin][k2].demi || null;
+          }
+          var b = demiSlotsDepuisBornes(i, fin - i + 1, e.demi || null, demiCourant);
+          segs.push({ texte: e.texte, important: !!e.important, h0: b.halfStart, h1: b.halfFinIncl });
+        });
+      });
+      return segs;
     }
-    h += '</tr>';
+    function lignesDemiImpression_(segs) {
+      var lignes = []; // lignes[l] = { occupe: {h: true}, parDebut: {h0: seg} }
+      segs.slice().sort(function (a, b) { return a.h0 - b.h0; }).forEach(function (sg) {
+        var l = 0;
+        for (; l < lignes.length; l++) {
+          var libre = true;
+          for (var h = sg.h0; h <= sg.h1 && libre; h++) if (lignes[l].occupe[h]) libre = false;
+          if (libre) break;
+        }
+        if (l === lignes.length) lignes.push({ occupe: {}, parDebut: {} });
+        for (var h2 = sg.h0; h2 <= sg.h1; h2++) lignes[l].occupe[h2] = true;
+        lignes[l].parDebut[sg.h0] = sg;
+      });
+      return lignes.length ? lignes : [{ occupe: {}, parDebut: {} }];
+    }
+    // Une <tr> par ligne ; le libellé de gauche couvre toutes les lignes
+    // (rowspan). Case vide : un seul <td colspan=2> pour un jour entièrement
+    // libre (rendu identique à avant), une demi-case sinon.
+    function rangeesDemiImpression_(classe, libelle, segs) {
+      var lignes = lignesDemiImpression_(segs), nbSlots = jl.length * 2, out = "";
+      lignes.forEach(function (ligne, l) {
+        out += '<tr class="' + classe + '">';
+        if (l === 0) out += '<td' + (lignes.length > 1 ? ' rowspan="' + lignes.length + '"' : '') + ' style="font-weight:700;white-space:nowrap">' + libelle + '</td>';
+        for (var h = 0; h < nbSlots;) {
+          var sg = ligne.parDebut[h];
+          if (sg) {
+            var span = Math.min(sg.h1, nbSlots - 1) - h + 1;
+            var txt = sg.important ? '<span class="print-important">' + esc(sg.texte) + '</span>' : esc(sg.texte);
+            out += '<td colspan="' + span + '" class="filled">' + txt + '</td>';
+            h += span;
+          } else if (h % 2 === 0 && !ligne.occupe[h + 1]) {
+            out += '<td colspan="2"></td>';
+            h += 2;
+          } else {
+            out += '<td></td>';
+            h += 1;
+          }
+        }
+        out += '</tr>';
+      });
+      return out;
+    }
+    var jalonsParJour = (data.jalons || []).map(function (j) { return j && j.texte ? [j] : []; });
+    h += rangeesDemiImpression_("print-jalons", "Jalons", segmentsDemiImpression_(jalonsParJour, true));
 
     // Portage mockup (rounds 7-9) — classes print-spacer-jalons/personne
     // (cf. leur commentaire CSS) : le PREMIER spacer qui suit la ligne
@@ -260,17 +343,7 @@
     // survenir en même temps, donc jamais posée 2 fois.
     if (notesRemplies) {
       h += '<tr class="print-spacer print-spacer-jalons"><td colspan="' + NB_COLS + '"></td></tr>';
-      h += '<tr class="print-notes"><td style="font-weight:700;white-space:nowrap"></td>';
-      (data.notes || []).forEach(function (entries) {
-        var rempli = entries && entries.length > 0;
-        var txt = (entries || []).map(function (n) {
-          var ouvre = n.important ? '<span class="print-important">' : "";
-          var ferme = n.important ? '</span>' : "";
-          return ouvre + esc(n.texte) + ferme;
-        }).join("<br>");
-        h += '<td colspan="2" class="' + (rempli ? "filled" : "") + '">' + txt + '</td>';
-      });
-      h += '</tr>';
+      h += rangeesDemiImpression_("print-notes", "", segmentsDemiImpression_(data.notes || [], false));
     }
 
     // print-spacer-personne (round 8) : ce spacer précède TOUJOURS la 1ère

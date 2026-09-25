@@ -7704,3 +7704,62 @@ Vérifié en local (Playwright) — **`test_suite34.js`** (nouveau), 19 vérific
 Également :
 - `aide_tests.js` : le faux `createClient` garde ses options (`window.__OPTIONS_CLIENT`).
 - **Suite complète** : mêmes 8 échecs que sur `main` (cf. §129).
+
+## 143. Round du 25.09.2026 (suite 35) — Colonne des noms, bord du jour et poignées sur mobile, notes à la demi-journée, hauteurs au jour posé
+
+Lionel :
+- « Rétréci la largeur des colonnes nom. Un nom composé ou avec / peut être mis sur 2 lignes. »
+- « Changer de jour en glissant une bulle contre le bord du jour ne fonctionne pas sur mobile. »
+- « Je n'arrive pas à actionner les poignées gauche et droite sur mobile »
+- (2 captures) « Comportement anormal des notes qui se trouvent sur des lignes différentes sur le planning. En impression les notes sont regroupées sous le même jour. »
+- « Sur mobile, lors du défilement, la hauteur pourrait être calculée lors de la fixation du jour. Ainsi pendant le switch la hauteur reste la même et est recalculée lorsque le jour est fixé. »
+
+### 1. Colonne des noms à 92 px, noms sur 2 lignes (style.css, js/core.js, js/grille-rendu.js, js/equipes.js)
+- La largeur (116 px, écrite en dur à plus de 20 endroits) devient une variable CSS `--largeur-noms: 92px`, lue côté JS par `largeurNoms()`.
+- 92 px : le mot le plus long du planning, « Echafaudage », mesure 79 px dans la vraie police (Archivo 700, 12,5 px) — il tient sur 1 ligne avec les marges.
+- `nomSurDeuxLignes()` insère une coupure possible après chaque « / » (« Béton/ Armature ») ; un nom composé coupe à l'espace comme avant. 2 lignes au plus, coupées proprement au-delà.
+- Libellés de personne et titres d'équipe.
+
+### 2. Changer de jour en glissant une bulle contre le bord (js/grille-interactions.js)
+- **Cause** :
+  - l'ancien défilement continu (`scrollLeft +=` à chaque image) était ramené aussitôt au même jour par l'aimantation (`scroll-snap-type: x mandatory`) ;
+  - la zone du bord gauche tombait sous la colonne des noms, qui ne la laissait pas voir.
+- **Correctif** (vue « 1 jour » seulement ; tablette et ordinateur gardent le défilement continu) :
+  - doigt maintenu 450 ms à moins de 36 px du bord du jour (à droite de l'écran, ou juste après la colonne des noms à gauche) → défilement doux jusqu'au jour voisin, puis un jour de plus toutes les 900 ms tant que le doigt y reste ;
+  - après chaque saut, la cible est recalculée sous le doigt (`rappel`) ;
+  - un doigt posé sur la colonne des noms vise le bord du jour visible (`xDansJourVisible_`).
+- Vaut pour le déplacement d'une bulle, la sélection rapide et l'étirement par les poignées.
+
+### 3. Poignées gauche/droite sur mobile (style.css, js/grille-interactions.js)
+- Elles étaient masquées en vue « 1 jour » (règle d'avant la suite 14, quand la bulle entière était collée au jour visible). Depuis, c'est la carte qui est collée : les poignées restent sur les vrais début et fin de la tâche.
+- Réaffichées, élargies à 22 px, trait pâle pour les repérer.
+- Au doigt : un tap bref sur une poignée sélectionne la bulle (au lieu de basculer la sélection) ; un appui maintenu 300 ms puis un glissé étire la tâche, y compris vers le jour voisin contre le bord (§2).
+
+### 4. Notes à la demi-journée (js/grille-rendu.js, js/impression.js)
+- **Planning** : les notes et jalons se posent au demi-slot près depuis le §47, mais leurs lignes étaient encore attribuées à la journée (`assignerPistes`). « Remorque plateau » (mercredi matin) et « Tri déchets dépôt » (mercredi après-midi) finissaient en escalier sur 2 lignes. Ils passent par `assignerPistesCompact`, comme les personnes : deux notes ne se gênent que si elles occupent la même demi-journée. `assignerPistes` (plus utilisé) est supprimé.
+- **Impression** : `data.notes[i].demi` n'était jamais lu, et toutes les notes d'un jour sortaient dans une seule case « journée ».
+  - Même découpe qu'à l'écran : une note se prolonge au jour suivant tant qu'on y retrouve le même texte, seuls ses 2 bords peuvent être une demi-journée, sans franchir la fin d'une occurrence de série.
+  - Chaque case couvre exactement ses sous-colonnes Matin/Aprem ; plusieurs lignes si des notes se chevauchent.
+  - Les **jalons** suivent la même règle (fusion « tout jalons identique doit être lié » conservée, désormais à la demi-journée).
+  - Ex. : mercredi « Remorque plateau » (Matin) | « Tri déchets dépôt » (Aprem) ; jeudi « Libérer garage BINE » sur le matin seul.
+
+### 5. Hauteurs calculées au jour posé sur mobile (js/grille-rendu.js, style.css)
+- Remplace le correctif du §142.3, qui figeait chaque bulle à une hauteur valable pour tous ses jours : lignes stables, mais calibrées sur le jour le plus chargé (Mathis haut de 2 bulles le jeudi, à cause du mercredi).
+- `figerHauteursJourMobile()`, au rendu puis à chaque arrêt du défilement :
+  - mesure les lignes pour le jour posé seulement (bulles des autres jours retirées de la mise en page le temps de la mesure) ;
+  - fige ces hauteurs sur la grille (`gridTemplateRows` en px, `.grille.hauteurs-figees`) ;
+  - pendant le glissement suivant, rien ne bouge : les bulles du jour qui arrive remplissent leur ligne, texte coupé si besoin, jusqu'au prochain arrêt ;
+  - pas de nouvelle mesure si le jour n'a pas changé (défilement vertical).
+- `ajusterLargeurBullesJourMobile` mesure désormais en coordonnées écran : sous zoom (80 %…), une bulle de la veille passait pour visible (`offsetLeft` non zoomé comparé à `scrollLeft` zoomé). Une lamelle de moins de 30 px (l'aimantation sous zoom laisse voir quelques px de la veille) ne compte pas dans la mesure.
+
+Vérifié en local (Playwright) — **`test_suite35.js`** (nouveau), 26 vérifications, toutes OK :
+- colonne à 92 px (téléphone et ordinateur), « Béton/Armature » sur 2 lignes, « Echafaudage » sur 1, aucun nom qui déborde ;
+- bulle maintenue contre le bord droit → vendredi ; contre le bord gauche (sur la colonne des noms) → 2 sauts, mercredi ;
+- poignées affichées (22 px), tap = sélection, étirement sur l'après-midi, puis vers vendredi, poignée gauche vers mercredi ;
+- notes de demi-journées sur la même ligne au planning ; impression des jalons et notes au Matin/Aprem près, 2e ligne pour la note qui chevauche ;
+- hauteurs inchangées pendant tout le glissement, recalculées à l'arrêt (Mathis 52 → 81 px sur mercredi, retour à 52 sur jeudi), zoom 80 %.
+
+Également :
+- `test_suite34.js` : relevé des hauteurs doigt posé (sinon l'arrêt remesure), vérifie les lignes figées de la grille au lieu de `.bulle.hauteur-figee`.
+- `test_calendrier_mobile.js`, `test_defilement_jour_mobile.js`, `test_suite34.js` : 116 → `largeurNoms()`.
+- **Suite complète** : mêmes 8 échecs que sur `main` (cf. §129).

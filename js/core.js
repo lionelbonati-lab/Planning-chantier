@@ -160,6 +160,11 @@
     return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
   function esc2(s) { return esc(s).replace(/'/g, "&#39;"); }
+  // Nom de la colonne des noms (round du 25.09.2026, suite 35 — Lionel :
+  // « Un nom composé ou avec / peut être mis sur 2 lignes ») : le
+  // navigateur coupe déjà aux espaces et aux tirets, pas après « / »
+  // (« Béton/Armature » restait d'un bloc) — <wbr> l'y autorise.
+  function nomSurDeuxLignes(nom) { return esc(nom).replace(/\//g, "/<wbr>"); }
 
   var ICONS = {
     close: '<svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
@@ -815,6 +820,16 @@
   var LIMITE_UNDO = 50;
   var popFermerActuel = null, popValiderActuel = null;
   var DELAI_SELECTION = 300, SEUIL_DEFILEMENT = 10;
+  // Largeur de la colonne des noms (round du 25.09.2026, suite 35 — Lionel :
+  // « Rétréci la largeur des colonnes nom. Un nom composé ou avec / peut
+  // être mis sur 2 lignes. »). 116px écrits en dur à une vingtaine
+  // d'endroits jusqu'ici (gabarit de grille, calage de la vue « 1 jour »,
+  // texte collé des bulles…) ; désormais UNE valeur, la variable CSS
+  // --largeur-noms de style.css, que le JS relit ici — jamais recopiée.
+  function largeurNoms() {
+    var v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--largeur-noms"));
+    return v > 0 ? v : 92;
+  }
   // RATIO_AXE_HORIZONTAL (round du 25.09.2026, suite 26) — Lionel :
   // « Améliore le défilement tactile latéral et horizontal pour qu'il
   // n'agisse que dans un sens à la fois. pour éviter de changer de jour sans

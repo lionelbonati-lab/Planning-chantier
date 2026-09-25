@@ -122,7 +122,7 @@ const FAUX_SUPABASE = '(' + function () {
   // début de semaine visible (3px).
   const etatVue = () => page.evaluate(() => {
     const sc = document.querySelector('.scroller');
-    const bordNoms = sc.getBoundingClientRect().left + 116;
+    const bordNoms = sc.getBoundingClientRect().left + largeurNoms();
     let best = null, ecart = Infinity;
     document.querySelectorAll('.entete-planning-figee .th[data-gi]').forEach((th) => {
       const e = Math.abs(th.getBoundingClientRect().left - bordNoms);
@@ -231,7 +231,7 @@ const FAUX_SUPABASE = '(' + function () {
   verifier(/^Mer ?0?3/.test(v.jour) && v.ecart <= 1, 'date lointaine : mercredi 3 mars 2027 (' + v.jour + ')');
 
   // 8) Le calendrier suit le swipe.
-  await page.evaluate(() => { const sc = document.querySelector('.scroller'); sc.scrollLeft += sc.clientWidth - 116; });
+  await page.evaluate(() => { const sc = document.querySelector('.scroller'); sc.scrollLeft += sc.clientWidth - largeurNoms(); });
   await page.waitForTimeout(500);
   v = await etatVue();
   verifier(/^Jeu ?0?4/.test(v.jour) && v.valeur === '2027-03-04', 'swipe d\'un jour : calendrier sur ' + v.valeur);

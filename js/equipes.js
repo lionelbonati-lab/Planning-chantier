@@ -230,7 +230,7 @@
       lbl.title = p.nom + (noms.length ? " — " + noms.join(", ") : "") + "\nCliquer pour changer la composition de la semaine";
       lbl.innerHTML =
         '<div class="equipe-titre"><button type="button" class="equipe-repli" aria-expanded="' + ouverte + '" title="' + (ouverte ? "Replier les membres" : "Déplier les membres") + '">' + (ouverte ? "▾" : "▸") + "</button>" +
-        "<b>" + esc(p.nom) + "</b></div>" +
+        "<b>" + nomSurDeuxLignes(p.nom) + "</b></div>" +
         '<span class="equipe-membres">' + (noms.length ? esc(noms.join(", ")) : "Aucun membre") + "</span>";
       lbl.querySelector(".equipe-repli").addEventListener("click", function (ev) { ev.stopPropagation(); basculerDepliageEquipe(p.id); });
       lbl.addEventListener("click", function () { ouvrirCompositionEquipe(p.id); });

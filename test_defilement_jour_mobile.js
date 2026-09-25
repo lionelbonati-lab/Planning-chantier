@@ -93,7 +93,7 @@ const FAUX_SUPABASE = '(' + function () {
   // Jour affiché = colonne de jour dont le bord gauche est au ras de la colonne des noms.
   const etatVue = () => page.evaluate(() => {
     const sc = document.querySelector('.scroller');
-    const bordNoms = sc.getBoundingClientRect().left + 116;
+    const bordNoms = sc.getBoundingClientRect().left + largeurNoms();
     let best = null, ecart = Infinity;
     // Bord du CONTENU de la colonne (après sa bordure gauche) : le lundi
     // d'une 2e semaine porte la bordure épaisse de début de semaine
@@ -115,7 +115,7 @@ const FAUX_SUPABASE = '(' + function () {
   async function defiler(pas) {
     await page.evaluate((p) => {
       const sc = document.querySelector('.scroller');
-      sc.scrollLeft += p * (sc.clientWidth - 116);
+      sc.scrollLeft += p * (sc.clientWidth - largeurNoms());
     }, pas);
     await page.waitForTimeout(450);
   }
@@ -169,7 +169,7 @@ const FAUX_SUPABASE = '(' + function () {
   // Défilement pendant un glisser de bulle (défilement automatique au bord :
   // l'arrêt n'est pas pris en compte tant que le geste dure), puis rendu
   // après le dépôt : l'écran doit rester sur le jour réellement visible.
-  await page.evaluate(() => { document.body.classList.add('en-glissement'); const sc = document.querySelector('.scroller'); sc.scrollLeft += sc.clientWidth - 116; });
+  await page.evaluate(() => { document.body.classList.add('en-glissement'); const sc = document.querySelector('.scroller'); sc.scrollLeft += sc.clientWidth - largeurNoms(); });
   await page.waitForTimeout(400);
   await page.evaluate(() => { document.body.classList.remove('en-glissement'); render(false); });
   await page.waitForTimeout(100);
