@@ -23,11 +23,15 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      # Round du 25.09.2026 (suite 37). Lionel : « Mets à jour les actions
+      # GitHub vers Node 24. » Le passage de la suite 36 avertissait
+      # « Node.js 20 is deprecated » pour checkout@v4 et setup-node@v4 :
+      # leurs v6 tournent sur Node 24, et les tests aussi (node-version 24).
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 24
 
       # Même version de Playwright que l'environnement de développement.
       # Les tests lancent Chromium par son chemin dans cet environnement

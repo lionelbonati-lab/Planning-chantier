@@ -10,7 +10,8 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //      maintenu contre le bord (creerAutoDefilement, js/grille-interactions.js) ;
 //   3. « Je n'arrive pas à actionner les poignées gauche et droite sur
 //      mobile » : poignées affichées en vue « 1 jour », tap = sélection,
-//      appui maintenu = étirer (cablerPoigneeRedim) ;
+//      appui maintenu = étirer (cablerPoigneeRedim) — depuis la suite 37,
+//      visibles et actives seulement sur une bulle sélectionnée ;
 //   4. « Comportement anormal des notes qui se trouvent sur des lignes
 //      différentes sur le planning. En impression les notes sont regroupées
 //      sous le même jour. » : pistes à la demi-journée (assignerPistesCompact)
@@ -127,6 +128,9 @@ const revenirJeudi = (page) => page.evaluate(() => {
     verifier(/^2026-09-24 - d2 /.test(await tache(page, 'Gabarits')), 'poignée droite maintenue contre le bord : étirée sur vendredi (' + await tache(page, 'Gabarits') + ')');
     await revenirJeudi(page);
     await page.waitForTimeout(600);
+    // Suite 37 : poignées actives seulement sur une bulle sélectionnée —
+    // tap sur Coffrage d'abord.
+    await doigt(page, await centreCarte(page, 'Coffrage'), null, 0, 60);
     p = await poignee(page, 'Coffrage', 'g');
     await doigt(page, p, { x: 40, y: p.y }, 1000);
     verifier(/^2026-09-23 .* d2 /.test(await tache(page, 'Coffrage')), 'poignée gauche maintenue contre la colonne des noms : étirée sur mercredi (' + await tache(page, 'Coffrage') + ')');

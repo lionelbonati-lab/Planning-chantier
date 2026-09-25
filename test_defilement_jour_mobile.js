@@ -95,10 +95,14 @@ const FAUX_SUPABASE = '(' + function () {
     const sc = document.querySelector('.scroller');
     const bordNoms = sc.getBoundingClientRect().left + largeurNoms();
     let best = null, ecart = Infinity;
-    // Bord du CONTENU de la colonne (après sa bordure gauche) : le lundi
-    // d'une 2e semaine porte la bordure épaisse de début de semaine
-    // (.sem-frontiere), qui passe sous la colonne des noms sans rien décaler.
-    const gauche = (th) => th.getBoundingClientRect().left + th.clientLeft;
+    // Bord de la colonne elle-même, bordure comprise. Round du 25.09.2026
+    // (suite 37) : on mesurait jusque-là le bord du CONTENU (après la
+    // bordure épaisse de début de semaine du lundi, .sem-frontiere), ce qui
+    // ne tombait juste que parce que la colonne du jour, 3 px trop large,
+    // laissait l'aimantation s'arrêter 3 px plus loin au retour. Colonne
+    // désormais exacte : le lundi est posé, comme au rendu
+    // (decalerSurColonne_), bordure au ras de la colonne des noms.
+    const gauche = (th) => th.getBoundingClientRect().left;
     document.querySelectorAll('.entete-planning-figee .th[data-gi]').forEach((th) => {
       const e = Math.abs(gauche(th) - bordNoms);
       if (e < ecart) { ecart = e; best = th; }

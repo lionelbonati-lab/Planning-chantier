@@ -1068,6 +1068,10 @@
     // l'écran ») ne s'active QUE dans ce mode, jamais en "1 semaine"/desktop/
     // tablette où le défilement libre reste inchangé.
     scroller.classList.toggle("snap-jour-mobile", enModeJourMobile);
+    // Même repère sur #racine (suite 37) : les poignées des jalons et notes
+    // (grilleEntete, hors de .scroller) suivent la même règle d'affichage
+    // que celles des tâches (style.css, « Poignées en vue 1 jour »).
+    racineEl.classList.toggle("vue-jour-mobile", enModeJourMobile);
     // Round du 23.09.2026 (suite 15) — Lionel : « La case jour ne fait pas
     // la largeur de l'écran mais déborde à droite ». Avant ce correctif, la
     // largeur de colonne ci-dessous se calculait avec l'unité CSS `100vw` —
@@ -1083,7 +1087,18 @@
     // once ici (avant le vidage/reconstruction de son contenu, qui ne change
     // pas sa propre largeur, fixée par son parent) plutôt qu'une unité CSS
     // aveugle à ce padding.
-    var largeurEcranJour = enModeJourMobile ? (racineEl.clientWidth + "px") : "0px";
+    //
+    // Round du 25.09.2026 (suite 37) — Lionel : « Vérifie la largeur des
+    // bulles en mobile. » Mesuré à 360 px : zone visible du jour 230 px
+    // (.scroller moins la colonne des noms), colonne du jour 233 px. Deux
+    // oublis : les 2 px de bordure de .grille-cadre (citées plus haut mais
+    // jamais retirées) et l'écart de 1 px entre colonnes de la grille
+    // (.grille { gap: 1px }) entre le matin et l'après-midi. Le bord droit
+    // du jour, et avec lui l'arrondi des bulles qui le touchent, passait
+    // sous le bord de l'écran. Désormais : matin + écart + après-midi =
+    // exactement la zone visible (colonne d'un jour de week-end aussi).
+    var largeurVisibleJour = enModeJourMobile ? (racineEl.clientWidth - 2 - LN) : 0;
+    var largeurColJour = (largeurVisibleJour - (colsParJour() - 1)) / colsParJour();
     // Même correctif pour .b-txt/.b-statut/.b-serie et .b-carte (style.css,
     // toutes deux `max-width: var(--largeur-visible-bulle, ...)` désormais)
     // — ces règles s'appliquent que l'on soit en mode "1 jour" mobile ou
@@ -1096,16 +1111,15 @@
     var gabarit = LN + "px";
     for (var sTpl = 0; sTpl < nbSemainesAffichees; sTpl++) {
       if (enModeJourMobile) {
-        gabarit += " repeat(" + (5 * colsParJour()) + ", minmax(calc((" + largeurEcranJour + " - " + LN + "px) / " + colsParJour() + "), 1fr))";
-        if (afficherWeekends) gabarit += " repeat(2, minmax(calc(" + largeurEcranJour + " - " + LN + "px), 1fr))";
+        gabarit += " repeat(" + (5 * colsParJour()) + ", minmax(" + largeurColJour + "px, 1fr))";
+        if (afficherWeekends) gabarit += " repeat(2, minmax(" + largeurVisibleJour + "px, 1fr))";
       } else {
         gabarit += " repeat(" + (5 * colsParJour()) + ", minmax(" + largeurMin + "px, 1fr))";
         if (afficherWeekends) gabarit += " repeat(2, 46px)";
       }
     }
     var largeurMiniTotale = enModeJourMobile
-      ? "calc(" + LN + "px + " + (nbSemainesAffichees * 5 * colsParJour()) + " * ((" + largeurEcranJour + " - " + LN + "px) / " + colsParJour() + ")"
-        + (afficherWeekends ? " + " + (nbSemainesAffichees * 2) + " * (" + largeurEcranJour + " - " + LN + "px)" : "") + ")"
+      ? (LN + nbSemainesAffichees * (5 * colsParJour() * largeurColJour + (afficherWeekends ? 2 * largeurVisibleJour : 0))) + "px"
       : (LN + nbSemainesAffichees * (5 * colsParJour() * largeurMin + (afficherWeekends ? 2 * 46 : 0))) + "px";
     grilleEntete.style.gridTemplateColumns = gabarit;
     grilleEntete.style.minWidth = largeurMiniTotale;
@@ -1169,19 +1183,58 @@
     // hauteurs du jour posé (figerHauteursJourMobile, juste en dessous).
     // Toutes les lectures d'abord, puis toutes les écritures : une seule
     // mise en page par image. Largeur ramenée en px CSS de la carte (÷ zoom).
-    function ajusterLargeurBullesJourMobile() {
+    //
+    // Round du 25.09.2026 (suite 37). Lionel : « Recalculer le texte lors de
+    // la fixation du jour. » Jusque-là ce calcul tournait à CHAQUE image du
+    // glissement : la carte d'une bulle à moitié sortie rétrécissait au fil
+    // du geste et son texte se ré-enroulait sans cesse (2 lignes, 3, puis
+    // coupé), celle du jour qui arrive grandissait depuis 1 px. Désormais,
+    // pendant le glissement (`pendantGlissement`, appel depuis l'événement
+    // "scroll") une carte déjà affichée GARDE sa largeur, donc la mise en
+    // page de son texte ; une carte qui apparaît reçoit d'emblée la largeur
+    // qu'elle aura sur le jour où elle entre (sa part dans la colonne de ce
+    // jour, lue sur les en-têtes de jours), sans attendre. Tout est recalculé
+    // au plus juste quand le jour est posé (figerHauteursJourMobile, depuis
+    // defilementArrete), au rendu et à l'aperçu d'une poignée.
+    //
+    // Largeur posée aussi en max-width inline (suite 37). Lionel : « Vérifie
+    // la largeur des bulles en mobile. » Sur sa capture, les cartes de
+    // tâches s'arrêtaient ~15 px avant le bord droit du jour, alors que
+    // jalons et notes le touchaient : la règle de classe
+    // `max-width: var(--largeur-visible-bulle)` (style.css), valeur de
+    // secours calculée pour le TEXTE sticky des autres vues (largeur − noms
+    // − 16 px de marge), bridait la largeur posée ici. Les cartes des
+    // jalons/notes y échappaient (max-width:none propre à leur ligne).
+    function ajusterLargeurBullesJourMobile(pendantGlissement) {
       if (!enModeJourMobile) return;
       var zoom = (niveauZoomPlanning / 100) || 1;
       var rS = scroller.getBoundingClientRect();
       var debutVisible = rS.left + scroller.clientLeft + LN * zoom;
       var finVisible = rS.left + scroller.clientLeft + scroller.clientWidth;
       var bulles = [].slice.call(grilleCorps.querySelectorAll(".bulle")).concat([].slice.call(grilleEntete.querySelectorAll(".bulle")));
-      var rects = bulles.map(function (b) { return b.getBoundingClientRect(); });
+      var cartes = bulles.map(function (b) { return b.querySelector(".b-carte"); });
+      // Pendant le glissement, seules les cartes masquées sont à calculer.
+      var aCalculer = bulles.map(function (b, i) { return !!cartes[i] && (!pendantGlissement || cartes[i].style.display === "none" || !cartes[i].style.width); });
+      var rects = bulles.map(function (b, i) { return aCalculer[i] ? b.getBoundingClientRect() : null; });
+      var jours = null;
+      if (pendantGlissement && aCalculer.indexOf(true) >= 0) {
+        jours = [].slice.call(grilleEntete.querySelectorAll(".th[data-gi]")).map(function (th) {
+          var r = th.getBoundingClientRect(); return [r.left, r.right];
+        });
+      }
       for (var i = 0; i < bulles.length; i++) {
-        var carte = bulles[i].querySelector(".b-carte");
-        if (!carte) continue;
+        var carte = cartes[i];
+        if (!aCalculer[i]) continue;
         var g = Math.max(debutVisible, rects[i].left);
         var d = Math.min(finVisible, rects[i].right);
+        if (jours && d - g >= 1) {
+          // Carte qui entre à l'écran : sa part dans la colonne du jour où
+          // se trouve son premier point visible (= sa largeur une fois ce
+          // jour posé), au lieu de la mince lamelle visible à cet instant.
+          for (var j = 0; j < jours.length; j++) {
+            if (g >= jours[j][0] - 0.5 && g < jours[j][1] - 0.5) { d = Math.min(rects[i].right, jours[j][1]); break; }
+          }
+        }
         // width (pas seulement max-width) : .b-carte a align-self:flex-start
         // (rétrécit à son contenu, cf. son commentaire CSS) — livré seul,
         // max-width borne le débordement mais ne fait JAMAIS grandir la
@@ -1203,7 +1256,11 @@
         // censée être totalement hors écran redevenait visible avec un
         // bandeau vide de 22px. display:none n'a pas ce plancher.
         if (d - g < 1) { carte.style.display = "none"; }
-        else { carte.style.display = ""; carte.style.width = ((d - g) / zoom) + "px"; }
+        else { carte.style.display = ""; carte.style.width = carte.style.maxWidth = ((d - g) / zoom) + "px"; }
+        // Poignées d'une bulle hors du jour affiché masquées (suite 37) :
+        // celles de la veille tombaient pile au bord de la colonne des noms
+        // (traits parasites sur la capture de Lionel, x ≈ 108 px).
+        bulles[i].classList.toggle("hors-jour", d - g < 1);
       }
     }
     // figerHauteursJourMobile() — round du 25.09.2026 (suite 35), remplace
@@ -1233,10 +1290,13 @@
     var cleHauteursJour = null;
     function figerHauteursJourMobile(forcer) {
       if (!enModeJourMobile) return;
+      // Largeurs (donc texte) recalculées à chaque fixation, même au même
+      // endroit (suite 37) : un aller-retour sans lever le doigt a pu
+      // afficher des cartes de l'autre jour, figées à leur largeur d'entrée.
+      ajusterLargeurBullesJourMobile();
       var cle = Math.round(scroller.scrollLeft) + "|" + scroller.clientWidth;
       if (!forcer && cle === cleHauteursJour) return;
       cleHauteursJour = cle;
-      ajusterLargeurBullesJourMobile();
       var grilles = [grilleEntete, grilleCorps];
       var horsJour = [];
       // Hors du jour posé : carte masquée, ou simple lamelle de moins de
@@ -1266,13 +1326,20 @@
     // rAF-throttlé : "scroll" peut se déclencher plusieurs fois par frame
     // pendant un glissé — recalculer pour toutes les bulles à chaque
     // événement brut serait inutilement coûteux.
-    var rafAjustLargeurBulles = null;
-    function planifierAjustLargeurBulles() {
+    // Un appel « complet » (aperçu d'une poignée) l'emporte sur un appel de
+    // glissement tombé dans la même image.
+    var rafAjustLargeurBulles = null, rafAjustComplet = false;
+    function planifierAjustLargeurBulles(pendantGlissement) {
+      if (!pendantGlissement) rafAjustComplet = true;
       if (rafAjustLargeurBulles) return;
-      rafAjustLargeurBulles = requestAnimationFrame(function () { rafAjustLargeurBulles = null; ajusterLargeurBullesJourMobile(); });
+      rafAjustLargeurBulles = requestAnimationFrame(function () {
+        var complet = rafAjustComplet;
+        rafAjustLargeurBulles = null; rafAjustComplet = false;
+        ajusterLargeurBullesJourMobile(!complet);
+      });
     }
-    scroller.addEventListener("scroll", function () { enteteScroll.scrollLeft = scroller.scrollLeft; planifierAjustLargeurBulles(); });
-    reajusterBullesJourMobile = planifierAjustLargeurBulles;
+    scroller.addEventListener("scroll", function () { enteteScroll.scrollLeft = scroller.scrollLeft; planifierAjustLargeurBulles(true); });
+    reajusterBullesJourMobile = function () { planifierAjustLargeurBulles(false); };
     // Round du 23.09.2026 (suite 5) — Lionel : « Swipper un vendredi permet
     // de passer au lundi de la semaine suivante ? ». Réattaché à chaque
     // rendu (comme le mirroir de scroll juste au-dessus) puisque .scroller
