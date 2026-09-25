@@ -8142,3 +8142,38 @@ Ses réponses aux questions posées :
 - `test_suite38.js` : bloc Couleurs attendu entre Afficher et Personnes ; « Couleurs décochées » devient le bouton Noir et blanc.
 - `test_suite39.js` : bloc « Dates » et ses valeurs par défaut attendus.
 - **Suite complète : 55/55** (`node lancer_tests.js`).
+
+## 154. Round du 25.09.2026 (suite 46) — Mise en page : format de la date d'impression ; aperçu sans « Niveaux de gris »
+
+Lionel : « Mise en page : ajouter aussi le format de la date d'impression. Aperçu : enlever niveau de gris des options de couleurs car les imprimantes gèrent ça. »
+
+### Date d'impression (onglet Mise en page, js/page-mise-en-page.js)
+- Nouveau bloc « Date d'impression », après « Pied de page » :
+  - **Format** : 25.09.2026 (par défaut), 25.09.26, 25 sept. 2026, 25 septembre 2026, jeudi 25 septembre 2026 ;
+  - **Heure** (« à 18:05 ») et **« Imprimé le » devant** : cochées par défaut.
+- Par défaut rien ne change : « Imprimé le 25.09.2026 à 18:05 ».
+- Sans « Imprimé le », la date commence par une majuscule (« Jeudi 24 septembre 2026 »). Premier du mois écrit « 1er » avec le mois en lettres.
+- Une ligne d'aide montre la date telle qu'elle s'imprimera et où elle s'écrit : en-tête, pied de page, les deux. Si elle n'est cochée nulle part, l'aide prévient qu'elle ne s'imprime pas.
+- Même texte partout : aperçu schématique de l'onglet, en-tête et pied simulés de l'aperçu d'impression, vraie règle `@page` (recalculée au moment d'imprimer, comme avant).
+- Enregistré sur le compte avec le reste (`dateImpr: { format, heure, prefixe }`). Un format inconnu reprend le défaut.
+
+### Couleurs de l'aperçu (js/impression.js, style.css)
+- « Niveaux de gris » retiré (suite 45) : il reste **Couleurs des chantiers** et **Noir et blanc**. L'imprimante passe elle-même les couleurs en gris.
+- Un « Niveaux de gris » encore retenu sur l'appareil repasse en Couleurs des chantiers.
+- `grisCouleur_`, `couleurRendu_` et `.rendu-gris` supprimés.
+
+### Tests
+- `test_suite46.js` (nouveau, 23 vérifications, 1300 et 360 px) :
+  - bloc Date d'impression :
+    - défaut inchangé ;
+    - formats, focus gardé, sans heure ni « Imprimé le » ;
+    - aperçu schématique ;
+    - aide selon en-tête / pied ;
+    - enregistrement ;
+    - pied de l'aperçu d'impression et règle `@page` ;
+  - formats un 1er octobre ; valeurs illisibles ;
+  - aperçu à 2 choix de couleurs, « gris » retenu repris en couleurs.
+- `test_suite45.js` : vérifications des niveaux de gris retirées.
+- `test_suite38.js` : bloc Couleurs attendu sans niveaux de gris.
+- `test_suite39.js` : bloc « Date d'impression » et ses valeurs par défaut attendus.
+- **Suite complète : 56/56** (`node lancer_tests.js`).

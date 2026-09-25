@@ -47,7 +47,10 @@
       colonnes: { jours: "dynamique", largeurJour: 48, noms: "dynamique", largeurNoms: 30 },
       // Suite 45 (cf. plus bas, « Dates des en-têtes de jours ») : « Lun 21 »
       // sous la ligne des mois, comme avant.
-      dates: { jour: "abrege", mois: "masque", annee: false }
+      dates: { jour: "abrege", mois: "masque", annee: false },
+      // Suite 46 (cf. texteDateImpression) : « Imprimé le 25.09.2026 à
+      // 18:05 », comme avant.
+      dateImpr: { format: "chiffres", heure: true, prefixe: true }
     };
   }
   // Bornes des champs en mm : par groupe, ou par clé pour les colonnes
@@ -57,6 +60,7 @@
 
   var FORMATS_JOUR_MEP_ = ["abrege", "complet", "initiale", "masque"];
   var FORMATS_MOIS_MEP_ = ["masque", "chiffres", "abrege", "complet"];
+  var FORMATS_DATE_IMPR_ = ["chiffres", "court", "abrege", "complet", "long"];
 
   // Remet d'aplomb une valeur lue (serveur, cache, ancienne clé) : toute
   // clé manquante ou d'un mauvais type reprend sa valeur par défaut.
@@ -81,12 +85,15 @@
     if (FORMATS_JOUR_MEP_.indexOf(sd.jour) >= 0) m.dates.jour = sd.jour;
     if (FORMATS_MOIS_MEP_.indexOf(sd.mois) >= 0) m.dates.mois = sd.mois;
     if (typeof sd.annee === "boolean") m.dates.annee = sd.annee;
-    ["entete", "pied", "liens"].forEach(function (groupe) {
+    ["entete", "pied", "liens", "dateImpr"].forEach(function (groupe) {
       var s = src[groupe] || {};
       Object.keys(m[groupe]).forEach(function (k) {
         if (typeof s[k] === typeof m[groupe][k]) m[groupe][k] = typeof s[k] === "string" ? s[k].slice(0, 120) : s[k];
       });
     });
+    // Format de la date d'impression (suite 46) : copié tel quel par la
+    // boucle ci-dessus (une chaîne), seulement s'il est connu.
+    if (FORMATS_DATE_IMPR_.indexOf(m.dateImpr.format) < 0) m.dateImpr.format = "chiffres";
     return m;
   }
 
@@ -221,10 +228,25 @@
   }
 
   // « Imprimé le 25.09.2026 à 18:05 » (libellé proposé à Lionel).
-  function texteDateImpression(d) {
+  // Format au choix — round du 25.09.2026 (suite 46). Lionel : « Mise en
+  // page : ajouter aussi le format de la date d'impression. » Date en
+  // chiffres (25.09.2026), courte (25.09.26), mois abrégé (25 sept. 2026),
+  // en toutes lettres (25 septembre 2026) ou longue (jeudi 25 septembre
+  // 2026) ; heure (« à 18:05 ») et « Imprimé le » facultatifs. Sans
+  // « Imprimé le », la date commence par une majuscule (« Jeudi 25… »).
+  function texteDateImpression(d, m) {
     d = d || new Date();
+    var f = (m && m.dateImpr) || miseEnPageDefaut().dateImpr;
     var p = function (n) { return (n < 10 ? "0" : "") + n; };
-    return "Imprimé le " + p(d.getDate()) + "." + p(d.getMonth() + 1) + "." + d.getFullYear() + " à " + p(d.getHours()) + ":" + p(d.getMinutes());
+    var j = d.getDate(), mo = d.getMonth(), an = d.getFullYear(), jr = j === 1 ? "1er" : String(j);
+    var date = {
+      court: p(j) + "." + p(mo + 1) + "." + String(an).slice(2),
+      abrege: jr + " " + MOIS_ABREGES_MEP_[mo] + " " + an,
+      complet: jr + " " + MOIS_LETTRES_MEP_[mo] + " " + an,
+      long: JOURS_SEMAINE_MEP_[d.getDay()].toLowerCase() + " " + jr + " " + MOIS_LETTRES_MEP_[mo] + " " + an
+    }[f.format] || p(j) + "." + p(mo + 1) + "." + an;
+    var t = (f.prefixe ? "Imprimé le " : "") + date + (f.heure ? " à " + p(d.getHours()) + ":" + p(d.getMinutes()) : "");
+    return t.charAt(0).toUpperCase() + t.slice(1);
   }
   function nomChantierChoisi_() {
     var k = typeof chantierParDefautValide === "function" ? chantierParDefautValide() : null;
@@ -235,7 +257,7 @@
   // libre à gauche, date au centre, numéro de page à droite ("page" : le
   // numéro n'existe qu'au moment d'imprimer, cf. cssPageImpression).
   function zonesMiseEnPage(m, date) {
-    var dateTxt = texteDateImpression(date);
+    var dateTxt = texteDateImpression(date, m);
     return {
       haut: [m.entete.texte.trim(), m.entete.chantier ? nomChantierChoisi_() : "", m.entete.date ? dateTxt : ""],
       bas: [m.pied.texte.trim(), m.pied.date ? dateTxt : "", m.pied.page ? "page" : ""]
@@ -337,6 +359,12 @@
     if (m.dates.mois === "masque") return ex + "mois et année sur la ligne au-dessus des jours.";
     return ex + (m.dates.annee ? "plus de ligne des mois, ni d’année dans le coin." : "plus de ligne des mois ; l’année passe dans le coin, avec la semaine.");
   }
+  // Ligne d'aide de la date d'impression (suite 46) : son rendu, et où
+  // elle s'écrit.
+  function aideDateImpr_(m) {
+    var ou = m.entete.date && m.pied.date ? "dans l’en-tête et le pied de page" : m.entete.date ? "dans l’en-tête" : m.pied.date ? "dans le pied de page" : "";
+    return "Exemple : « " + texteDateImpression(new Date(), m) + " » — " + (ou ? "écrite " + ou + "." : "cochée ni dans l’en-tête ni dans le pied de page : elle ne s’imprime pas.");
+  }
   function formulaireMep_() {
     var ch = nomChantierChoisi_();
     return '<fieldset><legend>Page</legend>' +
@@ -376,6 +404,11 @@
         caseMep_("pied", "page", "Numéro de page", "(« Page 1 / 2 »)") +
         caseMep_("pied", "date", "Date d’impression") +
         texteMep_("pied", "texte", "Texte libre", "ex. Document interne") +
+      '</fieldset><fieldset><legend>Date d’impression</legend>' +
+        choixMep_("format", "Format", [["chiffres", "25.09.2026"], ["court", "25.09.26"], ["abrege", "25 sept. 2026"], ["complet", "25 septembre 2026"], ["long", "jeudi 25 septembre 2026"]], "dateImpr") +
+        caseMep_("dateImpr", "heure", "Heure", "(« à 18:05 »)") +
+        caseMep_("dateImpr", "prefixe", "« Imprimé le » devant") +
+        '<small class="mep-aide mep-aide-date-impr">' + esc(aideDateImpr_(mepEdition_)) + '</small>' +
       '</fieldset>';
   }
 
@@ -496,6 +529,9 @@
       // Aide des colonnes à jour (largeur utile, total) sans redessiner.
       var aide = f && f.querySelector(".mep-aide-colonnes");
       if (aide) { var a = aideColonnes_(mepEdition_); aide.textContent = a.texte; aide.classList.toggle("alerte", a.alerte); }
+      // Date d'impression (suite 46) : exemple et emplacement à jour.
+      var aideD = f && f.querySelector(".mep-aide-date-impr");
+      if (aideD) aideD.textContent = aideDateImpr_(mepEdition_);
     }
     sauverMep_();
   }
