@@ -200,7 +200,11 @@
       // qu'un nombre en dur, pour ne plus jamais désynchroniser un colspan
       // si le nombre de jours affichés change un jour.
       var NB_COLS = 1 + jl.length * 2;
-      h += '<table class="print-table"><thead>';
+      h += '<table class="print-table">';
+      // Colonnes (suite 44, onglet Mise en page) : noms, puis matin/aprem de
+      // chaque jour — largeurs fixes posées en CSS (.noms-fixe/.jours-fixes
+      // sur .print-doc), rien sinon (partage selon le contenu, comme avant).
+      h += '<colgroup><col class="col-noms">' + jl.map(function () { return '<col class="col-demi"><col class="col-demi">'; }).join('') + '</colgroup><thead>';
       // round du 15.09.2026 (suite) — Lionel : "j'aimerai bien l'affichage
       // matin/après-midi côte à côte, comme le planning". La grille compacte
       // (planning à l'écran) place déjà matin et aprem à côté l'un de
@@ -723,12 +727,17 @@
       docImpr.classList.toggle("sans-couleurs", !r.couleurs);
       docImpr.classList.toggle("taille-petite", mep.taille === "petite");
       docImpr.classList.toggle("taille-grande", mep.taille === "grande");
-      var vars = variablesEspacesImpression(mep);
+      docImpr.classList.toggle("noms-fixe", mep.colonnes.noms === "fixe");
+      docImpr.classList.toggle("jours-fixes", mep.colonnes.jours === "fixe");
+      var vars = Object.assign(variablesEspacesImpression(mep), variablesColonnesImpression(mep));
       Object.keys(vars).forEach(function (k) { docImpr.style.setProperty(k, vars[k]); });
       stylePage.textContent = cssPageImpression(mep, new Date());
       var mg = mep.marges;
       pop.querySelector(".impr-resume-mep").textContent = (mep.orientation === "portrait" ? "Portrait" : "Paysage") + ", marges " +
-        (mg.haut === mg.bas && mg.bas === mg.gauche && mg.gauche === mg.droite ? mg.haut + " mm" : mg.haut + "/" + mg.droite + "/" + mg.bas + "/" + mg.gauche + " mm");
+        (mg.haut === mg.bas && mg.bas === mg.gauche && mg.gauche === mg.droite ? mg.haut + " mm" : mg.haut + "/" + mg.droite + "/" + mg.bas + "/" + mg.gauche + " mm") +
+        // Colonnes fixes (suite 44) rappelées ici aussi.
+        (mep.colonnes.jours === "fixe" ? ", jours " + String(mep.colonnes.largeurJour).replace(".", ",") + " mm" : "") +
+        (mep.colonnes.noms === "fixe" ? ", noms " + String(mep.colonnes.largeurNoms).replace(".", ",") + " mm" : "");
     }
     grilleReglages.addEventListener("change", function (e) {
       var el = e.target;

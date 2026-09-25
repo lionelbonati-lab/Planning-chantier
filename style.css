@@ -2523,6 +2523,18 @@
   .impr-liste[hidden] { display: none; }
   /* Taille du texte (réglage) : une échelle appliquée aux tailles du
      tableau (cases, en-têtes, statuts, horaires). */
+  /* Colonnes fixes (suite 44, onglet Mise en page ; cf.
+     variablesColonnesImpression). Noms seuls fixes : tableau toujours sur
+     toute la largeur, le reste va aux jours (colonnes sans largeur). Jours
+     fixes : tableau à sa largeur exacte (max-content = somme des colonnes),
+     aligné à gauche — plus large que la page, il est coupé à droite
+     (l'onglet le signale). Mots coupés au besoin pour ne jamais élargir une
+     colonne fixe. */
+  .print-doc.noms-fixe table.print-table col.col-noms { width: var(--impr-col-noms); }
+  .print-doc.jours-fixes table.print-table col.col-demi { width: var(--impr-col-demi); }
+  .print-doc.jours-fixes table.print-table { width: max-content; }
+  .print-doc.noms-fixe table.print-table tr > :first-child,
+  .print-doc.jours-fixes table.print-table tr > :not(:first-child) { overflow-wrap: anywhere; }
   .print-doc.taille-petite { --impr-echelle: .82; }
   .print-doc.taille-grande { --impr-echelle: 1.2; }
   /* Sans couleurs (réglage) : nom du chantier en petit sous la tâche —
@@ -2544,6 +2556,34 @@
   .mep-champ.mep-texte input { flex: 1; max-width: 180px; }
   .mep-unite { display: inline-flex; align-items: center; gap: 4px; font-weight: 500; color: var(--ink-muted); }
   .mep-aide { font-size: 10.5px; line-height: 1.3; color: var(--ink-faint); }
+  .mep-aide.alerte { color: var(--important-ink, #93362b); font-weight: 600; }
+  .mep-champ.mep-off { opacity: .45; }
+  /* Flèches haut/bas des champs numériques (suite 44) : le champ et ses 2
+     petits boutons dans un même cadre ; flèches natives masquées. */
+  .mep-nombre { display: inline-flex; align-items: stretch; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--surface-2); overflow: hidden; }
+  .mep-champ .mep-nombre input { width: 50px; border: 0; border-radius: 0; background: transparent; -moz-appearance: textfield; appearance: textfield; }
+  .mep-nombre input::-webkit-outer-spin-button, .mep-nombre input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .mep-fleches { display: flex; flex-direction: column; border-left: 1px solid var(--border); }
+  .mep-fleche { flex: 1 1 0; width: 20px; min-height: 0; display: grid; place-items: center; padding: 0; border: 0; background: transparent; color: var(--ink-muted); cursor: pointer; touch-action: manipulation; }
+  .mep-fleche + .mep-fleche { border-top: 1px solid var(--border); }
+  .mep-fleche svg { width: 9px; height: 6px; }
+  .mep-fleche-bas svg { transform: rotate(180deg); }
+  @media (hover: hover) and (pointer: fine) { .mep-fleche:hover:not(:disabled) { background: var(--surface); color: var(--ink); } }
+  .mep-fleche:active:not(:disabled) { background: var(--border); }
+  .mep-fleche:disabled { cursor: default; }
+  @media (pointer: coarse) { .mep-fleche { width: 28px; } .mep-fleche svg { width: 11px; height: 7px; } .mep-champ .mep-nombre input { padding-top: 8px; padding-bottom: 8px; } }
+  /* Accolades des marges (suite 44) : 1 par paire, 1 pour les 4. Trait en
+     accolade + maillon ; bleu quand lié, pâle sinon ; « inclus » = paire
+     déjà liée par l'accolade des 4. */
+  .mep-marges { display: grid; grid-template-columns: minmax(0, 1fr) 30px 30px; grid-auto-rows: auto; row-gap: 5px; column-gap: 0; align-items: center; }
+  .mep-accolade { position: relative; align-self: stretch; min-height: 40px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--ink-faint); cursor: pointer; opacity: .75; }
+  @media (hover: hover) and (pointer: fine) { .mep-accolade:hover:not(:disabled) { color: var(--ink-muted); opacity: 1; background: var(--surface-2); } }
+  .mep-accolade.actif { color: var(--accent); opacity: 1; }
+  .mep-accolade.inclus { opacity: .45; cursor: default; }
+  .mep-accolade-trait { position: absolute; left: 3px; top: 9px; bottom: 9px; width: 8px; border: 1.5px solid currentColor; border-left: 0; border-radius: 0 8px 8px 0; }
+  .mep-accolade:not(.actif) .mep-accolade-trait { border-style: dashed; }
+  .mep-accolade svg { position: absolute; left: 12px; top: 50%; width: 15px; height: 15px; margin-top: -7.5px; }
+  .mep-accolade:not(.actif) svg { opacity: .7; }
   .mep-etat { align-self: center; font-size: 12px; font-weight: 600; color: var(--ink-faint); }
   .mep-etat.erreur { color: var(--important-ink, #93362b); }
   .mep-apercu { position: sticky; top: 12px; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; }
@@ -2552,7 +2592,12 @@
   .mep-tete { background: #cfd4da; }
   .mep-ligne { position: relative; background: #eef0f2; border-top: 1px solid #dde1e5; }
   .mep-ligne span { position: absolute; left: 0; top: 0; bottom: 0; width: 13%; background: #dfe3e7; }
-  .mep-ligne i { display: block; position: relative; left: 13%; height: 100%; max-width: 87%; background: #f3d7a6; opacity: .75; }
+  .mep-ligne i { position: absolute; top: 0; bottom: 0; background: #f3d7a6; opacity: .75; }
+  /* Colonnes de l'aperçu (suite 44) : tableau à sa largeur (fixe ou
+     estimée), traits entre les jours, hachures rouges quand il dépasse. */
+  .mep-tableau { position: relative; }
+  .mep-col { position: absolute; top: 0; bottom: 0; width: 1px; margin-left: -.5px; background: #b9c0c8; z-index: 1; }
+  .mep-coupe { position: absolute; top: 0; bottom: 0; width: 5px; margin-left: -5px; background: repeating-linear-gradient(45deg, #c0392b 0 2px, transparent 2px 4px); z-index: 2; }
   .mep-legende { display: flex; gap: 6%; }
   .mep-legende i { width: 14%; background: #dfe3e7; border-radius: 2px; }
   .mep-zone { position: absolute; display: flex; align-items: center; gap: 4px; color: #57616b; line-height: 1.1; white-space: nowrap; }

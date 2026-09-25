@@ -8015,3 +8015,54 @@ Lionel : « Aperçu avant impression : ajouter case à cocher personnel. Rendre 
   - pas de défilement horizontal à 360 px.
 - `test_suite38.js` : « Intervenants » attendu dans « Personnes » ; listes dépliées avant d'y cliquer.
 - **Suite complète : 53/53** (`node lancer_tests.js`).
+
+## 152. Round du 25.09.2026 (suite 44) — Mise en page : flèches ±, accolades des marges, colonnes fixes ou dynamiques
+
+Lionel, onglet Mise en page : « Ajouter des petites flèches haut/bas pour pouvoir changer des réglages au MM. Accolades pour lier les marges, gauche/droite, haut/bas ou les 4. Possibilité de pouvoir rendre fixe la largeur des colonnes des jours avec option pour qu'elles soient dynamiques (comportement actuel). Idem pour la colonne des noms. »
+
+### Flèches haut/bas (js/page-mise-en-page.js, `champNombre_`)
+- Chaque champ en mm (marges, colonnes, espacements) a 2 petits boutons ▲▼ à sa droite, dans le même cadre. Les flèches natives sont masquées : elles n'existent pas sur téléphone, et sur ordinateur il y en aurait eu 2 paires.
+- Un appui = un pas du champ, borné : 1 mm pour les marges et les colonnes, 0,1 mm pour les espacements (quelques mm seulement).
+- Maintenu, le bouton répète : après 0,4 s, un pas toutes les 0,08 s. Les flèches ↑↓ du clavier restent actives dans le champ.
+- Sur téléphone, boutons de 28 px de large et champ plus haut.
+
+### Accolades des marges
+- La grille des marges a 3 accolades : haut/bas, gauche/droite, et une grande pour les 4.
+- Clic sur une accolade : les marges sont liées (même valeur, changées ensemble pendant la frappe comme aux flèches), et alignées aussitôt sur la première du groupe (haut, ou gauche).
+- Accolade des 4 active : les 2 autres sont grisées (« incluses »). La délier rend aux paires leur état propre.
+- Rendu : accolade bleue et maillon quand c'est lié, pointillés pâles sinon. `aria-pressed` pour les lecteurs d'écran.
+- Enregistré sur le compte avec le reste (`liens: { hautBas, gaucheDroite, toutes }`).
+
+### Colonnes (nouveau bloc)
+- « Jours » et « Noms » : **Dynamique** (par défaut, comportement actuel : partage selon le contenu) ou **Largeur fixe**, avec un champ en mm (un jour : 48 mm par défaut, 15 à 120 ; noms : 30 mm par défaut, 10 à 80). Le champ est grisé tant que la colonne est dynamique.
+- Une ligne d'aide calcule la place :
+  - « Tableau : 35 + 5 × 47 = 270 mm, sur 273 mm utiles » ;
+  - « il reste 33 mm pour les noms » ;
+  - « Il reste 243 mm pour les 5 jours ».
+  - En rouge quand ça ne tient pas : « dépasse de 2 mm, la droite sera coupée à l'impression ».
+- Aperçu schématique : noms puis 5 jours à leur largeur (fixe, ou estimée), un trait entre chaque jour, tâches factices posées dans la grille. Un tableau trop large montre des hachures rouges là où la page le coupe.
+- Impression (js/impression.js, style.css) :
+  - `<colgroup>` dans le tableau : noms, puis matin/aprem de chaque jour ;
+  - classes `.noms-fixe` / `.jours-fixes` sur `.print-doc`, variables `--impr-col-noms` et `--impr-col-demi` (moitié d'un jour) ;
+  - noms fixes seuls : tableau toujours sur toute la largeur, le reste va aux jours ;
+  - jours fixes : tableau à sa largeur exacte (`max-content`), plus étiré sur la page ;
+  - mots coupés au besoin (`overflow-wrap: anywhere`) pour qu'aucun texte n'élargisse une colonne fixe ;
+  - le résumé du panneau Réglages ajoute « jours 48 mm, noms 30 mm » quand c'est le cas.
+- Une mise en page enregistrée avant cette suite est complétée par défaut : accolades libres, colonnes dynamiques.
+
+### Tests
+- `test_suite44.js` (nouveau, 30 vérifications, 1300 et 390 px) :
+  - flèches (pas, bornes, répétition, arrêt au relâcher, clavier) ;
+  - accolades (paire, les 4 et paires incluses, saisie suivie, déliage, enregistrement) ;
+  - colonnes :
+    - dynamiques par défaut ;
+    - jours fixes : 48 mm mesurés, tableau à sa largeur au papier ;
+    - aide et alerte de dépassement, hachures ;
+    - traits de l'aperçu ;
+    - tout fixe à 35 / 47 mm, texte long enroulé ;
+    - noms fixes seuls, mesurés au papier aussi ;
+    - enregistrement ;
+  - reprise d'un ancien réglage ; téléphone.
+- `test_suite39.js` : bloc « Colonnes » et ses valeurs par défaut attendus.
+- Survol (`:hover`) des flèches et accolades sous `@media (hover: hover) and (pointer: fine)`, comme le reste (test_survol_tactile.js).
+- **Suite complète : 54/54** (`node lancer_tests.js`).
