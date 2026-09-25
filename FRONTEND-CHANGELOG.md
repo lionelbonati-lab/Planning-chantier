@@ -7446,3 +7446,11 @@ Vérifié en local (Playwright) — **`test_suite27.js`** (nouveau), 33 vérific
 - page Horaires : liste triée, durée du matin avec la pause, ajout pré-rempli, refus d'un chevauchement et d'un après-midi incomplet (rien écrit en base), compteur, écriture en base (pause comprise), suppression, planning mis à jour ;
 - téléphone : cartes de mois des Fériés, cartes de la page Horaires sans défilement de côté ;
 - table `horaires` injoignable : le planning démarre quand même.
+- **Suite complète** : mêmes 8 échecs que sur `main` (anciens tests qui cherchent des fonctions dans `index.html`, cf. §129).
+
+**Défilement tactile sur tablette** — Lionel : « Applique les mêmes gestes au doigt sur tablette » (réponse : « Défilement dans un seul sens »).
+- Le verrouillage d'axe du §134 était déjà actif sur tablette : même code pour tous les écrans tactiles.
+- Vérifié zone par zone sur une tablette de 820 px en vue 2 semaines, où le tableau défile de côté. Glissé vertical avec 70 px de dérive → la page défile vers le bas et `scrollLeft` ne bouge pas, dans chacune de ces zones : case vide, bulle de tâche, nom, case et bulle de jalon, en-tête du jour, ligne M | A, ligne de section.
+- Aucune correction de code n'a été nécessaire ; ce balayage est ajouté à `test_suite26.js` (18 vérifications, toutes OK) pour que la tablette reste couverte.
+
+**Pause** — Lionel : « Mettre une case pour le temps de pause me permet de la modifier plus tard au besoin ». C'est la case « Pause (min) » de chaque période (15 par défaut), décrite plus haut.

@@ -101,6 +101,54 @@ const caseVide = (page) => page.evaluate(() => {
     await page.close();
   }
 
+  // --- 3. Tablette (820 px, vue 2 semaines) : chaque zone du tableau ---
+  // Lionel (suite 27) : « Applique les mêmes gestes au doigt sur tablette. »
+  // En vue 2 semaines, le tableau peut défiler de côté sur une tablette :
+  // un glissé vertical qui dérive ne doit bouger scrollLeft dans AUCUNE
+  // zone — cases et bulles (défilement manuel verrouillé) comme noms,
+  // en-têtes et lignes de section (défilement natif du navigateur).
+  {
+    const MONDE = Array.from({ length: 40 }, (_, i) => ({ id: i + 1, nom: 'Personne ' + (i + 1), sous_traitant: i > 30, ordre: i + 1, actif: true }));
+    const taches = [{ id: 1, personne_id: 1, date: '2026-09-24', demi: 'matin', ordre: 1, texte: 'Béton', statut_id: null, important: false, serie_id: null, est_absence: false, chantier_id: 1 }];
+    const jalons = [{ id: 5, date: '2026-09-24', texte: 'Jalon', demi: null, serie_id: null, chantier_id: null }];
+    const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 820, height: 1000 }, hasTouch: true, bd: { personnes: MONDE, taches, jalons } });
+    await page.evaluate(() => basculerDeuxSemaines());
+    await page.waitForTimeout(800);
+    const zones = {
+      'case vide': '.cell[data-kind="personne"]', 'bulle de tâche': '.grille .bulle:not(.bulle-jalon):not(.bulle-note)', 'nom': '.grille .lbl',
+      'case jalon': '.cell[data-kind="jalon"]', 'bulle jalon': '.bulle-jalon', 'en-tête du jour': '.th[data-gi]:not(.th-demi)',
+      'ligne M | A': '.th.th-demi:not(.coin)', 'ligne de section': '.lbl-speciale'
+    };
+    for (const [nom, sel] of Object.entries(zones)) {
+      // Bulle de tâche sur la 1re ligne : on part du haut pour la garder à l'écran.
+      await page.evaluate((haut) => { document.querySelector('.scroller').scrollLeft = 300; app.scrollTop = haut; }, nom === 'bulle de tâche' ? 0 : 400);
+      await page.waitForTimeout(100);
+      const pt = await page.evaluate((sel) => {
+        for (const el of document.querySelectorAll(sel)) {
+          const r = el.getBoundingClientRect(), x = r.x + Math.min(r.width / 2, 40), y = r.y + r.height / 2;
+          const sous = document.elementFromPoint(x, y);
+          if (x > 0 && x < 780 && y > 60 && y < 700 && sous && (sous === el || el.contains(sous))) return { x, y };
+        }
+        return null;
+      }, sel);
+      if (!pt) { verifier(false, 'tablette : zone « ' + nom + ' » introuvable à l\'écran'); continue; }
+      const avant = await position(page);
+      const cdp = await page.context().newCDPSession(page);
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [pt] });
+      for (let i = 1; i <= 10; i++) {
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: pt.x - 7 * i, y: pt.y - 12 * i }] });
+        await page.waitForTimeout(16);
+      }
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      await page.waitForTimeout(1200);
+      await cdp.detach();
+      const apres = await position(page);
+      verifier(apres.gauche === avant.gauche && apres.haut > avant.haut, 'tablette 2 semaines, « ' + nom + ' » : glissé vertical avec 70 px de dérive → défile vers le bas, jamais de côté (gauche ' + avant.gauche + ' → ' + apres.gauche + ', haut ' + avant.haut + ' → ' + apres.haut + ')');
+    }
+    toutesErreurs.push(...erreurs);
+    await page.close();
+  }
+
   await browser.close();
   bilan(toutesErreurs);
 })();
