@@ -2549,6 +2549,24 @@
   .print-horaires th { font-size: calc(9px * var(--impr-echelle, 1)); font-weight: 600; color: var(--ink-muted); padding-top: 2px; padding-bottom: 3px; font-variant-numeric: tabular-nums; white-space: nowrap; }
   table.print-table .coin-horaires { font-size: calc(9.5px * var(--impr-echelle, 1)); font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--ink-faint); text-align: left; padding-left: 7px; }
   .print-doc.sans-horaires .print-horaires { display: none; }
+  /* Période et planning individuel — round du 25.09.2026 (suite 48, cf.
+     contenuSemaines_ dans js/impression.js). Choix en haut de l'aperçu,
+     jamais imprimés. Plusieurs semaines : un trait tireté marque à l'écran
+     le saut de page qui les sépare au papier. Planning individuel : titre
+     « Planning de … », semaines à la suite sur la même page. */
+  .impr-periode { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0 0 10px; }
+  .impr-periode label { display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-faint); }
+  .impr-periode select { font: inherit; font-size: 12.5px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--ink); min-height: 30px; padding: 3px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); max-width: 60vw; }
+  .print-doc.impr-chargement { opacity: .5; transition: opacity .15s; }
+  .print-semaine + .print-semaine { margin-top: 18px; padding-top: 16px; border-top: 1px dashed var(--border-strong); }
+  .print-doc.impr-individuel .print-semaine + .print-semaine { margin-top: 12px; padding-top: 0; border-top: none; }
+  /* Semaines empilées du planning individuel : mêmes colonnes d'un
+     tableau à l'autre (lundi sous lundi), sauf largeurs fixées dans
+     l'onglet Mise en page (suite 44), qui restent maîtresses. */
+  .print-doc.impr-individuel:not(.jours-fixes) table.print-table { table-layout: fixed; }
+  .print-doc.impr-individuel:not(.noms-fixe):not(.jours-fixes) table.print-table col.col-noms { width: 15%; }
+  .print-titre-personne { font-size: calc(15px * var(--impr-echelle, 1)); font-weight: 700; color: var(--ink); margin: 0 0 10px; }
+  .impr-note-pour { margin: 0; font-size: 12.5px; color: var(--ink-muted); line-height: 1.4; }
   /* Réglages de l'aperçu d'impression — round du 25.09.2026 (suite 38).
      Lionel : « Améliore la page impression pour pouvoir modifier
      manuellement divers réglages. Afficher ou non certaines données. »
@@ -2745,7 +2763,12 @@
       --important-ink: #93362b; --absence-bg: #f6c893; --jalon-bg: #d7cdf0; --note-bg: #f7e6ab;
       color: var(--ink); background: #fff;
     }
-    .impression-actions, .impr-reglages, .impr-entete-ecran, .impr-pied-ecran { display: none !important; }
+    .impression-actions, .impr-reglages, .impr-periode, .impr-entete-ecran, .impr-pied-ecran { display: none !important; }
+    /* Plusieurs semaines (suite 48) : chacune sur sa page ; planning
+       individuel : les semaines à la suite, jamais coupées en 2. */
+    .print-semaine + .print-semaine { border-top: none; padding-top: 0; margin-top: 0; break-before: page; page-break-before: always; }
+    .print-doc.impr-individuel .print-semaine + .print-semaine { margin-top: 12px; break-before: auto; page-break-before: auto; }
+    .print-doc.impr-individuel .print-semaine { break-inside: avoid; page-break-inside: avoid; }
     /* round du 15.09.2026 (suite) — Lionel : "Il reste une grande fenêtre
        rectangle sous le planning, la supprimer. je veux un fond blanc et
        uni". .print-doc est une carte pensée pour l'APERÇU À L'ÉCRAN (fond

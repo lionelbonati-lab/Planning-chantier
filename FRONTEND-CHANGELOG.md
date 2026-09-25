@@ -8229,3 +8229,54 @@ Lionel : « Un résumé facilement accessible des statuts à réserver serait bi
 - `test_feries_mobile.js`, `test_suite27.js`, `test_suite28.js`, `test_suite32.js` : passent par l'onglet Horaires.
 - `test_toolbar_chevauchement.js` : ordre de repli avec « À réserver ».
 - **Suite complète : 57/57** (`node lancer_tests.js`).
+
+## 156. Round du 25.09.2026 (suite 48) — Impression sur plusieurs semaines ou un mois ; planning individuel
+
+Propositions retenues par Lionel (« 8,9,10,13,14,15 m'intéressent ») :
+- 8 : « Imprimer plusieurs semaines ou un mois » ;
+- 9 : « Planning individuel : la feuille d'une seule personne ».
+
+### Aperçu d'impression (js/impression.js, style.css)
+Deux choix en haut de l'aperçu. Ils ne sont jamais imprimés et ne sont pas retenus : chaque ouverture repart de la semaine affichée, pour tout le monde.
+
+**Période**
+- Choix possibles :
+  - la semaine affichée ;
+  - 2, 3, 4, 6 ou 8 semaines à partir d'elle ;
+  - le mois de la semaine affichée, ou le mois suivant.
+- Un mois = les semaines dont le jeudi tombe dans ce mois (même règle que les numéros de semaine) : septembre 2026 = semaines 36 → 39, octobre = 40 → 44.
+- Chaque semaine a son tableau complet : en-tête des jours, horaires, jalons, notes, personnes, légende.
+- Au papier, une semaine par page. À l'écran, un trait tireté marque le saut de page.
+- Les semaines absentes du cache sont lues sur le serveur, puis gardées en cache pour le planning. Une semaine illisible est sautée, avec un message.
+- Les mentions à l'écran disent de quelle semaine elles parlent (« Semaine 41 : 4 personne(s) sans rien… »).
+
+**Pour**
+- Tout le monde, ou une personne : personnel, équipe ou intervenant, dans l'ordre du planning.
+- Planning individuel :
+  - « Planning de … » en titre ;
+  - les semaines à la suite sur la même page, jamais coupées, aux mêmes colonnes (lundi sous lundi) ;
+  - une seule légende en bas.
+- Qui figure sur chaque semaine :
+  - la personne, même une semaine où elle n'a rien ;
+  - si elle est dans une équipe cette semaine-là, la ligne de l'équipe quand elle a du travail. Sa propre ligne ne sort alors que si elle a quelque chose à elle (vacances…).
+- Les réglages Personnel / Intervenants / personne par personne et « Personnes sans tâche » ne jouent pas ; le panneau le rappelle.
+- Jalons, notes, horaires, noir et blanc, mise en page : comme d'habitude.
+
+**Code**
+- Tout ce qui se calculait pour LA semaine affichée est rangé dans `semaineImpression_(data)`, appelée une fois par semaine ; le code du tableau est inchangé.
+- La légende passe dans `legendeImpression_`.
+
+### Tests
+- `test_suite48.js` (nouveau, 33 vérifications, 1400 et 360 px) :
+  - périodes et personnes proposées ;
+  - ouverture inchangée ;
+  - 3 semaines, dont une lue sur le serveur ;
+  - mois de septembre ;
+  - saut de page à l'impression ;
+  - planning individuel : titre, une ligne par semaine, légende unique, colonnes alignées, rien des autres, semaines non coupées ;
+  - membre d'équipe ;
+  - personne sans rien ;
+  - retour à « Tout le monde » ;
+  - choix non retenus.
+- `test_suite40.js` : la barre Période / Pour prend place entre le titre et l'aperçu.
+- **Suite complète : 58/58** (`node lancer_tests.js`).
