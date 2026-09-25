@@ -6,8 +6,9 @@
      serait bien aussi. »
 
      Bouton de la barre d'outils du planning (#btnAReserver ; replié dans
-     « ⋮ » après le zoom et les masquages quand la barre manque de place,
-     une pastille sur « ⋮ » le signale alors) avec le nombre de tâches encore
+     « ⋮ » après le zoom et les masquages quand la barre manque de place —
+     sur téléphone aussi depuis la suite 50 —, une pastille sur « ⋮ » le
+     signale alors) avec le nombre de tâches encore
      « à réserver » à partir d'aujourd'hui. Un clic ouvre la liste, triée
      par date : quand, qui, quoi, quel chantier ; un clic sur une ligne
      amène le planning sur ce jour. Des pastilles en haut de la liste
@@ -123,6 +124,10 @@
     var barre = document.getElementById("legendeBarre");
     if (barre) barre.style.setProperty("--couleur-a-reserver", s.couleur); // pastille de « ⋮ » (style.css)
     btn.title = premiereMajuscule_(s.nom) + " — " + (n ? n + " tâche" + (n > 1 ? "s" : "") + " à partir d’aujourd’hui" : "rien à partir d’aujourd’hui");
+    // Libellé et compteur changent la largeur du bouton : la barre est
+    // remesurée (suite 50 — un compteur à 2 chiffres pouvait pousser « ⋮ »
+    // hors de la barre d'un téléphone étroit).
+    if (typeof ajusterDebordementToolbar === "function") ajusterDebordementToolbar();
   }
 
   function ouvrirResumeAReserver(cleStatut) {

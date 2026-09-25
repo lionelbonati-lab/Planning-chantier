@@ -219,7 +219,8 @@
   // « À réserver » (suite 47, js/a-reserver.js) : replié après Zoom et
   // Masquages, avant la navigation — sans quoi, toujours dans la barre, il
   // chassait la navigation dans « ⋮ » dès 820 px (tablette). Sur téléphone,
-  // il reste dans la barre : la place y est (tout le reste est dans « ⋮ »).
+  // il reste dans la barre tant qu'il y tient (tout le reste est dans
+  // « ⋮ ») — replié sinon (suite 50, cf. ajusterDebordementToolbar).
   var REPLIS_ORDRE = ["groupeZoom", "controlesAffichage", "groupeAReserver", "groupeNavSemaine", "groupeImprimer"];
   var REPLIS_TELEPHONE = REPLIS_ORDRE.filter(function (id) { return id !== "groupeAReserver"; }).concat(["groupeAjoutLigne"]);
   // Insère `el` dans `conteneur` avant le premier enfant de rang supérieur
@@ -263,6 +264,15 @@
     if (telephone) {
       groupes.forEach(function (g) { insererAuRang(g, panneau, "rangMenu"); });
       legendeBarre.classList.add("toolbar-compacte");
+      // Round du 25.09.2026 (suite 50) — Lionel, capture de son téléphone :
+      // « Sur téléphone la toolbar déborde ». « À réserver » gardé d'office
+      // dans la barre poussait « ⋮ » hors de la pilule (mesuré : 11 px de
+      // trop à 360 px, 39 px à 320 px ; davantage avec une taille de texte
+      // agrandie dans les réglages du téléphone). Il suit maintenant la
+      // même règle que sur ordinateur : replié dans « ⋮ » (pastille sur
+      // « ⋮ ») quand il ne tient plus, dans la barre sinon.
+      var aReserver = document.getElementById("groupeAReserver");
+      if (aReserver && barreDeborde(legendeBarre, panneau)) insererAuRang(aReserver, panneau, "rangMenu");
       return;
     }
     var ordre = REPLIS_ORDRE.map(function (id) { return document.getElementById(id); }).filter(Boolean);
@@ -1106,7 +1116,12 @@
     // du jour, et avec lui l'arrondi des bulles qui le touchent, passait
     // sous le bord de l'écran. Désormais : matin + écart + après-midi =
     // exactement la zone visible (colonne d'un jour de week-end aussi).
-    var largeurVisibleJour = enModeJourMobile ? (racineEl.clientWidth - 2 - LN) : 0;
+    //
+    // Round du 25.09.2026 (suite 50) — planning pleine largeur sur
+    // téléphone (style-mobile.css) : .grille-cadre n'y a plus de bordure à
+    // gauche ni à droite, plus rien à retirer (la vue "1 jour" n'existe
+    // que sur téléphone, cf. modeJourMobileActif).
+    var largeurVisibleJour = enModeJourMobile ? (racineEl.clientWidth - LN) : 0;
     var largeurColJour = (largeurVisibleJour - (colsParJour() - 1)) / colsParJour();
     // Même correctif pour .b-txt/.b-statut/.b-serie et .b-carte (style.css,
     // toutes deux `max-width: var(--largeur-visible-bulle, ...)` désormais)
