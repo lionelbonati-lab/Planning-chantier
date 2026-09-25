@@ -7567,3 +7567,22 @@ Vérifié en local (Playwright) — **`test_suite30.js`** (nouveau), 7 vérifica
 - `test_suite29.js` toujours OK (6/6) ; PDF Chrome : tous les traits à 1px ou 2px.
 - **Suite complète** : mêmes 8 échecs que sur `main` (cf. §129).
 - WebKit n'est pas installable dans l'environnement de test : la correction repose sur la suppression de la cause (aucune case positionnée), vérifiée par le test. Le rendu Safari est à confirmer sur l'appareil de Lionel.
+
+## 139. Round du 25.09.2026 (suite 31) — Trait fin autour des statuts à l'impression
+
+Lionel : « Ajoute un trait fin autour des statuts à l'impression. »
+
+`.print-statut` (`style.css`) : `border: 1px solid var(--border-strong)`.
+- **Pourquoi** : la pastille pâle (« CONFIRMÉ » vert, « RÉSERVÉ » jaune) se fondait dans la bande du chantier sur le papier ; elle est maintenant nettement détourée.
+- **Épaisseur** : 1px, un nombre entier de pixels pour éviter la dérive d'arrondi des largeurs fractionnaires (cf. 16.09).
+- **Couleur** : l'encre de la grille, dans le même langage que le reste du tableau.
+- **Taille** : le padding perd 1px de chaque côté (`1px 6px` → `0 5px`), donc la pastille garde exactement sa taille et la hauteur des cases ne bouge pas.
+- **Écran** : ne concerne que l'aperçu et l'impression, pas les bulles du planning.
+
+Vérifié en local (Playwright) — **`test_suite31.js`** (nouveau), 4 vérifications, toutes OK :
+- trait plein de 1px sur les 4 côtés des 2 statuts ;
+- couleur #1a2129 à l'impression ;
+- taille de la pastille identique à avant ;
+- au pixel, le trait fait tout le tour.
+- Rendu contrôlé dans le PDF Chrome.
+- **Suite complète** : mêmes 8 échecs que sur `main` (cf. §129).

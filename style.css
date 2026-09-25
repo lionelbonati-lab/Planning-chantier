@@ -2359,7 +2359,14 @@
      ligne (cf. leur propre exclusion ":not(.print-notes)" plus haut). */
   table.print-table tr.print-notes td { border: none; padding: 0 7px; }
   table.print-table tr.print-notes td.filled { border: 1px solid var(--border-strong); background: var(--note-bg); padding: 4px 7px; }
-  .print-statut { display: inline-block; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; padding: 1px 6px; border-radius: 999px; margin-top: 3px; }
+  /* Trait fin autour du statut (round du 25.09.2026, suite 31) — Lionel :
+     « Ajoute un trait fin autour des statuts à l'impression. » Sur le papier,
+     la pastille pâle (« CONFIRMÉ » vert, « RÉSERVÉ » jaune) se fondait dans
+     la bande du chantier. 1px (entier, cf. la dérive d'arrondi des largeurs
+     fractionnaires du 16.09) dans l'encre de la grille, pour rester dans le
+     même langage que le reste du tableau. Le padding perd 1px de chaque côté :
+     la pastille garde exactement sa taille, la hauteur des cases ne bouge pas. */
+  .print-statut { display: inline-block; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; padding: 0 5px; border: 1px solid var(--border-strong); border-radius: 999px; margin-top: 3px; }
   .print-important { color: var(--important-ink); font-weight: 700; }
   .print-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
   .print-legend .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink); }
