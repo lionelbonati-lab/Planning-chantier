@@ -1195,6 +1195,63 @@
         else { carte.style.display = ""; carte.style.width = (d - g) + "px"; }
       }
     }
+    // figerHauteursBullesJourMobile() — round du 25.09.2026 (suite 34).
+    // Lionel : « Sur mobile, éviter que les hauteurs de cellules ne change
+    // pendant un changement de jour. » Cause : ajusterLargeurBullesJourMobile
+    // (juste au-dessus) MASQUE les cartes hors écran (display:none) et
+    // RÉTRÉCIT celles à moitié visibles pendant le glissement. Or la
+    // hauteur d'une piste (ligne de grille, cf. assignerPistes) est celle de
+    // sa plus haute bulle AFFICHÉE : elle suivait donc le jour visible
+    // (Mathis 55 px le jeudi, 109 px le mercredi avec 2 bulles l'une
+    // sous l'autre) et bougeait même en plein geste (texte qui passe sur 2
+    // lignes quand la carte rétrécit).
+    // Correctif : une fois par rendu, chaque bulle reçoit une hauteur FIXE,
+    // celle de sa carte à sa largeur la plus étroite « au repos »,
+    // c.-à-d. sa plus petite part sur un jour (une demi-journée de début ou
+    // de fin, sinon le jour entier, bornée à la largeur visible). Cette
+    // largeur donne le plus de lignes de texte, donc une hauteur qui tient
+    // sur tous ses jours. Les cartes masquées ou rétrécies ne changent
+    // plus rien à la grille : les lignes gardent la même hauteur sur toute
+    // la fenêtre de 2 semaines, comme en vue « 1 semaine ». La carte
+    // remplit cette hauteur (.hauteur-figee, style.css), texte centré.
+    // Mesures en getBoundingClientRect (même repère pour en-têtes et
+    // bulles, quelle que soit leur grille), ramenées en px CSS par le
+    // zoom avant d'être posées en style.
+    function figerHauteursBullesJourMobile() {
+      if (!enModeJourMobile) return;
+      var zoom = (niveauZoomPlanning / 100) || 1;
+      var rEntete = grilleEntete.getBoundingClientRect();
+      var largeurVisible = scroller.clientWidth - 116;
+      var jours = [];
+      grilleEntete.querySelectorAll(".th[data-gi]").forEach(function (th) {
+        var r = th.getBoundingClientRect();
+        jours.push([r.left - rEntete.left, r.right - rEntete.left]);
+      });
+      var bulles = [].slice.call(grilleCorps.querySelectorAll(".bulle")).concat([].slice.call(grilleEntete.querySelectorAll(".bulle")));
+      var mesures = [];
+      bulles.forEach(function (b) {
+        var carte = b.querySelector(".b-carte");
+        if (!carte) return;
+        b.classList.remove("hauteur-figee");
+        b.style.height = "";
+        var rGrille = (b.parentNode === grilleEntete ? grilleEntete : grilleCorps).getBoundingClientRect();
+        var rB = b.getBoundingClientRect(), g = rB.left - rGrille.left, d = rB.right - rGrille.left;
+        var plusEtroite = Math.min(largeurVisible, rB.width);
+        jours.forEach(function (j) {
+          var part = Math.min(d, j[1]) - Math.max(g, j[0]);
+          if (part > 1 && part < plusEtroite) plusEtroite = part;
+        });
+        carte.style.display = "";
+        carte.style.width = (plusEtroite / zoom) + "px";
+        mesures.push([b, carte]);
+      });
+      // Lecture groupée APRÈS toutes les écritures : une seule mise en page.
+      var hauteurs = mesures.map(function (m) { return m[1].getBoundingClientRect().height / zoom; });
+      mesures.forEach(function (m, i) {
+        m[0].style.height = Math.ceil(hauteurs[i]) + "px";
+        m[0].classList.add("hauteur-figee");
+      });
+    }
     // rAF-throttlé : "scroll" peut se déclencher plusieurs fois par frame
     // pendant un glissé — recalculer pour toutes les bulles à chaque
     // événement brut serait inutilement coûteux.
@@ -1780,6 +1837,19 @@
       cibleApresRendu = null;
     } else if (scrollerPrecedent) {
       cibleScrollLeft = scrollLeftPrecedent;
+    }
+    // Hauteurs figées AVANT le calage horizontal et le premier
+    // ajusterLargeurBullesJourMobile (qui repose ensuite les largeurs du
+    // jour visible) — cf. figerHauteursBullesJourMobile. Si les polices ne
+    // sont pas encore chargées (premier affichage), la mesure est refaite
+    // une fois qu'elles le sont : le texte n'occupe pas la même place.
+    figerHauteursBullesJourMobile();
+    if (enModeJourMobile && document.fonts && document.fonts.status !== "loaded") {
+      document.fonts.ready.then(function () {
+        if (!scroller.isConnected) return;
+        figerHauteursBullesJourMobile();
+        ajusterLargeurBullesJourMobile();
+      });
     }
     scroller.scrollLeft = cibleScrollLeft;
     // enteteScroll doit refléter le même défilement horizontal dès ce même

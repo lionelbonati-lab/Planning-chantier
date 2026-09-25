@@ -11,7 +11,38 @@
      ============================================================ */
   var SUPABASE_URL = "https://mvqvznohgtpulpgalvxl.supabase.co";
   var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12cXZ6bm9oZ3RwdWxwZ2FsdnhsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0ODI2MDcsImV4cCI6MjEwNDA1ODYwN30.HJjw2evEw1ka1IQAPNgba8sA8qDNRWhPvd96Kx4DkUQ";
-  var sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  // Round du 25.09.2026 (suite 34) — Lionel, capture « Impossible de
+  // charger le planning — JWT issued at future » : « Erreur récurente au
+  // démarrage. » Journaux Supabase du jour : à chaque fois, la session
+  // venait d'être renouvelée (token_refreshed à 15:05:29.86, téléphone
+  // rouvert après plus d'une heure) et UNE requête partie 0,35 s plus tard
+  // est refusée en 401 : l'horloge du serveur de données retarde d'un
+  // instant sur celle du serveur d'authentification, le jeton tout neuf
+  // lui paraît « émis dans le futur ». Ni le code ni le téléphone n'y sont
+  // pour rien, et une seconde plus tard le même jeton passe (le bouton
+  // Réessayer marchait toujours). fetchAvecRejeuJwt_ fait ce rejeu tout
+  // seul : sur un 401 dont le corps dit « issued at future », même requête
+  // relancée après 1 s, puis 2 s, puis 3 s — pour TOUTES les requêtes
+  // (démarrage, semaines, écritures, RPC, fonctions), le renouvellement
+  // automatique pouvant tomber à n'importe quel moment de la journée.
+  // Corps des requêtes : toujours une chaîne JSON chez supabase-js, donc
+  // renvoyable tel quel.
+  var DELAIS_REJEU_JWT_ = [1000, 2000, 3000];
+  function fetchAvecRejeuJwt_(entree, options) {
+    var essai = 0;
+    function tenter() {
+      return window.fetch(entree, options).then(function (rep) {
+        if (rep.status !== 401 || essai >= DELAIS_REJEU_JWT_.length) return rep;
+        return rep.clone().text().then(function (corps) {
+          if (!/issued at future/i.test(corps)) return rep;
+          var delai = DELAIS_REJEU_JWT_[essai++];
+          return new Promise(function (ok) { setTimeout(ok, delai); }).then(tenter);
+        }, function () { return rep; });
+      });
+    }
+    return tenter();
+  }
+  var sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { global: { fetch: fetchAvecRejeuJwt_ } });
 
   function afficherEcranConnexion(messageErreur) {
     app.innerHTML =
@@ -303,6 +334,9 @@
   }
   function erreurFatale(err) {
     var texte = (err && err.message) ? err.message : String(err);
+    // Suite 34 : si même les 3 rejeux de fetchAvecRejeuJwt_ (plus haut)
+    // n'ont pas suffi, dire ce qui se passe plutôt que le message anglais.
+    if (/issued at future/i.test(texte)) texte = "Le serveur a refusé la session qui venait d'être renouvelée (léger décalage d'horloge chez Supabase). Réessaie dans quelques secondes.";
     app.innerHTML =
       '<div class="error-screen">' +
       '<div class="mark-err">' + ICONS.close + '</div>' +

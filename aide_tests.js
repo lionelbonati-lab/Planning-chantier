@@ -77,7 +77,9 @@ const FAUX_SUPABASE = LOGIQUE_PLAGE + '\n(' + function () {
     };
     return q;
   }
-  window.supabase = { createClient: function () {
+  window.supabase = { createClient: function (url, cle, options) {
+    // Options passées par js/core.js (suite 34 : global.fetch = rejeu JWT).
+    window.__OPTIONS_CLIENT = options || null;
     return {
       auth: {
         getSession: function () { return Promise.resolve({ data: { session: { user: { email: 'test@local' } } } }); },

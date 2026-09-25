@@ -7657,3 +7657,50 @@ Vérifié en local (Playwright) — **`test_suite33.js`** (nouveau), 29 vérific
 Également :
 - `test_suite32.js` : le code de sortie était inversé (`bilan() ? 0 : 1` alors que `bilan()` renvoie déjà 0/1) ; il passe maintenant à 0 quand tout est OK.
 - **Suite complète** : mêmes 8 échecs que sur `main` (cf. §129).
+
+## 142. Round du 25.09.2026 (suite 34) — Erreur « JWT issued at future », horaire dans la 1re colonne, hauteurs stables sur mobile
+
+Lionel, 2 captures de téléphone : « Erreur récurente au démarrage. / Il reste un horaire qui s'affiche dans la première colonne. / Sur mobile, éviter que les hauteurs de cellules ne change pendant un changement de jour. »
+
+### 1. « Impossible de charger le planning — JWT issued at future » (js/core.js)
+- **Cause** (journaux Supabase du 25.09) :
+  - 8 refus 401 dans la journée, chacun sur UNE seule requête du démarrage ;
+  - à 15:05:29.86, la session est renouvelée (téléphone rouvert après plus d'une heure) ;
+  - 0,35 s plus tard, la requête `chantiers` est refusée : l'horloge du serveur de données retarde d'un instant sur celle du serveur d'authentification, et le jeton tout neuf lui paraît émis dans le futur.
+  - Ce n'est ni l'appli ni le téléphone. Une seconde plus tard, le même jeton passe (d'où le bouton Réessayer qui marchait).
+- **Correctif** :
+  - `fetchAvecRejeuJwt_` est passé à `createClient` (`global.fetch`), donc il vaut pour toutes les requêtes : démarrage, semaines, écritures, RPC, fonctions.
+  - Un 401 dont le corps dit « issued at future » est rejoué après 1 s, 2 s, puis 3 s. Tout autre 401 (ex. « JWT expired ») est rendu tel quel.
+  - Si les 3 rejeux ne suffisent pas, l'écran d'erreur l'explique en français.
+- Vérifié aussi avec la **vraie** supabase-js 2.117.2 (paquet npm, serveur simulé) :
+  - deux refus « issued at future » → planning chargé en 3,4 s ;
+  - « JWT expired » → erreur immédiate, pas de rejeu.
+
+### 2. Horaire visible dans la 1re colonne (style.css)
+- La case de gauche de la ligne M | A (`.th.coin.th-demi`) est figée à gauche par-dessus les jours qui défilent.
+- Elle héritait de l'`opacity: .75` de `.th-demi` : l'horaire de la veille (« 13:00–17:15 ») se voyait à travers en vue « 1 jour ».
+- → `opacity: 1`.
+
+### 3. Hauteurs de lignes stables en vue « 1 jour » (js/grille-rendu.js, style.css)
+- **Cause** :
+  - `ajusterLargeurBullesJourMobile` masque les cartes hors écran et rétrécit celles à moitié visibles pendant le glissement.
+  - Une piste prenait donc la hauteur de ses seules bulles visibles : Mathis 55 px le jeudi, 109 px le mercredi (2 bulles l'une sous l'autre).
+  - Elle bougeait même en plein geste : un texte passe sur 2 lignes quand sa carte rétrécit.
+- **Correctif** — `figerHauteursBullesJourMobile()`, une fois par rendu en vue « 1 jour » :
+  - chaque bulle prend une hauteur fixe : celle de sa carte à sa largeur la plus étroite une fois un jour posé (demi-journée de début/fin, sinon le jour entier, bornée à l'écran), donc assez pour tous ses jours ;
+  - la carte remplit cette hauteur (`.bulle.hauteur-figee`) et coupe son texte en plein glissement plutôt que d'agrandir la ligne ;
+  - les lignes ont ainsi la même hauteur sur toute la fenêtre de 2 semaines, comme en vue « 1 semaine ». Contrepartie : un jour peu chargé garde la place des bulles des autres jours ;
+  - mesure refaite une fois les polices chargées.
+- Ordinateur et tablette (vue semaine) : inchangés.
+
+Vérifié en local (Playwright) — **`test_suite34.js`** (nouveau), 19 vérifications, toutes OK :
+- rejeu : 1 s, puis 200 ; « JWT expired » non rejoué ; 3 rejeux au plus ; message français ;
+- case M | A opaque et au-dessus des jours qui défilent ;
+- téléphone : mêmes hauteurs de lignes à 0, ¼, ½, ¾, 1 jour dans les deux sens ;
+- aucun texte coupé une fois le jour posé ;
+- zoom 80 % ;
+- ordinateur sans hauteur figée.
+
+Également :
+- `aide_tests.js` : le faux `createClient` garde ses options (`window.__OPTIONS_CLIENT`).
+- **Suite complète** : mêmes 8 échecs que sur `main` (cf. §129).
