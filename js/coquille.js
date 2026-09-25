@@ -30,13 +30,14 @@
             '<button type="button" class="onglet" data-page="statuts">' + ICONS.tag + 'Statuts</button>' +
             '<button type="button" class="onglet" data-page="feries">' + ICONS.star + 'Fériés</button>' +
             '<button type="button" class="onglet" data-page="horaires">' + ICONS.clock + 'Horaires</button>' +
+            '<button type="button" class="onglet" data-page="mise-en-page">' + ICONS.miseEnPage + 'Mise en page</button>' +
             '<button type="button" class="onglet" data-page="entree-rapide">' + ICONS.bolt + 'Entrée rapide</button>' +
           '</div>' +
           '<button type="button" class="avatar-nav" id="lienDeconnexionNav" title="Se déconnecter" aria-label="Se déconnecter">L</button>' +
         '</nav>' +
         '<div class="app-main">' +
           htmlPagePlanning() + htmlPageJalons() + htmlPageGeneral() + htmlPagePersonnel() + htmlPageIntervenants() +
-          htmlPageChantiers() + htmlPageStatuts() + htmlPageEntreeRapide() + htmlPageFeries() + htmlPageHoraires() +
+          htmlPageChantiers() + htmlPageStatuts() + htmlPageEntreeRapide() + htmlPageFeries() + htmlPageHoraires() + htmlPageMiseEnPage() +
         '</div>' +
         // §91 (round du 22.09.2026, suite) — Lionel, mockup mockup-nav-mobile.html
         // validé (croquis Google Sheets à l'appui : « j'aime bien la
@@ -74,6 +75,7 @@
             '<button type="button" class="onglet switcher-item" data-page="statuts">' + ICONS.tag + 'Statuts</button>' +
             '<button type="button" class="onglet switcher-item" data-page="feries">' + ICONS.star + 'Fériés</button>' +
             '<button type="button" class="onglet switcher-item" data-page="horaires">' + ICONS.clock + 'Horaires</button>' +
+            '<button type="button" class="onglet switcher-item" data-page="mise-en-page">' + ICONS.miseEnPage + 'Mise en page</button>' +
             '<button type="button" class="onglet switcher-item" data-page="entree-rapide">' + ICONS.bolt + 'Entrée rapide</button>' +
           '</div>' +
         '</div>' +
@@ -83,6 +85,7 @@
     cablerPageEntreeRapide();
     cablerPageFeries();
     cablerPageHoraires();
+    cablerPageMiseEnPage();
     // §80 : le lien flottant (position:fixed, cf. afficherLienDeconnexion) ne
     // sert plus qu'à la fenêtre entre connexion et 1er rendu — la vraie
     // coquille étant maintenant construite, il devient redondant avec le
@@ -510,6 +513,18 @@
       '<div class="horaires-liste" id="horairesListe"></div>' +
       '</div></div>';
   }
+  // Page Mise en page (round du 25.09.2026, suite 39) — cf.
+  // js/page-mise-en-page.js. Réglages à gauche, aperçu schématique de la
+  // feuille à droite (l'un sous l'autre sur téléphone).
+  function htmlPageMiseEnPage() {
+    return '<div class="page" id="page-mise-en-page"><div class="page-scroll">' +
+      '<div class="page-titre"><h1>Mise en page</h1>' +
+        '<div class="actions-feries"><span class="mep-etat" id="mepEtat"></span><button class="btn-calculer" id="btnReinitMep" type="button">Réinitialiser</button></div>' +
+      '</div>' +
+      '<p class="page-sous">La feuille imprimée depuis le planning (bouton Imprimer) : orientation, marges, espacements, en-tête et pied de page. Enregistré sur ton compte à chaque changement, mêmes réglages sur téléphone et ordinateur. Ce qui s’imprime ou non (jalons, notes, personnes…) se coche dans l’aperçu d’impression.</p>' +
+      '<div class="mep-grille"><div class="mep-formulaire impr-grille" id="mepFormulaire"></div><div class="mep-apercu" id="mepApercu"></div></div>' +
+      '</div></div>';
+  }
   // afficherVersionServeur()/apiVersionServeur supprimés le 07.09.2026 (phase
   // 4, étape 5 — chasse aux trous laissés par la migration, cf.
   // MIGRATION-GITHUB-PLAN.md §6bis étape 5). Ce diagnostic datait du round du
@@ -550,6 +565,7 @@
       personnel: renderPersonnel, intervenants: renderIntervenants,
       chantiers: renderChantiers, statuts: renderStatuts,
       "entree-rapide": renderFormulaires, feries: renderFeries, horaires: renderHoraires,
+      "mise-en-page": renderMiseEnPage,
       // Round du 16.09.2026 (suite, encore) : la page Planning elle-même
       // n'a pas besoin d'un re-rendu complet à chaque activation (ses
       // données restent à jour en tâche de fond, cf. synchroniser()) — mais

@@ -7872,3 +7872,52 @@ Lionel : « Améliore la page impression pour pouvoir modifier manuellement dive
   - ancienne clé des horaires reprise.
 - Tests d'impression existants (suites 27, 29, 30, 31, 33, 35) inchangés et verts.
 - **Suite complète : 48/48** (`node lancer_tests.js`).
+
+## 147. Round du 25.09.2026 (suite 39) — Onglet « Mise en page » : en-tête, pied de page, marges, espacements
+
+Lionel : « Je pensais aussi à une mise en page. En-tête, pied de pages, marges, espaces entre les éléments. C'est peut-être plus judicieux de faire un onglet mise en pages. Et garde que les réglage à cocher dans la feuille impression. »
+
+### Questions à Lionel
+- « Que doit contenir l'en-tête ? » → Texte libre, Chantier filtré, La date d'impression.
+- « Que doit contenir le pied de page ? » → Numéro de page, Date d'impression, Texte libre.
+- « Un aperçu dans l'onglet ? » → « Aperçu simplifié sans données ».
+- « Où retenir les réglages ? » → « Liés au compte » (mêmes réglages sur téléphone et ordinateur).
+
+### Table `reglages` (sql/0016_reglages.sql)
+- `cle text primary key, valeur jsonb, maj timestamptz` ; RLS « connecte_tout » + grants, comme les autres tables. Appliquée directement sur le projet (migration `reglages`).
+- Une ligne `mise_en_page` pour l'instant ; un réglage de plus plus tard ne demandera pas de migration.
+- Chargée au démarrage sans bloquer (`etat.reglages`, js/donnees-sync.js). Si elle ne répond pas, la dernière mise en page connue de l'appareil (`planning.mise-en-page`) s'applique.
+- Écriture 0,5 s après le dernier changement (une seule requête pendant une frappe), mention « Enregistré » à côté de Réinitialiser.
+
+### Onglet « Mise en page » (js/page-mise-en-page.js)
+- Nouvel onglet après Horaires, dans la barre du haut et le sélecteur du bas (icône feuille).
+- Réglages :
+  - **Page** : orientation, taille du texte (déplacées depuis l'aperçu d'impression) ;
+  - **Marges** en mm (haut, bas, gauche, droite ; 12 mm par défaut, comme avant) ;
+  - **Espacements** en mm : entre les personnes, entre les sections, dans les cases, avant la légende. Convertis en px entiers à l'impression ; les valeurs par défaut (1,6 / 3,7 / 1,3 / 3,7 mm) redonnent exactement 6 / 14 / 5 / 14 px, la feuille d'avant ;
+  - **En-tête** : texte libre (l'ancien « titre libre »), chantier choisi, date d'impression ;
+  - **Pied de page** : numéro de page (« Page 1 / 2 »), date d'impression (« Imprimé le 25.09.2026 à 18:05 »), texte libre.
+- « Chantier filtré » : le planning n'a pas de filtre par chantier ; c'est le chantier choisi dans le sélecteur de la barre d'outils (chantier par défaut des formulaires) qui s'écrit, rien si aucun n'est choisi. La case le rappelle.
+- **Aperçu simplifié** à droite (dessous sur téléphone) : feuille A4 à l'échelle dans l'orientation choisie, marges en pointillés, vrais textes de l'en-tête et du pied de page, barres grises à la place du tableau espacées comme à l'impression. Aucune donnée du planning.
+
+### Impression (js/impression.js, style.css)
+- Le panneau « Réglages » de l'aperçu ne garde que les cases à cocher (Afficher, Personnes) + Réinitialiser, et une ligne « Paysage, marges 12 mm — Mise en page › » qui ferme l'aperçu et ouvre l'onglet.
+- Règle `@page` complète posée le temps de l'aperçu (`cssPageImpression`) : orientation, 4 marges, et en-tête / pied de page dans les **boîtes de marge** (`@top-left/center/right`, `@bottom-…`) : répétés sur chaque page par le navigateur, numéro de page compris (`counter(page) / counter(pages)`). En-tête : texte à gauche, chantier au centre, date à droite ; pied : texte à gauche, date au centre, page à droite. Guillemets et barres obliques échappés.
+- Date d'impression remise à l'heure au moment d'imprimer (`beforeprint`).
+- À l'écran, en-tête et pied de page simulés au-dessus et au-dessous du tableau (pointillés), jamais imprimés.
+- Espacements : variables CSS `--impr-esp-personnes`, `--impr-esp-sections`, `--impr-pad-cases`, `--impr-esp-legende` à la place des hauteurs et marges en dur.
+- Le titre libre n'est plus écrit dans la feuille : il est devenu le texte libre de l'en-tête.
+- Reprise : l'orientation, la taille et le titre retenus sur l'appareil à la suite 38 sont repris une fois (et enregistrés sur le compte) tant que le compte n'a pas encore de mise en page.
+
+### Tests
+- `test_suite39.js` (nouveau, 29 vérifications) :
+  - onglet dans les 2 barres, blocs, valeurs par défaut ;
+  - aperçu simplifié (A4 paysage puis portrait, textes, aucune donnée), mis à jour en direct ;
+  - une seule écriture dans `reglages` après une rafale de changements, mention « Enregistré », marge hors bornes ramenée à 40 mm ;
+  - impression : `@page` (portrait, marges), en-tête et pied dans les boîtes de marge, règle comprise par le navigateur, en-tête/pied simulés à l'écran et masqués à l'impression, taille du texte, résumé, espacements (4 mm = 15 px, 2 mm = 8 px), date recalculée au `beforeprint` ;
+  - lien vers l'onglet, Réinitialiser ;
+  - réglage du compte lu sur un « autre appareil », table injoignable (copie locale), reprise des réglages de la suite 38 ;
+  - téléphone : aperçu sous les réglages, sans débordement.
+- `test_suite38.js` : le panneau n'a plus que 2 blocs, aucune liste ni champ texte ; orientation, taille et titre vérifiés par `test_suite39.js`.
+- `test_suite29.js` (écarts 6 et 14 px) inchangé et vert avec les variables CSS.
+- **Suite complète : 49/49** (`node lancer_tests.js`).

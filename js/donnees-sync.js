@@ -394,7 +394,12 @@
       // Composition des équipes par semaine (round du 25.09.2026, suite 33
       // — sql/0015, js/equipes.js) : non bloquante non plus. Sans elle, une
       // équipe s'affiche simplement « Aucun membre ».
-      sbClient.from("equipes_compositions").select(COLONNES_COMPOSITIONS)
+      sbClient.from("equipes_compositions").select(COLONNES_COMPOSITIONS),
+      // Réglages liés au compte (round du 25.09.2026, suite 39 — sql/0016,
+      // js/page-mise-en-page.js) : mise en page de l'impression. Non
+      // bloquante : sans elle, le dernier réglage retenu sur l'appareil
+      // (ou celui par défaut) s'applique.
+      sbClient.from("reglages").select("cle, valeur")
     ]).then(function (r) {
       r.slice(0, 4).forEach(function (res) { if (res.error) throw res.error; }); // ces 4-là restent bloquantes, comme avant
       var personnesBrutes = r[0].data || [], chantiersBruts = r[1].data || [], statutsBruts = r[2].data || [], feriesBruts = r[3].data || [];
@@ -429,6 +434,13 @@
       reconstruireFeriesParIso();
       etat.horairesServeur = (r[6] && !r[6].error) ? normaliserHoraires(r[6].data || []) : [];
       etat.compositionsEquipes = (r[7] && !r[7].error) ? normaliserCompositions(r[7].data || []) : [];
+      // etat.reglages : { cle: valeur } — null si la requête a échoué (la
+      // mise en page retombe alors sur son cache local, cf.
+      // lireMiseEnPage, js/page-mise-en-page.js).
+      if (r[8] && !r[8].error) {
+        etat.reglages = {};
+        (r[8].data || []).forEach(function (x) { etat.reglages[x.cle] = x.valeur; });
+      } else etat.reglages = null;
 
       // etat.couleursPerso : null tant que le serveur n'a pas répondu (page-
       // couleurs.js retombe alors sur son cache localStorage, cf. son

@@ -11,6 +11,9 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //   - Orientation, Taille du texte, Titre libre ;
 //   - réglages retenus sur l'appareil, bouton Réinitialiser.
 // Panneau « Réglages » de l'aperçu (openPrintSheet, js/impression.js).
+// Suite 39 : orientation, taille du texte et titre sont partis dans l'onglet
+// Mise en page (Lionel : « garde que les réglage à cocher dans la feuille
+// impression ») — vérifiés par test_suite39.js ; ici, leur absence.
 //
 // Lancer : node test_suite38.js
 
@@ -36,7 +39,6 @@ const apercu = (page) => page.evaluate(() => {
     legende: !!doc.querySelector('.print-legend'), statuts: doc.querySelectorAll('.print-statut').length,
     fonds: [...doc.querySelectorAll('.print-bande')].map((b) => b.style.background).filter((b) => b.indexOf('surface-2') < 0),
     chantiers: [...doc.querySelectorAll('.print-chantier')].map((c) => c.textContent),
-    titre: (doc.querySelector('.print-titre') || {}).textContent || null,
     police: parseFloat(getComputedStyle(td).fontSize),
     notesBas: [...doc.querySelectorAll('.skip-note')].map((n) => n.textContent),
     page: document.querySelector('.style-page-impression').textContent
@@ -59,11 +61,13 @@ const rouvrir = async (page) => {
 
     // --- 1. Par défaut : comme avant ---
     const libelles = await page.evaluate(() => [...document.querySelectorAll('.impr-reglages fieldset')].map((f) => f.textContent.replace(/\s+/g, ' ').trim()));
-    verifier(libelles.length === 3 && ['Jalons', 'Notes', 'Intervenants', 'Légende des chantiers', 'Statuts des intervenants', 'Couleurs des chantiers', 'Personnes sans tâche'].every((l) => libelles[0].includes(l)),
-      'panneau « Réglages » : Afficher / Personnes / Mise en page (' + libelles[0] + ')');
-    verifier(['Orientation', 'Taille du texte', 'Titre', 'Réinitialiser'].every((l) => libelles[2].includes(l)), 'mise en page : orientation, taille du texte, titre, réinitialiser');
+    verifier(libelles.length === 2 && ['Jalons', 'Notes', 'Intervenants', 'Légende des chantiers', 'Statuts des intervenants', 'Couleurs des chantiers', 'Personnes sans tâche'].every((l) => libelles[0].includes(l)),
+      'panneau « Réglages » : Afficher / Personnes, rien d\'autre (' + libelles[0] + ')');
+    const bas = await page.evaluate(() => ({ selects: document.querySelectorAll('.impr-reglages select, .impr-reglages input[type=text]').length,
+      reinit: !!document.querySelector('.impr-reglages .f-reinit'), lien: (document.querySelector('.impr-reglages .impr-lien-mep') || {}).textContent }));
+    verifier(bas.selects === 0 && bas.reinit && /Paysage, marges 12 mm — Mise en page ›/.test(bas.lien), 'suite 39 : plus que des cases à cocher, Réinitialiser et un lien vers l\'onglet Mise en page (' + JSON.stringify(bas) + ')');
     let a = await apercu(page);
-    verifier(a.personnes.join() === 'Lionel,Mathis,Béton/Armature' && a.jalons === 1 && a.notes === 1 && a.legende && a.statuts === 1 && a.fonds.length === 4 && !a.titre,
+    verifier(a.personnes.join() === 'Lionel,Mathis,Béton/Armature' && a.jalons === 1 && a.notes === 1 && a.legende && a.statuts === 1 && a.fonds.length === 4,
       'par défaut : jalons, notes, intervenants, légende, statut, couleurs ; personnes sans tâche masquées (' + JSON.stringify(a) + ')');
     verifier(/size: landscape/.test(a.page) && a.police === 11, 'par défaut : paysage, texte 11 px');
     const antoine = await coche(page, '[data-p="3"]');
@@ -97,36 +101,26 @@ const rouvrir = async (page) => {
     a = await apercu(page);
     verifier(a.personnes.join() === 'Lionel,Antoine,Béton/Armature,Echafaudage', 'Personnes sans tâche : Antoine et Echafaudage imprimés (' + a.personnes.join() + ')');
 
-    // --- 4. Mise en page ---
-    await page.selectOption('[data-r="orientation"]', 'portrait');
-    await page.selectOption('[data-r="taille"]', 'grande');
-    await page.fill('[data-r="titre"]', 'Version du 25.09');
-    a = await apercu(page);
-    verifier(/size: portrait/.test(a.page), 'Orientation portrait : @page en portrait');
-    verifier(Math.abs(a.police - 13.2) < 0.1, 'Taille du texte grande : 13,2 px (' + a.police + ')');
-    verifier(a.titre === 'Version du 25.09', 'Titre libre en tête de feuille');
-    await page.selectOption('[data-r="taille"]', 'petite');
-    a = await apercu(page);
-    verifier(a.police < 9.2 && a.police > 8.8, 'Taille du texte petite : ~9 px (' + a.police + ')');
+    // --- 4. À l'impression (orientation, taille, titre : test_suite39.js) ---
     await page.emulateMedia({ media: 'print' });
-    const papier = await page.evaluate(() => ({ panneau: getComputedStyle(document.querySelector('.impr-reglages')).display, titre: getComputedStyle(document.querySelector('.print-titre')).display }));
+    const papier = await page.evaluate(() => ({ panneau: getComputedStyle(document.querySelector('.impr-reglages')).display, table: getComputedStyle(document.querySelector('.print-table')).display }));
     await page.emulateMedia({ media: 'screen' });
-    verifier(papier.panneau === 'none' && papier.titre !== 'none', 'à l\'impression : panneau de réglages masqué, titre libre imprimé (' + JSON.stringify(papier) + ')');
+    verifier(papier.panneau === 'none' && papier.table !== 'none', 'à l\'impression : panneau de réglages masqué, tableau imprimé (' + JSON.stringify(papier) + ')');
 
     // --- 5. Retenus, puis Réinitialiser ---
     await rouvrir(page);
     a = await apercu(page);
     const r = await page.evaluate(() => ({ jalons: document.querySelector('[data-r="jalons"]').checked, couleurs: document.querySelector('[data-r="couleurs"]').checked,
-      mathis: document.querySelector('[data-p="2"]').checked, orientation: document.querySelector('[data-r="orientation"]').value, titre: document.querySelector('[data-r="titre"]').value }));
-    verifier(!r.jalons && !r.couleurs && !r.mathis && r.orientation === 'portrait' && r.titre === 'Version du 25.09' && a.titre === 'Version du 25.09' && a.jalons === 0 && a.chantiers.length === 2,
+      mathis: document.querySelector('[data-p="2"]').checked }));
+    verifier(!r.jalons && !r.couleurs && !r.mathis && a.jalons === 0 && a.chantiers.length === 2,
       'réouverture : réglages retenus (' + JSON.stringify(r) + ')');
     await page.click('.impr-reglages .f-reinit');
     a = await apercu(page);
-    verifier(a.personnes.join() === 'Lionel,Mathis,Béton/Armature' && a.jalons === 1 && a.notes === 1 && a.legende && a.statuts === 1 && a.fonds.length === 4 && !a.titre && a.police === 11 && /landscape/.test(a.page),
+    verifier(a.personnes.join() === 'Lionel,Mathis,Béton/Armature' && a.jalons === 1 && a.notes === 1 && a.legende && a.statuts === 1 && a.fonds.length === 4 && a.police === 11 && /landscape/.test(a.page),
       'Réinitialiser : retour aux valeurs par défaut');
     await rouvrir(page);
     a = await apercu(page);
-    verifier(a.jalons === 1 && !a.titre, 'réinitialisation retenue elle aussi');
+    verifier(a.jalons === 1 && a.notes === 1, 'réinitialisation retenue elle aussi');
     await page.click('.impression-modal .f-fermer');
     verifier(await page.evaluate(() => !document.querySelector('.style-page-impression')), 'fermeture : règle @page de l\'aperçu retirée');
     toutesErreurs.push(...erreurs);
