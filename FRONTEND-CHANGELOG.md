@@ -7347,3 +7347,4 @@ Lionel : « proposer une entrée rapide "coller" dans le popup ». (`collerSurCa
   - Ctrl+X sur une note de série : boîte, seule l'occurrence choisie coupée, presse-papiers rempli ; Ctrl+Z : la note revient DANS sa série ;
   - « Coller (1) » dans le menu d'une case ; jalon collé avec son chantier ; tâche d'une journée collée dans la semaine suivante, sur une autre personne, un mercredi après-midi → mercredi après-midi + jeudi matin ; presse-papiers vide : pas d'entrée.
 - **Les 4 tests réécrits** : 5 + 7 + 2 + 3 vérifications, toutes OK.
+- **Suite complète** : 8 échecs au lieu de 12. Ce sont les 8 anciens tests qui cherchent des fonctions dans `index.html` (cf. §129). Les 4 tests au chemin fixe sont réécrits et passent.
