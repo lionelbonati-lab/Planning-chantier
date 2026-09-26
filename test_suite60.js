@@ -12,7 +12,8 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 // Vérifie, téléphone 390 px densité 3, vue « 1 jour », sur des semaines
 // calquées sur le planning de Lionel (journées entières qui se suivent) :
 // la colonne des noms est identique au pixel près avec et sans les bulles,
-// au jour posé et doigt posé en plein glissement.
+// au jour posé et doigt posé en plein glissement. Puis le cas signalé par
+// Lionel : « Sur ve 18, on voit l'absence de Mathis du 17. »
 //
 // Lancer : node test_suite60.js
 
@@ -33,7 +34,7 @@ let horloge = Date.parse('2026-09-24T10:00:00');
 (async () => {
   const browser = await lancerNavigateur(chromium);
   const { verifier, bilan } = verificateur();
-  const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 390, height: 760 }, hasTouch: true, dpr: 3, bd: { personnes: PERS, taches: TACHES } });
+  let { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 390, height: 760 }, hasTouch: true, dpr: 3, bd: { personnes: PERS, taches: TACHES } });
   await page.waitForTimeout(500);
   const decodeur = await browser.newPage();
 
@@ -96,6 +97,36 @@ let horloge = Date.parse('2026-09-24T10:00:00');
   const jours = releves.filter((r) => r[0] === 'posé').map((r) => r[1]);
   verifier(jours.join(' ') === '23 22 23 24 25', 'le glissé change bien de jour (' + jours.join(' ') + ')');
   for (const [quand, j, n] of releves) verifier(n === 0, quand + (quand === 'posé' ? ' (' + j + ')' : '') + ' : colonne des noms identique avec et sans les bulles (' + n + ' pixels différents)');
+
+  // Lionel : « Sur ve 18, on voit l'absence de Mathis du 17. » Jeudi
+  // après-midi, 2 bulles empilées (« Coffrage tour de dalle » puis
+  // l'absence « Départ 16h15 ») ; vendredi, « 80% » seul : la 2e piste de
+  // Mathis n'a plus la hauteur de l'absence, sa carte (au moins 12 px de
+  // marges) est coupée 3 px sous sa bulle, pile dans le trait
+  // Mathis/Antoine (sur le planning réel, piste à 0 px).
+  {
+    let n = 1;
+    const t = (p, date, demi, ordre, texte, abs) => ({ id: n++, personne_id: p, date, demi, ordre, texte, est_absence: !!abs, chantier_id: abs ? null : 1 });
+    const T18 = [
+      t(3, '2026-09-17', 'matin', 0, 'Coffrage dalle'), t(3, '2026-09-17', 'aprem', 0, 'Coffrage tour de dalle'), t(3, '2026-09-17', 'aprem', 1, 'Départ 16h15', true),
+      t(3, '2026-09-18', 'matin', 0, '80%', true), t(3, '2026-09-18', 'aprem', 0, '80%', true)
+    ];
+    for (const p of [1, 4, 5]) ['2026-09-17', '2026-09-18'].forEach((d) => ['matin', 'aprem'].forEach((demi) => T18.push(t(p, d, demi, 0, 'Coffrage piliers extension'))));
+    const o = await ouvrirPlanning(browser, { viewport: { width: 390, height: 760 }, hasTouch: true, dpr: 3, date: '2026-09-18T10:00:00', bd: { personnes: PERS, taches: T18 } });
+    await o.page.waitForTimeout(500);
+    const avant = page;
+    page = o.page;
+    const piste = await page.evaluate(() => {
+      const b = [...document.querySelectorAll('.scroller .bulle')].find((x) => x.textContent.includes('Départ 16h15'));
+      return { bulle: Math.round(b.getBoundingClientRect().height), carte: Math.round(b.querySelector('.b-carte').getBoundingClientRect().height) };
+    });
+    verifier(await jour() === '18' && piste.bulle < piste.carte, 'vendredi 18 posé : l\'absence du jeudi, rangée sous les noms, a une piste plus basse que sa carte (' + piste.bulle + ' px contre ' + piste.carte + ')');
+    const nf = await fuites();
+    verifier(nf === 0, 'vendredi 18 : rien de l\'absence « Départ 16h15 » du jeudi dans le trait Mathis/Antoine (' + nf + ' pixels différents)');
+    erreurs.push(...o.erreurs);
+    await page.close();
+    page = avant;
+  }
 
   verifier(erreurs.length === 0, 'aucune erreur JS (' + erreurs.join(' | ') + ')');
   await browser.close();

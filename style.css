@@ -1009,7 +1009,11 @@
      En vue « 1 jour », la carte de la veille est rangée sous la colonne des
      noms, et son ombre (0 1px 2px) dépasse de 1 px au-dessus de sa piste —
      pile dans ce trait, sur toute la largeur de la colonne (nettement sur
-     un écran haute densité). Plutôt que de rogner chaque bulle, chaque
+     un écran haute densité). Puis : « Sur ve 18, on voit l'absence de
+     Mathis du 17. » La 2e bulle empilée du jeudi (l'absence « Départ
+     16h15 ») garde, le vendredi, une piste de 0 px : sa carte y est coupée
+     3 px sous la bulle (cf. suite 59), pile dans ce même trait. Plutôt que
+     de rogner chaque bulle, chaque
      étiquette prolonge son trait du bas sur l'espace de la grille (même
      couleur que lui, bordure droite comprise) : la colonne des noms est
      opaque de haut en bas, quoi qu'il passe dessous. Idem vers le haut :

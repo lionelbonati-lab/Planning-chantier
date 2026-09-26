@@ -8726,11 +8726,12 @@ Lionel, capture à l'appui : « Certaines bulles se distinguent derrière les bo
 
 ## 168. Round du 26.09.2026 (suite 60) — Téléphone : trait entre deux noms toujours net
 
-Lionel, après la suite 59 : « On remarque encore des bulles dans les bordures entre Mathis et Antoine. »
+Lionel, après la suite 59 : « On remarque encore des bulles dans les bordures entre Mathis et Antoine. » Puis : « Sur ve 18, on voit l'absence de Mathis du 17. »
 
 ### Cause
 - Le trait de 1 px entre deux noms est l'espace de la grille (`gap`). L'étiquette de nom, collée à gauche, ne le couvre pas : tout ce qui passe dessous s'y voit.
 - Vue « 1 jour » : la carte de la veille est rangée sous la colonne des noms. Son ombre (`0 1px 2px`) dépasse de 1 px au-dessus de sa piste, pile dans ce trait, sur toute la largeur de la colonne. Même chose sous la ligne « Personnel » / « Intervenants », au-dessus de la 1re personne.
+- Cas du vendredi 18.09 (planning réel) : jeudi 17 après-midi, Mathis a 2 bulles empilées, « Coffrage tour de dalle » puis l'absence « Départ 16h15 ». Vendredi, seul « 80% » : la 2e piste de Mathis tombe à 0 px. La carte de l'absence (au moins 12 px de marges) est coupée 3 px sous sa bulle (réglage de la suite 59, prévu pour l'anneau de sélection et l'ombre). Ces 3 px tombent pile dans le trait Mathis/Antoine : un trait couleur absence sur toute la largeur de la colonne des noms.
 - Reproduit sur les semaines du 28.09 et du 05.10 du planning réel (journées entières qui se suivent pour Lionel, Mathis, Antoine et François) : invisible à densité 1, net à densité 3 (écran de téléphone), au jour posé comme pendant le glissé.
 
 ### Correctif (style.css)
@@ -8740,4 +8741,6 @@ Lionel, après la suite 59 : « On remarque encore des bulles dans les bordures 
 
 ### Tests
 - aide_tests.js : option `dpr` (densité d'écran) pour `ouvrirPlanning`.
-- test_suite60.js (nouveau, 13 vérifications) : téléphone 390 px, densité 3, semaine calquée sur le planning réel ; la colonne des noms est identique au pixel près avec et sans les bulles, au jour posé et doigt posé en plein glissé, sur 5 changements de jour. Sans le correctif : 2 000 à 2 760 pixels d'écran diffèrent à chaque relevé.
+- test_suite60.js (nouveau, 15 vérifications) : téléphone 390 px, densité 3, semaine calquée sur le planning réel ; la colonne des noms est identique au pixel près avec et sans les bulles, au jour posé et doigt posé en plein glissé, sur 5 changements de jour. Sans le correctif : 2 000 à 2 760 pixels d'écran diffèrent à chaque relevé.
+  - Cas du vendredi 18 (données de Lionel) : l'absence du jeudi a une piste plus basse que sa carte, et rien d'elle dans le trait Mathis/Antoine. Sans le correctif : 502 pixels d'écran couleur absence.
+- Suite complète : 69/69.
