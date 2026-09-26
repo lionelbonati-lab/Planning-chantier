@@ -60,12 +60,16 @@
     var defautActuel = chantierParDefautValide();
     var swatchBtn = btn.querySelector(".swatch");
     var nomBtn = btn.querySelector(".nom-chantier");
+    // Aucun chantier : pastille vide en pointillés (.swatch-vide, suite 55)
+    // plutôt qu'un carré var(--border), qui devenait un bloc noir sur la case
+    // blanche en mode sombre et se fondait dans la barre sur téléphone.
+    swatchBtn.classList.toggle("swatch-vide", !defautActuel);
     if (defautActuel) {
       swatchBtn.style.background = CHANTIERS[defautActuel].couleur;
       nomBtn.textContent = CHANTIERS[defautActuel].nom;
       btn.title = "Chantier par défaut des formulaires : " + CHANTIERS[defautActuel].nom + " — cliquer pour changer";
     } else {
-      swatchBtn.style.background = "var(--border)";
+      swatchBtn.style.background = "";
       nomBtn.textContent = "Chantier";
       btn.title = "Choisir un chantier par défaut pour les formulaires";
     }

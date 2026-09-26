@@ -8572,3 +8572,19 @@ Lionel :
 - test_suite53.js : la palette des chantiers est remplacée par la pastille.
 - test_config_simple.js : tests de `estIsoWeekend_` et `compterTachesParPersonne_` retirés avec ces fonctions (8 assertions).
 - Suite complète : 64/64.
+
+## 163. Round du 26.09.2026 (suite 55) — Barre d'outils lisible en mode sombre
+
+Lionel : « Corrige aussi le mode sombre de la barre d'outils » (signalé à la fin de la suite 54 : cases blanches « Chantier » et « Sem. » illisibles en mode sombre).
+
+### Cases blanches de la barre (style.css, style-mobile.css)
+- Le sélecteur de chantier, « Sem. N », le zoom et, sur téléphone, les boutons de vue du menu « ⋮ » ont un fond blanc fixe (`--case-fixe-bg`, « toujours en blanc » à la demande de Lionel). Leur texte prenait `var(--ink)`, presque blanc en mode sombre : blanc sur blanc.
+- Nouvelle variable fixe `--case-fixe-ink` (#1a2129, le texte du mode clair), non redéfinie dans le bloc sombre. Contraste 16:1 dans les deux modes.
+- Survol et état ouvert : inchangés (fond `--accent-soft`, texte `--accent`, lisibles dans les deux modes).
+
+### Aucun chantier choisi (js/grille-rendu.js, style.css)
+- La pastille du sélecteur prenait `var(--border)` : un carré noir sur la case blanche en mode sombre, et invisible dans la barre sur téléphone.
+- Elle devient un rond ou carré vide en pointillés (`.swatch-vide`, bord `--ink-faint`), visible dans les deux modes. Un chantier choisi reprend sa couleur.
+
+### Tests
+- test_suite55.js (nouveau), 16 vérifications, 16 OK : contraste d'au moins 4,5:1 sur chaque case blanche, en mode sombre et clair, à 1400 px et dans le menu « ⋮ » à 390 px ; pastille en pointillés puis à la couleur du chantier choisi. Sans la correction : 8 échecs.
