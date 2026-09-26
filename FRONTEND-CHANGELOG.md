@@ -8944,3 +8944,4 @@ Lionel : « Le menu setting vient se placer à la place du menu principal en hau
 - test_suite61.js : le parcours des 6 pages passe par les onglets (haut) ou la liste (bas) ; déconnexion depuis Mon compte ; l'initiale de la pastille au lieu du nom du petit menu. 99/99.
 - test_suite39.js : Mise en page d'impression ouverte depuis la liste « Réglages » du bas. 29/29.
 - Suite complète : 72/72.
+- test_suite57.js (échec intermittent sur la CI de la PR, reproduit aussi sur main, 1 fois sur 6) : sous charge, le geste commençait avant la 1re image du journal, qui partait donc d'une hauteur déjà en train de glisser (`iPremiere` = 0). `journaliser` ne rend plus la main qu'une fois la 1re image notée. 10/10 seul, 8/8 à 4 en parallèle.

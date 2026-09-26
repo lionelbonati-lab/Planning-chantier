@@ -51,7 +51,11 @@ const caseVide = (page) => page.evaluate(() => {
 });
 const jour = (page) => page.evaluate(() => ({ iso: jourMobileIso, gauche: Math.round(document.querySelector('.scroller').scrollLeft), reperes: reperesJour_(document.querySelector('.scroller')) }));
 // Journal image par image (requestAnimationFrame) pendant `duree` ms.
-const journaliser = (page, duree) => page.evaluate((duree) => {
+// Suite 63 : ne rend la main qu'une fois la 1re image notée — sous charge
+// (CI), le geste commençait avant elle et le journal démarrait sur une
+// hauteur déjà en train de glisser (échec intermittent « les hauteurs
+// changent pendant le glissement », aussi sur main).
+const journaliser = (page, duree) => page.evaluate((duree) => new Promise((pret) => {
   window.__j = [];
   const t0 = performance.now();
   const f = () => {
@@ -59,10 +63,11 @@ const journaliser = (page, duree) => page.evaluate((duree) => {
     const lbl = [...document.querySelectorAll('.scroller .lbl')].map((l) => Math.round(l.getBoundingClientRect().height * 10) / 10);
     const th = [...document.querySelectorAll('.entete-planning-figee .th[data-gi]')].find((t) => isoDeGi(+t.dataset.gi) === window.__jourSuivi);
     window.__j.push({ t: performance.now() - t0, g: sc.scrollLeft, e: en ? en.scrollLeft : null, lbl, th: th ? Math.round(th.getBoundingClientRect().left) : null, fen: fenetreLabGs()[0] });
+    if (window.__j.length === 1) pret();
     if (performance.now() - t0 < duree) requestAnimationFrame(f);
   };
   requestAnimationFrame(f);
-}, duree);
+}), duree);
 
 (async () => {
   const browser = await lancerNavigateur(chromium);
