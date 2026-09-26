@@ -8908,3 +8908,5 @@ Lionel, après la suite 59 : « On remarque encore des bulles dans les bordures 
   - enregistrement (compte et appareil), « Tout rétablir », touche W ;
   - relecture à l'ouverture (ordinateur, téléphone, table injoignable) ;
   - aperçu du téléphone sans débordement.
+- test_suite61.js : les pièces d'espace entre semaines sont cherchées dans le planning (`#racine`), l'aperçu de la page Affichage ayant les mêmes. Les écritures « raccourcis » sont filtrées par clé, car la touche W retient aussi les week-ends (clé « affichage »). 109/109.
+- Suite complète : 71/71 (le premier passage : 70/71, test_suite61 pour ces 2 raisons ; corrigé et relancé seul).
