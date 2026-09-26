@@ -179,7 +179,9 @@ function sourceApp() {
 //   tablesEnEchec (tables dont les requêtes échouent, cf. FAUX_SUPABASE).
 async function ouvrirPlanning(browser, options) {
   options = options || {};
-  const page = await browser.newPage({ viewport: options.viewport || { width: 1400, height: 900 }, hasTouch: !!options.hasTouch });
+  // Suite 60 : options.dpr = densité d'écran (3 comme un téléphone récent),
+  // pour voir ce qui ne déborde que d'une fraction de pixel CSS.
+  const page = await browser.newPage({ viewport: options.viewport || { width: 1400, height: 900 }, hasTouch: !!options.hasTouch, deviceScaleFactor: options.dpr || 1 });
   const erreurs = [];
   page.on('pageerror', (e) => erreurs.push(String(e)));
   await page.clock.setFixedTime(new Date(options.date || '2026-09-24T10:00:00'));
