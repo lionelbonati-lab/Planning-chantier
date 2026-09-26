@@ -1721,18 +1721,22 @@
      à 0 et gère l'espacement par le padding de chaque bloc, comme dans
      mockups.html. */
   .form-pop.carte-item { padding: 0; gap: 0; width: 324px; }
-  .carte-item .bandeau { position: relative; padding: 13px 44px 13px 16px; color: #fff; flex-shrink: 0; border-radius: 12px 12px 0 0; }
+  /* Texte du bandeau : la couleur du texte des tâches (« Texte principal
+     et texte des tâches » de la page Couleurs), comme dans les bulles —
+     round du 26.09.2026 (suite 67), Lionel : « texte d'entête du formulaire
+     peu visible. Mettre de la couleur du texte du document. » (il était
+     blanc, illisible sur les couleurs claires des chantiers). */
+  .carte-item .bandeau { position: relative; padding: 13px 44px 13px 16px; color: var(--bubble-ink); flex-shrink: 0; border-radius: 12px 12px 0 0; }
   .carte-item .bandeau.clair { color: var(--ink); }
   .carte-item .bandeau .fermer, .carte-item .bandeau .important-toggle {
     position: absolute; top: 10px; width: 30px; height: 30px; border-radius: 50%; padding: 0;
-    display: grid; place-items: center; background: rgba(255, 255, 255, .2); color: #fff; cursor: pointer; border: none;
+    display: grid; place-items: center; background: rgba(20, 24, 20, .1); color: inherit; cursor: pointer; border: none;
   }
   .carte-item .bandeau .fermer svg, .carte-item .bandeau .important-toggle svg {
     width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
   }
   .carte-item .bandeau .fermer { right: 10px; }
   .carte-item .bandeau .important-toggle { right: 52px; }
-  .carte-item .bandeau.clair .fermer, .carte-item .bandeau.clair .important-toggle { background: rgba(20, 24, 20, .1); color: var(--ink); }
   .carte-item .bandeau .important-toggle.actif { background: var(--important-toggle-bg); color: var(--important-toggle-ink); }
   /* Round du 12.09.2026 — Lionel : « le chantier est cliquable pour le
      changer, mais la case est trop grande, réduit la à la taille du texte.
