@@ -1983,6 +1983,11 @@
   .onglet.actif { background: var(--accent-soft); color: var(--accent); }
   /* Onglets trop nombreux pour la largeur (suite 53, cf. ajusterOngletsNav,
      js/coquille.js) : icônes seules, sauf l'onglet actif. */
+  /* Palier « serré » (round du 26.09.2026, suite 65) : avec l'onglet Notes,
+     les 9 noms dépassaient de 24 px à 1024 px et la barre passait déjà en
+     icônes. Avant d'en arriver là, les onglets se resserrent (marges
+     latérales 14 → 9 px, écart icône/nom 6 → 5 px) en gardant leurs noms. */
+  .onglets-serres .onglet { padding-left: 9px; padding-right: 9px; gap: 5px; }
   .onglets-compacts .onglet:not(.actif) { padding: 7px 10px; }
   .onglets-compacts .onglet:not(.actif) .onglet-nom { display: none; }
   .onglets-compacts .onglet svg { width: 16px; height: 16px; }

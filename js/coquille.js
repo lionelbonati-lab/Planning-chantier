@@ -717,8 +717,12 @@
     // masquée (largeur nulle).
     var liste = nav && [].filter.call(nav.querySelectorAll(".onglets-liste"), function (l) { return l.offsetWidth > 0; })[0];
     if (!liste) return;
-    nav.classList.remove("onglets-compacts");
-    if (liste.scrollWidth > liste.clientWidth + 1) nav.classList.add("onglets-compacts");
+    // Suite 65 : d'abord resserrés (noms gardés), puis icônes seules si ça
+    // ne suffit toujours pas (cf. .onglets-serres, style.css).
+    nav.classList.remove("onglets-compacts", "onglets-serres");
+    if (liste.scrollWidth <= liste.clientWidth + 1) return;
+    nav.classList.add("onglets-serres");
+    if (liste.scrollWidth > liste.clientWidth + 1) { nav.classList.remove("onglets-serres"); nav.classList.add("onglets-compacts"); }
   }
   // Page affichée (onglet, ou page de réglages du menu de la pastille —
   // suite 61) : renseignée par cablerNavigation, utilisée par afficherPage.

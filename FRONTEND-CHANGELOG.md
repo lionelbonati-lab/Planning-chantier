@@ -9026,7 +9026,7 @@ Lionel :
   - `renderNotes` dessine les 2 sections ;
   - `ouvrirFormulaireNote` reprend la fiche des jalons (bandeau, dates ISO sans limite de fenêtre) et écrit par `enregistrer-plage` (`kind: "note"`, `mode: "remplacement"`). Pour une modification ou une suppression, l'ancienne note part en `origine`, et le serveur ne retire que cette ligne-là sur chaque jour. Supprimer revient à écrire les mêmes jours avec un texte vide ;
   - `cablerPageNotes` : clics délégués et `#chkNotesPlanning` ↔ `replierNotes`.
-- js/coquille.js : onglet et entrée du menu `data-page="notes"`, `htmlPageNotes()`, relecture à chaque ouverture (`renduParPage_.notes`). js/raccourcis.js : action `pageNotes`. js/page-couleurs.js : groupe `note` → `page: "notes"`.
+- js/coquille.js : onglet et entrée du menu `data-page="notes"`, `htmlPageNotes()`, relecture à chaque ouverture (`renduParPage_.notes`). `ajusterOngletsNav` passe par un palier `.onglets-serres` (marges des onglets réduites, noms gardés) avant les icônes seules : avec Notes, les 9 noms dépassaient de 24 px à 1024 px. js/raccourcis.js : action `pageNotes`. js/page-couleurs.js : groupe `note` → `page: "notes"`.
 - style.css :
   - `.scroller { overflow-y: hidden }`. `overflow-x: auto` forçait `overflow-y` à « auto » : au moindre débordement de quelques pixels (barre horizontale native de Windows, arrondis), le tableau affichait sa propre barre verticale par-dessus les bulles de droite ;
   - `* { scrollbar-width: none }` et `::-webkit-scrollbar { display: none }` ;
@@ -9043,4 +9043,5 @@ Lionel :
   - onglet Notes à sa place (haut et menu), raccourci, ouverture ;
   - page Notes : couleur (absente des réglages généraux), liste fusionnée et sections, bascule du planning dans les deux sens, ajouter, modifier sur 2 jours, supprimer sans toucher les autres notes du même jour, 390 px sans débordement ;
   - barres : natives masquées, `.scroller` sans défilement vertical, poignée fine au bord droit pendant le défilement puis effacée, poignée saisie qui fait défiler, poignée horizontale du planning dans l'écran.
+- test_suite53.js : 9 onglets avec leur nom à 1400 et 1024 px (resserrés à 1024 px). 46/46.
 - test_suite56.js et test_suite54.js : 15 réglages dans « Personnaliser » (au lieu de 16) : Note est maintenant sur sa page.
