@@ -8856,3 +8856,55 @@ Lionel, après la suite 59 : « On remarque encore des bulles dans les bordures 
 - Anciens tests mis à jour pour les pages déplacées (onglet Général / Mise en page → `afficherPage`, menu de la pastille) : test_couleurs_sync_compte, test_suite39, 44, 45, 46, 49, 53, 54, 56.
 - test_bordure_lundi_2semaines.js : vérifie l'espace entre semaines au bord gauche du lundi matin (plus la bordure de 3 px), jamais au milieu du lundi.
 - Suite complète : 70/70 (le seul échec du premier passage, test_bordure_lundi_2semaines, attendait encore la bordure de 3 px ; mis à jour et relancé seul, 5/5).
+
+## 170. Round du 26.09.2026 (suite 62) — Plus de bande blanche sous le tableau, options d'affichage avec aperçu
+
+### Demandes de Lionel
+- « une bande blanche me dérange tout en bas du tableau » (capture à l'appui).
+- « Ajouter d'autre options d'affichages avec aperçu. »
+
+### Bande blanche (style.css)
+- Cause : `.scroller` avait un `padding-bottom: 4px`, là depuis le tout premier dépôt. Cela laissait une bande couleur du fond entre la dernière ligne et le bord arrondi du cadre.
+- Correctif : marge retirée. Le cadre se referme pile sous la dernière ligne, sur ordinateur (1 ou 2 semaines) comme sur téléphone.
+
+### Page Affichage (js/page-affichage.js, nouveau)
+- Planning :
+  - Afficher les week-ends : même case qu'avant (`#chkWeekends`, touche W), maintenant retenue d'une ouverture à l'autre.
+  - Surligner aujourd'hui : teinte toute la colonne du jour, pas seulement son en-tête.
+  - Lignes alternées : une personne sur deux légèrement teintée, étiquette comprise.
+  - Entre 2 semaines : « Espace » (espace arrondi de la suite 61) ou « Trait » (le trait épais d'avant).
+- Bulles :
+  - Taille du texte : Petit (11 px), Normal (12 px) ou Grand (13,5 px).
+  - Lignes de texte : 1, 2 ou 3, puis « … ».
+  - Hauteur des lignes : Serrée (cases de 34 px), Normale (52 px) ou Aérée (66 px). Les marges des bulles et des noms suivent.
+  - Coins : arrondis ou droits.
+  - Afficher le statut : la pastille « Confirmé », « Réservé »… sous le texte.
+- À l'ouverture (pris en compte à la prochaine ouverture) :
+  - ordinateur ou tablette : 1 ou 2 semaines ;
+  - téléphone : 1 jour ou 1 semaine.
+- Choix en pastilles : clic, ou ← → au clavier. « Tout rétablir » remet tous les réglages à l'origine.
+- Aperçu : un petit planning d'exemple (Jeu, Ven, [Sam, Dim], Lun, Mar) avec les couleurs des chantiers et le 1er statut.
+  - Ordinateur : collé à droite des réglages. Téléphone : au-dessus, sans le mardi.
+  - L'espace entre semaines est fait des mêmes pièces `.sep-semaines` que le planning, posées au même endroit (5 px à gauche du lundi, 8 px de large).
+
+### Fonctionnement
+- Chaque changement s'applique tout de suite au planning ET à l'aperçu.
+- Les réglages de style sont posés en attributs `data-aff-*` sur `<html>`, seulement quand ils diffèrent de l'origine : sans réglage, rien ne change au pixel près.
+- Chaque règle CSS (style.css, « Options d'affichage ») vise à la fois les vraies bulles (`.b-txt`, `.b-carte`, `.cell`…) et celles de l'aperçu (`.aa-*`). L'aperçu n'a pas de rendu à lui.
+- js/grille-rendu.js :
+  - `.cell-auj` sur les cases du jour ;
+  - `.ligne-alt` sur une personne sur deux de chaque groupe ;
+  - pas d'espace entre semaines si « Trait » est choisi.
+- À l'impression, les teintes « aujourd'hui » et « lignes alternées » sont retirées.
+- Enregistrement : table `reglages`, clé « affichage », seulement les réglages modifiés, plus une copie sur l'appareil (« planning.affichage »).
+  - La copie est lue dès le chargement du fichier : le premier affichage a déjà le bon style.
+  - Les réglages du compte sont appliqués avant le premier rendu (`appliquerAffichageAuChargement`, js/donnees-sync.js) : week-ends, vue d'ouverture, style.
+
+### Tests
+- test_suite62.js (nouveau, 29 vérifications) :
+  - plus de bande sous la dernière ligne (1920, 1400 en 2 semaines, 390) ;
+  - les 11 réglages et leurs valeurs d'origine, planning inchangé à l'origine ;
+  - chaque réglage sur le planning et l'aperçu, au clic et au clavier ;
+  - enregistrement (compte et appareil), « Tout rétablir », touche W ;
+  - relecture à l'ouverture (ordinateur, téléphone, table injoignable) ;
+  - aperçu du téléphone sans débordement.

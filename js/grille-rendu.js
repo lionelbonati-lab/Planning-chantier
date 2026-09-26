@@ -698,6 +698,9 @@
     // gauche.
     if (!estGiWeekend(gi) && gi > 0 && gi % 5 === 0 && extra.demi !== "aprem") cell.classList.add("sem-frontiere");
     if (estGiWeekend(gi)) cell.classList.add("case-weekend");
+    // Colonne d'aujourd'hui (suite 62) : teintée seulement si « Surligner
+    // aujourd'hui » est choisi (page Affichage, html[data-aff-auj]).
+    if (isoDeGi(gi) === etat.aujourdhui) cell.classList.add("cell-auj");
     appliquerTeinteFerie(cell, gi);
     cablerAjoutCellule(cell);
     return cell;
@@ -725,6 +728,7 @@
     cell.dataset.kind = kind; cell.dataset.jour = String(gi);
     if (!estGiWeekend(gi) && gi > 0 && gi % 5 === 0) cell.classList.add("sem-frontiere");
     if (estGiWeekend(gi)) cell.classList.add("case-weekend");
+    if (isoDeGi(gi) === etat.aujourdhui) cell.classList.add("cell-auj"); // suite 62, cf. creerCell
     // Jalons/notes n'existent que sur les jours ouvrés côté feuille réelle
     // (apiEnregistrerPlage ignore explicitement les colonnes week-end, cf.
     // §2 du spec — seule la cellule "personne" week-end est fusionnée). Une
@@ -2092,11 +2096,15 @@
     // data-membres et data-slots disparaissent avec lui. Semaine/week-end :
     // case isolée à part (comme avant), toujours 1 seul demi-slot ("matin").
     function ligneGroupePersonnesCompact(groupe) {
-      groupe.forEach(function (p) {
+      groupe.forEach(function (p, iP) {
         var itemsLigne = TACHES.filter(function (it) { return it.personneId === p.id && giVisible(it.giDebut, n); });
         var nbPistes = Math.max(1, assignerPistesCompact(itemsLigne));
+        // Lignes alternées (suite 62, page Affichage) : une personne sur
+        // deux de chaque groupe porte .ligne-alt (étiquette et cases),
+        // teintée seulement si l'option est choisie (html[data-aff-zebre]).
+        var alt = iP % 2 === 1;
         var lbl = document.createElement("div");
-        lbl.className = "lbl lbl-compacte";
+        lbl.className = "lbl lbl-compacte" + (alt ? " ligne-alt" : "");
         // Ligne d'équipe (nom, membres, ▸/▾) ou membre d'une équipe
         // (décalé sous elle) — suite 33, cf. js/equipes.js.
         // nomSurDeuxLignes (suite 35) : césure permise après « / » ; nom
@@ -2108,6 +2116,7 @@
         for (var gi4 = 0; gi4 < n; gi4++) {
           DEMIS.forEach(function (demi) {
             var c = creerCell(gi4, { personne: p.id, demi: demi });
+            if (alt) c.classList.add("ligne-alt");
             if (demi === "aprem") c.classList.add("cell-aprem");
             // Trait de séparation entre deux JOURS (retour de Lionel) : porté
             // par la colonne du matin, sauf en début de semaine où le trait de
@@ -2121,7 +2130,9 @@
               // Une seule cellule serveur pour le week-end, portée par
               // "matin" — cf. construireVueDepuisCache, items week-end posés
               // avec demiDebut=demiFin="matin".
-              poser(creerCell(giWeekend(semGi4, j), { personne: p.id, demi: "matin" }), colonneGrille(giWeekend(semGi4, j)), row, null, nbPistes);
+              var cw = creerCell(giWeekend(semGi4, j), { personne: p.id, demi: "matin" });
+              if (alt) cw.classList.add("ligne-alt");
+              poser(cw, colonneGrille(giWeekend(semGi4, j)), row, null, nbPistes);
             });
           }
         }
@@ -2376,7 +2387,10 @@
   function poserSepSemaines_(jourMobile, enteteFigee, enteteScroll, grilleEntete, cadre, scroller) {
     if (sepSemaines_ && sepSemaines_.ro) sepSemaines_.ro.disconnect();
     sepSemaines_ = null;
-    var ths = jourMobile ? [] : [].slice.call(grilleEntete.querySelectorAll(".th.sem-frontiere:not(.th-demi)"));
+    // « Entre 2 semaines : Trait » (suite 62, page Affichage) : pas d'espace,
+    // le trait épais d'avant la suite 61 reste (.sem-frontiere).
+    var trait = typeof optionAffichage === "function" && optionAffichage("separation") === "trait";
+    var ths = (jourMobile || trait) ? [] : [].slice.call(grilleEntete.querySelectorAll(".th.sem-frontiere:not(.th-demi)"));
     racineEl.classList.toggle("avec-sep-semaines", ths.length > 0);
     if (!ths.length) return;
     function morceau(ou, cote) {

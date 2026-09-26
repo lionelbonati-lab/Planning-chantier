@@ -163,11 +163,9 @@
   function htmlPagesReglages() {
     return '<div class="page page-reglages" id="page-compte"><div class="page-scroll">' + htmlNavReglages_("compte") + htmlContenuPageCompte() + '</div></div>' +
       '<div class="page page-reglages" id="page-affichage"><div class="page-scroll">' + htmlNavReglages_("affichage") +
-        '<div class="page-titre"><h1>Affichage</h1></div>' +
-        '<p class="page-sous">Réglages d’affichage du planning.</p>' +
-        '<label class="reglage-ligne"><span class="reglage-texte"><b>Afficher les week-ends</b>' +
-        '<span>Ajoute Samedi et Dimanche à la fin de chaque semaine, pour y poser une tâche ponctuelle.</span></span>' +
-        '<span class="interrupteur"><input type="checkbox" id="chkWeekends"><span class="interrupteur-piste"></span></span></label>' +
+        // Suite 62 — Lionel : « Ajouter d'autre options d'affichages avec
+        // aperçu. » Contenu, aperçu et câblage : js/page-affichage.js.
+        htmlContenuPageAffichage() +
       '</div></div>' +
       // Couleurs (suite 23.09 puis 54, js/page-couleurs.js) : liste
       // « Thème », « Personnaliser », et les palettes enregistrées (suite 61).
@@ -1237,11 +1235,10 @@
     // sont supprimés ; oublierCache()/assurerFenetreChargee() restent
     // utilisées ailleurs (cf. synchroniser()), seul ce point d'appel dédié
     // au bouton disparaît.
-    var chk = document.getElementById("chkWeekends");
-    if (chk) {
-      chk.checked = afficherWeekends;
-      chk.addEventListener("change", function () { afficherWeekends = chk.checked; render(false); });
-    }
+    // Page Affichage (suite 62, js/page-affichage.js) : « Afficher les
+    // week-ends » (#chkWeekends) et les autres réglages, retenus sur le
+    // compte, avec leur aperçu.
+    initPageAffichage();
     // Round du 23.09.2026 — câblage des sélecteurs de couleur (page
     // Couleurs depuis la suite 61, ex-onglet Général : htmlReglagesCouleurs()
     // dans htmlPagesReglages()), une fois leur HTML posé dans le DOM par le
