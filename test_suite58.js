@@ -18,7 +18,9 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //   3. carte posée l'après-midi qui continue le lendemain : elle grandit
 //      avec la part qui entre à l'écran, sans doubler d'un coup ;
 //   4. glissé trop court (retour sur le même jour) : hauteurs exactes du
-//      jour, rien de « suivi » qui traîne.
+//      jour, rien de « suivi » qui traîne ;
+//   5. (suite 59) aucune bulle d'un autre jour visible sous la colonne des
+//      noms, aucune plus haute que sa piste.
 //
 // Lancer : node test_suite58.js
 
@@ -188,6 +190,56 @@ const journaliser = (page, duree) => page.evaluate((duree) => {
       suivies: document.querySelectorAll('.grille.hauteurs-suivies').length
     }));
     verifier(apres.iso === '2026-09-24' && apres.rows === avant && apres.suivies === 0, 'glissé de 50 px puis retour sur jeudi : hauteurs du jeudi au pixel près, rien de « suivi » qui reste');
+    toutesErreurs.push(...erreurs);
+    await page.close();
+  }
+
+  // --- 5. Suite 59 : rien d'un autre jour sous la colonne des noms ---
+  // Lionel, capture à l'appui : « Certaines bulles se distinguent derrière
+  // les bordures de la colonne nom. » 2 bulles empilées le mercredi
+  // après-midi (2e piste), rien sur cette piste le jeudi : la piste du
+  // jeudi fait 11 px, la bulle du mercredi (26 px) en débordait.
+  {
+    const P2 = ['Lionel', 'Mathis'].map((nom, i) => ({ id: i + 1, nom, sous_traitant: false, ordre: i + 1, actif: true }));
+    const F = 'Fermeture + pont murs étage';
+    const T5 = [T(1, '2026-09-24', 'matin', F), T(1, '2026-09-24', 'aprem', F), T(2, '2026-09-24', 'matin', F), T(2, '2026-09-24', 'aprem', F),
+      T(1, '2026-09-23', 'aprem', 'Visite artisans', 0), T(1, '2026-09-23', 'aprem', 'Plans artisans', 1)];
+    const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 390, height: 720 }, hasTouch: true, bd: { personnes: P2, taches: T5 } });
+    await page.waitForTimeout(500);
+    const fuites = () => page.evaluate(() => {
+      const LN = largeurNoms(), out = [];
+      for (let y = 150; y < 650; y++) for (const x of [5, LN / 2, LN - 3]) {
+        const el = document.elementFromPoint(x, y), b = el && el.closest('.bulle');
+        if (b) out.push(Math.round(x) + ',' + y + ' ' + b.textContent.trim());
+      }
+      const g = document.querySelector('.scroller .grille');
+      const debord = [...g.querySelectorAll('.bulle')].filter((b) => {
+        const r = b.getBoundingClientRect(), cs = getComputedStyle(b);
+        const piste = g.style.gridTemplateRows.split(' ').map(parseFloat);
+        const debut = parseInt(cs.gridRowStart, 10) - 1, n = parseInt((cs.gridRowEnd.match(/span (\d+)/) || [0, 1])[1], 10);
+        const haut = piste.slice(debut, debut + n).reduce((a, h) => a + h, 0) + (n - 1);
+        return r.height > haut;
+      }).map((b) => b.textContent.trim());
+      return { out: out.slice(0, 5), debord };
+    });
+    const jeudi = await fuites();
+    verifier(jeudi.out.length === 0 && jeudi.debord.length === 0, 'jeudi : aucune bulle visible sous la colonne des noms, aucune plus haute que sa piste (' + JSON.stringify(jeudi) + ')');
+    const mercredi = await page.evaluate(() => {
+      const s = document.querySelector('.scroller'), R = reperesJour_(s), i = R.indexOf(Math.round(s.scrollLeft));
+      return R[i - 1];
+    });
+    horloge += 1000; await page.clock.setFixedTime(new Date(horloge));
+    const de = await page.evaluate(() => {
+      const c = [...document.querySelectorAll('.cell[data-kind="personne"]')].reverse().find((x) => { const r = x.getBoundingClientRect(); return r.left >= 110 && r.right <= 395 && document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2) === x; });
+      const r = c.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+    });
+    await balayer(page, de, 150, 4, 10);
+    await page.waitForTimeout(1000);
+    const merc = await page.evaluate(() => ({
+      gauche: Math.round(document.querySelector('.scroller').scrollLeft),
+      plans: (() => { const b = [...document.querySelectorAll('.scroller .bulle')].find((x) => x.textContent.includes('Plans artisans')); const c = b.querySelector('.b-carte'); return c.scrollHeight <= c.clientHeight + 1 && b.getBoundingClientRect().height >= 20; })()
+    }));
+    verifier(merc.gauche === mercredi && merc.plans, 'mercredi : « Plans artisans » entière dans sa piste, rien de coupé');
     toutesErreurs.push(...erreurs);
     await page.close();
   }

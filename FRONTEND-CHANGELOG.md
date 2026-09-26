@@ -8701,3 +8701,25 @@ Lionel, sur son téléphone :
   - test_suite57.js : les hauteurs changent pendant le glissement, et plus une fois le jour atteint.
 - test_suite34.js et test_suite35.js attendent aussi l'événement « scroll » après avoir déplacé la grille (300 ms au plus) : Chrome sans écran le livre parfois après les 2 images d'attente, et la hauteur suivie n'était alors pas encore posée.
 - Suite complète : 68/68.
+
+## 167. Round du 26.09.2026 (suite 59) — Téléphone : plus de bulle visible sous la colonne des noms
+
+Lionel, capture à l'appui : « Certaines bulles se distinguent derrière les bordures de la colonne nom. »
+
+### Cause
+- Vue « 1 jour » : les pistes (lignes de grille) ont les hauteurs du jour affiché (`.grille.hauteurs-figees`).
+- Une piste vide ce jour-là, comme la 2e piste de Lionel le jeudi, ne fait que 11 px.
+- La bulle de la veille posée sur cette piste (« Plans artisans », 2e bulle empilée du mercredi) gardait sa hauteur de contenu, 26 px. Elle débordait donc sous la ligne suivante.
+- Sa carte est collée sous la colonne des noms, et l'étiquette de nom la cache. Mais le trait de 1 px entre deux noms est l'espace de la grille, que l'étiquette ne couvre pas : on y voyait un bout de texte et le bord coloré.
+
+### Correctif (style.css)
+- `.grille.hauteurs-figees .bulle` :
+  - la bulle est bornée à sa piste (`max-height: calc(100% - 3px)`) ;
+  - elle est découpée 3 px sous son bord (`clip-path`), pour laisser passer l'anneau de sélection (2,5 px) et l'ombre (3 px), jamais plus bas que sa piste.
+- Le jour où la bulle est affichée, sa piste a sa hauteur complète : rien n'est coupé.
+
+### Tests
+- test_suite58.js, section 5 (2 vérifications de plus, 14/14) :
+  - jeudi : aucune bulle visible sous la colonne des noms, aucune bulle plus haute que sa piste. Sans le correctif, la vérification échoue (« Plans artisans » à y = 266 px) ;
+  - mercredi : « Plans artisans » entière dans sa piste.
+- Suite complète : 68/68 (test_suite35 relancé seul : son étirement contre le bord dépend du minutage sous charge parallèle).

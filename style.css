@@ -1476,6 +1476,16 @@
      coupe son texte au lieu d'agrandir la ligne quand le jour qui arrive en
      plein glissement est plus chargé. */
   .grille.hauteurs-figees .bulle > .b-carte { height: 100%; max-height: 100%; overflow: hidden; box-sizing: border-box; }
+  /* Suite 59 (round du 26.09.2026) — Lionel, capture à l'appui : « Certaines
+     bulles se distinguent derrière les bordures de la colonne nom. » Une
+     bulle d'un autre jour (ici la 2e bulle empilée de la veille) garde sa
+     hauteur de contenu dans une piste que le jour affiché a ramenée à
+     11 px : elle débordait sous la ligne suivante, et le trait de 1 px entre
+     deux noms (l'espace de la grille, que l'étiquette ne couvre pas) la
+     laissait voir. Bulle bornée à sa piste (3 px de marge pour l'anneau de
+     sélection et l'ombre, 2,5 et 3 px), et découpée à cette marge : jamais
+     plus bas que le bas de sa piste. */
+  .grille.hauteurs-figees .bulle { min-height: 0; max-height: calc(100% - 3px); clip-path: inset(-4px -4px -3px -4px); }
   /* Suite 57 — Lionel : « La transition entre les jours en mobile me
      dérange. » Au jour posé, les lignes glissent vers leurs nouvelles
      hauteurs au lieu d'y sauter (figerHauteursJourMobile ne change la
