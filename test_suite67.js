@@ -30,7 +30,9 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //   7. « chantier par défaut désélectionner mais un chantier est attribué à
 //      l'ouverture du formulaire. Si aucun chantier n'est sélectionné,
 //      l'entête disparait en blanc sur blanc. » : fiche d'une case déjà
-//      occupée → « Aucun chantier », bandeau en texte foncé.
+//      occupée → « Aucun chantier », bandeau en texte foncé ;
+//   8. « Le surlignement de la case de dépose se dessine au dessus des
+//      bulles » : il passe dessous.
 //
 // Lancer : node test_suite67.js
 
@@ -220,6 +222,26 @@ const style = ([sel, prop]) => { const n = document.querySelector(sel); return n
     await page.selectOption('.form-pop .f-chantier', '');
     const f3 = await page.evaluate((src) => (0, eval)(src)(), lire.toString());
     verifier(f3.clair && f3.texte !== 'rgb(255, 255, 255)' && f3.fond !== f2.fond, 'revenu à « Aucun chantier » : plus de blanc sur blanc (' + JSON.stringify(f3) + ')');
+    toutesErreurs.push(...erreurs);
+    await page.close();
+  }
+
+  // --- 8. Surlignement de dépose sous les bulles -------------------------
+  {
+    const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 1400, height: 900 }, bd: BD() });
+    const src = await page.locator('.grille .bulle:has-text("Armature dalle")').first().boundingBox();
+    const dst = await page.locator('.grille .bulle:has-text("Bétonnage dalle")').first().boundingBox();
+    await page.mouse.move(src.x + 20, src.y + src.height / 2); await page.mouse.down();
+    for (let i = 1; i <= 8; i++) { await page.mouse.move(src.x + 20 + (dst.x + 30 - src.x - 20) * i / 8, src.y + src.height / 2 + (dst.y + dst.height + 8 - src.y - src.height / 2) * i / 8); await page.waitForTimeout(30); }
+    await page.waitForTimeout(200);
+    const z = await page.evaluate(() => {
+      const zi = (el) => { const v = getComputedStyle(el).zIndex; return v === 'auto' ? 0 : +v; };
+      const b = [...document.querySelectorAll('.grille .bulle')].find((x) => /Bétonnage dalle/.test(x.textContent));
+      const s = document.querySelector('.survol-precis') || document.querySelector('.cell.drop-hover');
+      return s ? { surlignage: s.className, zS: zi(s), zB: zi(b), memeParent: s.parentElement === b.parentElement } : null;
+    });
+    await page.mouse.up(); await page.waitForTimeout(300);
+    verifier(z && z.zS < z.zB, 'case de dépose surlignée SOUS la bulle qui l\'occupe (' + JSON.stringify(z) + ')');
     toutesErreurs.push(...erreurs);
     await page.close();
   }

@@ -1311,7 +1311,11 @@
      redevient donc le comportement (défaut de .grille, cf. son
      display:grid sans align-items), comme pour .selection-precis. La
      hauteur n'est plus fixée en JS non plus, cf. survolerCible(). */
-  .survol-precis { box-shadow: inset 0 0 0 2px var(--accent); background: var(--accent-soft); border-radius: 8px; z-index: 5; }
+  /* z-index 0 (au lieu de 5) — round du 26.09.2026 (suite 67), Lionel :
+     « Le surlignement de la case de dépose se dessine au dessus des
+     bulles » : sous les bulles (z 1 et 2), au-dessus des cases (ajouté
+     après elles dans la grille). */
+  .survol-precis { box-shadow: inset 0 0 0 2px var(--accent); background: var(--accent-soft); border-radius: 8px; z-index: 0; }
   /* .selection-precis (round du 12.09.2026 — refonte "case par case" de la
      sélection au glissé, demandée par Lionel) : jalon/note n'ont qu'UNE
      cellule DOM par jour (cf. creerCelluleFond, jamais scindée matin/aprem),
