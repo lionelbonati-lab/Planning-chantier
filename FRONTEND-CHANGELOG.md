@@ -8656,3 +8656,48 @@ Lionel : « La transition entre les jours en mobile me dérange. Cherche une sol
   - vue semaine inchangée.
 - test_suite35.js : mesure de hauteur « jeudi reposé » faite 700 ms après le lâcher au lieu de 400, pour laisser au glissement des hauteurs le temps de finir.
 - Suite complète : 67/67.
+
+## 166. Round du 26.09.2026 (suite 58) — Téléphone : jalons sur plusieurs jours, hauteurs qui suivent le glissement
+
+Lionel, sur son téléphone :
+- « L'affichage des jalons a disparu, il ne s'affiche que sur le premier jour et parfois disparaît aussi du 1er jour. »
+- « Cas d'une bulle de 1.5j, quand une hauteur de bulle change, il faudrait que ce soit progressif, durant le switch. »
+- « Il y a encore des calculs et recalculs car des bulles font encore l'accordéon. Surtout en cas de jour entier suivi de demi-jour. »
+
+### Jalons et notes de plusieurs jours (style.css)
+- En vue « 1 jour », la carte d'une bulle est collée au bord des noms (`position: sticky`), pour qu'une bulle de plusieurs jours se lise chaque jour.
+- Cette règle ne visait que `.scroller`. Or la bande Jalons/Notes est dans l'en-tête figé (`.entete-planning-scroll`), hors de `.scroller`. Sa carte restait donc au début de la bulle : un jalon du mardi au vendredi n'était lisible que le mardi.
+- La règle vaut maintenant pour `#racine.vue-jour-mobile`, donc pour les deux grilles.
+- Défaut antérieur à la suite 57, retrouvé en relançant l'ancienne version.
+
+### Hauteurs de lignes qui suivent le doigt (js/grille-rendu.js)
+- Avant : les hauteurs restaient figées pendant tout le changement de jour, puis glissaient (220 ms) une fois le jour posé. La page s'arrêtait, puis les lignes bougeaient à leur tour, d'où l'effet d'accordéon.
+- À la fixation d'un jour, `figerHauteursJourMobile` mesure maintenant aussi la veille et le lendemain.
+  - Les cartes sont mises à leur part dans la colonne de ce jour-là, comme s'il était affiché.
+  - Les mesures sont rangées par position de défilement.
+- Pendant le glissement (doigt, glissement de page, défilement natif), `suivreHauteursJourMobile` donne à chaque ligne une hauteur au prorata du chemin parcouru, entre celle du jour quitté et celle du jour qui arrive.
+- Arrivé sur le jour, les lignes y sont déjà : plus rien ne bouge au lâcher.
+- Deux jours d'un coup (jour pas encore mesuré) : les lignes restent à la dernière hauteur connue, puis glissent à l'arrivée comme en suite 57.
+- Glissé trop court, retour sur le même jour : les hauteurs exactes de ce jour sont remises.
+- Classe `.hauteurs-suivies` : pas de transition CSS pendant le suivi. Elle est posée et appliquée avant la première valeur ; posées ensemble, Chrome faisait encore glisser ce premier pas.
+- Mise à jour dans la même image que le défilement :
+  - `defilerHorizontal_` appelle `suivreDefilementJourMobile` (cartes et hauteurs) ;
+  - l'événement « scroll » appelle `suivreHauteursJourMobile` directement, sans attendre l'image suivante.
+
+### Cartes sans à-coup (`ajusterLargeurBullesJourMobile`)
+- Une carte qui grandit (après-midi qui continue le lendemain) doublait d'un coup dès le départ du geste. Sa moitié neuve était hors écran, et son texte passait de 2 lignes à 1 sous les yeux. Elle grandit maintenant avec la part qui entre à l'écran.
+- Jour visé : tolérance d'un vingtième de jour. L'écart entre deux repères dépasse d'un pixel la largeur de l'en-tête du jour. Pile sur le lendemain, on visait le surlendemain, et la carte de 1,5 jour reprenait sa largeur de la veille le temps d'une image, juste à l'arrivée.
+
+### Tests
+- test_suite58.js (nouveau), 12 vérifications, 12 OK :
+  - jalon du mardi au vendredi lisible chaque jour au bord des noms ; note du mercredi au jeudi aussi ; ni l'un ni l'autre le lundi ;
+  - jeudi → vendredi, image par image : la ligne passe de 55 à 95 px pendant le glissement, puis plus rien ne bouge, y compris pour un jour entier suivi de deux demi-journées ;
+  - carte de 1,5 jour qui passe de 298 à 149 px sans aller-retour ;
+  - carte d'après-midi qui grandit sans déborder de l'écran, ni doubler d'un coup ;
+  - glissé court : hauteurs du jour au pixel près.
+- Tests mis à jour pour la nouvelle règle (hauteurs progressives pendant le geste, et non plus figées jusqu'au lâcher) :
+  - test_suite34.js : hauteurs au prorata entre jeudi et le jour qui arrive ;
+  - test_suite35.js : la ligne de Mathis grandit avec le geste, puis redescend au retour ;
+  - test_suite57.js : les hauteurs changent pendant le glissement, et plus une fois le jour atteint.
+- test_suite34.js et test_suite35.js attendent aussi l'événement « scroll » après avoir déplacé la grille (300 ms au plus) : Chrome sans écran le livre parfois après les 2 images d'attente, et la hauteur suivie n'était alors pas encore posée.
+- Suite complète : 68/68.
