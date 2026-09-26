@@ -23,6 +23,9 @@
           '<div class="onglets-liste">' +
             '<button type="button" class="onglet actif" data-page="planning" title="Planning">' + ICONS.calendar + '<span class="onglet-nom">Planning</span></button>' +
             '<button type="button" class="onglet" data-page="jalons" title="Jalons">' + ICONS.flag + '<span class="onglet-nom">Jalons</span></button>' +
+            // Suite 65 — Lionel : « Ajoute un onglet note entre jalon et
+            // personnel. » (js/page-notes.js)
+            '<button type="button" class="onglet" data-page="notes" title="Notes">' + ICONS.note + '<span class="onglet-nom">Notes</span></button>' +
             '<button type="button" class="onglet" data-page="personnel" title="Personnel">' + ICONS.people + '<span class="onglet-nom">Personnel</span></button>' +
             '<button type="button" class="onglet" data-page="intervenants" title="Intervenants">' + ICONS.hardhat + '<span class="onglet-nom">Intervenants</span></button>' +
             '<button type="button" class="onglet" data-page="chantiers" title="Chantiers">' + ICONS.building + '<span class="onglet-nom">Chantiers</span></button>' +
@@ -46,7 +49,7 @@
           '<button type="button" class="fermer-reglages" id="btnFermerReglages" title="Fermer les réglages (Échap)" aria-label="Fermer les réglages">' + ICONS.close + '</button>' +
         '</nav>' +
         '<div class="app-main">' +
-          htmlPagePlanning() + htmlPageJalons() + htmlPagePersonnel() + htmlPageIntervenants() +
+          htmlPagePlanning() + htmlPageJalons() + htmlPageNotes() + htmlPagePersonnel() + htmlPageIntervenants() +
           htmlPageChantiers() + htmlPageStatuts() + htmlPageEntreeRapide() + htmlPageHoraires() + htmlPageMiseEnPage() +
           htmlPagesReglages() +
         '</div>' +
@@ -90,6 +93,7 @@
             '<div class="switcher-titre">Pages</div>' +
             '<button type="button" class="onglet switcher-item actif" data-page="planning">' + ICONS.calendar + 'Planning</button>' +
             '<button type="button" class="onglet switcher-item" data-page="jalons">' + ICONS.flag + 'Jalons</button>' +
+            '<button type="button" class="onglet switcher-item" data-page="notes">' + ICONS.note + 'Notes</button>' +
             '<button type="button" class="onglet switcher-item" data-page="personnel">' + ICONS.people + 'Personnel</button>' +
             '<button type="button" class="onglet switcher-item" data-page="intervenants">' + ICONS.hardhat + 'Intervenants</button>' +
             '<button type="button" class="onglet switcher-item" data-page="chantiers">' + ICONS.building + 'Chantiers</button>' +
@@ -109,6 +113,7 @@
     cablerAReserver();
     cablerPageSauvegardes();
     cablerPageRaccourcis();
+    cablerPageNotes();
     cablerPageCompte();
     cablerPageEntreeRapide();
     cablerPageFeries();
@@ -505,7 +510,7 @@
         '<div class="panneau-selection" id="panneauSelection" hidden>' +
           '<button type="button" class="toolbar-btn" id="selModifier" title="Modifier (Entrée)" aria-label="Modifier">' + ICONS.pencil + '</button>' +
           '<button type="button" class="toolbar-btn" id="selCopier" title="Copier au prochain déplacement (flèches ou glisser) au lieu de déplacer" aria-label="Copier au prochain déplacement">' + ICONS.copy + '</button>' +
-          '<button type="button" class="toolbar-btn sel-important" id="selImportant" title="Important : marquer ou retirer" aria-label="Important" aria-pressed="false">' + ICONS.flag + '</button>' +
+          '<button type="button" class="toolbar-btn sel-important" id="selImportant" title="Important : marquer ou retirer" aria-label="Important" aria-pressed="false">' + ICONS.important + '</button>' +
           '<button type="button" class="toolbar-btn sel-supprimer" id="selSupprimer" title="Supprimer (Suppr)" aria-label="Supprimer">' + ICONS.trash + '</button>' +
           '<span class="sel-fleches" hidden>' +
             '<span class="sel-sep"></span>' +
@@ -535,6 +540,18 @@
       // suite 54).
       htmlReglagesCouleurs('jalons') +
       '<div class="liste-intervenants" id="listeJalons"></div>' +
+      '</div></div>';
+  }
+  // Suite 65 : page Notes (js/page-notes.js) — couleur des notes, leur
+  // présence dans le planning, et la liste de toutes les notes.
+  function htmlPageNotes() {
+    return '<div class="page" id="page-notes"><div class="page-scroll">' +
+      '<div class="page-titre"><h1>Notes</h1></div>' +
+      '<p class="page-sous">Remarques posées sur le planning, au-dessus des personnes.</p>' +
+      htmlReglagesCouleurs('notes') +
+      '<label class="reglage-ligne reglage-notes-planning"><span class="reglage-texte"><b>Afficher dans le planning</b><span>Comme l’icône note de la barre du planning.</span></span>' +
+        '<span class="interrupteur"><input type="checkbox" id="chkNotesPlanning" checked><span class="interrupteur-piste"></span></span></label>' +
+      '<div id="listeNotes"></div>' +
       '</div></div>';
   }
   function htmlPagePersonnel() {
@@ -762,6 +779,8 @@
       // ouverture de la page — chargée une seule fois auparavant, elle
       // ignorait tout ce que la grille avait fait aux jalons depuis.
       jalons: function () { JALONS_TOUS = null; renderJalons(); },
+      // Suite 65 : relue à chaque ouverture, comme Jalons.
+      notes: function () { NOTES_TOUTES = null; renderNotes(); },
       personnel: renderPersonnel, intervenants: renderIntervenants,
       chantiers: renderChantiers, statuts: renderStatuts,
       "entree-rapide": renderFormulaires,

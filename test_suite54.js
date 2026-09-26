@@ -173,7 +173,7 @@ const choisirCouleur = (page, sel, hex, evt) => page.evaluate(([s, h, e]) => {
       return { lignes: m.querySelectorAll('.reglage-couleurs-groupe').length, attendues: GROUPES_COULEURS.filter((g) => !g.page).length, apercu: Math.round(a.height), dedans: r.left >= 0 && r.right <= window.innerWidth && r.top >= 0 && r.bottom <= window.innerHeight,
         theme: m.querySelector('.sel-theme-couleurs').value, largeur: Math.round(r.width) };
     });
-    verifier(modal.lignes === modal.attendues && modal.lignes === 16 && modal.apercu > 150 && modal.dedans && modal.theme === 'mes-couleurs',
+    verifier(modal.lignes === modal.attendues && modal.lignes === 15 && modal.apercu > 150 && modal.dedans && modal.theme === 'mes-couleurs',
       largeur + ' px, Personnaliser : fenêtre dans l\'écran, aperçu + ' + modal.lignes + ' réglages (' + JSON.stringify(modal) + ')');
     // L'aperçu suit la couleur réglée, et le thème devient « Personnalisé ».
     await choisirCouleur(page, '.couleurs-modal .rc-clair[data-groupe="onglet-fond"]', '#ffe0b0', 'input');

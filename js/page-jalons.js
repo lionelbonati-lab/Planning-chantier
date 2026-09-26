@@ -113,9 +113,10 @@
     var couleur = c ? c.couleur : "var(--jalon-bg)";
     return '<div class="ligne-intervenant" data-id-debut="' + esc2(j.idDebut) + '">' +
       '<span class="gauche-chantier"><span class="swatch-chantier" style="background:' + esc2(couleur) + '"></span><b>' + esc(j.texte) + '</b></span>' +
-      // Drapeau « important » : l'icône des onglets (suite 53 ; ICONE_DRAPEAU,
-      // plein, ne donnait qu'un petit carré noir à cette taille).
-      (j.important ? '<span class="compte jalon-important" title="Important">' + ICONS.flag + '</span>' : '') +
+      // Marque « important » : ICONS.important (suite 65 — le drapeau des
+      // onglets, utilisé ici depuis la suite 53, se confondait avec l'icône
+      // des jalons eux-mêmes).
+      (j.important ? '<span class="compte jalon-important" title="Important">' + ICONS.important + '</span>' : '') +
       '<span class="plage-jalon">' + esc(libellePlageJalon(j)) + '</span>' +
       '<span class="ligne-actions">' +
       // Icônes (suite 53, cf. boutonIconeLigne).

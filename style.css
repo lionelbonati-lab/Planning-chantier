@@ -935,7 +935,15 @@
      padding-bottom de 4 px de .scroller (là depuis le tout premier dépôt) :
      une bande couleur du fond entre la dernière ligne et le bord arrondi du
      cadre. Retiré : le cadre se referme pile sous la dernière ligne. */
-  .scroller { overflow-x: auto; overscroll-behavior-x: contain; }
+  /* overflow-y:hidden (round du 26.09.2026, suite 65) — Lionel, capture à
+     l'appui : « une barre de défilement est apparu a droite sur mon
+     planning alors qu'il y a encore de la place ». overflow-x:auto force le
+     calcul de overflow-y à "auto" (cf. .entete-planning-figee plus haut) :
+     au moindre débordement vertical de quelques pixels (barre horizontale
+     native de Windows, arrondis de sous-pixels), .scroller — qui ne défile
+     JAMAIS verticalement lui-même, c'est #app qui fait défiler la page —
+     affichait sa propre barre verticale, par-dessus les bulles de droite. */
+  .scroller { overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; }
   /* Round du 23.09.2026 (suite ×10) — Lionel, retour sur la vue mobile
      "1 jour" (§99) : « La case du jour doit être aimantée pour qu'elle
      rentre sur l'écran. A l'heure actuelle je peux afficher 2 demi journée
@@ -2140,6 +2148,11 @@
   .ligne-intervenant > span.plage-jalon { color: var(--ink-faint); font-size: 11px; margin-left: 10px; }
   .ligne-intervenant > span.jalon-important { color: var(--important-ink); display: inline-flex; }
   .ligne-intervenant > span.jalon-important svg { width: 14px; height: 14px; }
+  /* Page Notes (suite 65) : pastille à la couleur des notes, compteur des
+     titres, interrupteur « Afficher dans le planning ». */
+  .swatch-chantier.swatch-note { background: var(--note-bg); }
+  .titre-compte { font-weight: 600; color: var(--ink-faint); margin-left: 4px; }
+  .reglage-notes-planning { margin: 10px 0 4px; max-width: 520px; }
   .ligne-actions { display: flex; align-items: center; gap: 14px; margin-left: auto; padding-left: 14px; }
   .ligne-intervenant .gauche-chantier { display: flex; align-items: center; gap: 10px; }
   .swatch-chantier { width: 18px; height: 18px; border-radius: 6px; flex-shrink: 0; border: 1px solid var(--border); }
@@ -3396,3 +3409,32 @@
     .aa-nom { font-size: 11px; padding: 0 6px; }
     .aa-carte { padding-left: 6px; padding-right: 6px; }
   }
+
+  /* ─── Barres de défilement discrètes (round du 26.09.2026, suite 65) ───
+     Lionel : « Fait en sorte que toutes les barres de défilement soient des
+     barres discrètes, visibles unique si il y a déplacement. » Les barres
+     natives sont masquées PARTOUT (elles gardent le défilement, molette,
+     doigt et clavier compris) ; js/barres-defilement.js dessine à la place
+     une fine poignée par-dessus l'élément qui défile, seulement pendant le
+     défilement, puis la fait disparaître en fondu. Elle ne prend aucune
+     place : plus de largeur de contenu rognée de 17 px sous Windows. */
+  * { scrollbar-width: none; }
+  *::-webkit-scrollbar { display: none; width: 0; height: 0; }
+  .barre-defilement {
+    position: fixed; top: 0; left: 0; z-index: 2147483000; display: none;
+    border-radius: 999px; background: var(--ink); opacity: 0;
+    transition: opacity .35s ease, width .12s ease, height .12s ease;
+    pointer-events: none; touch-action: none; will-change: transform, opacity;
+  }
+  .barre-defilement-v { width: 6px; margin-left: -6px; }
+  .barre-defilement-h { height: 6px; margin-top: -6px; }
+  .barre-defilement.utile { display: block; }
+  .barre-defilement.visible { opacity: .32; transition-duration: .12s; }
+  /* Saisissable à la souris seulement : au doigt, une poignée de 6 px au
+     bord intercepterait les appuis sur les bulles juste après un glissé. */
+  @media (pointer: fine) { .barre-defilement.visible { pointer-events: auto; } }
+  .barre-defilement.saisie { opacity: .55; }
+  .barre-defilement-v.saisie { width: 8px; margin-left: -8px; }
+  .barre-defilement-h.saisie { height: 8px; margin-top: -8px; }
+  @media (hover: hover) and (pointer: fine) { .barre-defilement.visible:hover { opacity: .5; } }
+  @media print { .barre-defilement { display: none !important; } }

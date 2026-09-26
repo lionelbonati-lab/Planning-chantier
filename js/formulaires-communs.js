@@ -559,7 +559,9 @@
     return JOURS_ABBR[d.getDay()] + ". " + d.getDate() + " " + MOIS_ABBR[d.getMonth() + 1];
   }
   var ICONE_FERMER = '<svg class="icon" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>';
-  var ICONE_DRAPEAU = '<svg class="icon" viewBox="0 0 24 24"><path d="M6 3v18M6 4h12l-3 4 3 4H6"/></svg>';
+  // Suite 65 : « important » n'a plus le drapeau des jalons, mais un point
+  // d'exclamation dans un cercle (même dessin qu'ICONS.important).
+  var ICONE_DRAPEAU = '<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.2v5.8"/><circle cx="12" cy="16.4" r="1.2" fill="currentColor" stroke="none"/></svg>';
   var ICONE_CHEVRON_G = '<svg class="icon" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg>';
   var ICONE_CHEVRON_D = '<svg class="icon" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>';
   var ICONE_CHEVRON_BAS = '<svg class="icon" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>';

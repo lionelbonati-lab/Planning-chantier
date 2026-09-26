@@ -156,6 +156,7 @@
 
     { id: "pagePlanning", groupe: "Pages", nom: "Planning", defaut: [], faire: allerPage_("planning") },
     { id: "pageJalons", groupe: "Pages", nom: "Jalons", defaut: [], faire: allerPage_("jalons") },
+    { id: "pageNotes", groupe: "Pages", nom: "Notes", defaut: [], faire: allerPage_("notes") },
     { id: "pagePersonnel", groupe: "Pages", nom: "Personnel", defaut: [], faire: allerPage_("personnel") },
     { id: "pageIntervenants", groupe: "Pages", nom: "Intervenants", defaut: [], faire: allerPage_("intervenants") },
     { id: "pageChantiers", groupe: "Pages", nom: "Chantiers", defaut: [], faire: allerPage_("chantiers") },

@@ -102,8 +102,10 @@
     {
       id: "note", nom: "Note",
       // Couleur de la bulle « Note » posée sur le planning, et du bouton « afficher les notes » de la barre d'outils quand il est activé.
+      // Suite 65 : réglée sur la page Notes (« Mets y la couleur »), comme
+      // Jalon sur la sienne — plus dans « Personnaliser » ni dans les thèmes.
       champs: [{ v: "--note-bg" }],
-      defautClair: "#f7e6ab", defautSombre: "#f7e6ab"
+      defautClair: "#f7e6ab", defautSombre: "#f7e6ab", page: "notes"
     },
     {
       // Round du 23.09.2026 (suite ×3) — Lionel : « séparations Personnel/

@@ -8998,3 +8998,49 @@ Lionel :
 - test_suite62.js : 18 réglages et leurs valeurs d'origine, en-têtes de l'aperçu (jour + date), statut en pastilles, « Rien » au lieu de « Trait », `separation=rien` relu depuis un ancien « trait ». 29/29.
 - test_suite54.js : liste des thèmes sans « Classique », thème Océan, 16 réglages dans Personnaliser, « Couleurs d'origine ». OK.
 - test_suite61.js : touches par défaut des semaines avec les boutons de souris, section « Souris » (11 lignes fixes). 99/99.
+
+## 173. Round du 26.09.2026 (suite 65) — Icône « Important », onglet Notes, barres de défilement discrètes
+
+Lionel :
+- « Jalon et Important ont la même icone, ca prête à confusion. trouve une autre icone pour important »
+- « Ajoute un onglet note entre jalon et personnel. Mets y la couleur et d'autres choses. »
+- « une barre de défilement est apparu a droite sur mon planning alors qu'il y a encore de la place. Fait en sorte que toutes les barres de défilement soient des barres discrètes, visibles unique si il y a déplacement. »
+
+### Ce qui change
+- **Important** : nouvelle icône, un cercle avec un « ! ». Le drapeau reste aux jalons seuls. Elle est utilisée dans la barre de sélection, dans le bandeau des fiches (tâche, jalon, note) et dans la liste des jalons.
+- **Onglet Notes**, entre Jalons et Personnel (barre du haut, menu des pages, raccourci « Notes » à choisir sur la page Raccourcis). La page contient :
+  - la couleur des notes (qui quitte « Personnaliser » et les thèmes, comme Jalon) ;
+  - « Afficher dans le planning » : la même bascule que l'icône note de la barre du planning ;
+  - toutes les notes : « En cours et à venir », puis « Passées » (les plus récentes en tête), avec leur nombre. Une note sur plusieurs jours tient sur une ligne ; deux notes d'un même jour restent deux lignes. L'important est signalé par sa nouvelle icône ;
+  - ajouter, modifier (texte, dates, important) et supprimer (après confirmation). Seule la note visée change : les autres notes du même jour restent.
+- **Barres de défilement** :
+  - la barre verticale parasite à droite du planning a disparu. Le tableau ne défile jamais verticalement lui-même : c'est la page qui défile ;
+  - toutes les barres natives sont masquées, partout. À leur place, une fine poignée (6 px) apparaît par-dessus ce qui défile, seulement pendant le défilement, puis s'efface en fondu ~0,8 s après. Elle ne prend aucune place ;
+  - à la souris, la poignée se saisit tant qu'elle est affichée (glisser = faire défiler) et reste visible au survol ;
+  - la poignée horizontale du planning se place au bas de la partie visible à l'écran, même quand le bas du tableau est plus loin.
+
+### Fonctionnement
+- js/core.js : `ICONS.important`. Il est repris par `#selImportant`, `.jalon-important` (js/page-jalons.js) et `ICONE_DRAPEAU` (js/formulaires-communs.js, bouton `.f-important` des bandeaux).
+- js/page-notes.js (nouveau) :
+  - `chargerNotesToutesServeur` lit toute la table `notes`. `fusionnerNotesTous` regroupe par (texte, important) et réunit les jours ouvrés consécutifs, avec la même règle de demi-journée que les jalons ;
+  - `renderNotes` dessine les 2 sections ;
+  - `ouvrirFormulaireNote` reprend la fiche des jalons (bandeau, dates ISO sans limite de fenêtre) et écrit par `enregistrer-plage` (`kind: "note"`, `mode: "remplacement"`). Pour une modification ou une suppression, l'ancienne note part en `origine`, et le serveur ne retire que cette ligne-là sur chaque jour. Supprimer revient à écrire les mêmes jours avec un texte vide ;
+  - `cablerPageNotes` : clics délégués et `#chkNotesPlanning` ↔ `replierNotes`.
+- js/coquille.js : onglet et entrée du menu `data-page="notes"`, `htmlPageNotes()`, relecture à chaque ouverture (`renduParPage_.notes`). js/raccourcis.js : action `pageNotes`. js/page-couleurs.js : groupe `note` → `page: "notes"`.
+- style.css :
+  - `.scroller { overflow-y: hidden }`. `overflow-x: auto` forçait `overflow-y` à « auto » : au moindre débordement de quelques pixels (barre horizontale native de Windows, arrondis), le tableau affichait sa propre barre verticale par-dessus les bulles de droite ;
+  - `* { scrollbar-width: none }` et `::-webkit-scrollbar { display: none }` ;
+  - `.barre-defilement` : poignée fixe, `opacity` 0 → .32 pendant le défilement. Elle ne capte les clics qu'avec une souris (`pointer: fine`) : au doigt, elle intercepterait les appuis sur les bulles au bord juste après un glissé.
+- js/barres-defilement.js (nouveau, chargé tôt dans index.html) :
+  - écoute `scroll` en capture sur document, pour n'importe quel élément ;
+  - ignore un débordement de 2 px ou moins et les éléments en `overflow: hidden`, dont le défilement est seulement recopié par le code (`.entete-planning-scroll`) ;
+  - replace toutes les poignées affichées à chaque défilement ;
+  - le glisser à la souris est intercepté en capture sur `window`, avant les écouteurs « clic à l'extérieur = fermer » des fenêtres.
+
+### Tests
+- test_suite65.js (nouveau), 22 vérifications :
+  - Important : icône en cercle, différente du drapeau (sélection, fiche, liste des jalons) ;
+  - onglet Notes à sa place (haut et menu), raccourci, ouverture ;
+  - page Notes : couleur (absente des réglages généraux), liste fusionnée et sections, bascule du planning dans les deux sens, ajouter, modifier sur 2 jours, supprimer sans toucher les autres notes du même jour, 390 px sans débordement ;
+  - barres : natives masquées, `.scroller` sans défilement vertical, poignée fine au bord droit pendant le défilement puis effacée, poignée saisie qui fait défiler, poignée horizontale du planning dans l'écran.
+- test_suite56.js et test_suite54.js : 15 réglages dans « Personnaliser » (au lieu de 16) : Note est maintenant sur sa page.
