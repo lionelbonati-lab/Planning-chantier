@@ -1336,7 +1336,10 @@
         }
         return -1;
       }
-      function marquerConsommeT_(hi, idx) { (consommesT[hi] = consommesT[hi] || {})[idx] = true; }
+      // occT_ (suite 66) : cases (demi-slot, rang dans la case) prises par
+      // la tâche en cours de construction — cf. attribuerRangsTaches_.
+      var occT_ = [];
+      function marquerConsommeT_(hi, idx) { (consommesT[hi] = consommesT[hi] || {})[idx] = true; occT_.push({ cle: hi, idx: idx }); }
 
       var nHalfFenetre = nJoursFenetre * 2;
       for (var hiStart = 0; hiStart < nHalfFenetre; hiStart++) {
@@ -1345,6 +1348,7 @@
         for (var idxStart = 0; idxStart < arrStart.length; idxStart++) {
           if (consommesT[hiStart] && consommesT[hiStart][idxStart]) continue;
           var entreeT = arrStart[idxStart];
+          occT_ = [];
           var chantierT = entreeT.chantier || null;
           // Round du 14.09.2026 : entreeT.absence (colonne réelle
           // taches.est_absence, cf. tacheVue_) prime désormais sur
@@ -1371,6 +1375,7 @@
           });
           ittT.serieId = entreeT.serieId || null;
           ittT.dateDebutIso = isoDeGiFenetre(donnees, bornesT.giDebut);
+          ittT._occ = occT_;
           TACHES.push(ittT);
         }
       }
@@ -1393,7 +1398,7 @@
           var vueJour = pd.weekend[j];
           if (!vueJour) return;
           var giWE = giWeekend(s, j);
-          (vueJour.taches || []).forEach(function (t) {
+          (vueJour.taches || []).forEach(function (t, idxWE) {
             var typ = (t.absence || estAbsence(t.texte)) ? "absence" : "tache"; // round du 14.09.2026, cf. commentaire de tacheVue_
             var itwe = itemPlageTache(typ, t.texte, p.id, giWE, 1, {
               // chantier de la TÂCHE elle-même (round du 16.09.2026, cf.
@@ -1404,12 +1409,14 @@
             });
             itwe.serieId = t.serieId || null;
             itwe.dateDebutIso = isoDeGi(giWE);
+            itwe._occ = [{ cle: "w" + giWE, idx: idxWE }];
             TACHES.push(itwe);
           });
         });
       });
     });
 
+    attribuerRangsTaches_(TACHES);
     if (anciennes) {
       TACHES = reprendreObjetsBulles_(anciennes.TACHES, TACHES);
       JALONS = reprendreObjetsBulles_(anciennes.JALONS, JALONS);
@@ -1427,6 +1434,48 @@
       });
     }
     syncBaseline = calculerEtatLocal();
+  }
+  // Rang des tâches (round du 26.09.2026, suite 66). Lionel : « J'aimerai
+  // pouvoir trier mes tâches si plusieurs tâches se chevauchent. Pour le
+  // moment aucun moyen de faire monter l'une ou l'autre tâches à
+  // l'intérieur de la même case. »
+  //
+  // Chaque tâche porte un `rang` (par personne) : il décide qui est
+  // au-dessus quand des tâches se chevauchent (assignerPistesCompact) et
+  // l'ordre des tâches dans chaque case écrite (calculerEtatLocal). Rien de
+  // neuf en base : la colonne `ordre` de chaque case (position dans la case)
+  // en garde la trace. À la relecture, le rang se retrouve en réunissant
+  // l'ordre de TOUTES les cases de la personne : dans une case, la tâche en
+  // position i passe avant celle en position i+1 ; un tri topologique de ces
+  // contraintes donne un ordre unique. À égalité (tâches qui ne se
+  // chevauchent pas), l'ordre de construction — début le plus tôt d'abord —
+  // départage, ce qui redonne exactement l'empilement d'avant ce round pour
+  // des cases jamais triées à la main. Contraintes contradictoires (cases
+  // écrites avant ce round) : la plus ancienne des tâches restantes passe.
+  function attribuerRangsTaches_(taches) {
+    var parPersonne = {};
+    taches.forEach(function (t) { (parPersonne[t.personneId] = parPersonne[t.personneId] || []).push(t); });
+    Object.keys(parPersonne).forEach(function (pid) {
+      var liste = parPersonne[pid], parCle = {};
+      liste.forEach(function (t, n) {
+        (t._occ || []).forEach(function (o) { (parCle[o.cle] = parCle[o.cle] || []).push({ idx: o.idx, n: n }); });
+      });
+      var suivants = liste.map(function () { return []; }), entrants = liste.map(function () { return 0; });
+      Object.keys(parCle).forEach(function (c) {
+        var a = parCle[c].sort(function (x, y) { return x.idx - y.idx; });
+        for (var k = 1; k < a.length; k++) { suivants[a[k - 1].n].push(a[k].n); entrants[a[k].n]++; }
+      });
+      var fait = liste.map(function () { return false; });
+      for (var rang = 0; rang < liste.length; rang++) {
+        var choisi = -1, n;
+        for (n = 0; n < liste.length && choisi === -1; n++) if (!fait[n] && entrants[n] <= 0) choisi = n;
+        for (n = 0; n < liste.length && choisi === -1; n++) if (!fait[n]) choisi = n;
+        fait[choisi] = true;
+        liste[choisi].rang = rang;
+        suivants[choisi].forEach(function (m) { entrants[m]--; });
+      }
+      liste.forEach(function (t) { delete t._occ; });
+    });
   }
   // Fenêtre de la dernière reconstruction (cf. construireVueDepuisCache).
   var cleFenetreVue_ = null;
@@ -1516,7 +1565,9 @@
     // une LISTE par case (empilement), d'où la projection sur "1 ou 2"
     // tableaux de cellule plutôt que sur "1 ou 2" valeurs d'un seul champ.
     PERSONNES.forEach(function (p) {
-      TACHES.filter(function (t) { return t.personneId === p.id && giVisibleFenetre(t.giDebut, n); }).forEach(function (t) {
+      // .sort(comparerRangTaches) (suite 66) : chaque case reçoit ses tâches
+      // dans l'ordre d'empilement voulu (rang), enregistré dans `ordre`.
+      TACHES.filter(function (t) { return t.personneId === p.id && giVisibleFenetre(t.giDebut, n); }).sort(comparerRangTaches).forEach(function (t) {
         for (var d = 0; d < t.duree; d++) {
           var gi = t.giDebut + d;
           if (!giVisibleFenetre(gi, n)) continue;

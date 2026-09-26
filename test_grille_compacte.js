@@ -42,7 +42,7 @@ function extraireFonction(nom) {
 }
 
 const NOMS = ['colsParJour', 'colonneGrille', 'colonneDemi', 'spanColonnes',
-  'estGiWeekend', 'giWeekend', 'semaineDuGiWeekend', 'jourWeekendIdx', 'assignerPistesCompact',
+  'estGiWeekend', 'giWeekend', 'semaineDuGiWeekend', 'jourWeekendIdx', 'comparerRangTaches', 'assignerPistesCompact',
   'colonneEtSpanDemi', 'demiDepuisPointeur', 'demiPourRedimNote', 'colFinDernierJour_',
   'demiSlotsDepuisBornes', 'bornesDepuisDemiSlots', 'bordsDeplacementNoteMultiJours',
   'demisOccupeesTache'];

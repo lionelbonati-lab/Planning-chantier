@@ -182,6 +182,78 @@
     majBarreSelection();
     if (!enAttente) toast(msg);
   }
+  // Trier les tâches qui se chevauchent (round du 26.09.2026, suite 66).
+  // Lionel : « J'aimerai pouvoir trier mes tâches si plusieurs tâches se
+  // chevauchent. Pour le moment aucun moyen de faire monter l'une ou l'autre
+  // tâches à l'intérieur de la même case. » puis, sur la proposition de
+  // boutons ↑ ↓ : « pas de bouton, un glisser déposer par dessus fait
+  // monter la tâche d'un rang ».
+  //
+  // Geste : glisser une tâche et la lâcher PAR-DESSUS une autre tâche de la
+  // même personne qui la chevauche (cf. bulleRangSous, js/grille-interactions.js) :
+  // elle prend sa place dans la pile — lâchée sur celle du dessus, elle
+  // passe au-dessus ; sur celle du dessous, elle passe dessous. Ses dates ne
+  // bougent pas.
+  //
+  // Le rang (cf. comparerRangTaches) est déplacé devant (ou derrière) celui
+  // de la tâche visée, et on recommence avec la suivante qui la chevauche
+  // tant qu'elle n'est pas réellement passée de l'autre côté à l'écran :
+  // l'empilement (assignerPistesCompact) remplit d'abord les pistes libres,
+  // une 3e tâche qui la chevauche sur un autre jour peut donc la retenir.
+  // Une étape d'annulation ; enregistrement par la synchronisation
+  // habituelle (ordre des tâches dans chaque case).
+  function demiSlotsTache_(it) {
+    if (estGiWeekend(it.giDebut)) return ["w" + it.giDebut];
+    var b = demiSlotsDepuisBornes(it.giDebut, it.duree, it.demiDebut || null, it.demiFin || null), out = [];
+    for (var h = b.halfStart; h <= b.halfFinIncl; h++) out.push(String(h));
+    return out;
+  }
+  function tachesSeChevauchent(a, b) {
+    var sa = demiSlotsTache_(a);
+    return demiSlotsTache_(b).some(function (h) { return sa.indexOf(h) >= 0; });
+  }
+  // Tâches visibles de la même personne, dans l'ordre d'empilement, rangs
+  // renumérotés et pistes recalculées (_piste).
+  function ligneDeTache_(t) {
+    var n = nbJoursAffiches();
+    var liste = TACHES.filter(function (x) { return x.personneId === t.personneId && giVisibleFenetre(x.giDebut, n); });
+    liste.sort(comparerRangTaches);
+    liste.forEach(function (x, k) { x.rang = k; });
+    assignerPistesCompact(liste);
+    return liste;
+  }
+  // true si l'ordre a changé (et a été enregistré).
+  function placerTacheAuRangDe(t, cible) {
+    var liste = ligneDeTache_(t);
+    if (liste.indexOf(cible) < 0 || t === cible) return false;
+    var monter = cible._piste < t._piste;
+    var avant = liste.map(function (x) { return [x, x.rang]; });
+    function remettre(paires) { paires.forEach(function (pr) { pr[0].rang = pr[1]; }); }
+    for (var essai = 0; essai < liste.length; essai++) {
+      var i = liste.indexOf(t), j = -1, k;
+      if (monter) { for (k = i - 1; k >= 0 && j === -1; k--) if (tachesSeChevauchent(liste[k], t)) j = k; }
+      else { for (k = i + 1; k < liste.length && j === -1; k++) if (tachesSeChevauchent(liste[k], t)) j = k; }
+      if (j === -1) break;
+      liste.splice(i, 1);
+      liste.splice(j, 0, t);
+      liste.forEach(function (x, r) { x.rang = r; });
+      assignerPistesCompact(liste);
+      if (monter ? t._piste < cible._piste : t._piste > cible._piste) {
+        // Rangs d'avant le temps de prendre l'instantané Ctrl+Z.
+        var apres = liste.map(function (x) { return [x, x.rang]; });
+        remettre(avant);
+        sauvegarderUndo();
+        remettre(apres);
+        render();
+        toast(monter ? "Montée au-dessus." : "Descendue en dessous.");
+        return true;
+      }
+    }
+    remettre(avant);
+    assignerPistesCompact(liste);
+    return false;
+  }
+
   // Crayon : ouvre la fiche de LA bulle sélectionnée (même geste qu'Entrée).
   function modifierSelection() {
     var ids = Object.keys(bullesSelectionnees);
@@ -560,8 +632,9 @@
   }
   var ICONE_FERMER = '<svg class="icon" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>';
   // Suite 65 : « important » n'a plus le drapeau des jalons, mais un point
-  // d'exclamation dans un cercle (même dessin qu'ICONS.important).
-  var ICONE_DRAPEAU = '<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.2v5.8"/><circle cx="12" cy="16.4" r="1.2" fill="currentColor" stroke="none"/></svg>';
+  // d'exclamation — dans un triangle d'attention depuis la suite 66 (même
+  // dessin qu'ICONS.important).
+  var ICONE_DRAPEAU = '<svg class="icon" viewBox="0 0 24 24"><path d="M12 3.4 21.8 20.2H2.2Z" stroke-linejoin="round"/><path d="M12 9.1v5.2"/><circle cx="12" cy="17.2" r="1.2" fill="currentColor" stroke="none"/></svg>';
   var ICONE_CHEVRON_G = '<svg class="icon" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg>';
   var ICONE_CHEVRON_D = '<svg class="icon" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>';
   var ICONE_CHEVRON_BAS = '<svg class="icon" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>';

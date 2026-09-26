@@ -36,9 +36,9 @@ function extraireFonction(nom) {
   throw new Error('accolades non équilibrées pour ' + nom);
 }
 
-const NOMS = ['esc', 'esc2', 'chantierParDefautValide', 'champChantierHTML', 'chantierExistantDansCase', 'demisOccupeesTache'];
+const NOMS = ['esc', 'esc2', 'chantierParDefautValide', 'optionSansChantierHTML_', 'champChantierHTML', 'chantierExistantDansCase', 'demisOccupeesTache'];
 
-const sandbox = { CHANTIERS: {}, chantierParDefaut: null, TACHES: [], String: String, Math: Math };
+const sandbox = { LIBELLE_SANS_CHANTIER: 'Aucun chantier', CHANTIERS: {}, chantierParDefaut: null, TACHES: [], String: String, Math: Math };
 vm.createContext(sandbox);
 vm.runInContext(NOMS.map(extraireFonction).join('\n'), sandbox);
 

@@ -303,6 +303,18 @@
     var p = personneParAncre(personneId);
     return p && p.sousTraitant ? "sous-traitant" : "personnel";
   }
+  // Round du 26.09.2026 (suite 66) — Lionel : « J'arrive à changer les
+  // tâches entre intervenants alors que cela devrait être interdit. » Le
+  // glisser ne bloquait que le passage Personnel ↔ Intervenants (même
+  // secteur exigé) : une tâche d'intervenant pouvait passer d'une
+  // entreprise à l'autre. Désormais une tâche d'intervenant ne quitte
+  // jamais SA ligne (elle se décale seulement dans le temps) ; entre
+  // membres du personnel, rien ne change.
+  function changementPersonneAutorise(source, cible) {
+    if (String(source) === String(cible)) return true;
+    var s = secteurPersonne(source);
+    return s === secteurPersonne(cible) && s !== "sous-traitant";
+  }
   // Ordre AFFICHÉ (suite 33) : équipes suivies de leurs membres, membres
   // repliés exclus — cf. personnesAffichees (js/equipes.js).
   function lignesSecteur(secteur) {
@@ -323,9 +335,17 @@
   // jours. Round du 25.09.2026 (suite 35) : sert aussi aux lignes Jalons et
   // Notes, qui passaient encore par l'ancien assignerPistes() À LA JOURNÉE
   // (supprimé) — cf. la ligne jalons/notes plus bas.
+  // Ordre d'empilement (suite 66, cf. attribuerRangsTaches_ dans
+  // js/donnees-sync.js) : le rang d'abord — une tâche tout juste créée ou
+  // copiée n'en a pas encore et se range sous les autres —, puis le début.
+  // Jalons et notes n'ont pas de rang : le début seul, comme avant.
+  function comparerRangTaches(a, b) {
+    var ra = a.rang == null ? 1e9 : a.rang, rb = b.rang == null ? 1e9 : b.rang;
+    return ra - rb || a.giDebut - b.giDebut;
+  }
   function assignerPistesCompact(items) {
     var pistes = []; // pistes[i] = { "<hi>": true } : demi-journées déjà prises
-    items.slice().sort(function (a, b) { return a.giDebut - b.giDebut; }).forEach(function (it) {
+    items.slice().sort(comparerRangTaches).forEach(function (it) {
       var occupe = {};
       if (estGiWeekend(it.giDebut)) {
         occupe["w" + it.giDebut] = true; // le week-end a sa propre colonne, hors axe demi-journée
@@ -2469,7 +2489,12 @@
     // couleur de son chantier (c'est même la raison d'être de ce champ, cf.
     // son en-tête), la grille le laissait en violet — même couleur désormais.
     var chJalon = it.type === "jalon" && it.chantierId != null ? CHANTIERS[etat.chantiersParId[it.chantierId]] : null;
-    var bg = it.type === "tache" ? (it.chantier && CHANTIERS[it.chantier] ? CHANTIERS[it.chantier].couleur : "#e5e5e5")
+    // Tâche sans chantier (suite 66 — Lionel : « Reste sans couleur ») :
+    // fond de la page (blanc, comme à l'impression) cerclé d'un filet
+    // (.sans-chantier), au lieu du gris #e5e5e5 d'avant.
+    var sansChantier = it.type === "tache" && !(it.chantier && CHANTIERS[it.chantier]);
+    if (sansChantier) el.classList.add("sans-chantier");
+    var bg = it.type === "tache" ? (sansChantier ? "var(--bg)" : CHANTIERS[it.chantier].couleur)
       : it.type === "absence" ? "var(--absence-bg)"
       : it.type === "jalon" ? (chJalon ? chJalon.couleur : "var(--jalon-bg)") : "var(--note-bg)";
     // Étiquette (nom de chantier / "Absence"/"Jalon"/"Note") : n'est plus
@@ -2480,7 +2505,7 @@
     // absence/jalon/note) suffisent à l'identifier sans ce 2e texte qui
     // forçait une ligne de plus par bulle. Gardée en mémoire (`tag`) pour
     // l'infobulle au survol (title ci-dessous), qui garde l'info accessible.
-    var tag = it.type === "tache" ? (it.chantier && CHANTIERS[it.chantier] ? CHANTIERS[it.chantier].nom : "")
+    var tag = it.type === "tache" ? (sansChantier ? "Aucun chantier" : CHANTIERS[it.chantier].nom)
       : it.type === "absence" ? "Absence" : it.type === "jalon" ? "Jalon" + (chJalon ? " · " + chJalon.nom : "") : "Note";
     // Round du 23.09.2026 (suite 14) — .b-carte : nouvel enveloppe interne
     // portant tout le VISUEL (fond, coins arrondis, ombre — cf. son
