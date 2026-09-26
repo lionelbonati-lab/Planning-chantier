@@ -297,6 +297,24 @@
   function boutonIconeLigne(classe, icone, libelle) {
     return '<button type="button" class="' + classe + ' btn-icone-ligne" title="' + libelle + '" aria-label="' + libelle + '">' + icone + '</button>';
   }
+  // Pastille de couleur cliquable (round du 26.09.2026, suite 54) — Lionel :
+  // « statuts et chantier, modifications de la couleur se fait par appuis
+  // sur la pastille ». Un vrai <input type="color"> habillé en rond
+  // (.pastille-couleur, style.css) : toucher la pastille ouvre directement
+  // le sélecteur du système, sans fenêtre intermédiaire ; la page écoute
+  // "change" (sélecteur refermé) pour enregistrer. hexPastille : l'input
+  // n'accepte que #rrggbb — une couleur #rgb est dépliée, toute autre
+  // valeur (vide, nom CSS…) retombe sur un gris neutre plutôt que sur le
+  // noir que l'input afficherait sinon.
+  function hexPastille(couleur) {
+    var c = String(couleur || "").trim();
+    if (/^#[0-9a-f]{6}$/i.test(c)) return c.toLowerCase();
+    var m = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/i.exec(c);
+    return m ? ("#" + m[1] + m[1] + m[2] + m[2] + m[3] + m[3]).toLowerCase() : "#cccccc";
+  }
+  function pastilleCouleur(classe, couleur, libelle) {
+    return '<input type="color" class="pastille-couleur ' + classe + '" value="' + hexPastille(couleur) + '" title="' + esc2(libelle) + '" aria-label="' + esc2(libelle) + '">';
+  }
 
   var app = document.getElementById("app");
   var progressEl = document.getElementById("progress");
@@ -679,15 +697,6 @@
      CRUD destructives (personnel/chantier/statut/formulaire), gardé pour les
      actions de grille (tâche/jalon/note/décalage), cf. §8. */
   var PERSONNES = [], CHANTIERS = {}, STATUTS = {}, STATUTS_ORDRE = [], FORMULAIRES_RAPIDES = [];
-  // TACHES_PAR_PERSONNE : ancre -> nombre de tâches en cours (cf. point 101
-  // de V3-spec-suite.md, apiCompterTachesPersonnes côté serveur). null tant
-  // que pas encore chargé. Volontairement PAS dans apiDemarrer (coûteux par
-  // nature, cf. WebApp.gs) : chargé une fois à la première ouverture d'une
-  // des 2 pages Personnel/Intervenants (chargerCompteursTaches), invalidé et
-  // rechargé après tout ajout/suppression (rafraichirApresPersonnel) — une
-  // renomination seule ne change aucun compteur, pas besoin d'y toucher.
-  var TACHES_PAR_PERSONNE = null;
-  var promesseTachesParPersonne = null;
   var DEMIS = ["matin", "aprem"];
   // ---- Mode d'affichage (round du 02.09.2026, rendu seul et unique mode au
   // round du 08.09.2026 suite, §49) ------------------------------------------

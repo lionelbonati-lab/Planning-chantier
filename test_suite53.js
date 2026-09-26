@@ -90,11 +90,10 @@ function mesurerLignes(page) {
     // Les icônes font toujours la même chose que les anciens liens.
     await allerPage(page, 'chantiers');
     await page.waitForTimeout(200);
-    await page.click('#page-chantiers .ligne-intervenant:not(.ligne-desactivee) .lien-modifier[title="Couleur"]');
-    await page.waitForTimeout(200);
-    const popCouleur = await page.evaluate(() => { const p = document.querySelector('.pop'); return p ? p.querySelector('.cp-titre') && p.querySelector('.cp-titre').textContent : null; });
-    verifier(!!popCouleur, largeur + ' px, Chantiers : la palette ouvre la fenêtre de couleur (' + popCouleur + ')');
-    await page.evaluate(() => { if (popFermerActuel) popFermerActuel(); document.querySelectorAll('.pop').forEach((p) => p.remove()); });
+    // Suite 54 : plus de bouton palette, la pastille est le sélecteur de
+    // couleur (vérifié en détail dans test_suite54.js).
+    const pastille = await page.evaluate(() => { const i = document.querySelector('#page-chantiers .ligne-intervenant:not(.ligne-desactivee) .pastille-chantier'); return i ? i.type + ' ' + i.value : null; });
+    verifier(pastille === 'color #f7d9a8', largeur + ' px, Chantiers : la pastille est le sélecteur de couleur (' + pastille + ')');
     await allerPage(page, 'personnel');
     await page.waitForTimeout(200);
     await page.click('#page-personnel .ligne-intervenant[data-id] .lien-consultation');

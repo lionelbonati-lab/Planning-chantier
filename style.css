@@ -1903,12 +1903,86 @@
   .reglage-couleurs-paires { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
   .reglage-couleur-paire { display: flex; flex-direction: column; align-items: center; gap: 3px; }
   .reglage-couleur-paire span { font-size: 10px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: .03em; }
-  .reglage-couleurs-groupe input[type="color"] { width: 34px; height: 30px; padding: 2px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); cursor: pointer; }
+  .reglage-couleurs-groupe input[type="color"]:not(.pastille-couleur) { width: 34px; height: 30px; padding: 2px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); cursor: pointer; }
   .reglage-couleur-reset {
     border: none; background: var(--surface); color: var(--ink-faint); font-size: 15px; cursor: pointer;
     width: 28px; height: 28px; border-radius: 7px; line-height: 1; flex-shrink: 0;
   }
   @media (hover: hover) and (pointer: fine) { .reglage-couleur-reset:hover { color: var(--accent); } }
+  /* Round du 26.09.2026 (suite 54) — Lionel : « avoir toutes les couleurs
+     dans l'onglet prend trop de place ». Général : une ligne « Thème »
+     (liste + bouton Personnaliser, qui passe dessous sur un téléphone
+     étroit). Jalons/Personnel/Intervenants : une ligne « Couleur » réduite,
+     qui ne montre que le champ du mode affiché (clair ou sombre). Fenêtre
+     « Personnaliser » : .couleurs-modal, plus bas. */
+  .reglage-theme { flex-wrap: wrap; row-gap: 10px; }
+  .reglage-theme .reglage-couleurs-paires { flex-wrap: wrap; gap: 8px; flex-shrink: 1; justify-content: flex-end; }
+  .sel-theme-couleurs {
+    font: inherit; font-size: 13.5px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--ink); min-width: 150px; cursor: pointer;
+  }
+  .btn-personnaliser-couleurs {
+    display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 13px; font-weight: 600;
+    padding: 8px 12px; border-radius: 8px; border: 1.5px solid var(--accent); background: var(--surface-2); color: var(--accent); cursor: pointer;
+  }
+  @media (hover: hover) and (pointer: fine) { .btn-personnaliser-couleurs:hover { background: var(--accent-soft); } }
+  .btn-personnaliser-couleurs svg { flex-shrink: 0; }
+  .reglage-couleur-compacte { max-width: 520px; padding: 8px 10px 8px 14px; }
+  .reglage-couleur-compacte .reglage-couleurs-paires { gap: 6px; }
+  .reglage-couleur-compacte .pastille-couleur { margin: -4px 0; }
+  .reglage-couleur-compacte .rc-sombre { display: none; }
+  @media (prefers-color-scheme: dark) {
+    .reglage-couleur-compacte .rc-clair { display: none; }
+    .reglage-couleur-compacte .rc-sombre { display: block; }
+  }
+
+  /* Fenêtre « Personnaliser » (suite 54, ouvrirPersonnaliserCouleurs_) :
+     entête (titre + thème) et aperçu fixes, liste des réglages qui défile
+     dessous — l'aperçu reste visible pendant qu'on règle. */
+  .couleurs-modal {
+    width: 560px; max-width: calc(100vw - 24px); max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px);
+    text-align: left; padding: 14px; gap: 10px; overflow: hidden;
+  }
+  .couleurs-modal .cm-entete { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex: none; }
+  .couleurs-modal .cm-entete .cp-titre { font-size: 15px; color: var(--ink); padding: 0; }
+  .couleurs-modal .cm-liste { flex: 1 1 auto; min-height: 90px; overflow-y: auto; overscroll-behavior: contain; margin: 0 -4px; padding: 0 4px; }
+  .couleurs-modal .cm-liste .page-sous { margin: 0 0 8px; }
+  .couleurs-modal .reglage-couleurs-groupe { max-width: none; background: var(--surface); }
+  .couleurs-modal .form-actions { display: flex; justify-content: flex-end; flex: none; }
+  .couleurs-modal .form-actions button { text-align: center; min-width: 96px; }
+  .couleurs-modal .reglage-couleur-reset { padding: 0; text-align: center; }
+  .couleurs-modal .sel-theme-couleurs { min-width: 0; }
+  .apercu-couleurs {
+    flex: none; border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+    background: var(--bg); color: var(--ink); font-size: 11px; box-shadow: 0 4px 12px var(--shadow);
+  }
+  .apercu-couleurs .ac-haut { display: flex; align-items: center; gap: 4px; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  .apercu-couleurs .ac-onglet { padding: 3px 9px; border-radius: 999px; color: var(--ink-muted); font-weight: 600; }
+  .apercu-couleurs .ac-onglet.ac-actif { background: var(--accent-soft); color: var(--accent); }
+  .apercu-couleurs .ac-sync { margin-left: auto; width: 8px; height: 8px; border-radius: 50%; background: var(--sync-dot); }
+  .apercu-couleurs .ac-barre { display: flex; align-items: center; gap: 5px; padding: 5px 8px; background: var(--accent-soft); }
+  .apercu-couleurs .ac-outil { width: 18px; height: 18px; border-radius: 5px; background: var(--case-fixe-bg); border: 1px solid var(--border); }
+  .apercu-couleurs .ac-bouton { padding: 2px 8px; border-radius: 6px; background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .apercu-couleurs .ac-supprimer { margin-left: auto; padding: 2px 8px; border-radius: 6px; color: var(--danger); background: var(--interdit-bg); font-weight: 600; }
+  .apercu-couleurs .ac-ligne { display: grid; grid-template-columns: 74px 1fr 1fr 1fr .6fr; border-bottom: 1px solid var(--border); min-height: 24px; }
+  .apercu-couleurs .ac-ligne > span { display: flex; align-items: center; padding: 2px 4px; background: var(--surface-2); border-left: 1px solid var(--border); min-width: 0; overflow: hidden; white-space: nowrap; }
+  .apercu-couleurs .ac-ligne > .ac-nom { background: var(--surface); border-left: none; border-right: 2px solid var(--border-strong); font-weight: 700; }
+  .apercu-couleurs .ac-entete > span { background: var(--surface); color: var(--ink-muted); font-weight: 700; justify-content: center; }
+  .apercu-couleurs .ac-ligne > .ac-large { grid-column: span 2; }
+  .apercu-couleurs .ac-section > span { grid-column: 1 / -1; border: none; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; font-size: 9.5px; color: var(--ink-muted); }
+  .apercu-couleurs .ac-section-perso > span { background: var(--section-personnel-bg); }
+  .apercu-couleurs .ac-section-inter > span { background: var(--section-intervenants-bg); }
+  .apercu-couleurs .ac-ligne > .ac-we { background: var(--weekend-bg); }
+  .apercu-couleurs .ac-ligne > .ac-absence { background: var(--absence-bg); color: var(--bubble-ink); font-weight: 600; }
+  .apercu-couleurs .ac-ligne > .ac-bloquee { background: var(--avertissement-bg); }
+  .apercu-couleurs .ac-ligne > .ac-selection { background: var(--succes-bg); }
+  .apercu-couleurs .ac-bulle { font-style: normal; display: block; width: 100%; padding: 2px 5px; border-radius: 5px; color: var(--bubble-ink); font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+  .apercu-couleurs .ac-jalon { background: var(--jalon-bg); }
+  .apercu-couleurs .ac-note { background: var(--note-bg); }
+  .apercu-couleurs .ac-statut { font-size: 9.5px; padding: 0 5px; border-radius: 999px; background: var(--status-confirme-bg); color: var(--status-confirme-ink); }
+  .apercu-couleurs .ac-legende { display: flex; gap: 10px; padding: 5px 8px; color: var(--ink-muted); background: var(--surface); }
+  .apercu-couleurs .ac-important { color: var(--important-ink); font-weight: 700; }
+  .apercu-couleurs .ac-discret { color: var(--ink-faint); }
 
   .liste-intervenants { display: flex; flex-direction: column; gap: 8px; max-width: 520px; }
   /* Page Personnel : 2 listes, Équipes puis Personnes (suite 33). */
@@ -1917,7 +1991,7 @@
   .ligne-intervenant { display: flex; align-items: center; padding: 11px 14px; border: 1px solid var(--border); border-radius: 10px; font-size: 13px; background: var(--surface-2); }
   .ligne-intervenant b { font-weight: 700; }
   .ligne-intervenant > span.compte { color: var(--ink-faint); font-size: 11px; margin-left: 10px; }
-  .ligne-intervenant > span.compte:empty { margin-left: 0; } /* compteur pas encore chargé : pas de trou visuel */
+  .ligne-intervenant > span.compte:empty { margin-left: 0; } /* .compte vide : pas de trou visuel (le compteur de tâches de Personnel a disparu à la suite 54 ; reste le drapeau « important » des jalons) */
   /* Round du 12.09.2026 — page Jalons : la plage de dates a sa PROPRE classe
      (pas .compte, réservée au compteur de personnes/le drapeau important) pour
      éviter toute ambiguïté de sélecteur entre les deux usages. Même rendu que
@@ -1928,6 +2002,23 @@
   .ligne-actions { display: flex; align-items: center; gap: 14px; margin-left: auto; padding-left: 14px; }
   .ligne-intervenant .gauche-chantier { display: flex; align-items: center; gap: 10px; }
   .swatch-chantier { width: 18px; height: 18px; border-radius: 6px; flex-shrink: 0; border: 1px solid var(--border); }
+  /* Pastille cliquable (round du 26.09.2026, suite 54 — Lionel : « statuts
+     et chantier, modifications de la couleur se fait par appuis sur la
+     pastille ») : un <input type="color"> (pastilleCouleur, js/core.js)
+     habillé comme .swatch-chantier, un peu plus grand (22 px) pour se
+     toucher au doigt. La zone touchable fait 34 px : 6 px de marge
+     intérieure autour du carré de couleur, rattrapés par des marges
+     négatives pour ne pas grossir la ligne. */
+  .pastille-couleur {
+    -webkit-appearance: none; appearance: none; flex-shrink: 0; box-sizing: border-box;
+    width: 34px; height: 34px; padding: 6px; margin: -6px -6px -6px -4px;
+    border: none; border-radius: 9px; background: transparent; cursor: pointer;
+  }
+  .pastille-couleur::-webkit-color-swatch-wrapper { padding: 0; }
+  .pastille-couleur::-webkit-color-swatch { border: 1px solid var(--border); border-radius: 6px; }
+  .pastille-couleur::-moz-color-swatch { border: 1px solid var(--border); border-radius: 6px; }
+  .pastille-couleur:focus-visible { outline: 2.5px solid var(--accent); outline-offset: -2px; }
+  @media (hover: hover) and (pointer: fine) { .pastille-couleur:hover { background: var(--accent-soft); } }
   .champ-couleur-chantier { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
   .champ-couleur-chantier input[type="color"] { width: 40px; height: 32px; padding: 2px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-2); cursor: pointer; }
   .champ-couleur-chantier label { font-size: 12px; color: var(--ink-muted); }

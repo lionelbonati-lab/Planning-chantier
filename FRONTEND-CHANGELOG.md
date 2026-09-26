@@ -8512,3 +8512,63 @@ Lionel :
   - largeur de l'aperçu à 1920, 1400, 1024, 820 et 390 px.
 - test_suite47.js et test_suite50.js : sur téléphone, « À réserver » est cherché dans la barre du bas.
 - Suite complète : 63/63.
+
+## 162. Round du 26.09.2026 (suite 54) — Thèmes de couleurs, pastilles, onglets allégés
+
+Lionel :
+- « jalons, modifier la description en "phases du projet". Et juste "couleur" pour le choix de la couleur. »
+- « personnel, description équipe plus brève. Et uniquement "Couleur" pour la couleur. Enlever le nombre de taches attribuée, cela n'a aucune valeur. »
+- « intervenant, idem que personnel. »
+- « General, maintenant que j'ai pu sélectionner et groupers mes couleurs comme je le souhaites j'aimerais que les réglages de couleurs disparaissent des réglages. Proposer des thèmes de couleurs à la place avec juste une liste déroulante. Je ne sais pas si tu peux récupérer couleurs que j'ai enregistrée. Une autre alternative qui peut me plaire serai d'ouvrir une page de réglages avec un petit aperçu. Dans tous les cas avoir toutes les couleurs dans l'onglet prend trop de place. »
+- « statuts et chantier, modifications de la couleur se fait par appuis sur la pastille. Description plus brève. »
+
+### Général : thème + fenêtre « Personnaliser » (js/page-couleurs.js, js/coquille.js, js/donnees-sync.js, style.css)
+- L'onglet n'a plus aucun réglage de couleur : une ligne « Thème » avec une liste déroulante et un bouton « Personnaliser ».
+- Thèmes : Mes couleurs, Classique, Ardoise, Forêt, Terre cuite, Contraste fort (`THEMES_COULEURS`).
+  - « Mes couleurs » a été relevé dans la table `couleurs_perso` le 26.09.2026. Des réglages de Général, seul « Fond général, cases et coin » y était posé (#ffffff en clair). Personnel (#f3f4e6) et Intervenants (#e7f3e2) y étaient aussi, mais ce sont des couleurs de page, que les thèmes ne touchent pas.
+  - « Classique » : les couleurs d'origine de style.css.
+  - Un thème ne règle que les groupes de Général. Un groupe qu'il ne cite pas revient à sa couleur d'origine ; Jalon, Personnel et Intervenants gardent la leur.
+- Pas de nouvelle table ni colonne : choisir un thème réécrit les lignes `couleurs_perso` de ces groupes (partagées entre appareils comme avant). Le thème affiché se déduit des couleurs enregistrées (`themeActuel_`) ; dès qu'une couleur ne correspond plus à aucun thème, la liste affiche « Personnalisé ».
+- Quitter « Personnalisé » pour un thème demande confirmation, car ces couleurs seraient perdues.
+- « Personnaliser » ouvre une fenêtre :
+  - en haut, le titre, la même liste de thèmes et un petit aperçu du planning (onglets, barre d'outils, jours, week-end, sections Personnel/Intervenants, tâche à la couleur du premier chantier, absence, jalon, note, case bloquée, sélection, statut « confirmé », texte important, secondaire et discret) ;
+  - dessous, les 17 réglages d'avant, qui défilent. L'aperçu reste visible et suit chaque changement en direct (mêmes variables CSS que la grille).
+  - Échap ou un clic à côté ferme la fenêtre, y compris après une confirmation.
+- « Tout réinitialiser » disparaît : le thème « Classique » fait la même chose pour Général, et chaque ligne garde son ↺.
+- La description de Général ne dit plus « locaux à cet appareil, non partagés », qui n'était plus vrai pour les couleurs depuis le 24.09.2026.
+
+### Jalons, Personnel, Intervenants : ligne « Couleur » (js/page-couleurs.js, style.css)
+- La ligne de couleur de chaque page n'affiche plus que « Couleur », une pastille et ↺ (plus de nom ni de description).
+- La pastille règle la couleur du mode affiché (clair ou sombre) ; l'autre champ reste dans la page, masqué par le CSS.
+
+### Personnel, Intervenants : plus de nombre de tâches (js/page-personnel.js, js/core.js, js/donnees-sync.js)
+- Le compteur « N tâches en cours » est retiré des lignes, ainsi que de la question « Désactiver … qui a N tâches en cours ? ».
+- Avec lui disparaissent la requête qui le calculait à chaque ouverture de ces pages (`compterTachesPersonnesServeur`), `compterTachesParPersonne_`, `estIsoWeekend_`, `TACHES_PAR_PERSONNE` et `promesseTachesParPersonne`. `prochainJourOuvreIso_` reste (utilisé par « À réserver »).
+
+### Chantiers, Statuts : la pastille change la couleur (js/core.js, js/page-chantiers.js, js/page-statuts-entree-rapide.js, style.css)
+- `pastilleCouleur(classe, couleur, libellé)` : un `<input type="color">` habillé en carré de couleur (22 px visibles, 34 px à toucher). Le toucher ouvre directement le sélecteur du système. La couleur est enregistrée quand le sélecteur se referme (`change`) ; en cas d'échec, la pastille reprend l'ancienne couleur.
+- `hexPastille` : une couleur `#rgb` est dépliée en `#rrggbb` ; toute autre valeur donne un gris neutre plutôt que du noir.
+- Chantiers : le bouton palette (suite 53) et sa fenêtre sont retirés (`ouvrirCouleurChantier`).
+- Statuts : le crayon devient « Renommer » (nom seul, la couleur est gardée). L'ajout d'un statut garde son champ « Couleur du badge ».
+- Les lignes désactivées gardent un carré de couleur fixe.
+
+### Descriptions raccourcies (js/coquille.js)
+- Jalons : « Phases du projet. »
+- Équipes : « Membres choisis chaque semaine en touchant le nom de l'équipe dans le planning. »
+- Intervenants : « Les sous-traitants. »
+- Chantiers : « Touche la pastille pour changer la couleur. Un chantier désactivé reste sur les cases déjà posées. »
+- Statuts : « Statuts des tâches des intervenants. Touche la pastille pour changer la couleur. »
+
+### Tests
+- test_suite54.js (nouveau), 63 vérifications, 63 OK, à 1400 et 390 px :
+  - descriptions ;
+  - lignes « Couleur » (texte, une seule pastille, mode sombre, écriture sur le compte) ;
+  - plus de nombre de tâches ;
+  - pastilles de Chantiers et Statuts (couleur enregistrée) et Statuts « Renommer » qui garde la couleur ;
+  - Général : aucun champ de couleur, « Mes couleurs » reconnu, thèmes Forêt / Classique / Mes couleurs (variables et lignes `couleurs_perso`) ;
+  - fenêtre : dans l'écran, aperçu et 17 réglages, aperçu qui suit, « Personnalisé », confirmation annulée ou acceptée, Échap ;
+  - sans couleur enregistrée, « Classique ».
+- test_couleurs_sync_compte.js : les champs sont cherchés dans la fenêtre « Personnaliser ».
+- test_suite53.js : la palette des chantiers est remplacée par la pastille.
+- test_config_simple.js : tests de `estIsoWeekend_` et `compterTachesParPersonne_` retirés avec ces fonctions (8 assertions).
+- Suite complète : 64/64.
