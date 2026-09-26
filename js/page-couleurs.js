@@ -33,34 +33,40 @@
   // présent, dit que la variable est une rgba() dont on ne remplace que le
   // r/g/b — la transparence d'origine (--shadow, --bubble-ink, etc.) est
   // gardée telle quelle, on ne demande pas à Lionel de la régler.
+  //
+  // Round du 26.09.2026 (suite 56) — Lionel : « Sélection des couleurs,
+  // enlève les descriptions des couleurs. Cela allonge la liste pour aucune
+  // plus value. » Le champ `description` de chaque groupe n'est plus
+  // affiché nulle part : il reste ici en commentaire, pour savoir ce que
+  // couvre chaque groupe en lisant le code.
   var GROUPES_COULEURS = [
     {
       id: "principale", nom: "Couleur principale de l'appli",
-      description: "Boutons actifs, liens, cases sélectionnées, et texte de l'onglet actif (regroupés à ta demande).",
+      // Boutons actifs, liens, cases sélectionnées, et texte de l'onglet actif (regroupés à ta demande).
       champs: [{ v: "--accent" }],
       defautClair: "#1f4d8f", defautSombre: "#6fa6e8"
     },
     {
       id: "onglet-fond", nom: "Fond de l'onglet actif",
-      description: "Fond ovale derrière le nom de la page ouverte (aussi fond de survol de nombreux boutons).",
+      // Fond ovale derrière le nom de la page ouverte (aussi fond de survol de nombreux boutons).
       champs: [{ v: "--accent-soft" }],
       defautClair: "#e3ecf7", defautSombre: "#223247"
     },
     {
       id: "erreur-important", nom: "Erreur, suppression et étoile « important »",
-      description: "Regroupés à ta demande : ces 3 éléments prendront la même couleur.",
+      // Regroupés à ta demande : ces 3 éléments prendront la même couleur.
       champs: [{ v: "--danger" }, { v: "--important-ink" }, { v: "--important-toggle-bg" }],
       defautClair: "#b3372f", defautSombre: "#e0685f"
     },
     {
       id: "absence", nom: "Absence",
-      description: "Fond des cases d'absence et badge de type d'absence.",
+      // Fond des cases d'absence et badge de type d'absence.
       champs: [{ v: "--absence-bg" }],
       defautClair: "#f6c893", defautSombre: "#f6c893"
     },
     {
       id: "fond", nom: "Fond général, cases et coin",
-      description: "Regroupés à ta demande : le fond général de l'appli, le fond des cases, et le coin de la grille prendront tous la même couleur.",
+      // Regroupés à ta demande : le fond général de l'appli, le fond des cases, et le coin de la grille prendront tous la même couleur.
       champs: [{ v: "--bg" }, { v: "--surface-2" }, { v: "--surface" }],
       defautClair: "#ffffff", defautSombre: "#10161d"
     },
@@ -89,13 +95,13 @@
       // demande de Lionel ; "page" dit à htmlReglagesCouleurs() où
       // afficher la ligne (cf. plus bas). "Note" reste sur Général.
       id: "jalon", nom: "Jalon", page: "jalons",
-      description: "Couleur de la bulle « Jalon » posée sur le planning, et du bouton « afficher les jalons » de la barre d'outils quand il est activé.",
+      // Couleur de la bulle « Jalon » posée sur le planning, et du bouton « afficher les jalons » de la barre d'outils quand il est activé.
       champs: [{ v: "--jalon-bg" }],
       defautClair: "#d7cdf0", defautSombre: "#d7cdf0"
     },
     {
       id: "note", nom: "Note",
-      description: "Couleur de la bulle « Note » posée sur le planning, et du bouton « afficher les notes » de la barre d'outils quand il est activé.",
+      // Couleur de la bulle « Note » posée sur le planning, et du bouton « afficher les notes » de la barre d'outils quand il est activé.
       champs: [{ v: "--note-bg" }],
       defautClair: "#f7e6ab", defautSombre: "#f7e6ab"
     },
@@ -108,79 +114,79 @@
       // toolbar (auparavant accent bleu générique, cf. .toolbar-toggle).
       // "page" affiche cette ligne sur la page Personnel, pas Général.
       id: "section-personnel", nom: "Séparation « Personnel »", page: "personnel",
-      description: "Fond de la ligne « Personnel » dans le planning, et du bouton « afficher/masquer Personnel » de la barre d'outils quand il est activé.",
+      // Fond de la ligne « Personnel » dans le planning, et du bouton « afficher/masquer Personnel » de la barre d'outils quand il est activé.
       champs: [{ v: "--section-personnel-bg" }],
       defautClair: "#f0f0f0", defautSombre: "#171f28"
     },
     {
       id: "section-intervenants", nom: "Séparation « Intervenants »", page: "intervenants",
-      description: "Fond de la ligne « Intervenants » dans le planning, et du bouton « afficher/masquer Intervenants » de la barre d'outils quand il est activé.",
+      // Fond de la ligne « Intervenants » dans le planning, et du bouton « afficher/masquer Intervenants » de la barre d'outils quand il est activé.
       champs: [{ v: "--section-intervenants-bg" }],
       defautClair: "#f0f0f0", defautSombre: "#171f28"
     },
     {
       id: "halo-suppression", nom: "Halo de suppression",
-      description: "Contour au clic sur « Supprimer », et fond au survol du bouton « Effacer ».",
+      // Contour au clic sur « Supprimer », et fond au survol du bouton « Effacer ».
       champs: [{ v: "--interdit-bg" }],
       defautClair: "#f6dcd7", defautSombre: "#4a2620"
     },
     {
       id: "case-bloquee", nom: "Case bloquée / avertissement",
-      description: "Fond des cases signalées comme bloquées ou non disponibles.",
+      // Fond des cases signalées comme bloquées ou non disponibles.
       champs: [{ v: "--avertissement-bg" }],
       defautClair: "#f9d4b0", defautSombre: "#5a3110"
     },
     {
       id: "selection-cours", nom: "Sélection en cours",
-      description: "Surbrillance pendant l'extension d'une sélection de cases.",
+      // Surbrillance pendant l'extension d'une sélection de cases.
       champs: [{ v: "--succes-bg" }],
       defautClair: "#cdeccb", defautSombre: "#1c3a20"
     },
     {
       id: "weekend", nom: "Week-end",
-      description: "Fond des colonnes samedi/dimanche.",
+      // Fond des colonnes samedi/dimanche.
       champs: [{ v: "--weekend-bg" }],
       defautClair: "#cdcfc9", defautSombre: "#232b34"
     },
     {
       id: "statut-confirme", nom: "Statut « confirmé »",
-      description: "Fond du badge « confirmé ».",
+      // Fond du badge « confirmé ».
       champs: [{ v: "--status-confirme-bg" }],
       defautClair: "#cdf1ea", defautSombre: "#123f38"
     },
     {
       id: "sync", nom: "Point de synchronisation",
-      description: "Petit point en haut de l'écran indiquant que l'appli est connectée. À ne changer que si tu veux vraiment y toucher.",
+      // Petit point en haut de l'écran indiquant que l'appli est connectée. À ne changer que si tu veux vraiment y toucher.
       champs: [{ v: "--sync-dot" }],
       defautClair: "#3fa15a", defautSombre: "#3fa15a"
     },
     {
       id: "bordure", nom: "Séparations (fines et renforcées)",
-      description: "Regroupées à ta demande : les traits fins de la grille et la séparation renforcée entre semaines prendront la même couleur.",
+      // Regroupées à ta demande : les traits fins de la grille et la séparation renforcée entre semaines prendront la même couleur.
       champs: [{ v: "--border" }, { v: "--border-strong" }],
       defautClair: "#d7dad2", defautSombre: "#2b3540"
     },
     {
       id: "texte", nom: "Texte principal et texte des tâches",
-      description: "Regroupés à ta demande.",
+      // Regroupés à ta demande.
       champs: [{ v: "--ink" }, { v: "--bubble-ink", alpha: 0.82 }],
       defautClair: "#1a2129", defautSombre: "#eef1f4"
     },
     {
       id: "texte-secondaire", nom: "Texte secondaire",
-      description: "Sous-titres, dates, légendes.",
+      // Sous-titres, dates, légendes.
       champs: [{ v: "--ink-muted" }],
       defautClair: "#57616b", defautSombre: "#9aa7b3"
     },
     {
       id: "texte-discret", nom: "Texte discret / désactivé",
-      description: "Compteurs, indications, éléments désactivés.",
+      // Compteurs, indications, éléments désactivés.
       champs: [{ v: "--ink-faint" }],
       defautClair: "#8b93a0", defautSombre: "#66717c"
     },
     {
       id: "ombres", nom: "Ombres",
-      description: "Ombre portée sous les menus, fenêtres et cartes. À ne changer que si les menus manquent de relief.",
+      // Ombre portée sous les menus, fenêtres et cartes. À ne changer que si les menus manquent de relief.
       champs: [{ v: "--shadow", alpha: 0.16 }, { v: "--shadow-lg", alpha: 0.32 }],
       defautClair: "#182129", defautSombre: "#000000"
     }
@@ -340,14 +346,28 @@
   // de la coquille), pour éviter tout flash des couleurs d'origine.
   appliquerCouleursPersonnalisees();
 
+  // Ligne de la fenêtre « Personnaliser ». Suite 56 : le nom seul, sans
+  // description, et plus de « Clair »/« Sombre » répété sur chaque ligne —
+  // une seule fois en tête de liste (htmlEnteteColonnes_), les champs
+  // gardant leur nom pour les lecteurs d'écran (aria-label).
   function htmlLigneCouleur(groupe) {
+    var nom = esc2(groupe.nom);
     return '<div class="reglage-couleurs-groupe" data-groupe="' + groupe.id + '">' +
-      '<span class="reglage-texte"><b>' + groupe.nom + '</b><span>' + groupe.description + '</span></span>' +
+      '<span class="reglage-texte"><b>' + nom + '</b></span>' +
       '<span class="reglage-couleurs-paires">' +
-        '<span class="reglage-couleur-paire"><span>Clair</span><input type="color" class="rc-clair" data-groupe="' + groupe.id + '"></span>' +
-        '<span class="reglage-couleur-paire"><span>Sombre</span><input type="color" class="rc-sombre" data-groupe="' + groupe.id + '"></span>' +
+        '<span class="reglage-couleur-paire"><input type="color" class="rc-clair" data-groupe="' + groupe.id + '" aria-label="' + nom + ', mode clair"></span>' +
+        '<span class="reglage-couleur-paire"><input type="color" class="rc-sombre" data-groupe="' + groupe.id + '" aria-label="' + nom + ', mode sombre"></span>' +
         '<button type="button" class="reglage-couleur-reset" data-groupe="' + groupe.id + '" title="Rétablir la couleur d’origine">↺</button>' +
       '</span>' +
+    '</div>';
+  }
+  // Mêmes largeurs de colonnes que les lignes (style.css, .cm-colonnes),
+  // reste collé en haut quand la liste défile.
+  function htmlEnteteColonnes_() {
+    return '<div class="cm-colonnes" aria-hidden="true">' +
+      '<span class="reglage-couleur-paire"><span>Clair</span></span>' +
+      '<span class="reglage-couleur-paire"><span>Sombre</span></span>' +
+      '<span class="cm-col-reset"></span>' +
     '</div>';
   }
   // Ligne réduite des pages Jalons, Personnel et Intervenants (suite 54) —
@@ -616,8 +636,10 @@
     pop.innerHTML =
       '<div class="cm-entete"><div class="cp-titre">Couleurs</div>' + htmlSelectTheme_("") + '</div>' +
       htmlApercuCouleurs_() +
+      // Suite 56 : plus de phrase d'explication au-dessus de la liste, les
+      // colonnes « Clair »/« Sombre » suffisent.
       '<div class="cm-liste">' +
-        '<p class="page-sous">Une couleur pour le mode clair, une pour le mode sombre. Les éléments cités ensemble partagent la même couleur.</p>' +
+        htmlEnteteColonnes_() +
         groupesGeneral_().map(htmlLigneCouleur).join("") +
       '</div>' +
       '<div class="form-actions"><button type="button" class="f-fermer">Fermer</button></div>';

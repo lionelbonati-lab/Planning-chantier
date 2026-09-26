@@ -8589,3 +8589,26 @@ Lionel : « Corrige aussi le mode sombre de la barre d'outils » (signalé à la
 ### Tests
 - test_suite55.js (nouveau), 16 vérifications, 16 OK : contraste d'au moins 4,5:1 sur chaque case blanche, en mode sombre et clair, à 1400 px et dans le menu « ⋮ » à 390 px ; pastille en pointillés puis à la couleur du chantier choisi. Sans la correction : 8 échecs.
 - Suite complète : 65/65.
+
+## 164. Round du 26.09.2026 (suite 56) — Couleurs : liste sans descriptions
+
+Lionel : « Sélection des couleurs, enlève les descriptions des couleurs. Cela allonge la liste pour aucune plus value. »
+
+### Fenêtre « Personnaliser » de Général (js/page-couleurs.js, style.css)
+- Chaque ligne ne garde que le nom du réglage, ses deux champs (clair, sombre) et ↺. La description n'est plus affichée.
+- « Clair » et « Sombre » ne sont plus répétés sur chaque ligne : ils sont écrits une seule fois en tête de liste (`.cm-colonnes`), restent en haut quand la liste défile et tombent pile au-dessus des champs (colonnes de 46 px).
+- La phrase d'explication au-dessus de la liste est retirée. Sa seconde moitié (« Les éléments cités ensemble… ») renvoyait aux descriptions.
+- Les champs ont un `aria-label` (« Nom, mode clair / sombre ») pour les lecteurs d'écran, qui lisaient avant les mots « Clair » et « Sombre » de la ligne.
+- Lignes plus basses (marge intérieure 7 px). Une ligne fait 46 px au lieu de 70 à 78 px sur ordinateur et de 70 à 143 px sur téléphone. La liste complète (17 réglages) passe de 1441 à 900 px sur ordinateur, et de 1959 à 900 px sur téléphone.
+- Dans `GROUPES_COULEURS`, le champ `description`, qui n'était plus lu nulle part, devient un commentaire au même endroit : on sait toujours ce que couvre chaque groupe en lisant le code.
+
+### Tests
+- test_suite56.js (nouveau), 28 vérifications, 28 OK, à 390 et 1400 px, en mode clair et sombre :
+  - 17 lignes avec le nom seul et plus de champ `description` ;
+  - « Clair » et « Sombre » une seule fois, alignés sur les champs et toujours en haut après défilement ;
+  - plus de phrase ;
+  - lignes de 52 px au plus sans débordement ;
+  - `aria-label` ;
+  - un champ se règle toujours.
+- Sans la correction, le test échoue (pas d'entête de colonnes).
+- Suite complète : 66/66 (test_suite35, instable quand tout tourne en parallèle, repasse seul).
