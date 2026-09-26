@@ -1954,8 +1954,19 @@
   .couleurs-modal .cm-entete { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex: none; }
   .couleurs-modal .cm-entete .cp-titre { font-size: 15px; color: var(--ink); padding: 0; }
   .couleurs-modal .cm-liste { flex: 1 1 auto; min-height: 90px; overflow-y: auto; overscroll-behavior: contain; margin: 0 -4px; padding: 0 4px; }
-  .couleurs-modal .cm-liste .page-sous { margin: 0 0 8px; }
-  .couleurs-modal .reglage-couleurs-groupe { max-width: none; background: var(--surface); }
+  .couleurs-modal .reglage-couleurs-groupe { max-width: none; background: var(--surface); padding: 7px 16px; margin-bottom: 6px; }
+  /* Suite 56 — Lionel : « enlève les descriptions des couleurs. Cela
+     allonge la liste pour aucune plus value. » Ligne = nom + 2 champs + ↺ ;
+     « Clair »/« Sombre » une seule fois, collés en haut de la liste qui
+     défile. Colonnes de largeur fixe (46 px) dans l'entête comme dans les
+     lignes pour qu'elles tombent pile au-dessus des champs ; 17 px à
+     droite = marge intérieure (16) + bordure (1) des lignes. */
+  .couleurs-modal .reglage-couleur-paire { width: 46px; flex: none; }
+  .couleurs-modal .cm-colonnes {
+    position: sticky; top: 0; z-index: 1; display: flex; justify-content: flex-end; gap: 12px;
+    padding: 0 17px 5px; background: var(--surface-2);
+  }
+  .couleurs-modal .cm-col-reset { width: 28px; flex: none; }
   .couleurs-modal .form-actions { display: flex; justify-content: flex-end; flex: none; }
   .couleurs-modal .form-actions button { text-align: center; min-width: 96px; }
   .couleurs-modal .reglage-couleur-reset { padding: 0; text-align: center; }
