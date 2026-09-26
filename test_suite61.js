@@ -157,7 +157,7 @@ async function imagePng(page) {
     await page.click('.ligne-raccourci[data-action="semaineSuivante"] .rc-ajouter');
     await presser(page, 'n');
     await page.waitForTimeout(500);
-    const ecr1 = await ecritures(page, 'reglages:upsert');
+    const ecr1 = (await ecritures(page, 'reglages:upsert')).filter((e) => e.indexOf('"cle":"raccourcis"') >= 0); // la touche W retient aussi les week-ends (clé « affichage », suite 62)
     verifier((await combos(page, 'semaineSuivante')).join() === 'S,N' && ecr1.length === 1 && /"cle":"raccourcis","valeur":\{"semaineSuivante":\["S","N"\]\}/.test(ecr1[0]),
       'N ajouté à « Semaine suivante », seule la modification est enregistrée sur le compte (' + ecr1[0] + ')');
     verifier(await page.isVisible('.ligne-raccourci[data-action="semaineSuivante"] .rc-defaut') && await page.isVisible('#btnRaccourcisDefaut'), '↺ et « Tout rétablir » apparaissent');
@@ -174,7 +174,7 @@ async function imagePng(page) {
     // Retirer P.
     await page.click('.ligne-raccourci[data-action="semainePrecedente"] .rc-combo[data-combo="P"] .rc-retirer');
     await page.waitForTimeout(500);
-    const ecr2 = await ecritures(page, 'reglages:upsert');
+    const ecr2 = (await ecritures(page, 'reglages:upsert')).filter((e) => e.indexOf('"cle":"raccourcis"') >= 0); // la touche W retient aussi les week-ends (clé « affichage », suite 62)
     verifier((await combos(page, 'semainePrecedente')).join() === 'N' && /"valeur":\{"semainePrecedente":\["N"\]\}/.test(ecr2[ecr2.length - 1]),
       '× : P retiré, enregistré (' + ecr2[ecr2.length - 1] + ')');
     // Combinaison avec modificateur, pour une page.
@@ -208,7 +208,7 @@ async function imagePng(page) {
     await page.click('#btnRaccourcisDefaut');
     await page.click('.confirm-pop .c-ok');
     await page.waitForTimeout(500);
-    const ecr3 = await ecritures(page, 'reglages:upsert');
+    const ecr3 = (await ecritures(page, 'reglages:upsert')).filter((e) => e.indexOf('"cle":"raccourcis"') >= 0); // la touche W retient aussi les week-ends (clé « affichage », suite 62)
     verifier((await combos(page, 'pageChantiers')).length === 0 && /"valeur":\{\}/.test(ecr3[ecr3.length - 1]) && await page.isHidden('#btnRaccourcisDefaut'),
       '« Tout rétablir » : toutes les touches d\'origine, plus rien d\'enregistré (' + ecr3[ecr3.length - 1] + ')');
     toutesErreurs.push(...erreurs);
@@ -450,12 +450,12 @@ async function imagePng(page) {
       { id: 2, personne_id: 2, date: '2026-09-25', demi: 'aprem', ordre: 0, texte: 'À cheval', chantier_id: 1 },
       { id: 3, personne_id: 2, date: '2026-09-28', demi: 'matin', ordre: 0, texte: 'À cheval', chantier_id: 1 }];
     const { page, erreurs } = await ouvrirPlanning(browser, { bd: { taches: T } });
-    verifier(await page.evaluate(() => document.querySelectorAll('.sep-semaines').length) === 0, '1 semaine : pas d\'espace');
+    verifier(await page.evaluate(() => document.querySelectorAll('#racine .sep-semaines').length) === 0, '1 semaine : pas d\'espace');
     await page.evaluate(() => basculerDeuxSemaines());
     await page.waitForTimeout(400);
     const mesure = () => page.evaluate(() => {
       const th = document.querySelector('.grille .th.sem-frontiere:not(.th-demi)').getBoundingClientRect();
-      const h = document.querySelector('.sep-haut'), b = document.querySelector('.sep-bas');
+      const h = document.querySelector('#racine .sep-haut'), b = document.querySelector('#racine .sep-bas');
       const rh = h.getBoundingClientRect(), rb = b.getBoundingClientRect();
       const e = document.querySelector('.entete-planning-scroll').getBoundingClientRect(), c = document.querySelector('.grille-cadre').getBoundingClientRect();
       const cs = getComputedStyle(h), coin = getComputedStyle(h.querySelector('.sep-coin-g'), '::before');
@@ -463,7 +463,7 @@ async function imagePng(page) {
       // Le point du milieu de la bande : fond de page, pas la bulle à cheval dessous.
       const bulle = [...document.querySelectorAll('.bulle')].find((x) => /À cheval/.test(x.textContent)).getBoundingClientRect();
       const dessus = document.elementFromPoint(rb.left + 4, bulle.top + bulle.height / 2);
-      return { n: document.querySelectorAll('.sep-semaines').length, ecart: rh.left - th.left, largeur: rh.width, fond: cs.backgroundColor === getComputedStyle(document.body).backgroundColor,
+      return { n: document.querySelectorAll('#racine .sep-semaines').length, ecart: rh.left - th.left, largeur: rh.width, fond: cs.backgroundColor === getComputedStyle(document.body).backgroundColor,
         traits: cs.borderLeftWidth + '/' + cs.borderRightWidth, rayon: coin.borderTopRightRadius, alignes: rh.left === rb.left,
         haut: rh.top - e.top, jonction: rb.top - rh.bottom, bas: rb.bottom - c.bottom, bordures: bordures.length,
         bulleTraverse: bulle.left < rb.left && bulle.right > rb.right, clicDessous: dessus && !dessus.closest('.sep-semaines') };
@@ -495,7 +495,7 @@ async function imagePng(page) {
   {
     // Téléphone, vue « 1 jour » : pas de bande, le trait d'avant reste.
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 390, height: 844 }, hasTouch: true });
-    const t = await page.evaluate(() => ({ n: document.querySelectorAll('.sep-semaines').length, bord: getComputedStyle(document.querySelector('.cell.sem-frontiere')).borderLeftWidth }));
+    const t = await page.evaluate(() => ({ n: document.querySelectorAll('#racine .sep-semaines').length, bord: getComputedStyle(document.querySelector('.cell.sem-frontiere')).borderLeftWidth }));
     verifier(t.n === 0 && t.bord === '3px', 'téléphone, vue 1 jour : inchangé (' + JSON.stringify(t) + ')');
     toutesErreurs.push(...erreurs);
     await page.close();

@@ -441,6 +441,10 @@
         etat.reglages = {};
         (r[8].data || []).forEach(function (x) { etat.reglages[x.cle] = x.valeur; });
       } else etat.reglages = null;
+      // Options d'affichage retenues (suite 62, js/page-affichage.js) :
+      // week-ends, vue d'ouverture, style — avant le calcul de la fenêtre
+      // chargée et le 1er rendu.
+      appliquerAffichageAuChargement();
 
       // etat.couleursPerso : null tant que le serveur n'a pas répondu (page-
       // couleurs.js retombe alors sur son cache localStorage, cf. son

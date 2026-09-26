@@ -124,7 +124,7 @@
     { id: "changerVue", groupe: "Afficher", nom: "1 ou 2 semaines (téléphone : 1 jour ou 1 semaine)", defaut: ["V"], planning: true,
       faire: function () { if (modeJourMobileActif() || (window.matchMedia && window.matchMedia("(max-width: 600px)").matches)) basculerVueJourMobile(); else basculerDeuxSemaines(); } },
     { id: "weekends", groupe: "Afficher", nom: "Afficher ou masquer les week-ends", defaut: ["W"], planning: true,
-      faire: function () { var chk = document.getElementById("chkWeekends"); if (chk) { chk.checked = !chk.checked; chk.dispatchEvent(new Event("change")); } } },
+      faire: function () { changerOptionAffichage("weekends", afficherWeekends ? "non" : "oui"); } },
     { id: "zoomPlus", groupe: "Afficher", nom: "Zoom avant", defaut: ["+"], planning: true, faire: function () { cliquer_("zoomPlus"); } },
     { id: "zoomMoins", groupe: "Afficher", nom: "Zoom arrière", defaut: ["-"], planning: true, faire: function () { cliquer_("zoomMoins"); } },
     { id: "zoom100", groupe: "Afficher", nom: "Zoom 100 %", defaut: ["0"], planning: true, faire: function () { niveauZoomPlanning = 100; render(false); } },

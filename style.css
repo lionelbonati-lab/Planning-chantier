@@ -929,7 +929,12 @@
      d'historique (retour page précédente/suivante) — même si un
      preventDefault() venait à manquer un événement (ex. wheel très rapide,
      autre navigateur). */
-  .scroller { overflow-x: auto; overscroll-behavior-x: contain; padding-bottom: 4px; }
+  /* Round du 26.09.2026 (suite 62) — Lionel, capture à l'appui : « une
+     bande blanche me dérange tout en bas du tableau ». C'était le
+     padding-bottom de 4 px de .scroller (là depuis le tout premier dépôt) :
+     une bande couleur du fond entre la dernière ligne et le bord arrondi du
+     cadre. Retiré : le cadre se referme pile sous la dernière ligne. */
+  .scroller { overflow-x: auto; overscroll-behavior-x: contain; }
   /* Round du 23.09.2026 (suite ×10) — Lionel, retour sur la vue mobile
      "1 jour" (§99) : « La case du jour doit être aimantée pour qu'elle
      rentre sur l'écran. A l'heure actuelle je peux afficher 2 demi journée
@@ -3258,3 +3263,91 @@
   .maj-appli button { font: inherit; font-size: 12.5px; font-weight: 700; border: none; border-radius: 8px; cursor: pointer; padding: 6px 10px; }
   .maj-appli .maj-recharger { background: var(--accent); color: var(--accent-ink); }
   .maj-appli .maj-fermer { background: none; color: inherit; opacity: .7; font-size: 16px; padding: 4px 8px; }
+
+  /* ============================================================
+     OPTIONS D'AFFICHAGE — round du 26.09.2026 (suite 62)
+     Lionel : « Ajouter d'autre options d'affichages avec aperçu. »
+     Page Affichage (js/page-affichage.js). Chaque réglage différent de
+     l'origine est posé en attribut data-aff-* sur <html> ; sans attribut,
+     rien ne change. Chaque règle vise À LA FOIS le vrai planning (.b-txt,
+     .b-carte, .cell…) et l'aperçu de la page (.aa-txt, .aa-carte, .aa-cell…),
+     qui suit donc exactement les mêmes règles.
+     ============================================================ */
+  :root { --aff-auj: color-mix(in srgb, var(--accent) 10%, transparent); --aff-zebre: color-mix(in srgb, var(--ink) 4.5%, transparent); }
+  /* Taille du texte des bulles (origine : 12px). */
+  html[data-aff-texte="petit"] :is(.b-txt, .aa-txt) { font-size: 11px; }
+  html[data-aff-texte="grand"] :is(.b-txt, .aa-txt) { font-size: 13.5px; }
+  /* Lignes de texte (origine : 2). */
+  html[data-aff-lignes="1"] :is(.b-txt, .aa-txt) { -webkit-line-clamp: 1; line-clamp: 1; }
+  html[data-aff-lignes="3"] :is(.b-txt, .aa-txt) { -webkit-line-clamp: 3; line-clamp: 3; }
+  /* Hauteur des lignes (origine : cases de 52px, cartes 6px en haut/bas,
+     étiquettes de nom 9px). */
+  html[data-aff-hauteur="serree"] :is(.b-carte, .aa-carte) { padding-top: 3px; padding-bottom: 3px; }
+  html[data-aff-hauteur="serree"] :is(.cell.cell-personne, .aa-cell) { min-height: 34px; }
+  html[data-aff-hauteur="serree"] .cell.cell-personne { padding-top: 3px; padding-bottom: 3px; }
+  html[data-aff-hauteur="serree"] .lbl-compacte { padding-top: 4px; padding-bottom: 4px; }
+  html[data-aff-hauteur="aeree"] :is(.b-carte, .aa-carte) { padding-top: 9px; padding-bottom: 9px; }
+  html[data-aff-hauteur="aeree"] :is(.cell.cell-personne, .aa-cell) { min-height: 66px; }
+  html[data-aff-hauteur="aeree"] .cell.cell-personne { padding-top: 9px; padding-bottom: 9px; }
+  html[data-aff-hauteur="aeree"] .lbl-compacte { padding-top: 13px; padding-bottom: 13px; }
+  /* Coins (origine : arrondis 9px). */
+  html[data-aff-coins="droits"] :is(.b-carte, .aa-carte) { border-radius: 2px; }
+  /* Statut dans la bulle (origine : affiché). */
+  html[data-aff-statut="non"] :is(.b-statut, .aa-statut) { display: none; }
+  /* Colonne d'aujourd'hui (origine : seul l'en-tête est teinté). */
+  html[data-aff-auj="oui"] :is(.cell.cell-auj, .aa-cell.aa-auj) { background-image: linear-gradient(var(--aff-auj), var(--aff-auj)); }
+  /* Lignes alternées (origine : non). */
+  html[data-aff-zebre="oui"] :is(.cell.ligne-alt, .lbl.ligne-alt, .aa-cell.aa-alt, .aa-nom.aa-alt) { background-image: linear-gradient(var(--aff-zebre), var(--aff-zebre)); }
+  html[data-aff-zebre="oui"][data-aff-auj="oui"] :is(.cell.cell-auj.ligne-alt, .aa-cell.aa-auj.aa-alt) {
+    background-image: linear-gradient(var(--aff-auj), var(--aff-auj)), linear-gradient(var(--aff-zebre), var(--aff-zebre));
+  }
+  @media print { html[data-aff-auj], html[data-aff-zebre] { --aff-auj: transparent; --aff-zebre: transparent; } }
+
+  /* Choix en pastilles (page Affichage). */
+  .reglage-choix { cursor: default; flex-wrap: wrap; row-gap: 10px; }
+  .reglage-choix .reglage-texte { flex: 1 1 220px; min-width: 0; }
+  .choix-pastilles { display: inline-flex; flex-shrink: 0; padding: 3px; gap: 2px; border-radius: 10px; background: var(--case-fixe-bg, var(--surface)); border: 1px solid var(--border); }
+  .choix-pastille {
+    font: inherit; font-size: 12.5px; font-weight: 600; color: var(--ink-muted); background: none; border: none;
+    padding: 6px 12px; border-radius: 7px; cursor: pointer; white-space: nowrap; transition: background .12s, color .12s;
+  }
+  .choix-pastille.actif { background: var(--accent); color: var(--accent-ink); }
+  @media (hover: hover) and (pointer: fine) { .choix-pastille:not(.actif):hover { background: var(--accent-soft); color: var(--accent); } }
+  .affichage-note { margin-top: 4px; }
+
+  /* Mise en page : aperçu à droite (collé en haut au défilement) sur
+     écran large, au-dessus des réglages sur téléphone. */
+  .affichage-mise { display: flex; flex-direction: column; gap: 4px; }
+  .affichage-apercu-bloc { position: sticky; top: 0; z-index: 3; background: var(--bg); padding: 4px 0 8px; }
+  @media (min-width: 1000px) {
+    .affichage-mise { flex-direction: row-reverse; align-items: flex-start; justify-content: flex-end; gap: 28px; }
+    .affichage-options { flex: 0 1 540px; min-width: 0; }
+    .affichage-apercu-bloc { flex: 1 1 520px; max-width: 640px; top: 12px; padding: 0; margin-top: 22px; }
+  }
+
+  /* Aperçu : un petit planning d'exemple (Jeu, Ven, [Sam, Dim], Lun, Mar).
+     L'espace entre semaines est fait des mêmes pièces .sep-semaines que le
+     planning (posées par placerSepApercu_), d'où position:relative ici et
+     le cadre qui découpe (.aa-cadre) séparé. */
+  .apercu-affichage { --aa-noms: 70px; position: relative; font-size: 11px; color: var(--ink); }
+  .aa-cadre { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--border); }
+  .aa-grille { display: grid; gap: 1px; }
+  .aa-coin, .aa-th { background: var(--surface); color: var(--ink-muted); font-family: 'IBM Plex Mono', monospace; font-size: 10px; text-transform: uppercase; padding: 6px 2px; text-align: center; white-space: nowrap; overflow: hidden; }
+  .aa-coin { text-align: left; padding-left: 8px; }
+  .aa-th b { font-weight: 700; }
+  .aa-th.aa-today { background: var(--accent-soft); color: var(--accent); }
+  .aa-nom { background: var(--surface); font-weight: 700; font-size: 12px; display: flex; align-items: center; padding: 0 8px; overflow: hidden; }
+  .aa-cell { background: var(--surface-2); min-height: 52px; }
+  .aa-th.aa-we, .aa-cell.aa-we { background-color: var(--weekend-bg); }
+  .aa-sem { border-left: 3px solid var(--ink-faint); }
+  .aa-bulle { position: relative; z-index: 1; align-self: center; margin: 4px 3px; min-width: 0; }
+  .aa-carte { display: flex; flex-direction: column; gap: 1px; border-radius: 9px; padding: 6px 8px; box-shadow: 0 1px 2px var(--shadow); color: var(--bubble-ink); min-width: 0; }
+  .aa-txt { font-size: 12px; font-weight: 600; line-height: 1.25; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+  .aa-statut { align-self: flex-start; display: inline-flex; align-items: center; gap: 4px; font-family: 'IBM Plex Mono', monospace; font-size: 8.5px; font-weight: 600; text-transform: uppercase; padding: 1px 6px 1px 5px; border-radius: 999px; background: var(--status-confirme-bg); color: var(--ink); }
+  .aa-statut i { width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
+  @media (max-width: 600px) {
+    .apercu-affichage { --aa-noms: 58px; }
+    .aa-th { font-size: 9px; }
+    .aa-nom { font-size: 11px; padding: 0 6px; }
+    .aa-carte { padding-left: 6px; padding-right: 6px; }
+  }
