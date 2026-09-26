@@ -285,7 +285,7 @@
     .ligne-vue-mobile { display: flex; align-items: center; gap: 6px; padding: 6px 8px; }
     .toolbar-secondaire .ligne-vue-mobile .toolbar-btn {
       display: grid; place-items: center; place-content: center; width: 36px; height: 36px; padding: 0; gap: 0;
-      border: 1px solid var(--border); background: var(--case-fixe-bg); color: var(--ink);
+      border: 1px solid var(--border); background: var(--case-fixe-bg); color: var(--case-fixe-ink);
     }
     .toolbar-secondaire .ligne-vue-mobile .toolbar-btn.actif { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
     .toolbar-secondaire .ligne-vue-mobile .toolbar-btn svg { width: 17px; height: 17px; }
