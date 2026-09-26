@@ -8910,3 +8910,36 @@ Lionel, après la suite 59 : « On remarque encore des bulles dans les bordures 
   - aperçu du téléphone sans débordement.
 - test_suite61.js : les pièces d'espace entre semaines sont cherchées dans le planning (`#racine`), l'aperçu de la page Affichage ayant les mêmes. Les écritures « raccourcis » sont filtrées par clé, car la touche W retient aussi les week-ends (clé « affichage »). 109/109.
 - Suite complète : 71/71 (le premier passage : 70/71, test_suite61 pour ces 2 raisons ; corrigé et relancé seul).
+
+## 171. Round du 26.09.2026 (suite 63) — Réglages à la place du menu principal
+
+Lionel : « Le menu setting vient se placer à la place du menu principal en haut de l'écran quand badge activé. Même format visuel que le menu principal et même comportement. Une croix fermer pour refermer le menu. »
+
+### Ce qui change
+- La pastille « L » n'ouvre plus de petit menu flottant. Elle fait basculer la barre d'onglets du haut sur les réglages :
+  - Mon compte, Affichage, Couleurs, Mise en page d'impression, Raccourcis clavier, Sauvegardes ;
+  - mêmes onglets que la rangée principale (icône + nom, même taille, même teinte de l'onglet actif) ;
+  - même passage en icônes seules quand la fenêtre est trop étroite (l'onglet actif garde son nom).
+- Une croix ronde prend la place de la pastille. Elle referme les réglages et ramène à la page quittée (Planning, Jalons…). Échap fait de même, sauf pendant la saisie dans un champ.
+- La pastille rouvre la dernière page de réglages vue (Mon compte la première fois).
+- Téléphone : même bascule dans la barre du bas. Le sélecteur montre la page de réglages ouverte, sa liste devient « Réglages » au lieu de « Pages », la croix remplace la pastille.
+- La rangée de puces en haut de chaque page de réglages disparaît : la barre d'onglets la remplace.
+- « Se déconnecter » : sur la page Mon compte (il était aussi dans le petit menu).
+
+### Fonctionnement
+- js/coquille.js :
+  - `htmlOngletsReglages_` construit les onglets (haut) et les lignes (liste du bas) à partir de `PAGES_REGLAGES`. Ce sont des `.onglet` avec `data-page`, câblés comme les onglets principaux ;
+  - `afficherPage` pose `.mode-reglages` sur `.app-shell` quand la page est un réglage, et retient la dernière page de chaque côté ;
+  - `ouvrirReglages` / `fermerReglages` (pastilles et croix, `cablerReglages`) ;
+  - `ajusterOngletsNav` mesure la rangée visible.
+- Retirés : `htmlMenuCompte`, `ouvrirMenuCompte_`, `fermerMenuCompte`, `htmlNavReglages_` et leurs styles (`.menu-compte`, `.reglages-nav`, `.reglages-onglet`, pastille teintée).
+- js/formulaires-communs.js : Échap appelle `fermerReglages()` (hors champ de saisie), après les fenêtres ouvertes.
+- style.css / style-mobile.css : `.mode-reglages` montre la rangée des réglages, la croix (28 px en haut, 38 px en bas) et la liste « Réglages », et cache les autres.
+
+### Tests
+- test_suite63.js (nouveau, 19 vérifications) :
+  - ordinateur : bascule, même format que la rangée principale, croix, onglet → page, croix et Échap → page quittée, dernière page de réglages rouverte, ouverture directe (impression) ;
+  - 700 et 1024 px : les onglets tiennent, icônes seules si besoin ;
+  - téléphone : barre du bas, liste « Réglages », croix.
+- test_suite61.js : le parcours des 6 pages passe par les onglets (haut) ou la liste (bas) ; déconnexion depuis Mon compte ; l'initiale de la pastille au lieu du nom du petit menu. 99/99.
+- test_suite39.js : Mise en page d'impression ouverte depuis la liste « Réglages » du bas. 29/29.

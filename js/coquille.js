@@ -30,16 +30,26 @@
             '<button type="button" class="onglet" data-page="horaires" title="Horaires">' + ICONS.clock + '<span class="onglet-nom">Horaires</span></button>' +
             '<button type="button" class="onglet" data-page="entree-rapide" title="Entrée rapide">' + ICONS.bolt + '<span class="onglet-nom">Entrée rapide</span></button>' +
           '</div>' +
-          // Suite 61 : la pastille ouvre le menu du compte (réglages,
-          // déconnexion) au lieu de déconnecter directement.
-          '<button type="button" class="avatar-nav" id="lienDeconnexionNav" title="Compte et réglages" aria-label="Compte et réglages" aria-haspopup="menu" aria-expanded="false">L</button>' +
+          // Suite 63 — Lionel : « Le menu setting vient se placer à la place
+          // du menu principal en haut de l'écran quand badge activé. Même
+          // format visuel que le menu principal et même comportement. Une
+          // croix fermer pour refermer le menu. » Les pages de réglages ont
+          // leur propre rangée d'onglets (mêmes .onglet, même passage en
+          // icônes seules quand ils ne tiennent pas), affichée à la place de
+          // la rangée principale tant qu'une page de réglages est ouverte
+          // (.app-shell.mode-reglages, cf. afficherPage) ; la croix prend la
+          // place de la pastille et ramène à la page quittée.
+          '<div class="onglets-liste onglets-reglages" id="ongletsReglages" aria-label="Réglages">' + htmlOngletsReglages_(false) + '</div>' +
+          // Suite 61 : la pastille ouvre les réglages au lieu de déconnecter
+          // directement (« Se déconnecter » est dans Mon compte).
+          '<button type="button" class="avatar-nav" id="lienDeconnexionNav" title="Compte et réglages" aria-label="Compte et réglages">L</button>' +
+          '<button type="button" class="fermer-reglages" id="btnFermerReglages" title="Fermer les réglages (Échap)" aria-label="Fermer les réglages">' + ICONS.close + '</button>' +
         '</nav>' +
         '<div class="app-main">' +
           htmlPagePlanning() + htmlPageJalons() + htmlPagePersonnel() + htmlPageIntervenants() +
           htmlPageChantiers() + htmlPageStatuts() + htmlPageEntreeRapide() + htmlPageHoraires() + htmlPageMiseEnPage() +
           htmlPagesReglages() +
         '</div>' +
-        htmlMenuCompte() +
         // §91 (round du 22.09.2026, suite) — Lionel, mockup mockup-nav-mobile.html
         // validé (croquis Google Sheets à l'appui : « j'aime bien la
         // présentation de Google sheet [...] en bas la bar d'onglets. en
@@ -70,8 +80,13 @@
           // téléphone, il ne figure plus dans la barre d'outils du planning
           // (cf. js/a-reserver.js, style-mobile.css).
           '<button type="button" class="nav-bas-a-reserver" id="btnAReserverNavBas" title="À réserver" aria-label="À réserver" hidden>' + ICONS.reserver + '<span class="compte-a-reserver" hidden></span></button>' +
-          '<button type="button" class="avatar-nav" id="lienDeconnexionNavBas" title="Compte et réglages" aria-label="Compte et réglages" aria-haspopup="menu" aria-expanded="false">L</button>' +
+          '<button type="button" class="avatar-nav" id="lienDeconnexionNavBas" title="Compte et réglages" aria-label="Compte et réglages">L</button>' +
+          '<button type="button" class="fermer-reglages" id="btnFermerReglagesBas" title="Fermer les réglages" aria-label="Fermer les réglages">' + ICONS.close + '</button>' +
           '<div class="switcher-panneau" id="switcherPanneau">' +
+            // Suite 63 : même bascule que la barre du haut — en réglages, la
+            // liste « Pages » cède la place à la liste « Réglages ».
+            '<div class="switcher-groupe switcher-groupe-reglages"><div class="switcher-titre">Réglages</div>' + htmlOngletsReglages_(true) + '</div>' +
+            '<div class="switcher-groupe switcher-groupe-pages">' +
             '<div class="switcher-titre">Pages</div>' +
             '<button type="button" class="onglet switcher-item actif" data-page="planning">' + ICONS.calendar + 'Planning</button>' +
             '<button type="button" class="onglet switcher-item" data-page="jalons">' + ICONS.flag + 'Jalons</button>' +
@@ -81,6 +96,7 @@
             '<button type="button" class="onglet switcher-item" data-page="statuts">' + ICONS.tag + 'Statuts</button>' +
             '<button type="button" class="onglet switcher-item" data-page="horaires">' + ICONS.clock + 'Horaires</button>' +
             '<button type="button" class="onglet switcher-item" data-page="entree-rapide">' + ICONS.bolt + 'Entrée rapide</button>' +
+            '</div>' +
           '</div>' +
         '</div>' +
       '</div>';
@@ -105,9 +121,9 @@
     var flottant = document.getElementById("lienDeconnexion");
     if (flottant) flottant.remove();
     // §91 — 2 pastilles coexistent (barre du haut, masquée sur téléphone +
-    // barre basse, visible seulement là). Suite 61 : elles ouvrent le même
-    // menu du compte (cablerMenuCompte), « Se déconnecter » y est.
-    cablerMenuCompte();
+    // barre basse, visible seulement là). Suite 63 : elles ouvrent toutes
+    // deux les réglages, les 2 croix les referment (cablerReglages).
+    cablerReglages();
   }
 
   /* ---- Menu du compte et pages de réglages — round du 26.09.2026 (suite 61)
@@ -122,7 +138,11 @@
      avec en haut une rangée pour passer d'une page de réglages à l'autre.
      L'onglet Général et sa page ont disparu : le week-end est dans
      Affichage, le thème et « Personnaliser » dans Couleurs, les sauvegardes
-     dans Sauvegardes, rien d'autre n'y était. */
+     dans Sauvegardes, rien d'autre n'y était.
+     Suite 63 (même jour) : plus de petit menu ni de rangée dans chaque
+     page — la pastille fait basculer la barre d'onglets elle-même sur les
+     réglages (en haut, et dans la liste du sélecteur du bas sur
+     téléphone), une croix à la place de la pastille la referme. */
   // « Mon compte » (même suite, message suivant de Lionel) : « Ajouter une
   // page info personnel, pour entrée ses donnée comme Nom, Prénom,
   // Entreprise, modification du mot de passe, suppression du compte et
@@ -138,44 +158,33 @@
     { page: "sauvegardes", nom: "Sauvegardes", icone: "sauvegarde" }
   ];
   function pageReglage_(nom) { return PAGES_REGLAGES.filter(function (r) { return r.page === nom; })[0] || null; }
-  function htmlMenuCompte() {
-    return '<div class="menu-compte" id="menuCompte" role="menu" aria-label="Compte et réglages" hidden>' +
-      '<div class="menu-compte-entete"><span class="avatar-nav mc-avatar" aria-hidden="true">L</span>' +
-        '<span class="mc-compte"><b id="menuCompteNom">Mon compte</b><span id="menuCompteEmail"></span></span></div>' +
-      '<div class="outil-menu-titre">Réglages</div>' +
-      PAGES_REGLAGES.map(function (r) {
-        return '<button type="button" class="outil-menu-item" role="menuitem" data-reglage="' + r.page + '">' + ICONS[r.icone] + '<span>' + r.nom + '</span></button>';
-      }).join("") +
-      '<div class="menu-compte-sep"></div>' +
-      '<button type="button" class="outil-menu-item mc-deconnexion" role="menuitem" id="btnDeconnexion">' + ICONS.deconnexion + '<span>Se déconnecter</span></button>' +
-    '</div>';
-  }
-  // Rangée du haut de chaque page de réglages : passer de l'une à l'autre
-  // sans rouvrir le menu.
-  function htmlNavReglages_(actuelle) {
-    return '<div class="reglages-nav" role="tablist" aria-label="Réglages">' +
-      PAGES_REGLAGES.map(function (r) {
-        return '<button type="button" class="reglages-onglet' + (r.page === actuelle ? ' actif' : '') + '" role="tab" aria-selected="' + (r.page === actuelle) + '" data-reglage="' + r.page + '">' +
-          ICONS[r.icone] + '<span>' + (r.court || r.nom) + '</span></button>';
-      }).join("") +
-    '</div>';
+  // Onglets des réglages (suite 63) : mêmes .onglet que la rangée
+  // principale, câblés avec elle (cablerNavigation, data-page). Barre du
+  // haut : icône + nom (.onglet-nom, masqué en mode compact) ; liste du bas
+  // (téléphone) : lignes .switcher-item.
+  function htmlOngletsReglages_(bas) {
+    return PAGES_REGLAGES.map(function (r) {
+      return bas
+        ? '<button type="button" class="onglet switcher-item" data-page="' + r.page + '">' + ICONS[r.icone] + r.nom + '</button>'
+        : '<button type="button" class="onglet" data-page="' + r.page + '" title="' + r.nom + '">' + ICONS[r.icone] + '<span class="onglet-nom">' + r.nom + '</span></button>';
+    }).join("");
   }
   function htmlPagesReglages() {
-    return '<div class="page page-reglages" id="page-compte"><div class="page-scroll">' + htmlNavReglages_("compte") + htmlContenuPageCompte() + '</div></div>' +
-      '<div class="page page-reglages" id="page-affichage"><div class="page-scroll">' + htmlNavReglages_("affichage") +
+    return '<div class="page page-reglages" id="page-compte"><div class="page-scroll">' + htmlContenuPageCompte() + '</div></div>' +
+      '<div class="page page-reglages" id="page-affichage"><div class="page-scroll">' +
         // Suite 62 — Lionel : « Ajouter d'autre options d'affichages avec
         // aperçu. » Contenu, aperçu et câblage : js/page-affichage.js.
         htmlContenuPageAffichage() +
       '</div></div>' +
       // Couleurs (suite 23.09 puis 54, js/page-couleurs.js) : liste
       // « Thème », « Personnaliser », et les palettes enregistrées (suite 61).
-      '<div class="page page-reglages" id="page-couleurs"><div class="page-scroll">' + htmlNavReglages_("couleurs") +
+      '<div class="page page-reglages" id="page-couleurs"><div class="page-scroll">' +
         '<div class="page-titre"><h1>Couleurs</h1></div>' +
         '<p class="page-sous">Couleurs du planning, les mêmes sur tous les appareils du compte.</p>' +
         htmlReglagesCouleurs() +
       '</div></div>' +
       // Raccourcis clavier (suite 61, js/raccourcis.js).
-      '<div class="page page-reglages" id="page-raccourcis"><div class="page-scroll">' + htmlNavReglages_("raccourcis") +
+      '<div class="page page-reglages" id="page-raccourcis"><div class="page-scroll">' +
         '<div class="page-titre"><h1>Raccourcis clavier</h1><button type="button" class="lien-reset-tout" id="btnRaccourcisDefaut" hidden>Tout rétablir</button></div>' +
         '<p class="page-sous">Touches d’un clavier d’ordinateur, les mêmes sur tous les appareils du compte. « + » puis la combinaison voulue pour en ajouter une, « × » pour la retirer, « ↺ » pour revenir aux touches d’origine.</p>' +
         '<div id="listeRaccourcis"></div>' +
@@ -184,7 +193,7 @@
       // sql/0017_sauvegardes.sql). Lionel, proposition 14 : « Sauvegarde
       // automatique [...] pour pouvoir revenir en arrière après une grosse
       // erreur. »
-      '<div class="page page-reglages" id="page-sauvegardes"><div class="page-scroll">' + htmlNavReglages_("sauvegardes") +
+      '<div class="page page-reglages" id="page-sauvegardes"><div class="page-scroll">' +
         '<div class="page-titre bloc-sauvegardes"><h1>Sauvegardes</h1>' +
         '<div class="actions-feries">' +
           '<button type="button" class="btn-calculer" id="btnImporterSauvegarde">Importer un fichier…</button>' +
@@ -195,56 +204,29 @@
         '<div class="liste-intervenants" id="listeSauvegardes"></div>' +
       '</div></div>';
   }
-  // true si le menu était ouvert (Échap le referme avant toute autre chose,
-  // cf. formulaires-communs.js).
-  function fermerMenuCompte() {
-    var menu = document.getElementById("menuCompte");
-    if (!menu || menu.hidden) return false;
-    menu.hidden = true;
-    document.querySelectorAll(".avatar-nav[aria-haspopup]").forEach(function (a) { a.setAttribute("aria-expanded", "false"); });
+  // Pages quittées de part et d'autre (suite 63) : la pastille rouvre la
+  // dernière page de réglages vue (Mon compte la première fois), la croix
+  // ramène à la page principale d'où l'on venait (Planning par défaut).
+  var dernierReglage_ = null, dernierePagePrincipale_ = "planning";
+  function reglagesOuverts() {
+    var shell = document.querySelector(".app-shell");
+    return !!(shell && shell.classList.contains("mode-reglages"));
+  }
+  function ouvrirReglages() { afficherPage(dernierReglage_ || PAGES_REGLAGES[0].page); }
+  // true si les réglages étaient ouverts (Échap, cf. formulaires-communs.js).
+  function fermerReglages() {
+    if (!reglagesOuverts()) return false;
+    afficherPage(dernierePagePrincipale_);
     return true;
   }
-  // Menu posé contre la pastille cliquée : dessous et aligné à droite en
-  // haut, au-dessus en bas de l'écran (téléphone).
-  function ouvrirMenuCompte_(avatar) {
-    var menu = document.getElementById("menuCompte");
-    if (!menu) return;
-    var r = avatar.getBoundingClientRect();
-    menu.hidden = false;
-    menu.style.right = Math.max(8, Math.round(window.innerWidth - r.right)) + "px";
-    if (r.top > window.innerHeight / 2) { menu.style.top = "auto"; menu.style.bottom = Math.round(window.innerHeight - r.top + 8) + "px"; }
-    else { menu.style.bottom = "auto"; menu.style.top = Math.round(r.bottom + 6) + "px"; }
-    avatar.setAttribute("aria-expanded", "true");
-    var courant = menu.querySelector('[data-reglage="' + (document.querySelector(".page.actif") || { id: "" }).id.replace("page-", "") + '"]');
-    menu.querySelectorAll("[data-reglage]").forEach(function (b) { b.classList.toggle("actif", b === courant); });
-  }
-  function cablerMenuCompte() {
-    var menu = document.getElementById("menuCompte");
-    if (!menu) return;
+  function cablerReglages() {
     ["lienDeconnexionNav", "lienDeconnexionNavBas"].forEach(function (id) {
       var avatar = document.getElementById(id);
-      if (!avatar) return;
-      avatar.addEventListener("click", function (e) {
-        e.stopPropagation();
-        var ouvert = !menu.hidden && avatar.getAttribute("aria-expanded") === "true";
-        fermerMenuCompte();
-        if (typeof fermerSwitcherPages === "function") fermerSwitcherPages();
-        if (!ouvert) ouvrirMenuCompte_(avatar);
-      });
+      if (avatar) avatar.addEventListener("click", function (e) { e.stopPropagation(); fermerSwitcherPages(); ouvrirReglages(); });
     });
-    menu.addEventListener("click", function (e) {
-      e.stopPropagation();
-      var b = e.target.closest("[data-reglage]");
-      if (b) { afficherPage(b.dataset.reglage); return; }
-      if (e.target.closest("#btnDeconnexion")) { fermerMenuCompte(); deconnecterCompte(); }
-    });
-    document.addEventListener("click", function () { fermerMenuCompte(); });
-    window.addEventListener("resize", function () { fermerMenuCompte(); });
-    document.querySelectorAll(".reglages-nav").forEach(function (nav) {
-      nav.addEventListener("click", function (e) {
-        var b = e.target.closest("[data-reglage]");
-        if (b) afficherPage(b.dataset.reglage);
-      });
+    ["btnFermerReglages", "btnFermerReglagesBas"].forEach(function (id) {
+      var croix = document.getElementById(id);
+      if (croix) croix.addEventListener("click", function (e) { e.stopPropagation(); fermerSwitcherPages(); fermerReglages(); });
     });
     // Nom, adresse et initiale du compte connecté (js/page-compte.js).
     chargerInfosCompte();
@@ -675,7 +657,7 @@
   // feuille à droite (l'un sous l'autre sur téléphone).
   // Suite 61 : page de réglages (menu de la pastille), plus un onglet.
   function htmlPageMiseEnPage() {
-    return '<div class="page page-reglages" id="page-mise-en-page"><div class="page-scroll">' + htmlNavReglages_("mise-en-page") +
+    return '<div class="page page-reglages" id="page-mise-en-page"><div class="page-scroll">' +
       '<div class="page-titre"><h1>Mise en page</h1>' +
         '<div class="actions-feries"><span class="mep-etat" id="mepEtat"></span><button class="btn-calculer" id="btnReinitMep" type="button">Réinitialiser</button></div>' +
       '</div>' +
@@ -714,7 +696,9 @@
   // de la taille de texte choisie sur l'appareil.
   function ajusterOngletsNav() {
     var nav = document.getElementById("ongletsNav");
-    var liste = nav && nav.querySelector(".onglets-liste");
+    // Suite 63 : la rangée affichée (principale ou réglages), l'autre est
+    // masquée (largeur nulle).
+    var liste = nav && [].filter.call(nav.querySelectorAll(".onglets-liste"), function (l) { return l.offsetWidth > 0; })[0];
     if (!liste) return;
     nav.classList.remove("onglets-compacts");
     if (liste.scrollWidth > liste.clientWidth + 1) nav.classList.add("onglets-compacts");
@@ -731,8 +715,8 @@
   // « Pages » du bas teintés, sélecteur du bas renommé, rendu propre à la
   // page. Suite 61 : extrait du clic d'onglet, pour que le menu de la
   // pastille et les raccourcis clavier ouvrent une page par le même chemin.
-  // Une page de réglages n'a pas d'onglet : aucun n'est teinté, la pastille
-  // l'est.
+  // Suite 63 : une page de réglages a son onglet, dans la rangée des
+  // réglages qui remplace alors la rangée principale (haut et bas).
   function afficherPage(nom) {
     var page = document.getElementById("page-" + nom);
     if (!page) return;
@@ -744,19 +728,9 @@
     document.querySelectorAll(".page").forEach(function (p) { p.classList.remove("actif"); });
     page.classList.add("actif");
     var reglage = pageReglage_(nom);
-    document.querySelectorAll(".avatar-nav[aria-haspopup]").forEach(function (a) { a.classList.toggle("actif", !!reglage); });
-    document.querySelectorAll(".reglages-onglet").forEach(function (b) {
-      var sel = b.dataset.reglage === nom;
-      b.classList.toggle("actif", sel);
-      b.setAttribute("aria-selected", String(sel));
-    });
-    // Sur téléphone la rangée des réglages défile (6 pages) : la puce de la
-    // page ouverte est ramenée au milieu, jamais cachée hors de l'écran.
-    var puce = page.querySelector(".reglages-onglet.actif");
-    if (puce) {
-      var nav = puce.parentNode, rn = nav.getBoundingClientRect(), rp = puce.getBoundingClientRect();
-      nav.scrollLeft += (rp.left + rp.width / 2) - (rn.left + rn.width / 2);
-    }
+    var shell = document.querySelector(".app-shell");
+    if (shell) shell.classList.toggle("mode-reglages", !!reglage);
+    if (reglage) dernierReglage_ = nom; else dernierePagePrincipale_ = nom;
     // §91 — icône et libellé du sélecteur de page du bas d'écran, AVANT le
     // rendu à dessein : la navigation reste cohérente même si le rendu de
     // la page échoue (ex. souci réseau dans un render*() qui charge ses
@@ -771,7 +745,6 @@
     }
     if (switcherNom) switcherNom.textContent = onglet ? onglet.textContent.trim() : (reglage ? reglage.nom : nom);
     fermerSwitcherPages();
-    fermerMenuCompte();
     ajusterOngletsNav(); // l'onglet actif garde son nom (suite 53)
     var fn = renduParPage_[nom];
     if (fn) fn();
@@ -829,7 +802,6 @@
       switcherBtn.addEventListener("click", function (e) {
         e.stopPropagation();
         var etaitOuvert = switcherPanneau.classList.contains("ouvert");
-        fermerMenuCompte();
         switcherBtn.classList.toggle("ouvert", !etaitOuvert);
         switcherPanneau.classList.toggle("ouvert", !etaitOuvert);
       });

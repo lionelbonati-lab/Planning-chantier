@@ -91,6 +91,9 @@
        .onglets-nav (28px, inchangé là-haut) : cible tactile isolée en bout
        de barre, pas de voisin immédiat avec qui s'aligner visuellement ici. */
     .nav-bas .avatar-nav { width: 38px; height: 38px; font-size: 13px; margin-right: 0; }
+    /* Suite 63 : la croix des réglages, même place et même taille. */
+    .nav-bas .fermer-reglages { width: 38px; height: 38px; margin-right: 0; }
+    .nav-bas .fermer-reglages svg { width: 15px; height: 15px; }
     /* Panneau "Pages" — position:absolute ancré sur .nav-bas (position:fixed
        ci-dessus = containing block de ses descendants absolus), juste
        au-dessus de la barre, plutôt qu'un calcul JS de sa hauteur (cf.
