@@ -128,19 +128,19 @@ async function imagePng(page) {
       refaire: [...document.querySelectorAll('.ligne-raccourci[data-action="refaire"] .rc-combo')].map((c) => c.textContent.replace('×', '')).join(' / '),
       fixes: document.querySelectorAll('.rc-fixe').length, resetCache: document.getElementById('btnRaccourcisDefaut').hidden
     }));
-    verifier(liste.groupes === 'Modifier|Naviguer|Afficher|Pages|Touches fixes' && liste.suivante === 'S' && liste.refaire === 'Ctrl+Y / Ctrl+Maj+Z' && liste.fixes === 2 && liste.resetCache,
+    verifier(liste.groupes === 'Modifier|Naviguer|Afficher|Pages|Touches fixes|Souris' && liste.suivante === 'S Souris suivant' && liste.refaire === 'Ctrl+Y / Ctrl+Maj+Z' && liste.fixes === 11 && liste.resetCache,
       'page Raccourcis : groupes, touches affichées, touches fixes, « Tout rétablir » caché (' + JSON.stringify(liste) + ')');
 
     // Ajouter N à « Semaine suivante ».
     await page.click('.ligne-raccourci[data-action="semaineSuivante"] .rc-ajouter');
     verifier(await page.isVisible('.ligne-raccourci[data-action="semaineSuivante"] .rc-capture'), '« + » : la ligne attend la combinaison');
     await presser(page, 'Escape');
-    verifier(await page.isVisible('.ligne-raccourci[data-action="semaineSuivante"] .rc-ajouter') && (await combos(page, 'semaineSuivante')).join() === 'S', 'Échap pendant la saisie : rien ne change');
+    verifier(await page.isVisible('.ligne-raccourci[data-action="semaineSuivante"] .rc-ajouter') && (await combos(page, 'semaineSuivante')).join() === 'S,Souris suivant', 'Échap pendant la saisie : rien ne change');
     await page.click('.ligne-raccourci[data-action="semaineSuivante"] .rc-ajouter');
     await presser(page, 'n');
     await page.waitForTimeout(500);
     const ecr1 = (await ecritures(page, 'reglages:upsert')).filter((e) => e.indexOf('"cle":"raccourcis"') >= 0); // la touche W retient aussi les week-ends (clé « affichage », suite 62)
-    verifier((await combos(page, 'semaineSuivante')).join() === 'S,N' && ecr1.length === 1 && /"cle":"raccourcis","valeur":\{"semaineSuivante":\["S","N"\]\}/.test(ecr1[0]),
+    verifier((await combos(page, 'semaineSuivante')).join() === 'S,Souris suivant,N' && ecr1.length === 1 && /"cle":"raccourcis","valeur":\{"semaineSuivante":\["S","Souris suivant","N"\]\}/.test(ecr1[0]),
       'N ajouté à « Semaine suivante », seule la modification est enregistrée sur le compte (' + ecr1[0] + ')');
     verifier(await page.isVisible('.ligne-raccourci[data-action="semaineSuivante"] .rc-defaut') && await page.isVisible('#btnRaccourcisDefaut'), '↺ et « Tout rétablir » apparaissent');
 
@@ -151,13 +151,13 @@ async function imagePng(page) {
     verifier(/« N » sert déjà à « Semaine suivante »/.test(conf || ''), 'combinaison déjà prise : question avant de la déplacer (' + conf + ')');
     await page.click('.confirm-pop .c-ok');
     await page.waitForTimeout(500);
-    verifier((await combos(page, 'semainePrecedente')).join() === 'P,N' && (await combos(page, 'semaineSuivante')).join() === 'S',
+    verifier((await combos(page, 'semainePrecedente')).join() === 'P,Souris précédent,N' && (await combos(page, 'semaineSuivante')).join() === 'S,Souris suivant',
       'confirmé : N passe à « Semaine précédente », « Semaine suivante » garde S');
     // Retirer P.
     await page.click('.ligne-raccourci[data-action="semainePrecedente"] .rc-combo[data-combo="P"] .rc-retirer');
     await page.waitForTimeout(500);
     const ecr2 = (await ecritures(page, 'reglages:upsert')).filter((e) => e.indexOf('"cle":"raccourcis"') >= 0); // la touche W retient aussi les week-ends (clé « affichage », suite 62)
-    verifier((await combos(page, 'semainePrecedente')).join() === 'N' && /"valeur":\{"semainePrecedente":\["N"\]\}/.test(ecr2[ecr2.length - 1]),
+    verifier((await combos(page, 'semainePrecedente')).join() === 'Souris précédent,N' && /"valeur":\{"semainePrecedente":\["Souris précédent","N"\]\}/.test(ecr2[ecr2.length - 1]),
       '× : P retiré, enregistré (' + ecr2[ecr2.length - 1] + ')');
     // Combinaison avec modificateur, pour une page.
     await page.click('.ligne-raccourci[data-action="pageChantiers"] .rc-ajouter');
@@ -186,7 +186,7 @@ async function imagePng(page) {
     await page.evaluate(() => afficherPage('raccourcis'));
     await page.click('.ligne-raccourci[data-action="semainePrecedente"] .rc-defaut');
     await page.waitForTimeout(100);
-    verifier((await combos(page, 'semainePrecedente')).join() === 'P', '↺ : « Semaine précédente » revient à P');
+    verifier((await combos(page, 'semainePrecedente')).join() === 'P,Souris précédent', '↺ : « Semaine précédente » revient à P');
     await page.click('#btnRaccourcisDefaut');
     await page.click('.confirm-pop .c-ok');
     await page.waitForTimeout(500);

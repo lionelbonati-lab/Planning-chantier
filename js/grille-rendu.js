@@ -1841,19 +1841,23 @@
         + (estAuj ? " today" : "");
       th.dataset.gi = gi;
       var infoJour = libelleJourGi(gi);
+      // Nom du jour et date selon la page Affichage (suite 64, groupe
+      // « Dates », cf. enteteJourAffichage) ; « Heures de travail » peut
+      // retirer la durée.
+      var entete = enteteJourAffichage(isoDeGi(gi), infoJour.jour);
       // Durée de travail du jour (round du 25.09.2026, suite 27 — page
       // Horaires) sous la date, au format de la feuille PMB (8.75). Les
       // horaires eux-mêmes vont dans la ligne « M | A » juste en dessous.
-      var horaireJour = horaireDuJour(isoDeGi(gi));
-      var dateHTML = '<span class="th-date">' + infoJour.jour + "</span>" +
+      var horaireJour = optionAffichage("heures") === "oui" ? horaireDuJour(isoDeGi(gi)) : null;
+      var dateHTML = '<span class="th-date">' + esc(entete.date) + "</span>" +
         (horaireJour ? '<span class="th-duree" title="Durée de travail (pause déduite)">' + formatDuree(horaireJour.duree) + " h</span>" : "");
       var ferJour = feriePourJour(gi);
       if (ferJour) {
         th.style.background = hexToRgba(ferJour.couleur, .55);
         th.title = ferJour.label;
-        th.innerHTML = JOURS[gi % 5] + dateHTML + '<span class="th-ferie-label">' + esc(ferJour.label) + "</span>";
+        th.innerHTML = esc(entete.nom) + dateHTML + '<span class="th-ferie-label">' + esc(ferJour.label) + "</span>";
       } else {
-        th.innerHTML = JOURS[gi % 5] + dateHTML;
+        th.innerHTML = esc(entete.nom) + dateHTML;
       }
       poser(th, colonneGrille(gi), row, colsParJour());
       if (afficherWeekends && (gi + 1) % 5 === 0) {
@@ -1863,24 +1867,27 @@
           var thWE = document.createElement("div");
           thWE.className = "th th-weekend";
           thWE.dataset.gi = giWE;
-          var infoWE = libelleJourGi(giWE);
-          thWE.innerHTML = JOURS_WEEKEND[j] + '<span class="th-date">' + infoWE.jour + "</span>";
+          var infoWE = libelleJourGi(giWE), enteteWE = enteteJourAffichage(isoDeGi(giWE), infoWE.jour);
+          thWE.innerHTML = esc(enteteWE.nom) + '<span class="th-date">' + esc(enteteWE.date) + "</span>";
           poser(thWE, colonneGrille(giWE), row);
         });
       }
     }
     row++;
+    // « Ligne sous les jours » (suite 64, page Affichage) : horaires (défaut),
+    // M | A seulement, ou pas de ligne du tout.
+    var ligneDemiAff = optionAffichage("ligneDemi");
     // Fine ligne d'en-tête "M | A" sous chaque jour. Sans elle,
     // rien ne dirait laquelle des deux colonnes d'un jour est le matin — le
     // reste de la grille ne porte plus l'étiquette "Matin"/"Après-midi",
     // puisque les deux demi-journées partagent désormais une seule ligne.
     var coinDemi = document.createElement("div");
     coinDemi.className = "th coin th-demi";
-    poser(coinDemi, 1, row);
-    for (var giD = 0; giD < n; giD++) {
+    if (ligneDemiAff !== "masquee") poser(coinDemi, 1, row);
+    for (var giD = 0; giD < n && ligneDemiAff !== "masquee"; giD++) {
       DEMIS.forEach(function (demi) {
         var thD = document.createElement("div");
-        thD.className = "th th-demi" + (demi === "aprem" ? " th-demi-aprem" : "")
+        thD.className = "th th-demi" + (demi === "aprem" ? " th-demi-aprem" : " th-demi-matin")
           + (demi === "matin" && giD > 0 && giD % 5 === 0 ? " sem-frontiere" : "")
           + (demi === "matin" && giD > 0 && giD % 5 !== 0 ? " jour-frontiere" : "");
         // Horaires dans la ligne « M | A » (suite 27) — Lionel : « Dans la
@@ -1888,7 +1895,7 @@
         // du matin sous M, celui de l'après-midi sous A (« — » quand le
         // jour ne travaille que le matin). Sans horaire (week-end, période
         // non saisie) : les lettres M / A comme avant.
-        var horaireD = horaireDuJour(isoDeGi(giD));
+        var horaireD = ligneDemiAff === "ma" ? null : horaireDuJour(isoDeGi(giD));
         var texteDemi = horaireD ? (demi === "matin" ? horaireD.matin : (horaireD.aprem || "—")) : null;
         if (texteDemi) {
           thD.classList.add("th-horaire");
@@ -1909,7 +1916,7 @@
         });
       }
     }
-    row++;
+    if (ligneDemiAff !== "masquee") row++;
 
     [["jalon", JALONS, "Jalons"], ["note", NOTES, "Notes"]].forEach(function (spec) {
       var kind = spec[0], liste = spec[1], label = spec[2];
@@ -2118,10 +2125,13 @@
             var c = creerCell(gi4, { personne: p.id, demi: demi });
             if (alt) c.classList.add("ligne-alt");
             if (demi === "aprem") c.classList.add("cell-aprem");
+            // .cell-matin (suite 64) : teinte du matin si « Colonnes teintées :
+            // Matin » (page Affichage).
+            else c.classList.add("cell-matin");
             // Trait de séparation entre deux JOURS (retour de Lionel) : porté
             // par la colonne du matin, sauf en début de semaine où le trait de
             // semaine, plus fort, prend déjà le relais (posé par creerCell).
-            else if (gi4 > 0 && gi4 % 5 !== 0) c.classList.add("jour-frontiere");
+            if (demi === "matin" && gi4 > 0 && gi4 % 5 !== 0) c.classList.add("jour-frontiere");
             poser(c, colonneDemi(gi4, demi), row, null, nbPistes);
           });
           if (afficherWeekends && (gi4 + 1) % 5 === 0) {
@@ -2387,9 +2397,11 @@
   function poserSepSemaines_(jourMobile, enteteFigee, enteteScroll, grilleEntete, cadre, scroller) {
     if (sepSemaines_ && sepSemaines_.ro) sepSemaines_.ro.disconnect();
     sepSemaines_ = null;
-    // « Entre 2 semaines : Trait » (suite 62, page Affichage) : pas d'espace,
-    // le trait épais d'avant la suite 61 reste (.sem-frontiere).
-    var trait = typeof optionAffichage === "function" && optionAffichage("separation") === "trait";
+    // « Entre 2 semaines : Rien » (suite 64, ex-« Trait » de la suite 62 —
+    // Lionel : « proposer espace ou rien. plus de ligne épaisse ») : pas
+    // d'espace, et le trait de .sem-frontiere est retiré en CSS
+    // (html[data-aff-separation="rien"]).
+    var trait = typeof optionAffichage === "function" && optionAffichage("separation") === "rien";
     var ths = (jourMobile || trait) ? [] : [].slice.call(grilleEntete.querySelectorAll(".th.sem-frontiere:not(.th-demi)"));
     racineEl.classList.toggle("avec-sep-semaines", ths.length > 0);
     if (!ths.length) return;

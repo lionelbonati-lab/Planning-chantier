@@ -8945,3 +8945,103 @@ Lionel : « Le menu setting vient se placer à la place du menu principal en hau
 - test_suite39.js : Mise en page d'impression ouverte depuis la liste « Réglages » du bas. 29/29.
 - Suite complète : 72/72.
 - test_suite57.js (échec intermittent sur la CI de la PR, reproduit aussi sur main, 1 fois sur 6) : sous charge, le geste commençait avant la 1re image du journal, qui partait donc d'une hauteur déjà en train de glisser (`iPremiere` = 0). `journaliser` ne rend plus la main qu'une fois la 1re image notée. 10/10 seul, 8/8 à 4 en parallèle.
+
+## 172. Round du 26.09.2026 (suite 64) — Affichage, Couleurs, souris dans les raccourcis
+
+Lionel :
+- « Setup affichage planning : Proposer divers option d'affichage des dates. afficher ou non les heures de travaille. Afficher ou non la ligne des horaires, pouvoir choisir entre horaire ou M|A. Colorier ou non les colonnes matin ou après-midi. Entre 2 semaines, proposer espace ou rien. plus de ligne épaisse. Coins du planning arrondi ou carré. Afficher statuts: non, pastille, badge. taille du texte planning. police pour l'ensemble du document »
+- « Setup couleur : Enlever thème classique. Enlever le choix de la couleur du statuts à confirmé, déjà dans les statuts. Ajoute d'autres thèmes. Aperçu sur la page aussi »
+- « Ajouter les touches souris aux raccourcis »
+
+### Ce qui change
+- Page Affichage : 18 réglages (11 avant), en 5 groupes (Planning, Dates, Bulles, Police, À l'ouverture). Nouveaux :
+  - **Colonnes teintées** : aucune, matin, après-midi (origine).
+  - **Entre 2 semaines** : espace (origine) ou rien. Le « trait » épais disparaît ; un « trait » déjà enregistré se lit « rien ».
+  - **Coins du planning** : arrondis ou carrés (cadre, en-tête, espace entre semaines).
+  - **Jour** : abrégé « Jeu » (origine), complet « Jeudi », initiale « J », masqué.
+  - **Date** : « 24 » (origine), « 24.09 », « 24 sept. », « 24 septembre » (« 1er » pour le premier du mois).
+  - **Heures de travail** : la durée sous la date, oui (origine) ou non.
+  - **Ligne des horaires** : horaires (origine), « M | A », masquée.
+  - **Statut** : non, pastille (un point de sa couleur dans le coin de la bulle, le nom au survol), badge (origine). Un ancien « oui » se lit « badge ».
+  - **Taille du texte** : « Très grand » (15 px) en plus.
+  - **Police** de tout le document, chiffres compris : Archivo (origine), Inter, Roboto, Nunito, Source Sans 3, police du système. Les polices Google ne se chargent qu'une fois choisies (ou la page ouverte, pour les pastilles écrites chacune dans sa police).
+- L'aperçu de la page Affichage suit tout : 2 colonnes par jour (matin, après-midi), ligne des horaires, durée, statut.
+- Page Couleurs :
+  - plus de thème « Classique ». Sans aucune couleur enregistrée, la liste affiche « Couleurs d'origine » (comme « Personnalisé », jamais choisi à la main) ;
+  - plus de réglage « Statut confirmé » : les badges prennent la couleur réglée sur la page Statuts ;
+  - 6 thèmes de plus : Océan, Lavande, Sable, Bordeaux, Chantier (orange sécurité), Graphite ;
+  - l'aperçu du planning (celui de « Personnaliser ») aussi sur la page, sous la liste « Thème ». Il suit le thème en direct ; son badge prend la couleur du statut « Confirmé ».
+- Page Raccourcis clavier :
+  - les boutons de la souris qui ne servent pas sur le planning deviennent des touches : bouton du milieu, précédent et suivant (boutons de côté), avec Ctrl, Alt, Maj si on veut. « + » puis le bouton pour l'attribuer ;
+  - par défaut, précédent/suivant = semaine précédente/suivante sur le planning (au lieu de « Page précédente » du navigateur, qui faisait quitter l'appli) ;
+  - nouvelle section « Souris » : les gestes de la souris sur le planning (clic, Ctrl+clic, glisser, Maj+glisser, poignées, case vide, clic droit + glisser, Maj+molette), affichés, pas modifiables ;
+  - une petite souris devant chaque touche de souris.
+
+### Fonctionnement
+- js/page-affichage.js :
+  - `OPTIONS_AFFICHAGE` : une option peut porter `alias` (ancienne valeur → nouvelle, `valeurAffichage_`) et `css` (attribut `data-aff-<id>` sur `<html>`, seulement hors valeur d'origine) ;
+  - `enteteJourAffichage(iso, numero)` → `{ nom, date }`, utilisé par la grille et l'aperçu ;
+  - police : variable `--police` (style de `<html>`) et `chargerPolices_` (un `<link data-polices>` vers Google Fonts).
+- js/grille-rendu.js : en-têtes par `enteteJourAffichage` ; durée selon « Heures de travail » ; ligne des horaires sautée (et rangées décalées) quand masquée, « M »/« A » sans horaires ; `th-demi-matin` et `cell-matin` pour la teinte du matin ; plus d'espace entre semaines quand « rien ».
+- style.css :
+  - `font-family: var(--police, 'Archivo', …)` ; les 20 `'IBM Plex Mono'` deviennent `var(--police-mono)`, qui suit `--police` quand une police est choisie ;
+  - teintes par `:where(html[data-aff-teinte])` (spécificité nulle : la sélection et les surbrillances de dépôt gardent la main) ;
+  - pastilles des choix qui passent à la ligne sur téléphone (police, date).
+- js/page-couleurs.js : groupe `statut-confirme` retiré (une ancienne ligne `couleurs_perso` est ignorée) ; `THEME_ORIGINE_` reconnu en dernier par `themeActuel_` ; `#apercuCouleursPage` redessiné par `majReglagesCouleursAffiches`.
+- js/raccourcis.js : `comboDepuisSouris` (« Clic milieu », « Souris précédent », « Souris suivant ») ; l'action part au `mousedown`, `mouseup` et `auxclick` du même bouton sont bloqués (le navigateur ne recule pas, pas d'onglet ouvert) ; un bouton sans action garde son effet ; `GESTES_SOURIS_` pour la liste.
+
+### Tests
+- test_suite64.js (nouveau), 26 vérifications :
+  - dates (Jeudi 24 septembre, J 1er oct., 01.10), heures, ligne des horaires, teintes, cadre carré, statut en pastille, très grand, police Inter, attributs et enregistrement, « Tout rétablir » ;
+  - Couleurs : liste des thèmes, « Couleurs d'origine », aperçu sur la page (ordinateur et téléphone), badge à la couleur du statut, thème Bordeaux, plus de ligne « confirmé » ;
+  - souris : précédent/suivant changent de semaine sans laisser faire le navigateur, milieu libre, Ctrl + milieu attribué puis utilisé, rien hors du planning.
+- test_suite62.js : 18 réglages et leurs valeurs d'origine, en-têtes de l'aperçu (jour + date), statut en pastilles, « Rien » au lieu de « Trait », `separation=rien` relu depuis un ancien « trait ». 29/29.
+- test_suite54.js : liste des thèmes sans « Classique », thème Océan, 16 réglages dans Personnaliser, « Couleurs d'origine ». OK.
+- test_suite61.js : touches par défaut des semaines avec les boutons de souris, section « Souris » (11 lignes fixes). 99/99.
+
+## 173. Round du 26.09.2026 (suite 65) — Icône « Important », onglet Notes, barres de défilement discrètes
+
+Lionel :
+- « Jalon et Important ont la même icone, ca prête à confusion. trouve une autre icone pour important »
+- « Ajoute un onglet note entre jalon et personnel. Mets y la couleur et d'autres choses. »
+- « une barre de défilement est apparu a droite sur mon planning alors qu'il y a encore de la place. Fait en sorte que toutes les barres de défilement soient des barres discrètes, visibles unique si il y a déplacement. »
+
+### Ce qui change
+- **Important** : nouvelle icône, un cercle avec un « ! ». Le drapeau reste aux jalons seuls. Elle est utilisée dans la barre de sélection, dans le bandeau des fiches (tâche, jalon, note) et dans la liste des jalons.
+- **Onglet Notes**, entre Jalons et Personnel (barre du haut, menu des pages, raccourci « Notes » à choisir sur la page Raccourcis). La page contient :
+  - la couleur des notes (qui quitte « Personnaliser » et les thèmes, comme Jalon) ;
+  - « Afficher dans le planning » : la même bascule que l'icône note de la barre du planning ;
+  - toutes les notes : « En cours et à venir », puis « Passées » (les plus récentes en tête), avec leur nombre. Une note sur plusieurs jours tient sur une ligne ; deux notes d'un même jour restent deux lignes. L'important est signalé par sa nouvelle icône ;
+  - ajouter, modifier (texte, dates, important) et supprimer (après confirmation). Seule la note visée change : les autres notes du même jour restent.
+- **Barres de défilement** :
+  - la barre verticale parasite à droite du planning a disparu. Le tableau ne défile jamais verticalement lui-même : c'est la page qui défile ;
+  - toutes les barres natives sont masquées, partout. À leur place, une fine poignée (6 px) apparaît par-dessus ce qui défile, seulement pendant le défilement, puis s'efface en fondu ~0,8 s après. Elle ne prend aucune place ;
+  - à la souris, la poignée se saisit tant qu'elle est affichée (glisser = faire défiler) et reste visible au survol ;
+  - la poignée horizontale du planning se place au bas de la partie visible à l'écran, même quand le bas du tableau est plus loin.
+
+### Fonctionnement
+- js/core.js : `ICONS.important`. Il est repris par `#selImportant`, `.jalon-important` (js/page-jalons.js) et `ICONE_DRAPEAU` (js/formulaires-communs.js, bouton `.f-important` des bandeaux).
+- js/page-notes.js (nouveau) :
+  - `chargerNotesToutesServeur` lit toute la table `notes`. `fusionnerNotesTous` regroupe par (texte, important) et réunit les jours ouvrés consécutifs, avec la même règle de demi-journée que les jalons ;
+  - `renderNotes` dessine les 2 sections ;
+  - `ouvrirFormulaireNote` reprend la fiche des jalons (bandeau, dates ISO sans limite de fenêtre) et écrit par `enregistrer-plage` (`kind: "note"`, `mode: "remplacement"`). Pour une modification ou une suppression, l'ancienne note part en `origine`, et le serveur ne retire que cette ligne-là sur chaque jour. Supprimer revient à écrire les mêmes jours avec un texte vide ;
+  - `cablerPageNotes` : clics délégués et `#chkNotesPlanning` ↔ `replierNotes`.
+- js/coquille.js : onglet et entrée du menu `data-page="notes"`, `htmlPageNotes()`, relecture à chaque ouverture (`renduParPage_.notes`). `ajusterOngletsNav` passe par un palier `.onglets-serres` (marges des onglets réduites, noms gardés) avant les icônes seules : avec Notes, les 9 noms dépassaient de 24 px à 1024 px. js/raccourcis.js : action `pageNotes`. js/page-couleurs.js : groupe `note` → `page: "notes"`.
+- style.css :
+  - `.scroller { overflow-y: hidden }`. `overflow-x: auto` forçait `overflow-y` à « auto » : au moindre débordement de quelques pixels (barre horizontale native de Windows, arrondis), le tableau affichait sa propre barre verticale par-dessus les bulles de droite ;
+  - `* { scrollbar-width: none }` et `::-webkit-scrollbar { display: none }` ;
+  - `.barre-defilement` : poignée fixe, `opacity` 0 → .32 pendant le défilement. Elle ne capte les clics qu'avec une souris (`pointer: fine`) : au doigt, elle intercepterait les appuis sur les bulles au bord juste après un glissé.
+- js/barres-defilement.js (nouveau, chargé tôt dans index.html) :
+  - écoute `scroll` en capture sur document, pour n'importe quel élément ;
+  - ignore un débordement de 2 px ou moins et les éléments en `overflow: hidden`, dont le défilement est seulement recopié par le code (`.entete-planning-scroll`) ;
+  - replace toutes les poignées affichées à chaque défilement ;
+  - le glisser à la souris est intercepté en capture sur `window`, avant les écouteurs « clic à l'extérieur = fermer » des fenêtres.
+
+### Tests
+- test_suite65.js (nouveau), 22 vérifications :
+  - Important : icône en cercle, différente du drapeau (sélection, fiche, liste des jalons) ;
+  - onglet Notes à sa place (haut et menu), raccourci, ouverture ;
+  - page Notes : couleur (absente des réglages généraux), liste fusionnée et sections, bascule du planning dans les deux sens, ajouter, modifier sur 2 jours, supprimer sans toucher les autres notes du même jour, 390 px sans débordement ;
+  - barres : natives masquées, `.scroller` sans défilement vertical, poignée fine au bord droit pendant le défilement puis effacée, poignée saisie qui fait défiler, poignée horizontale du planning dans l'écran.
+- test_suite53.js : 9 onglets avec leur nom à 1400 et 1024 px (resserrés à 1024 px). 46/46.
+- test_suite56.js et test_suite54.js : 15 réglages dans « Personnaliser » (au lieu de 16) : Note est maintenant sur sa page.

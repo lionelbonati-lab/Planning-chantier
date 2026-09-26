@@ -61,6 +61,22 @@
     if (e.shiftKey && (lettre || k.length > 1)) mods.push("Maj");
     return mods.concat([nom]).join("+");
   }
+  // Round du 26.09.2026 (suite 64) — Lionel : « Ajouter les touches souris
+  // aux raccourcis ». Les boutons de la souris qui ne servent à rien dans
+  // le planning deviennent des touches comme les autres : bouton du milieu
+  // (molette enfoncée) et les deux boutons de côté (précédent/suivant),
+  // avec Ctrl, Alt, Maj si on veut. Le clic gauche et le clic droit gardent
+  // leurs gestes sur la grille (listés, pas modifiables : GESTES_SOURIS_).
+  var BOUTONS_SOURIS_ = { 1: "Clic milieu", 3: "Souris précédent", 4: "Souris suivant" };
+  function comboDepuisSouris(e) {
+    var nom = BOUTONS_SOURIS_[e.button];
+    if (!nom) return null;
+    var mods = [];
+    if (e.ctrlKey || e.metaKey) mods.push("Ctrl");
+    if (e.altKey) mods.push("Alt");
+    if (e.shiftKey) mods.push("Maj");
+    return mods.concat([nom]).join("+");
+  }
   // « Ctrl++ » -> ["Ctrl", "+"] ; « + » -> ["+"].
   function morceauxCombo_(c) {
     if (c === "+") return ["+"];
@@ -72,8 +88,14 @@
     if (MAC_RACCOURCIS_ && t === "Alt") return "⌥";
     return t;
   }
+  // Suite 64 : une touche de souris (bouton, clic, glisser, molette) a
+  // son icône de souris devant le nom.
+  var RE_SOURIS_ = /^(Clic|Souris|Glisser|Molette)/;
+  var ICONE_SOURIS_ = '<svg class="rc-souris" viewBox="0 0 16 16" aria-hidden="true"><rect x="3.5" y="1.5" width="9" height="13" rx="4.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 1.8v4.4" stroke="currentColor" stroke-width="1.4"/></svg>';
   function htmlCombo_(c) {
-    return morceauxCombo_(c).map(function (t) { return '<kbd>' + esc(libelleTouche_(t)) + '</kbd>'; }).join('<span class="rc-plus">+</span>');
+    return morceauxCombo_(c).map(function (t) {
+      return '<kbd' + (RE_SOURIS_.test(t) ? ' class="kbd-souris">' + ICONE_SOURIS_ : '>') + esc(libelleTouche_(t)) + '</kbd>';
+    }).join('<span class="rc-plus">+</span>');
   }
   function libelleCombo(c) { return morceauxCombo_(c).map(libelleTouche_).join(MAC_RACCOURCIS_ ? "" : "+"); }
 
@@ -115,8 +137,10 @@
     { id: "decalerGaucheJour", groupe: "Modifier", nom: "Décaler la sélection d’un jour à gauche", defaut: ["Maj+←"], possible: decalagePossible_, faire: function () { decalerSelection(-2); } },
     { id: "decalerDroiteJour", groupe: "Modifier", nom: "Décaler la sélection d’un jour à droite", defaut: ["Maj+→"], possible: decalagePossible_, faire: function () { decalerSelection(2); } },
 
-    { id: "semainePrecedente", groupe: "Naviguer", nom: "Semaine précédente", defaut: ["P"], planning: true, faire: function () { naviguerSemaine(-1); } },
-    { id: "semaineSuivante", groupe: "Naviguer", nom: "Semaine suivante", defaut: ["S"], planning: true, faire: function () { naviguerSemaine(1); } },
+    // Suite 64 : les boutons de côté de la souris feuillettent les semaines
+    // (au lieu de quitter l'appli par « Page précédente » du navigateur).
+    { id: "semainePrecedente", groupe: "Naviguer", nom: "Semaine précédente", defaut: ["P", "Souris précédent"], planning: true, faire: function () { naviguerSemaine(-1); } },
+    { id: "semaineSuivante", groupe: "Naviguer", nom: "Semaine suivante", defaut: ["S", "Souris suivant"], planning: true, faire: function () { naviguerSemaine(1); } },
     { id: "aujourdhui", groupe: "Naviguer", nom: "Aujourd’hui", defaut: ["A"], planning: true, faire: function () { allerAujourdhui(); } },
     { id: "choisirDate", groupe: "Naviguer", nom: "Choisir une date", defaut: ["D"], planning: true, faire: ouvrirCalendrierBarre_ },
 
@@ -132,6 +156,7 @@
 
     { id: "pagePlanning", groupe: "Pages", nom: "Planning", defaut: [], faire: allerPage_("planning") },
     { id: "pageJalons", groupe: "Pages", nom: "Jalons", defaut: [], faire: allerPage_("jalons") },
+    { id: "pageNotes", groupe: "Pages", nom: "Notes", defaut: [], faire: allerPage_("notes") },
     { id: "pagePersonnel", groupe: "Pages", nom: "Personnel", defaut: [], faire: allerPage_("personnel") },
     { id: "pageIntervenants", groupe: "Pages", nom: "Intervenants", defaut: [], faire: allerPage_("intervenants") },
     { id: "pageChantiers", groupe: "Pages", nom: "Chantiers", defaut: [], faire: allerPage_("chantiers") },
@@ -144,6 +169,20 @@
   var TOUCHES_FIXES_ = [
     { combo: "Échap", nom: "Fermer une fenêtre, quitter la sélection" },
     { combo: "Entrée", nom: "Valider une fenêtre ouverte" }
+  ];
+  // Suite 64 : gestes de la souris sur le planning, tels qu'ils sont codés
+  // (grille-interactions.js, grille-rendu.js) — affichés sous « Souris »,
+  // pas modifiables : ils tiennent à l'endroit où l'on clique.
+  var GESTES_SOURIS_ = [
+    { combo: "Clic", nom: "Sélectionner une bulle (recliquer : désélectionner)" },
+    { combo: "Ctrl+Clic", nom: "Ajouter une bulle à la sélection, ou l’en retirer" },
+    { combo: "Glisser", nom: "Déplacer une bulle (ou la sélection)" },
+    { combo: "Maj+Glisser", nom: "Copier une bulle (ou la sélection) en la déposant" },
+    { combo: "Glisser", nom: "Sur le bord d’une bulle : l’allonger ou la raccourcir" },
+    { combo: "Clic", nom: "Sur une case vide : ajouter une tâche" },
+    { combo: "Glisser", nom: "Sur des cases vides : ajouter sur plusieurs demi-journées ou personnes" },
+    { combo: "Clic droit+Glisser", nom: "Sur les cases : sélectionner toutes les bulles d’une zone" },
+    { combo: "Maj+Molette", nom: "Au bout du planning : semaine précédente ou suivante" }
   ];
   function actionClavierParId_(id) { return ACTIONS_CLAVIER.filter(function (a) { return a.id === id; })[0] || null; }
 
@@ -235,6 +274,10 @@
       TOUCHES_FIXES_.map(function (f) {
         return '<div class="ligne-raccourci rc-fixe"><span class="rc-nom">' + esc(f.nom) + '</span><span class="rc-touches"><span class="rc-combo">' + htmlCombo_(f.combo) + '</span></span></div>';
       }).join("") + '</div>';
+    html += '<h2 class="titre-liste">Souris</h2><div class="liste-raccourcis liste-gestes-souris">' +
+      GESTES_SOURIS_.map(function (f) {
+        return '<div class="ligne-raccourci rc-fixe"><span class="rc-nom">' + esc(f.nom) + '</span><span class="rc-touches"><span class="rc-combo">' + htmlCombo_(f.combo) + '</span></span></div>';
+      }).join("") + '</div>';
     zone.innerHTML = html;
     var reset = document.getElementById("btnRaccourcisDefaut");
     if (reset) reset.hidden = !Object.keys(modifsRaccourcis_()).length;
@@ -248,15 +291,26 @@
     if (!action || !bouton) return;
     var zone = document.createElement("span");
     zone.className = "rc-capture";
-    zone.textContent = "Tapez la combinaison…";
+    zone.textContent = "Tapez la combinaison ou un bouton de la souris…";
     bouton.replaceWith(zone);
     captureRaccourciEnCours = true;
     function finir() {
       captureRaccourciEnCours = false;
       window.removeEventListener("keydown", surTouche, true);
       document.removeEventListener("pointerdown", surClic, true);
+      document.removeEventListener("mousedown", surBouton, true);
     }
-    function surClic(e) { if (!zone.contains(e.target)) { finir(); renderRaccourcis(); } }
+    // Suite 64 : un bouton de souris attribuable (milieu, côtés) est pris
+    // comme combinaison ; un clic gauche/droit ailleurs abandonne.
+    function surClic(e) { if (comboDepuisSouris(e)) return; if (!zone.contains(e.target)) { finir(); renderRaccourcis(); } }
+    function surBouton(e) {
+      var combo = comboDepuisSouris(e);
+      if (!combo) return;
+      e.preventDefault(); e.stopPropagation();
+      boutonSourisTraite_ = e.button; // son relâchement ne doit pas faire « Page précédente »
+      finir();
+      attribuerCombo_(action, combo);
+    }
     function surTouche(e) {
       e.preventDefault(); e.stopPropagation();
       if (e.key === "Escape") { finir(); renderRaccourcis(); return; }
@@ -267,7 +321,33 @@
     }
     window.addEventListener("keydown", surTouche, true);
     document.addEventListener("pointerdown", surClic, true);
+    document.addEventListener("mousedown", surBouton, true);
   }
+
+  // ---- Boutons de la souris (suite 64) -----------------------------------
+  // Même registre que le clavier (actionClavierPour). L'action part à
+  // l'appui ; l'effet normal du bouton est bloqué jusqu'au bout du geste —
+  // relâchement compris : c'est là que le navigateur ferait « Page
+  // précédente/suivante » (boutons de côté) ou ouvrirait un lien dans un
+  // onglet (milieu, auxclick). Un bouton sans action garde son effet normal.
+  var boutonSourisTraite_ = null;
+  document.addEventListener("mousedown", function (e) {
+    if (captureRaccourciEnCours) return;
+    boutonSourisTraite_ = null;
+    var combo = comboDepuisSouris(e);
+    var action = combo && actionClavierPour(combo);
+    if (!action) return;
+    e.preventDefault();
+    boutonSourisTraite_ = e.button;
+    action.faire();
+  }, true);
+  ["mouseup", "auxclick"].forEach(function (type) {
+    document.addEventListener(type, function (e) {
+      if (boutonSourisTraite_ === null || e.button !== boutonSourisTraite_) return;
+      e.preventDefault();
+      if (type === "auxclick") boutonSourisTraite_ = null;
+    }, true);
+  });
   function attribuerCombo_(action, combo) {
     var siennes = combosDe(action);
     if (siennes.indexOf(combo) >= 0) { toast("« " + libelleCombo(combo) + " » sert déjà à cette action."); renderRaccourcis(); return; }

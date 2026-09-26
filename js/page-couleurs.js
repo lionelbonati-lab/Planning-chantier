@@ -102,8 +102,10 @@
     {
       id: "note", nom: "Note",
       // Couleur de la bulle « Note » posée sur le planning, et du bouton « afficher les notes » de la barre d'outils quand il est activé.
+      // Suite 65 : réglée sur la page Notes (« Mets y la couleur »), comme
+      // Jalon sur la sienne — plus dans « Personnaliser » ni dans les thèmes.
       champs: [{ v: "--note-bg" }],
-      defautClair: "#f7e6ab", defautSombre: "#f7e6ab"
+      defautClair: "#f7e6ab", defautSombre: "#f7e6ab", page: "notes"
     },
     {
       // Round du 23.09.2026 (suite ×3) — Lionel : « séparations Personnel/
@@ -148,12 +150,12 @@
       champs: [{ v: "--weekend-bg" }],
       defautClair: "#cdcfc9", defautSombre: "#232b34"
     },
-    {
-      id: "statut-confirme", nom: "Statut « confirmé »",
-      // Fond du badge « confirmé ».
-      champs: [{ v: "--status-confirme-bg" }],
-      defautClair: "#cdf1ea", defautSombre: "#123f38"
-    },
+    // Round du 26.09.2026 (suite 64) — Lionel : « Enlever le choix de la
+    // couleur du statuts à confirmé, déjà dans les statuts ». Le groupe
+    // « Statut « confirmé » » (--status-confirme-bg) n'est plus proposé :
+    // les badges prennent la couleur réglée sur la page Statuts. Une
+    // ancienne ligne `couleurs_perso` « statut-confirme » est simplement
+    // ignorée (appliquerCouleursPersonnalisees ne lit que ces groupes-ci).
     {
       id: "sync", nom: "Point de synchronisation",
       // Petit point en haut de l'écran indiquant que l'appli est connectée. À ne changer que si tu veux vraiment y toucher.
@@ -223,7 +225,6 @@
     { id: "mes-couleurs", nom: "Mes couleurs", valeurs: {
       fond: { clair: "#ffffff", sombre: null }
     } },
-    { id: "classique", nom: "Classique", valeurs: {} },
     { id: "ardoise", nom: "Ardoise", valeurs: {
       principale: { clair: "#44576d", sombre: "#a3b8cf" },
       "onglet-fond": { clair: "#e3e8ee", sombre: "#28323d" },
@@ -252,9 +253,56 @@
       texte: { clair: "#000000", sombre: "#ffffff" },
       "texte-secondaire": { clair: "#2c343c", sombre: "#d3d9df" },
       "texte-discret": { clair: "#525c66", sombre: "#a0aab4" }
+    } },
+    // Suite 64 — Lionel : « Ajoute d'autres thèmes ». Même principe que
+    // les précédents (principale, onglet actif, fond, week-end, parfois les
+    // séparations) : les autres groupes gardent leur couleur d'origine.
+    { id: "ocean", nom: "Océan", valeurs: {
+      principale: { clair: "#1b6a86", sombre: "#76c4de" },
+      "onglet-fond": { clair: "#dbeef4", sombre: "#17303a" },
+      fond: { clair: "#f8fcfd", sombre: "#0d151a" },
+      weekend: { clair: "#cddce1", sombre: "#1c2a31" }
+    } },
+    { id: "lavande", nom: "Lavande", valeurs: {
+      principale: { clair: "#65488f", sombre: "#c0a6e6" },
+      "onglet-fond": { clair: "#ebe3f5", sombre: "#2b2238" },
+      fond: { clair: "#fcfbfe", sombre: "#131019" },
+      weekend: { clair: "#dad4e2", sombre: "#241f2e" }
+    } },
+    { id: "sable", nom: "Sable", valeurs: {
+      principale: { clair: "#86652a", sombre: "#dbbb78" },
+      "onglet-fond": { clair: "#f3e9d3", sombre: "#352c1b" },
+      fond: { clair: "#fffdf7", sombre: "#15120c" },
+      weekend: { clair: "#e1d9c5", sombre: "#29241a" },
+      bordure: { clair: "#e0d9c8", sombre: "#352f24" }
+    } },
+    { id: "bordeaux", nom: "Bordeaux", valeurs: {
+      principale: { clair: "#7c213f", sombre: "#e58ea9" },
+      "onglet-fond": { clair: "#f4dfe6", sombre: "#391d27" },
+      fond: { clair: "#fffbfc", sombre: "#160e11" },
+      weekend: { clair: "#e1d2d7", sombre: "#2a1e22" }
+    } },
+    // Couleurs de la signalisation de chantier : orange sécurité.
+    { id: "chantier", nom: "Chantier", valeurs: {
+      principale: { clair: "#b25a00", sombre: "#ffb347" },
+      "onglet-fond": { clair: "#fde8c9", sombre: "#3c2a10" },
+      fond: { clair: "#fffdf8", sombre: "#14110b" },
+      weekend: { clair: "#e4dccb", sombre: "#29241b" }
+    } },
+    { id: "graphite", nom: "Graphite", valeurs: {
+      principale: { clair: "#393e45", sombre: "#c8cdd3" },
+      "onglet-fond": { clair: "#e4e6e8", sombre: "#2b2f35" },
+      fond: { clair: "#fafafa", sombre: "#101113" },
+      weekend: { clair: "#d4d6d8", sombre: "#23252a" },
+      bordure: { clair: "#dcdee0", sombre: "#2f3237" }
     } }
   ];
   window.THEMES_COULEURS = THEMES_COULEURS;
+  // Suite 64 — Lionel : « Enlever thème classique ». Plus proposé dans la
+  // liste ; mais sans aucune couleur enregistrée, la liste doit dire
+  // quelque chose de juste : « Couleurs d’origine », visible seulement dans
+  // ce cas-là (comme « Personnalisé »), jamais choisi à la main.
+  var THEME_ORIGINE_ = { id: "origine", nom: "Couleurs d’origine", valeurs: {} };
 
   // window.etat.couleursPerso : accès défensif, sans jamais lever — ce
   // script s'exécute AVANT core.js (qui déclare `etat`) dans index.html, et
@@ -399,6 +447,7 @@
       // Visible seulement quand les couleurs ne suivent aucun thème
       // (majSelectsTheme_) : on ne le choisit pas, on y arrive en
       // personnalisant.
+      '<option value="origine" disabled hidden>' + esc2(THEME_ORIGINE_.nom) + '</option>' +
       '<option value="perso" disabled hidden>Personnalisé</option>';
   }
   function htmlSelectTheme_(id) {
@@ -423,6 +472,11 @@
               (window.ICONS && ICONS.palette ? ICONS.palette : "") + '<span>Personnaliser</span></button>' +
           '</span>' +
         '</div>' +
+        // Suite 64 — Lionel : « Aperçu sur la page aussi ». Le même petit
+        // planning que dans « Personnaliser », sous la liste : il suit le
+        // thème choisi en direct (variables CSS), redessiné à l'ouverture
+        // de la page pour la couleur du chantier et du statut.
+        '<div class="apercu-couleurs-page" id="apercuCouleursPage">' + htmlApercuCouleurs_() + '</div>' +
         '<div class="bloc-palettes">' +
           '<div class="titre-palettes"><h2 class="titre-liste">Mes palettes</h2>' +
           '<button type="button" class="btn-calculer" id="btnEnregistrerPalette">Enregistrer les couleurs actuelles…</button></div>' +
@@ -510,6 +564,9 @@
   function themeActuel_() {
     var r = lireReglages(), tous = themesEtPalettes_();
     if (themePrefere_) tous = tous.filter(function (t) { return t.id === themePrefere_; }).concat(tous.filter(function (t) { return t.id !== themePrefere_; }));
+    // Suite 64 : après les thèmes et les palettes, l'état « rien
+    // d'enregistré » (ex-thème Classique).
+    tous = tous.concat([THEME_ORIGINE_]);
     for (var i = 0; i < tous.length; i++) {
       var t = tous[i];
       var ok = groupesGeneral_().every(function (g) {
@@ -528,6 +585,8 @@
       if (sel.dataset.options !== options) { sel.innerHTML = options; sel.dataset.options = options; }
       var perso = sel.querySelector('option[value="perso"]');
       if (perso) perso.hidden = !!t;
+      var origine = sel.querySelector('option[value="origine"]');
+      if (origine) origine.hidden = !(t && t.id === "origine");
       sel.value = t ? t.id : "perso";
     });
   }
@@ -763,6 +822,12 @@
   function htmlApercuCouleurs_() {
     var chantier = (window.etat && etat.chantiers || []).filter(function (c) { return c.actif !== false && c.couleur; })[0];
     var fondTache = chantier ? esc2(chantier.couleur) : "#cfe0f5";
+    // Suite 64 : plus de couleur « confirmé » sur cette page — le badge
+    // d'exemple prend le statut « Confirmé » de la page Statuts (sinon le
+    // premier statut), comme sur la grille.
+    var statuts = typeof STATUTS_ORDRE !== "undefined" ? STATUTS_ORDRE.map(function (c) { return STATUTS[c] && { cle: c, nom: STATUTS[c].nom, couleur: STATUTS[c].couleur }; }).filter(Boolean) : [];
+    var statut = statuts.filter(function (x) { return /^confirm/i.test(x.cle) || /^confirm/i.test(x.nom); })[0] || statuts[0] || { nom: "Confirmé", couleur: "#cdf1ea" };
+    var badge = ' <b class="ac-statut" style="background:' + esc2(statut.couleur || "#cdf1ea") + '">' + esc2(statut.nom) + '</b>';
     var tache = function (texte, extra) { return '<i class="ac-bulle" style="background:' + fondTache + '">' + texte + (extra || "") + '</i>'; };
     return '<div class="apercu-couleurs" aria-hidden="true">' +
       '<div class="ac-haut"><span class="ac-onglet ac-actif">Planning</span><span class="ac-onglet">Jalons</span><span class="ac-onglet">Chantiers</span><span class="ac-sync"></span></div>' +
@@ -773,7 +838,7 @@
         '<div class="ac-ligne"><span class="ac-nom">Lionel</span><span>' + tache("Coffrage") + '</span><span class="ac-absence">Congé</span><span><i class="ac-bulle ac-jalon">Jalon</i></span><span class="ac-we"></span></div>' +
         '<div class="ac-ligne"><span class="ac-nom">Antoine</span><span><i class="ac-bulle ac-note">Note</i></span><span class="ac-bloquee"></span><span class="ac-selection"></span><span class="ac-we"></span></div>' +
         '<div class="ac-ligne ac-section ac-section-inter"><span>Intervenants</span></div>' +
-        '<div class="ac-ligne"><span class="ac-nom">Échafaudage</span><span class="ac-large">' + tache("Montage", ' <b class="ac-statut">confirmé</b>') + '</span><span></span><span class="ac-we"></span></div>' +
+        '<div class="ac-ligne"><span class="ac-nom">Échafaudage</span><span class="ac-large">' + tache("Montage", badge) + '</span><span></span><span class="ac-we"></span></div>' +
       '</div>' +
       '<div class="ac-legende"><span class="ac-important">! Important</span><span>Texte secondaire</span><span class="ac-discret">texte discret</span></div>' +
     '</div>';
@@ -853,5 +918,9 @@
   window.initReglagesCouleurs = initReglagesCouleurs;
   // Couleurs arrivées du serveur (js/donnees-sync.js) ou d'un autre
   // appareil : la liste « Thème », les champs et les palettes suivent.
-  window.majReglagesCouleursAffiches = function () { majChampsCouleurs_(); majSelectsTheme_(); renderPalettes_(); };
+  window.majReglagesCouleursAffiches = function () {
+    majChampsCouleurs_(); majSelectsTheme_(); renderPalettes_();
+    var apercu = document.getElementById("apercuCouleursPage");
+    if (apercu) apercu.innerHTML = htmlApercuCouleurs_();
+  };
 })();

@@ -46,7 +46,8 @@ const { ouvrirPlanning, verificateur } = require('./aide_tests');
           dehors: lignes.filter((l) => l.scrollWidth > l.clientWidth + 1).length
         };
       });
-      verifier(m.lignes === 17 && m.textes.every(Boolean) && m.nomsDuCode && m.sansDescription, lieu + ' : 17 lignes, chacune avec son nom seul, sans description (' + m.lignes + ')');
+      // Suite 64 : − « Statut confirmé » ; suite 65 : − « Note » (page Notes).
+      verifier(m.lignes === 15 && m.textes.every(Boolean) && m.nomsDuCode && m.sansDescription, lieu + ' : 15 lignes, chacune avec son nom seul, sans description (' + m.lignes + ')');
       verifier(m.mots === 0 && m.entete === 'Clair|Sombre' && !m.phrase, lieu + ' : « Clair »/« Sombre » une seule fois en tête, plus de phrase d\'explication (' + m.entete + ', ' + m.mots + ' ligne(s) avec ces mots)');
       verifier(Math.max(...m.hauteurs) <= 52 && m.dehors === 0, lieu + ' : lignes basses (' + Math.max(...m.hauteurs) + ' px max), rien ne déborde');
       verifier(m.alignes, lieu + ' : « Clair » et « Sombre » pile au-dessus de leurs champs');
