@@ -1468,6 +1468,14 @@
      coupe son texte au lieu d'agrandir la ligne quand le jour qui arrive en
      plein glissement est plus chargé. */
   .grille.hauteurs-figees .bulle > .b-carte { height: 100%; max-height: 100%; overflow: hidden; box-sizing: border-box; }
+  /* Suite 57 — Lionel : « La transition entre les jours en mobile me
+     dérange. » Au jour posé, les lignes glissent vers leurs nouvelles
+     hauteurs au lieu d'y sauter (figerHauteursJourMobile ne change la
+     valeur en place qu'à la fin d'un balayage ; une grille neuve arrive
+     directement à ses hauteurs). 220 ms comme DUREE_HAUTEURS_QUI_GLISSENT
+     (js/grille-rendu.js). « Réduire les animations » : ramenée à rien par
+     la règle générale prefers-reduced-motion en tête de fichier. */
+  .grille.hauteurs-figees { transition: grid-template-rows .22s ease-out; }
   .ghost { border: 1.5px dashed var(--border-strong); border-radius: 9px; opacity: .5; }
 
   .pop {

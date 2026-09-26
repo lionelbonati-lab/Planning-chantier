@@ -218,9 +218,11 @@ const revenirJeudi = (page) => page.evaluate(() => {
       s.scrollLeft = Math.round(th.getBoundingClientRect().left - g.getBoundingClientRect().left - largeurNoms() + dec * th.getBoundingClientRect().width);
       await new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(ok)));
     }, [dec, poser]);
+    // 200 ms d'arrêt, puis (suite 57) 220 ms de glissement des hauteurs
+    // vers celles du jour posé : on mesure une fois arrivées.
     const lacher = async () => {
       await page.evaluate(() => document.querySelector('.scroller').dispatchEvent(new TouchEvent('touchend', { touches: [] })));
-      await page.waitForTimeout(400);
+      await page.waitForTimeout(700);
     };
     const jeudi = await hauteurs();
     verifier(jeudi.Mathis === jeudi.Lionel, 'jeudi posé : Mathis n\'a qu\'une bulle ce jour-là, sa ligne a la hauteur de celle de Lionel (' + jeudi.Mathis + ' / ' + jeudi.Lionel + ')');

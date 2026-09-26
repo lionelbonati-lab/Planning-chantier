@@ -238,24 +238,136 @@
   // pour être fiable ; à défaut (demarrerDefilementOuSortieSelection, qui n'a
   // pas de seuil), suivre() cumule lui-même et ne bouge rien avant d'avoir
   // tranché, comme la zone morte des autres sites.
+  //
+  // Glissement de page en vue « 1 jour » — round du 26.09.2026 (suite 57).
+  // Lionel : « La transition entre les jours en mobile me dérange. Cherche
+  // une solution pour faire des transitions fluides. Exemple : page qui se
+  // tourne ou fondu enchaîné ou autre chose. » Relevé image par image sur un
+  // balayage simulé (390 px) : au lâcher, l'inertie rampait ~500 ms à 1-2 px
+  // par image, puis finirSurRepere recalait d'un coup (74 px en une image),
+  // et les hauteurs de lignes sautaient 200 ms plus tard (cf.
+  // figerHauteursJourMobile, grille-rendu.js). Choix : le glissement de
+  // page d'un agenda de téléphone, qui suit le doigt, plutôt qu'un fondu ou
+  // une page qui tourne, qui ne le suivraient pas. Au lâcher d'un geste
+  // horizontal, plus d'inertie libre : le jour d'arrivée est choisi tout de
+  // suite (calageJourCible_) et la grille y glisse en décélérant (courbe
+  // « ease-out »), d'une traite, sans à-coup final ; les hauteurs de lignes
+  // glissent ensuite vers celles du jour posé (transition CSS, style.css).
+  // Un seul jour par balayage, comme on tourne une page. Hors vue « 1
+  // jour » (pas de repère .snap-jour) : inertie libre inchangée.
+  //
+  // calageJourEnCours : glissement de fin de geste en cours (un seul à la
+  // fois, tous gestes confondus) — { cible (scrollLeft visé), arreter() }.
+  // Un nouveau balayage horizontal pendant le glissement l'arrête et part de
+  // son jour d'arrivée : deux balayages rapides avancent de deux jours.
+  // Lu aussi par defilementArrete (grille-rendu.js), qui attend sa fin.
+  var calageJourEnCours = null;
+  var VITESSE_CHANGEMENT_JOUR = 0.25, PART_CHANGEMENT_JOUR = 0.3;
+  function mouvementReduit_() {
+    return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  }
+  // Positions de défilement des repères de jour, croissantes (mêmes calculs
+  // que plusProcheRepereJour_/repereJourVoisin_).
+  function reperesJour_(scroller) {
+    var LN = largeurNoms(), maxScroll = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+    return [].map.call(scroller.querySelectorAll(".snap-jour"), function (r) { return Math.max(0, Math.min(maxScroll, r.offsetLeft - LN)); })
+      .sort(function (a, b) { return a - b; })
+      .filter(function (c, i, t) { return i === 0 || c - t[i - 1] >= 1; });
+  }
+  // Rang « fractionnaire » d'une position parmi les repères : 2.4 = entre le
+  // 3e et le 4e jour, plus près du 3e.
+  function rangFractionnaire_(reperes, x) {
+    if (x <= reperes[0]) return 0;
+    for (var i = 0; i < reperes.length - 1; i++) {
+      if (x <= reperes[i + 1]) return i + (x - reperes[i]) / (reperes[i + 1] - reperes[i]);
+    }
+    return reperes.length - 1;
+  }
+  // Jour d'arrivée d'un balayage : `depart` = scrollLeft du jour posé avant
+  // le geste, `vitesse` = vitesse de défilement au lâcher (px/ms, > 0 vers
+  // les jours suivants). Balayage vif (≥ 0,25 px/ms, un geste du pouce
+  // courant va de 0,5 à 2) : le premier jour dans son sens à partir de là où
+  // la grille est arrivée — donc le jour suivant, ou le jour de départ si le
+  // doigt était d'abord parti de l'autre côté (comme un carrousel Android
+  // ou iOS). Glissé lent : jour suivant s'il a parcouru au moins 30 % d'un
+  // jour, sinon retour au jour de départ. Glissé de plus d'un jour sans
+  // lever le doigt : on compte à partir de là où il est arrivé.
+  // `interrompu` : le geste a coupé un glissement en cours, `depart` est
+  // alors son jour d'arrivée — un nouveau balayage dans le même sens va au
+  // jour d'après, même s'il n'a pas encore été atteint.
+  function calageJourCible_(scroller, depart, vitesse, interrompu) {
+    var R = reperesJour_(scroller);
+    if (!R.length) return null;
+    var f = rangFractionnaire_(R, scroller.scrollLeft);
+    var b = Math.round(rangFractionnaire_(R, depart));
+    var i;
+    if (vitesse >= VITESSE_CHANGEMENT_JOUR) { i = Math.ceil(f - 0.001); if (interrompu && i <= b) i = b + 1; }
+    else if (vitesse <= -VITESSE_CHANGEMENT_JOUR) { i = Math.floor(f + 0.001); if (interrompu && i >= b) i = b - 1; }
+    else {
+      var d = f - b;
+      i = b + (d >= 0 ? 1 : -1) * Math.floor(Math.abs(d) + (1 - PART_CHANGEMENT_JOUR));
+    }
+    return R[Math.max(0, Math.min(R.length - 1, i))];
+  }
+  // En-tête figé des jours recalé dans la MÊME image que la grille (suite
+  // 57) : le miroir de l'événement « scroll » (grille-rendu.js) n'arrive
+  // qu'à l'image suivante — relevé image par image, l'en-tête ne bougeait
+  // qu'une image sur deux pendant un glissement.
+  function defilerHorizontal_(scroller, x) {
+    scroller.scrollLeft = x;
+    var racine = scroller.closest("#racine"), entete = racine ? racine.querySelector(".entete-planning-scroll") : null;
+    if (entete) entete.scrollLeft = scroller.scrollLeft;
+  }
   function creerDefilementManuel(scroller) {
     var vx = 0, vy = 0, raf = null;
     var etatSnap = { snapDesactive: false, snapTypeOrigine: "" };
     var axe = null, cumulX = 0, cumulY = 0;
+    // Jour posé au début du geste horizontal (suite 57, calageJourCible_).
+    var departX = null, departInterrompu = false, calageMoi = null;
+    // Glissement jusqu'au jour d'arrivée (suite 57). Durée : celle qui
+    // démarre à la vitesse du doigt (une courbe ease-out cubique part à
+    // 3 × distance / durée), bornée entre 200 et 320 ms — ni coup de frein
+    // ni coup d'accélérateur au lâcher. Fin : repère exact, aimantation CSS
+    // rétablie, puis « jour-cale » sur .scroller : grille-rendu.js pose le
+    // jour tout de suite (hauteurs, semaine) au lieu d'attendre 200 ms.
+    function glisserVersJour(cible, vitesse) {
+      var debut = scroller.scrollLeft, distance = cible - debut;
+      var moi = { cible: cible, arreter: function () { if (raf) { cancelAnimationFrame(raf); raf = null; } if (calageJourEnCours === moi) calageJourEnCours = null; reactiverSnap_(scroller, etatSnap); } };
+      function finir() {
+        raf = null;
+        defilerHorizontal_(scroller, cible);
+        if (calageJourEnCours === moi) calageJourEnCours = null;
+        reactiverSnap_(scroller, etatSnap);
+        scroller.dispatchEvent(new CustomEvent("jour-cale"));
+      }
+      calageMoi = moi;
+      if (Math.abs(distance) < 1 || mouvementReduit_()) { finir(); return; }
+      var duree = Math.max(200, Math.min(320, 3 * Math.abs(distance) / Math.max(Math.abs(vitesse), 0.5)));
+      var t0 = null;
+      calageJourEnCours = moi;
+      function image(t) {
+        if (t0 === null) t0 = t;
+        var p = Math.min(1, (t - t0) / duree);
+        if (p >= 1) { finir(); return; }
+        defilerHorizontal_(scroller, debut + distance * (1 - Math.pow(1 - p, 3)));
+        raf = requestAnimationFrame(image);
+      }
+      raf = requestAnimationFrame(image);
+    }
     function finirSurRepere() {
       raf = null;
       // axe "y" (suite 26) : un geste vertical n'a jamais bougé scrollLeft,
       // il ne le recale pas non plus.
       if (scroller && axe !== "y") {
         var cible = plusProcheRepereJour_(scroller);
-        if (cible !== null) scroller.scrollLeft = cible;
+        if (cible !== null) defilerHorizontal_(scroller, cible);
       }
       reactiverSnap_(scroller, etatSnap);
     }
     function tick(t, derniereFrame) {
       var dt = Math.min(48, t - derniereFrame);
       if (scroller) {
-        scroller.scrollLeft -= vx * dt;
+        defilerHorizontal_(scroller, scroller.scrollLeft - vx * dt);
         var maxScroll = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
         if (scroller.scrollLeft <= 0 || scroller.scrollLeft >= maxScroll) vx = 0;
       }
@@ -277,15 +389,30 @@
           axe = axeDuGeste(cumulX, cumulY);
         }
         if (axe === "x") dy = 0; else dx = 0;
+        // Premier pas d'un geste horizontal (suite 57) : un glissement de
+        // fin de geste encore en cours s'arrête là (il rend son aimantation
+        // CSS AVANT que ce geste-ci ne la coupe, sinon elle resterait
+        // coupée), et ce geste part de son jour d'arrivée.
+        if (axe === "x" && departX === null && scroller) {
+          departX = scroller.scrollLeft;
+          if (calageJourEnCours) { departX = calageJourEnCours.cible; departInterrompu = true; calageJourEnCours.arreter(); }
+        }
         // Snap CSS coupé seulement pour un geste horizontal : un geste
         // vertical ne touche jamais scrollLeft, le laisser actif garde le
         // jour exactement calé.
         if (axe === "x") desactiverSnapSiBesoin_(scroller, etatSnap);
-        if (dx && scroller) scroller.scrollLeft -= dx;
+        if (dx && scroller) defilerHorizontal_(scroller, scroller.scrollLeft - dx);
         if (dy && app) app.scrollTop -= dy;
         if (dt > 0) { vx = vx * 0.7 + (dx / dt) * 0.3; vy = vy * 0.7 + (dy / dt) * 0.3; }
       },
       relacher: function () {
+        // Vue « 1 jour », geste horizontal (suite 57) : glissement jusqu'au
+        // jour d'arrivée au lieu de l'inertie libre. vx suit le doigt :
+        // défiler vers les jours suivants, c'est un doigt qui va à gauche.
+        if (axe === "x" && scroller && departX !== null) {
+          var cible = calageJourCible_(scroller, departX, -vx, departInterrompu);
+          if (cible !== null) { glisserVersJour(cible, vx); return; }
+        }
         if (Math.abs(vx) < VITESSE_MINI_INERTIE && Math.abs(vy) < VITESSE_MINI_INERTIE) { finirSurRepere(); return; }
         raf = requestAnimationFrame(function (t) { tick(t, t); });
       },
@@ -293,7 +420,7 @@
       // symétrie avec suivre/relacher) : doit elle aussi rétablir le snap
       // CSS si suivre() l'avait désactivé — sinon un futur appelant qui
       // annule au lieu de relâcher laisserait .scroller sans aimantation.
-      annuler: function () { if (raf) { cancelAnimationFrame(raf); raf = null; } vx = 0; vy = 0; reactiverSnap_(scroller, etatSnap); }
+      annuler: function () { if (calageMoi) calageMoi.arreter(); if (raf) { cancelAnimationFrame(raf); raf = null; } vx = 0; vy = 0; reactiverSnap_(scroller, etatSnap); }
     };
   }
 

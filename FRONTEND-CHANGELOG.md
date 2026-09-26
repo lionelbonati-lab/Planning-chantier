@@ -8612,3 +8612,47 @@ Lionel : « Sélection des couleurs, enlève les descriptions des couleurs. Cela
   - un champ se règle toujours.
 - Sans la correction, le test échoue (pas d'entête de colonnes).
 - Suite complète : 66/66 (test_suite35, instable quand tout tourne en parallèle, repasse seul).
+
+## 165. Round du 26.09.2026 (suite 57) — Téléphone : glissement fluide d'un jour à l'autre
+
+Lionel : « La transition entre les jours en mobile me dérange. Cherche une solution pour faire des transitions fluides. Exemple : page qui se tourne ou fondu enchaîné ou autre chose. »
+
+### Ce qui gênait (relevé image par image, balayage simulé à 390 px)
+- Au lâcher, l'inertie rampait environ 500 ms à 1 ou 2 px par image.
+- Puis `finirSurRepere` recalait d'un coup sur le jour : 74 px en une seule image.
+- 200 ms plus tard, les hauteurs de lignes sautaient à celles du nouveau jour.
+- Pendant tout le geste, l'en-tête des jours ne bougeait qu'une image sur deux : il n'était recalé que par l'événement « scroll », qui arrive à l'image suivante.
+
+### Choix : glissement de page (comme l'agenda d'un téléphone)
+- Un fondu enchaîné ou une page qui tourne ne suivent pas le doigt. Le glissement, lui, le suit pendant le geste, puis termine la page tout seul.
+- Un seul jour par balayage.
+
+### Au lâcher (js/grille-interactions.js)
+- Vue « 1 jour », geste horizontal : plus d'inertie libre.
+- Le jour d'arrivée est choisi tout de suite (`calageJourCible_`) :
+  - balayage vif (≥ 0,25 px/ms) : le premier jour dans son sens, à partir de là où la grille est arrivée (comme un carrousel Android ou iOS) ;
+  - glissé lent : le jour voisin au-delà de 30 % d'un jour, sinon retour au jour de départ.
+- Puis `glisserVersJour` amène la grille sur ce jour en décélérant (ease-out cubique, 200 à 320 ms, démarré à la vitesse du doigt), sans à-coup final.
+- Un balayage qui coupe un glissement en cours part de son jour d'arrivée : deux balayages rapides avancent de deux jours.
+- Fin du glissement : repère exact, aimantation CSS rétablie, événement `jour-cale`. Le jour est posé tout de suite, sans les 200 ms d'attente.
+- « Réduire les animations » : arrivée directe.
+- En-tête des jours recalé dans la même image que la grille (`defilerHorizontal_`), pendant le geste comme pendant le glissement.
+- Vue semaine (tablette, ordinateur) : pas de repère de jour, donc inertie libre inchangée.
+
+### Hauteurs qui glissent (js/grille-rendu.js, style.css)
+- `figerHauteursJourMobile` : à la fixation d'un nouveau jour sur la même grille, les lignes glissent de leur hauteur à l'écran vers la nouvelle, en 220 ms, au lieu d'y sauter.
+- Mécanisme : transition CSS sur `grid-template-rows`. On repose l'ancienne valeur, on force le calcul du style, puis on pose la nouvelle.
+- Une grille neuve arrive directement à ses hauteurs.
+- Le recentrage de la fenêtre de 2 semaines (reconstruction de la grille) attend la fin de ce glissement, sinon il couperait l'animation. Il reste invisible : même jour au même endroit, mêmes hauteurs.
+
+### Tests
+- test_suite57.js (nouveau), 20 vérifications, 20 OK :
+  - règles du jour d'arrivée, à vitesses maîtrisées ;
+  - gestes au doigt : glissé lent de 50 px (retour), balayage de 150 px (un jour), deux balayages enchaînés (deux jours) ;
+  - image par image : glissement toujours dans le même sens, dernier pas de 1 px (avant : 74), en-tête collé à la grille ;
+  - hauteur qui passe de 52 à 81 px par 10 valeurs intermédiaires, une fois le jour atteint ;
+  - recentrage invisible ;
+  - animations réduites ;
+  - vue semaine inchangée.
+- test_suite35.js : mesure de hauteur « jeudi reposé » faite 700 ms après le lâcher au lieu de 400, pour laisser au glissement des hauteurs le temps de finir.
+- Suite complète : 67/67.

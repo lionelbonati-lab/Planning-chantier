@@ -1405,17 +1405,31 @@
     // (.grille.hauteurs-figees, style.css), jusqu'au prochain arrêt.
     // `cleHauteursJour` évite de remesurer quand le jour n'a pas changé (un
     // défilement vertical passe aussi par defilementArrete).
-    var cleHauteursJour = null;
+    //
+    // Hauteurs qui glissent (round du 26.09.2026, suite 57 — Lionel : « La
+    // transition entre les jours en mobile me dérange »). À la fixation d'un
+    // nouveau jour sur la MÊME grille (fin de balayage), les lignes passaient
+    // d'un coup aux hauteurs du jour posé. Elles glissent désormais depuis
+    // leur hauteur à l'écran vers la nouvelle (transition CSS sur
+    // grid-template-rows, .grille.hauteurs-figees, style.css) : on repose
+    // l'ancienne valeur, on force le calcul du style, puis on pose la
+    // nouvelle. Au rendu (grille neuve), rien à faire glisser. Renvoie true
+    // quand un glissement est lancé (defilementArrete attend sa fin avant
+    // de recentrer la fenêtre, cf. finHauteursQuiGlissent).
+    var cleHauteursJour = null, finHauteursQuiGlissent = 0, DUREE_HAUTEURS_QUI_GLISSENT = 220;
     function figerHauteursJourMobile(forcer) {
-      if (!enModeJourMobile) return;
+      if (!enModeJourMobile) return false;
       // Largeurs (donc texte) recalculées à chaque fixation, même au même
       // endroit (suite 37) : un aller-retour sans lever le doigt a pu
       // afficher des cartes de l'autre jour, figées à leur largeur d'entrée.
       ajusterLargeurBullesJourMobile();
       var cle = Math.round(scroller.scrollLeft) + "|" + scroller.clientWidth;
-      if (!forcer && cle === cleHauteursJour) return;
+      if (!forcer && cle === cleHauteursJour) return false;
       cleHauteursJour = cle;
       var grilles = [grilleEntete, grilleCorps];
+      // Hauteurs à l'écran avant la mesure (celles d'un glissement encore
+      // en cours comprises) : point de départ du glissement.
+      var avant = grilles.map(function (g) { return g.classList.contains("hauteurs-figees") ? getComputedStyle(g).gridTemplateRows : null; });
       var horsJour = [];
       // Hors du jour posé : carte masquée, ou simple lamelle de moins de
       // 30 px à l'écran (sous zoom, l'aimantation laisse voir quelques px de
@@ -1435,11 +1449,21 @@
       // elle-même — zoom compris, puisqu'on les lui rend telles quelles.
       var pistes = grilles.map(function (g) { return getComputedStyle(g).gridTemplateRows; });
       horsJour.forEach(function (b) { b.style.display = ""; });
+      var glisse = false;
       grilles.forEach(function (g, i) {
         if (!pistes[i] || pistes[i] === "none") return;
+        var depart = avant[i];
+        if (depart && depart !== pistes[i] && depart.split(" ").length === pistes[i].split(" ").length) {
+          g.style.gridTemplateRows = depart;
+          g.classList.add("hauteurs-figees");
+          void getComputedStyle(g).gridTemplateRows;
+          glisse = true;
+        }
         g.style.gridTemplateRows = pistes[i];
         g.classList.add("hauteurs-figees");
       });
+      if (glisse) finHauteursQuiGlissent = performance.now() + DUREE_HAUTEURS_QUI_GLISSENT;
+      return glisse;
     }
     // rAF-throttlé : "scroll" peut se déclencher plusieurs fois par frame
     // pendant un glissé — recalculer pour toutes les bulles à chaque
@@ -2091,8 +2115,16 @@
       scroller.addEventListener("touchend", function (e) { doigtsPoses = e.touches.length; programmerArret(); }, { passive: true });
       scroller.addEventListener("touchcancel", function (e) { doigtsPoses = e.touches.length; programmerArret(); }, { passive: true });
       scroller.addEventListener("scroll", programmerArret, { passive: true });
+      // Fin d'un glissement de page (suite 57, glisserVersJour dans
+      // grille-interactions.js) : le jour est posé tout de suite, sans les
+      // 200 ms d'attente d'un défilement natif (colonne des noms, bulle
+      // amenée au bord), dont on ne connaît pas la fin autrement.
+      scroller.addEventListener("jour-cale", function () { clearTimeout(minuteurArret); defilementArrete(); });
+      var minuteurRecentrage = null;
       var defilementArrete = function () {
         if (!scroller.isConnected || doigtsPoses > 0) return;
+        // Glissement de page encore en cours : il pose le jour à sa fin.
+        if (calageJourEnCours) return;
         // Bulle tenue au doigt (changement de jour en l'amenant au bord,
         // suite 26) : jour posé repris une fois la bulle lâchée (suite 41 —
         // l'arrêt était abandonné jusqu'ici, et avec lui le calcul des
@@ -2123,6 +2155,22 @@
         majSemaineAffichage();
         var rangJour = estGiWeekend(giJour) ? semaineDuGiWeekend(giJour) * 5 + 4 : giJour;
         if (rangJour >= 2 && rangJour <= n - 3) return;
+        // Hauteurs en train de glisser (suite 57) : la grille reconstruite
+        // les prendrait d'un coup, on recentre une fois le glissement fini.
+        // Doigt reposé ou glissement de page entre-temps : son propre arrêt
+        // s'en chargera ; synchro ou bulle tenue : on réessaie plus tard,
+        // comme l'arrêt lui-même.
+        var reste = finHauteursQuiGlissent - performance.now();
+        if (reste > 0) {
+          clearTimeout(minuteurRecentrage);
+          var recentrerApresGlissement = function () {
+            if (!scroller.isConnected || doigtsPoses > 0 || calageJourEnCours) return;
+            if (syncEnCours || document.body.classList.contains("en-glissement")) { minuteurRecentrage = setTimeout(recentrerApresGlissement, 400); return; }
+            recentrerFenetreJourMobile();
+          };
+          minuteurRecentrage = setTimeout(recentrerApresGlissement, reste + 30);
+          return;
+        }
         recentrerFenetreJourMobile();
       };
       // Recentrage : la fenêtre est recalculée autour du jour affiché
