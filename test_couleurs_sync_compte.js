@@ -38,11 +38,12 @@ const accent = (page) => page.evaluate(() => getComputedStyle(document.documentE
     verifier(cache.principale && cache.principale.clair === '#112233', 'cache local remis à jour depuis le serveur');
 
     // Suite 54 : les réglages de Général sont dans la fenêtre « Personnaliser ».
-    await page.click('.onglet[data-page="general"]');
+    // Suite 61 : onglet Général retiré — page « Couleurs » du menu de la pastille.
+    await page.evaluate(() => afficherPage('couleurs'));
     await page.click('#btnPersonnaliserCouleurs');
     await page.waitForSelector('.couleurs-modal .rc-clair[data-groupe="principale"]');
     const champ = await page.inputValue('.rc-clair[data-groupe="principale"]');
-    verifier(champ === '#112233', 'page Général : le champ « principale » affiche la couleur du serveur (' + champ + ')');
+    verifier(champ === '#112233', 'page Couleurs : le champ « principale » affiche la couleur du serveur (' + champ + ')');
 
     await page.evaluate(() => {
       var input = document.querySelector('.rc-clair[data-groupe="fond"]');

@@ -551,4 +551,24 @@
   // http(s) — pas en file:// (tests) ni si le navigateur ne le permet pas.
   if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) {
     window.addEventListener("load", function () { navigator.serviceWorker.register("sw.js").catch(function () {}); });
+    // Suite 61 : l'appli s'ouvre depuis la copie de l'appareil (sw.js,
+    // « copie d'abord ») ; quand une nouvelle version publiée vient d'être
+    // copiée, un petit bandeau propose de recharger — sinon elle servira à
+    // la prochaine ouverture.
+    navigator.serviceWorker.addEventListener("message", function (e) {
+      if (e.data && e.data.type === "appli-maj") proposerNouvelleVersion();
+    });
+  }
+  function proposerNouvelleVersion() {
+    if (document.getElementById("majAppli")) return;
+    var bandeau = document.createElement("div");
+    bandeau.id = "majAppli";
+    bandeau.className = "maj-appli";
+    bandeau.setAttribute("role", "status");
+    bandeau.innerHTML = '<span>Nouvelle version de l’appli prête.</span>' +
+      '<button type="button" class="maj-recharger">Recharger</button>' +
+      '<button type="button" class="maj-fermer" aria-label="Plus tard" title="Plus tard">×</button>';
+    bandeau.querySelector(".maj-recharger").addEventListener("click", function () { window.location.reload(); });
+    bandeau.querySelector(".maj-fermer").addEventListener("click", function () { bandeau.remove(); });
+    document.body.appendChild(bandeau);
   }

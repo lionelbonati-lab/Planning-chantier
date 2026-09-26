@@ -154,6 +154,13 @@
   }
   button { font-family: inherit; }
   :focus-visible { outline: 2.5px solid var(--accent); outline-offset: 2px; }
+  /* Suite 61 — Lionel : « appuyer sur la touche shift du clavier fait
+     apparaître une sélection » (contour d'un onglet/bouton cliqué, que
+     Chromium affiche à la première touche pressée). Boutons, liens, cases,
+     listes : contour seulement en navigation au Tab (html.nav-clavier,
+     js/formulaires-communs.js). Les champs de texte gardent le leur. */
+  html:not(.nav-clavier) :is(button, a, summary, select, [tabindex], input[type="checkbox"], input[type="radio"], input[type="color"], input[type="range"], input[type="file"]):focus-visible { outline: none; }
+  html:not(.nav-clavier) .interrupteur input:focus-visible ~ .interrupteur-piste { outline: none; }
   /* Survol (round du 24.09.2026, suite 18 — Lionel : « En mode tactile le
      bouton appuyé reste en surbrillance blanche, comme au passage de la
      souris ») : au doigt, le navigateur laisse le "pointeur" là où l'on a
@@ -1070,6 +1077,52 @@
      jamais visé qu'elle, seule la frontière de JOUR posait problème. */
   .grille-compacte .th.sem-frontiere,
   .grille-compacte .cell.sem-frontiere { border-left: 3px solid var(--ink-faint); }
+  /* Suite 61 — Lionel : « Entre 2 semaines, il y a une bordure épaisse. A
+     remplacer par un petite espace de quelque pixel. Mêmes arrondis en haut
+     et bas que sur les bord du cadrillage, comme si on voyais 2 fenêtres
+     côtes à côte. » Plus de bordure : la bande .sep-semaines (posée par
+     poserSepSemaines_, js/grille-rendu.js) la remplace. La vue « 1 jour »
+     du téléphone garde le trait (pas de classe avec-sep-semaines). */
+  #racine.avec-sep-semaines .sem-frontiere { border-left: 0; }
+  #racine { position: relative; }
+  /* Bande de 8 px : trait du cadre à gauche (bord droit de la 1re semaine)
+     et à droite (bord gauche de la 2e), fond de page entre les deux. Au-
+     dessus des bulles (une bulle à cheval passe derrière), sous l'en-tête
+     figé (z-index 38) ; jamais cliquable. */
+  .sep-semaines {
+    position: absolute; width: 8px; box-sizing: border-box; z-index: 5; pointer-events: none;
+    background: var(--bg); border-left: 1px solid var(--border); border-right: 1px solid var(--border);
+  }
+  .sep-semaines.sep-haut { bottom: 0; }
+  /* Arrondis : chaque coin est un rectangle arrondi de 12 px (comme le
+     cadre) dont l'extérieur est peint couleur du fond par son ombre ;
+     chacun rogné à sa moitié de bande (sinon l'ombre de l'un couvrirait
+     l'intérieur de l'autre). Le trait du haut (ou du bas) du coin recouvre
+     celui du cadre, qui est ainsi coupé sur la largeur de la bande. */
+  .sep-coin { position: absolute; width: 15px; height: 13px; overflow: hidden; }
+  /* -13 : positionnés depuis l'intérieur des traits de 1 px de la bande. */
+  .sep-coin-g { left: -13px; }
+  .sep-coin-d { right: -13px; }
+  .sep-haut .sep-coin { top: 0; }
+  .sep-bas .sep-coin { bottom: 0; }
+  .sep-coin::before { content: ""; position: absolute; width: 42px; height: 40px; box-sizing: border-box; box-shadow: 0 0 0 30px var(--bg); }
+  .sep-coin-g::before { right: 2px; border-right: 1px solid var(--border); }
+  .sep-coin-d::before { left: 2px; border-left: 1px solid var(--border); }
+  .sep-haut .sep-coin::before { top: 0; border-top: 1px solid var(--border); }
+  .sep-bas .sep-coin::before { bottom: 0; border-bottom: 1px solid var(--border); }
+  .sep-haut .sep-coin-g::before { border-top-right-radius: 12px; }
+  .sep-haut .sep-coin-d::before { border-top-left-radius: 12px; }
+  .sep-bas .sep-coin-g::before { border-bottom-right-radius: 12px; }
+  .sep-bas .sep-coin-d::before { border-bottom-left-radius: 12px; }
+  @media print { .sep-semaines { display: none; } }
+  /* Suite 61 — tâche choisie dans le résumé des statuts : la bulle
+     sélectionnée clignote une seconde (js/a-reserver.js). */
+  .bulle.bulle-retrouvee > .b-carte { animation: bulle-retrouvee 1.2s ease-out; }
+  @keyframes bulle-retrouvee {
+    0%, 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 55%, transparent); }
+    25%, 75% { box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent); }
+    100% { box-shadow: 0 0 0 0 transparent; }
+  }
   /* Séparation matin/après-midi : supprimée (retour de Lionel du 03.09.2026,
      "enlève celle des demi jours") — le fin trait de quadrillage entre les
      deux colonnes d'un même jour disparaît complètement, la teinte de
@@ -2247,9 +2300,10 @@
   /* Sauvegardes (suite 49, onglet Général, js/page-sauvegardes.js) : titre
      et boutons sur une ligne, texte d'aide dessous ; une ligne par
      sauvegarde (date, type, nombre de lignes, Télécharger / Restaurer). */
-  .bloc-sauvegardes { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 26px; max-width: 540px; }
-  .bloc-sauvegardes > .titre-liste { flex: 1 1 auto; margin: 0; }
-  .bloc-sauvegardes > .page-sous { flex: 1 1 100%; max-width: none; margin: 4px 0 10px; }
+  /* Suite 61 : page Sauvegardes à part (menu de la pastille) — le titre
+     de la page et les 2 boutons sur une ligne, le texte d'aide dessous. */
+  .bloc-sauvegardes { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; max-width: 540px; }
+  .bloc-sauvegardes > h1 { flex: 1 1 auto; }
   #listeSauvegardes { display: flex; flex-direction: column; gap: 6px; max-width: 540px; }
   .ligne-sauvegarde { gap: 10px; flex-wrap: wrap; }
   .ligne-sauvegarde .sv-infos { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; flex: 1 1 auto; min-width: 0; font-variant-numeric: tabular-nums; }
@@ -3054,3 +3108,153 @@
     table.print-table tr.print-spacer-fin { break-before: avoid; page-break-before: avoid; }
     @page { size: landscape; margin: 12mm; }
   }
+
+
+  /* ============================================================
+     Suite 61 (round du 26.09.2026) — menu de la pastille, pages de
+     réglages, raccourcis clavier, palettes, Mon compte, bandeau de mise à
+     jour. Lionel : « Mettre les réglages de l'onglet "Général" dans le
+     pastille de déconnexion. Une page par type de réglage. » ; « Ajouter
+     une page info personnel [...] » ; « Possibilté d'ajouter une photo de
+     profile ».
+     ============================================================ */
+  /* Pastille : teintée quand une page de réglages est ouverte ; photo de
+     profil à la place de l'initiale. */
+  .avatar-nav.actif { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .avatar-nav.avec-photo { padding: 0; overflow: hidden; background: var(--surface); }
+  .avatar-nav.avec-photo img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
+  .avatar-nav.avec-photo.actif { box-shadow: 0 0 0 2px var(--accent); }
+  /* Menu : posé en JS contre la pastille cliquée (ouvrirMenuCompte_). */
+  .menu-compte {
+    position: fixed; z-index: 60; width: 250px; max-width: calc(100vw - 16px);
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px;
+    box-shadow: 0 10px 28px var(--shadow-lg); padding: 6px;
+  }
+  .menu-compte[hidden] { display: none; }
+  .menu-compte-entete { display: flex; align-items: center; gap: 10px; padding: 8px 8px 10px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+  .menu-compte .mc-avatar { width: 36px; height: 36px; font-size: 14px; margin: 0; cursor: default; }
+  @media (hover: hover) and (pointer: fine) { .menu-compte .mc-avatar:hover { background: var(--accent-soft); color: var(--accent); border-color: var(--border); } }
+  .mc-compte { display: flex; flex-direction: column; min-width: 0; }
+  .mc-compte b { font-size: 13px; font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mc-compte span { font-size: 11.5px; color: var(--ink-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .menu-compte .outil-menu-item { padding: 9px 8px; font-size: 13px; }
+  .menu-compte .outil-menu-item.actif { background: var(--accent-soft); color: var(--accent); }
+  .menu-compte .outil-menu-item.actif svg { color: var(--accent); }
+  .menu-compte-sep { height: 1px; background: var(--border); margin: 4px 2px; }
+  .menu-compte .mc-deconnexion { color: var(--important-ink); }
+  .menu-compte .mc-deconnexion svg { color: var(--important-ink); }
+  /* Rangée du haut des pages de réglages. */
+  .reglages-nav { display: flex; gap: 4px; margin: 0 0 14px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .reglages-nav::-webkit-scrollbar { display: none; }
+  .reglages-onglet {
+    display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; padding: 6px 11px; border-radius: 999px;
+    border: 1px solid var(--border); background: var(--surface-2); color: var(--ink-muted);
+    font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer;
+  }
+  .reglages-onglet svg { width: 14px; height: 14px; flex-shrink: 0; }
+  .reglages-onglet.actif { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-soft); }
+  @media (hover: hover) and (pointer: fine) { .reglages-onglet:not(.actif):hover { color: var(--ink); border-color: var(--accent); } }
+
+  /* Raccourcis clavier (js/raccourcis.js). */
+  .liste-raccourcis { display: flex; flex-direction: column; gap: 6px; max-width: 640px; }
+  .ligne-raccourci {
+    display: flex; align-items: center; justify-content: space-between; gap: 6px 14px; flex-wrap: wrap;
+    padding: 8px 10px 8px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); font-size: 13px;
+  }
+  .ligne-raccourci .rc-nom { flex: 1 1 200px; min-width: 0; }
+  .rc-touches { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .rc-combo { display: inline-flex; align-items: center; gap: 2px; padding: 2px 2px 2px 6px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); }
+  .rc-fixe .rc-combo { padding-right: 6px; }
+  .rc-combo kbd {
+    font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; font-weight: 600; color: var(--ink);
+    min-width: 20px; text-align: center; padding: 1px 5px; border-radius: 5px;
+    background: var(--surface-2); border: 1px solid var(--border-strong); border-bottom-width: 2px;
+  }
+  .rc-plus { font-size: 10px; color: var(--ink-faint); padding: 0 1px; }
+  .rc-retirer, .rc-ajouter, .rc-defaut {
+    display: inline-grid; place-items: center; width: 26px; height: 26px; padding: 0; border-radius: 7px;
+    border: none; background: none; color: var(--ink-faint); font: inherit; font-size: 15px; line-height: 1; cursor: pointer;
+  }
+  .rc-ajouter { border: 1.5px dashed var(--border-strong); color: var(--accent); font-weight: 700; }
+  .rc-defaut { color: var(--accent); }
+  .rc-defaut[hidden] { display: none; }
+  @media (hover: hover) and (pointer: fine) { .rc-retirer:hover { color: var(--important-ink); background: var(--bg); } .rc-ajouter:hover, .rc-defaut:hover { background: var(--accent-soft); } }
+  .rc-aucune { font-size: 12px; color: var(--ink-faint); }
+  .rc-capture {
+    font-size: 12px; font-weight: 700; color: var(--accent); padding: 4px 10px; border-radius: 8px;
+    border: 1.5px solid var(--accent); background: var(--accent-soft); animation: rc-clignote 1.2s ease-in-out infinite;
+  }
+  @keyframes rc-clignote { 50% { opacity: .55; } }
+  #page-raccourcis .page-titre { max-width: 640px; }
+
+  /* Palettes enregistrées (page Couleurs, js/page-couleurs.js). */
+  .bloc-palettes { max-width: 540px; }
+  .titre-palettes { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; margin: 22px 0 8px; }
+  .titre-palettes .titre-liste { margin: 0; }
+  #listePalettes { display: flex; flex-direction: column; gap: 6px; }
+  #listePalettes > .page-sous { margin: 0; }
+  .ligne-palette { gap: 12px; }
+  .ligne-palette.actuelle { border-color: var(--accent); }
+  .palette-apercu { display: inline-flex; flex-shrink: 0; }
+  .pastille-palette { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--surface-2); box-shadow: 0 0 0 1px var(--border); margin-left: -5px; }
+  .pastille-palette:first-child { margin-left: 0; }
+  .palette-nom { font-weight: 700; min-width: 0; overflow-wrap: anywhere; }
+  .lien-appliquer-palette { font: inherit; font-size: 12px; font-weight: 700; color: var(--accent); background: none; border: none; cursor: pointer; padding: 6px 4px; }
+  @media (hover: hover) and (pointer: fine) { .lien-appliquer-palette:hover { text-decoration: underline; } }
+  .palette-actuelle { font-size: 11px; font-weight: 700; color: var(--accent); padding: 0 4px; }
+  .couleurs-modal .form-actions { justify-content: space-between; gap: 8px; }
+  .couleurs-modal .form-actions .btn-calculer { min-width: 0; }
+
+  /* Petites fenêtres avec champs (nom de palette, suppression du compte). */
+  .pop-nom-palette, .pop-suppression-compte { width: 320px; max-width: calc(100vw - 32px); text-align: left; padding: 14px; gap: 10px; }
+  .pop-nom-palette .cp-titre, .pop-suppression-compte .cp-titre { font-size: 15px; color: var(--ink); padding: 0; }
+  .pop-nom-palette .confirm-texte, .pop-suppression-compte .confirm-texte { font-size: 12.5px; color: var(--ink-muted); padding: 0; }
+  .pop-suppression-compte .c-ok { background: var(--important-ink); border-color: var(--important-ink); color: #fff; }
+  .pop-suppression-compte .c-ok:disabled { opacity: .45; cursor: default; }
+  .pop-nom-palette .c-ok { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+
+  /* Mon compte (js/page-compte.js). */
+  .bloc-compte { max-width: 540px; margin: 0 0 6px; }
+  .bloc-compte .titre-liste { margin-top: 18px; }
+  .compte-photo { display: flex; align-items: center; gap: 16px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
+  .compte-photo-apercu {
+    flex-shrink: 0; width: 72px; height: 72px; border-radius: 50%; display: grid; place-items: center; overflow: hidden;
+    background: var(--accent-soft); color: var(--accent); border: 1px solid var(--border);
+    font-family: 'IBM Plex Mono', monospace; font-size: 28px; font-weight: 800;
+  }
+  .compte-photo-apercu img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .compte-photo-actions { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .compte-boutons { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .compte-aide { font-size: 12px; color: var(--ink-muted); line-height: 1.4; }
+  .btn-lien-compte { font: inherit; font-size: 12.5px; font-weight: 600; color: var(--ink-muted); background: none; border: none; cursor: pointer; padding: 6px 2px; }
+  @media (hover: hover) and (pointer: fine) { .btn-lien-compte:hover { color: var(--important-ink); text-decoration: underline; } }
+  .grille-champs-compte { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
+  .champ-compte { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .champ-compte.champ-large { grid-column: 1 / -1; }
+  .champ-compte > span { font-size: 11.5px; font-weight: 700; color: var(--ink-muted); }
+  .champ-compte input {
+    font: inherit; font-size: 13.5px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--ink); width: 100%; min-width: 0;
+  }
+  .champ-compte input:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+  .compte-actions { display: flex; justify-content: flex-end; margin-top: 8px; }
+  .erreur-compte { margin: 6px 0 0; font-size: 12.5px; color: var(--important-ink); min-height: 0; }
+  .erreur-compte:empty { display: none; }
+  .compte-ligne {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap;
+    padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); font-size: 12.5px; color: var(--ink-muted);
+  }
+  .compte-ligne > span { flex: 1 1 220px; }
+  .bloc-compte-danger .compte-ligne { border-color: var(--important-ink); }
+  .bloc-compte-danger .titre-liste { color: var(--important-ink); }
+
+  /* Nouvelle version de l'appli copiée (sw.js, js/hors-ligne.js). */
+  .maj-appli {
+    position: fixed; z-index: 90; left: 50%; bottom: 18px; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 10px; max-width: calc(100vw - 24px);
+    padding: 8px 8px 8px 14px; border-radius: 12px; background: var(--ink); color: var(--bg);
+    box-shadow: 0 8px 24px var(--shadow-lg); font-size: 13px;
+  }
+  .maj-appli button { font: inherit; font-size: 12.5px; font-weight: 700; border: none; border-radius: 8px; cursor: pointer; padding: 6px 10px; }
+  .maj-appli .maj-recharger { background: var(--accent); color: var(--accent-ink); }
+  .maj-appli .maj-fermer { background: none; color: inherit; opacity: .7; font-size: 16px; padding: 4px 8px; }

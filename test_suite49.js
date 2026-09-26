@@ -4,7 +4,8 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 // Round du 25.09.2026 (suite 49) — proposition 14 retenue par Lionel :
 // « Sauvegarde automatique : un export régulier des données Supabase,
 // pour pouvoir revenir en arrière après une grosse erreur. »
-// Section « Sauvegardes » de l'onglet Général (js/page-sauvegardes.js) ;
+// Section « Sauvegardes » de l'onglet Général (js/page-sauvegardes.js ; suite 61 : page
+// « Sauvegardes » du menu de la pastille, l'onglet Général est retiré) ;
 // la sauvegarde elle-même est côté serveur (sql/0017_sauvegardes.sql,
 // testé directement sur la base : copie, dédoublonnage, restauration).
 //
@@ -13,7 +14,7 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 const S = (id, cree_le, origine, lignes) => ({ id, cree_le, origine, lignes, contenu: { version: 1, tables: { personnes: [{ id: 1, nom: 'Lionel' }] } } });
 const BD = { sauvegardes: [S(1, '2026-09-22T02:17:00Z', 'auto', 330), S(2, '2026-09-24T02:17:00Z', 'auto', 336), S(3, '2026-09-23T15:40:00Z', 'avant_restauration', 331)] };
 const lignes = (page) => page.$$eval('#listeSauvegardes .ligne-sauvegarde', (ls) => ls.map((l) => l.querySelector('.sv-infos').textContent));
-const ouvrirGeneral = (page) => page.evaluate(() => document.querySelector('.onglet[data-page="general"]').click());
+const ouvrirGeneral = (page) => page.evaluate(() => afficherPage('sauvegardes'));
 
 (async () => {
   const browser = await lancerNavigateur(chromium);
@@ -29,11 +30,11 @@ const ouvrirGeneral = (page) => page.evaluate(() => document.querySelector('.ong
     const l0 = await lignes(page);
     verifier(l0.length === 3 && /^Jeu\. 24 sept\. 2026, \d\d:17Automatique336 lignes$/.test(l0[0]) && /Avant restauration331 lignes$/.test(l0[1]) && /^Mar\. 22 sept\. 2026/.test(l0[2]),
       largeur + ' px : liste des sauvegardes, plus récentes en haut — date, type, nombre de lignes (' + l0.join(' | ') + ')');
-    const bloc = await page.evaluate(() => ({ titre: document.querySelector('.bloc-sauvegardes .titre-liste').textContent,
+    const bloc = await page.evaluate(() => ({ titre: document.querySelector('#page-sauvegardes h1').textContent,
       boutons: [...document.querySelectorAll('.bloc-sauvegardes button')].map((b) => b.textContent).join('|'),
       deborde: document.documentElement.scrollWidth > window.innerWidth + 1 || [...document.querySelectorAll('.ligne-sauvegarde')].some((l) => l.scrollWidth > l.clientWidth + 1) }));
     verifier(bloc.titre === 'Sauvegardes' && bloc.boutons === 'Importer un fichier…|Sauvegarder maintenant' && !bloc.deborde,
-      largeur + ' px : section Sauvegardes de l\'onglet Général, sans débordement (' + bloc.boutons + ')');
+      largeur + ' px : page Sauvegardes du menu de la pastille, sans débordement (' + bloc.boutons + ')');
 
     // Sauvegarder maintenant.
     await page.click('#btnSauvegarderMaintenant'); await page.waitForTimeout(250);

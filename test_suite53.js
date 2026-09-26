@@ -161,14 +161,16 @@ function mesurerLignes(page) {
       return { compact: nav.classList.contains('onglets-compacts'), noms, dedans, titres: [...liste.querySelectorAll('.onglet')].every((o) => !!o.title) };
     });
     const a = await onglets();
-    const large = vp.width >= 1400;
-    verifier(a.dedans && a.titres && (large ? !a.compact && a.noms.length === 10 : a.compact && a.noms.join() === 'planning'),
+    // Suite 61 : Général et Mise en page passés dans le menu de la pastille —
+    // 8 onglets, leurs noms tiennent dès 1024 px.
+    const large = vp.width >= 1024;
+    verifier(a.dedans && a.titres && (large ? !a.compact && a.noms.length === 8 : a.compact && a.noms.join() === 'planning'),
       vp.width + ' px : ' + (large ? 'onglets avec leur nom' : 'onglets en icônes, nom de l\'onglet actif seul') + ', tous visibles (' + JSON.stringify(a) + ')');
     if (!large) {
-      await allerPage(page, 'mise-en-page');
+      await allerPage(page, 'horaires'); // suite 61 : Mise en page est passée dans le menu de la pastille
       await page.waitForTimeout(200);
       const b = await onglets();
-      verifier(b.dedans && b.noms.join() === 'mise-en-page', vp.width + ' px : l\'onglet choisi prend son nom, les autres restent en icônes (' + JSON.stringify(b) + ')');
+      verifier(b.dedans && b.noms.join() === 'horaires', vp.width + ' px : l\'onglet choisi prend son nom, les autres restent en icônes (' + JSON.stringify(b) + ')');
       if (CAPTURES) await page.screenshot({ path: CAPTURES + '/s53-onglets-' + vp.width + '.png' });
     }
     toutesErreurs.push(...erreurs);

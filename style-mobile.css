@@ -388,3 +388,13 @@
     .mois-carte.bilan-annuel .mois-liste b { min-width: 64px; text-align: right; font-variant-numeric: tabular-nums; }
     .bilan-note { margin: 8px 4px 0; font-size: 11.5px; line-height: 1.4; color: var(--ink-faint); }
   }
+
+  /* Suite 61 (round du 26.09.2026) — téléphone : champs de « Mon compte »
+     l'un sous l'autre, bandeau de nouvelle version au-dessus de la barre
+     du bas. */
+  @media (max-width: 600px) {
+    .grille-champs-compte { grid-template-columns: 1fr; }
+    .maj-appli { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+    .ligne-raccourci .rc-nom { flex-basis: 100%; }
+    .rc-touches { justify-content: flex-start; }
+  }

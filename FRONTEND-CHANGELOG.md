@@ -8744,3 +8744,115 @@ Lionel, après la suite 59 : « On remarque encore des bulles dans les bordures 
 - test_suite60.js (nouveau, 15 vérifications) : téléphone 390 px, densité 3, semaine calquée sur le planning réel ; la colonne des noms est identique au pixel près avec et sans les bulles, au jour posé et doigt posé en plein glissé, sur 5 changements de jour. Sans le correctif : 2 000 à 2 760 pixels d'écran diffèrent à chaque relevé.
   - Cas du vendredi 18 (données de Lionel) : l'absence du jeudi a une piste plus basse que sa carte, et rien d'elle dans le trait Mathis/Antoine. Sans le correctif : 502 pixels d'écran couleur absence.
 - Suite complète : 69/69.
+
+## 169. Round du 26.09.2026 (suite 61) — Réglages dans la pastille, Mon compte, raccourcis, palettes, ouverture plus rapide
+
+### Demandes de Lionel
+- « Il me faut une page capable de gérer les raccourcis claviers. »
+- « Mettre les réglages de l'onglet "Général" dans le pastille de déconnexion. Une page par type de réglage. y mettre les raccourcis claviers. »
+- Téléphone : une ouverture un week-end tombe sur le jour ouvré le plus proche.
+- « Pouvoir enregistrer sa palette de couleurs. »
+- Fluidité, et « Améliore le temps d'ouverture de l'appli en stockant localement des pages qui ne dépendent pas du serveur. »
+- « Ajouter une page info personnel, pour entrée ses donnée comme Nom, Prénom, Entreprise, modification du mot de passe, suppression du compte et déconnexion. a mettre dans le menu setup », puis « Possibilté d'ajouter une photo de profile ».
+- « Mise en page impression passe aussi dans le menu réglage »
+- « Entre 2 semaines, il y a une bordure épaisse. A remplacer par un petite espace de quelque pixel. Mêmes arrondis en haut et bas que sur les bord du cadrillage, comme si on voyais 2 fenêtres côtes à côte. »
+- « en appuyant sur un onglet ou un bouton. appuyer sur la touchs shift du clavier fait apparaitre une sélection. »
+- « Quand on appuis sur une tâches dans le le résumé des statut, le planning se place sur la semaine de la tâche, c'est un bonne idée, ajoute la sélection automatique de la tâches pour la retrouver plus vite et pouvoir les ajustements nécessaires. »
+
+### Réglages dans la pastille (js/coquille.js)
+- La pastille « L » (en haut ; sur téléphone, dans la barre du bas) ouvre un menu :
+  - Mon compte ;
+  - Affichage ;
+  - Couleurs ;
+  - Mise en page d'impression ;
+  - Raccourcis clavier ;
+  - Sauvegardes ;
+  - Se déconnecter.
+- Une page par entrée (`PAGES_REGLAGES`, classe `.page-reglages`). En haut de chaque page, une rangée de puces passe d'une page de réglages à l'autre. Sur téléphone, la puce active est centrée dans la rangée.
+- Les onglets « Général » et « Mise en page » sont retirés. Leur contenu est dans ces pages. Le lien « Mise en page » de la fenêtre d'impression (js/impression.js) mène à la nouvelle page.
+- `afficherPage(nom)` est global : il sert au menu, aux raccourcis et aux tests.
+
+### Raccourcis clavier (js/raccourcis.js, nouveau)
+- Un seul registre, `ACTIONS_CLAVIER`. Le gestionnaire du clavier (js/formulaires-communs.js) ne connaît plus aucune touche : il demande l'action qui correspond à la combinaison tapée.
+- Touches d'origine :
+  - les anciennes touches écrites en dur, avec les mêmes conditions : Ctrl+Z/Y/C/X/V, Suppr, Entrée, ← →, Maj+← → ;
+  - nouvelles : P et S (semaine précédente/suivante), A (aujourd'hui), D (choisir une date), V (vue), W (week-ends), + - 0 (zoom), Ctrl+P (imprimer) ;
+  - « Pages » : une action par onglet, sans touche au départ.
+- Page « Raccourcis clavier » :
+  - « + » puis la combinaison voulue pour en ajouter une, « × » pour en retirer une ;
+  - « ↺ » rétablit une action, « Tout rétablir » les rétablit toutes ;
+  - une combinaison déjà prise est signalée ; après confirmation, elle change d'action.
+- Sur Mac, Cmd compte comme Ctrl et l'affichage montre ⌘ ⌥.
+- Une touche seule (P, S, A…) ne fait rien pendant la saisie dans un champ.
+- Échap et Entrée dans une fenêtre ouverte restent fixes : affichés, pas modifiables.
+- Enregistrement : table `reglages`, clé « raccourcis » (seules les actions modifiées), plus une copie sur l'appareil (localStorage « planning.raccourcis »).
+
+### Téléphone : ouverture un week-end (js/grille-rendu.js, js/core.js, js/donnees-sync.js)
+- En vue « 1 jour », sans les week-ends affichés, un samedi ouvre sur le vendredi et un dimanche sur le lundi (`caleJourMobileSurJourOuvre_`).
+- S'applique à l'ouverture et au bouton « Aujourd'hui ». L'ordinateur n'est pas touché.
+
+### Palettes de couleurs (js/page-couleurs.js)
+- « Enregistrer les couleurs actuelles… » (page Couleurs ou fenêtre Personnaliser) : les couleurs affichées, sous un nom.
+- Même nom : la palette est remplacée.
+- Les palettes apparaissent dans la liste « Thème » (groupe « Mes palettes »), avec « Appliquer » et « Supprimer » dans la liste de la page.
+- Enregistrement : table `reglages`, clé « palettes » ([{ id, nom, valeurs }]), plus une copie sur l'appareil.
+- Le thème reconnu est celui choisi en dernier, même si une palette a les mêmes couleurs qu'un thème.
+- Chaque palette a un identifiant unique, même enregistrée dans la même milliseconde.
+
+### Mon compte (js/page-compte.js, nouveau ; sql/0019_profils_compte.sql, appliquée)
+- Photo de profil :
+  - recadrée en carré et réduite à 256 px (JPEG) dans le navigateur ;
+  - affichée dans la pastille à la place de l'initiale ;
+  - un fichier qui n'est pas une image est refusé.
+- Prénom, nom, entreprise. L'initiale de la pastille suit le prénom.
+- Mot de passe : l'actuel est vérifié avant de poser le nouveau (8 caractères au moins).
+- Se déconnecter.
+- Supprimer le compte : il faut le mot de passe et « SUPPRIMER » tapé, puis `supprimer_mon_compte()` (SECURITY DEFINER) supprime le compte connecté. Le planning reste dans la base.
+- Table `profils` : une ligne par compte, RLS « soi-même », photo en data URL (400 000 caractères au plus). Plus une copie sur l'appareil (« planning.profil ») : la photo est là dès l'ouverture, même sans réseau.
+- Si la table ne répond pas : pas d'erreur, la copie de l'appareil reste (sinon la pastille garde « L »).
+
+### Ouverture plus rapide, fluidité (sw.js v2, js/hors-ligne.js, index.html)
+- Service worker « copie d'abord » (stale-while-revalidate) :
+  - l'appli (HTML, CSS, JS, supabase-js, polices, icônes) est servie tout de suite depuis l'appareil ;
+  - chaque fichier est redemandé à GitHub Pages en même temps, et la copie mise à jour ;
+  - si un fichier a changé (ETag, sinon date de modification), un bandeau « Nouvelle version de l'appli prête. Recharger » s'affiche. Sinon, la nouvelle version sert à l'ouverture suivante.
+- Nouveau cache (`planning-appli-v2`) : l'ancien est effacé.
+- index.html :
+  - connexions ouvertes d'avance vers Supabase, jsDelivr et les polices ;
+  - polices Google chargées sans bloquer le premier affichage.
+
+### Espace arrondi entre 2 semaines (js/grille-rendu.js, style.css)
+- La bordure épaisse de 3 px (`.sem-frontiere`) devient un espace de 8 px, couleur du fond. Ses angles haut et bas sont arrondis (12 px) comme les bords du cadre : 2 fenêtres côte à côte.
+- Deux morceaux posés par-dessus la grille (`.sep-semaines`) :
+  - un dans l'en-tête figé ;
+  - un sur le corps, dans `#racine`, hors du découpage de `.grille-cadre`.
+- La grille reste une seule grille : les bulles, le glissé et la sélection ne changent pas. Une bulle à cheval sur 2 semaines passe sous l'espace, et les clics le traversent.
+- Les morceaux sont replacés au défilement, au redimensionnement et au zoom (ResizeObserver). Ils sont masqués sous la colonne des noms et hors de l'écran, et pas imprimés.
+- Téléphone en vue « 1 jour » : inchangé.
+
+### Maj ne fait plus apparaître de cadre (js/formulaires-communs.js, style.css)
+- Cause : après un clic sur un onglet ou un bouton, Chromium affiche l'anneau `:focus-visible` dès qu'une touche est pressée, Maj comprise.
+- Correctif : l'anneau n'apparaît plus qu'en navigation au clavier. La classe `html.nav-clavier` est posée par Tab et retirée au premier clic ou toucher. Les champs de saisie gardent leur anneau.
+
+### Résumé des statuts : la tâche est sélectionnée (js/a-reserver.js, js/grille-rendu.js)
+- Un appui sur une ligne place le planning sur la semaine de la tâche, comme avant. Ensuite :
+  - la bulle du jour est sélectionnée, seule ;
+  - elle est amenée à l'écran (défilement vertical et horizontal, hors de l'en-tête figé et de la barre du bas) ;
+  - elle clignote brièvement (`.bulle-retrouvee`).
+- Entrée l'ouvre directement, et les flèches la décalent.
+- `allerAuJour(iso, apres)` : le rappel est appelé une fois la semaine affichée, tout de suite si elle l'était déjà.
+
+### Tests
+- aide_tests.js : fausse authentification (`window.__AUTH`) pour la connexion, le changement de mot de passe et la déconnexion.
+- test_suite61.js (nouveau, 109 vérifications), à 1400 et 390 px :
+  - menu de la pastille ;
+  - raccourcis (capture, conflit, retrait, ↺, rechargement) ;
+  - week-end au téléphone ;
+  - palettes ;
+  - Mon compte (photo, mot de passe, suppression, déconnexion, table absente) ;
+  - espace entre semaines (taille, bords, arrondis, alignement, bulle dessous, clics, zoom) ;
+  - Maj sans cadre ;
+  - sélection depuis le résumé des statuts.
+- Anciens tests mis à jour pour les pages déplacées (onglet Général / Mise en page → `afficherPage`, menu de la pastille) : test_couleurs_sync_compte, test_suite39, 44, 45, 46, 49, 53, 54, 56.
+- test_bordure_lundi_2semaines.js : vérifie l'espace entre semaines au bord gauche du lundi matin (plus la bordure de 3 px), jamais au milieu du lundi.
+- Suite complète : 70/70 (le seul échec du premier passage, test_bordure_lundi_2semaines, attendait encore la bordure de 3 px ; mis à jour et relancé seul, 5/5).

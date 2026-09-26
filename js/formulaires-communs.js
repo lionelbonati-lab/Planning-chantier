@@ -247,6 +247,20 @@
     });
   }
 
+  // Round du 26.09.2026 (suite 61) — Lionel : « en appuyant sur un onglet
+  // ou un bouton. appuyer sur la touche shift du clavier fait apparaître une
+  // sélection. » Chromium montre le contour de focus (:focus-visible) d'un
+  // bouton cliqué dès qu'une touche est pressée, même Maj seule : il croit
+  // à une navigation au clavier. Le contour n'est plus montré qu'après Tab
+  // (classe « nav-clavier » sur <html>, cf. style.css) et disparaît au
+  // prochain clic ou appui du doigt. Les champs de saisie gardent le leur.
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Tab") document.documentElement.classList.add("nav-clavier");
+  }, true);
+  document.addEventListener("pointerdown", function () {
+    document.documentElement.classList.remove("nav-clavier");
+  }, true);
+
   // ---- Raccourcis clavier (ordinateur) — Échap sort de la sélection ET
   // ferme un popup ouvert (ajout/édition) sans enregistrer ; Suppr/Retour
   // arrière supprime la sélection (confirmation) ; Entrée ouvre l'édition
@@ -255,50 +269,31 @@
   // copient/collent la sélection. Tout, sauf Échap et Entrée-valide-popup,
   // est ignoré quand on tape dans un champ de texte (couper/copier/coller/
   // annuler natif du navigateur DANS ce champ ne doit pas être court-circuité).
+  // Round du 26.09.2026 (suite 61) — Lionel : « Il me faut une page capable
+  // de gérer les raccourcis claviers. » Seuls Échap et Entrée-valide-popup
+  // restent écrits ici ; toutes les autres touches (Suppr, Entrée, ← →,
+  // Ctrl+Z/Y/C/X/V, et les nouvelles : semaines, zoom, pages…) viennent du
+  // registre modifiable de js/raccourcis.js (actionClavierPour), mêmes
+  // touches et mêmes conditions qu'avant par défaut.
   document.addEventListener("keydown", function (e) {
+    if (captureRaccourciEnCours) return; // nouvelle combinaison en cours de saisie (page Raccourcis clavier)
     var cible = e.target, tag = cible && cible.tagName;
-    var dansChamp = tag === "INPUT" || tag === "TEXTAREA" || (cible && cible.isContentEditable);
+    var dansChamp = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (cible && cible.isContentEditable);
 
     if (e.key === "Escape") {
       if (popFermerActuel) { popFermerActuel(); e.preventDefault(); return; }
+      if (fermerMenuCompte()) { e.preventDefault(); return; }
       if (Object.keys(bullesSelectionnees).length > 0 || modeSelectionMultiple) { quitterModeSelection(); render(false); e.preventDefault(); }
       return;
     }
     if (e.key === "Enter" && popValiderActuel) { popValiderActuel(); e.preventDefault(); return; }
     if (dansChamp) return;
 
-    if (e.key === "Delete" || e.key === "Backspace") {
-      if (Object.keys(bullesSelectionnees).length === 0) return;
-      e.preventDefault();
-      supprimerSelection();
-      return;
-    }
-    // ← → (round du 24.09.2026, suite 7) : équivalent clavier des flèches de
-    // #panneauSelection — demi-journée, jour entier avec Maj. En mode
-    // multiple seulement, comme la barre elle-même (réponse de Lionel).
-    if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && modeSelectionMultiple && Object.keys(bullesSelectionnees).length) {
-      e.preventDefault();
-      decalerSelection((e.key === "ArrowLeft" ? -1 : 1) * (e.shiftKey ? 2 : 1));
-      return;
-    }
-    if (e.key === "Enter") {
-      var idsSel = Object.keys(bullesSelectionnees);
-      if (idsSel.length !== 1) return;
-      var plage = itemParId(idsSel[0]);
-      if (!plage) return;
-      e.preventDefault();
-      ouvrirBulle(plage.item, plage, Math.round(window.innerWidth / 2 - 110), Math.round(window.innerHeight / 2 - 90));
-      return;
-    }
-
-    var ctrl = e.ctrlKey || e.metaKey;
-    if (!ctrl) return;
-    var touche = e.key.toLowerCase();
-    if (touche === "z") { e.preventDefault(); if (e.shiftKey) refaire(); else defaire(); return; }
-    if (touche === "y") { e.preventDefault(); refaire(); return; }
-    if (touche === "c") { e.preventDefault(); copierSelection(); return; }
-    if (touche === "x") { e.preventDefault(); couperSelection(); return; }
-    if (touche === "v") { e.preventDefault(); collerPressePapier(); return; }
+    var combo = comboDepuisEvenement(e);
+    var action = combo && actionClavierPour(combo);
+    if (!action) return;
+    e.preventDefault();
+    action.faire();
   });
 
   function copierSelection() {

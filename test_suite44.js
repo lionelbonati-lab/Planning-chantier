@@ -20,7 +20,7 @@ const BD = {
   taches: [T(1, 1, '2026-09-21', 'matin', 'Gabarits'), T(2, 2, '2026-09-22', 'matin', 'Décoffrage des balcons et de la dalle'), T(3, 3, '2026-09-23', 'matin', 'Livraison')]
 };
 const MM = 96 / 25.4;
-const ouvrirOnglet = async (page) => { await page.evaluate(() => document.querySelector('.onglet[data-page="mise-en-page"]').click()); await page.waitForTimeout(200); };
+const ouvrirOnglet = async (page) => { await page.evaluate(() => afficherPage('mise-en-page')); await page.waitForTimeout(200); };
 const upserts = (page) => page.evaluate(() => window.__ECRITURES.filter((e) => e.indexOf('reglages:upsert:') === 0).map((e) => JSON.parse(e.slice(16))[0]));
 const valeurs = (page) => page.evaluate(() => {
   const o = {};

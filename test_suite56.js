@@ -21,7 +21,7 @@ const { ouvrirPlanning, verificateur } = require('./aide_tests');
       await page.emulateMedia({ colorScheme: mode });
       const lieu = largeur + ' px, ' + mode;
       // Sur téléphone les onglets sont dans un menu : clic direct, comme test_suite54.
-      await page.evaluate(() => document.querySelector('.onglet[data-page="general"]').click());
+      await page.evaluate(() => afficherPage('couleurs')); // suite 61 : ex-onglet Général
       await page.click('#btnPersonnaliserCouleurs');
       await page.waitForSelector('.couleurs-modal .reglage-couleurs-groupe');
       await page.waitForTimeout(200);

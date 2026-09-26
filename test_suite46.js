@@ -11,7 +11,7 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 
 const upserts = (page) => page.evaluate(() => window.__ECRITURES.filter((e) => e.indexOf('reglages:upsert:') === 0).map((e) => JSON.parse(e.slice(16))[0]));
 const aide = (page) => page.$eval('.mep-aide-date-impr', (e) => e.textContent);
-const ouvrirOnglet = (page) => page.evaluate(() => { if (popFermerActuel) popFermerActuel(); document.querySelector('.onglet[data-page="mise-en-page"]').click(); });
+const ouvrirOnglet = (page) => page.evaluate(() => { if (popFermerActuel) popFermerActuel(); afficherPage('mise-en-page'); });
 
 (async () => {
   const browser = await lancerNavigateur(chromium);

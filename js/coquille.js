@@ -25,19 +25,21 @@
             '<button type="button" class="onglet" data-page="jalons" title="Jalons">' + ICONS.flag + '<span class="onglet-nom">Jalons</span></button>' +
             '<button type="button" class="onglet" data-page="personnel" title="Personnel">' + ICONS.people + '<span class="onglet-nom">Personnel</span></button>' +
             '<button type="button" class="onglet" data-page="intervenants" title="Intervenants">' + ICONS.hardhat + '<span class="onglet-nom">Intervenants</span></button>' +
-            '<button type="button" class="onglet" data-page="general" title="Général">' + ICONS.gear + '<span class="onglet-nom">Général</span></button>' +
             '<button type="button" class="onglet" data-page="chantiers" title="Chantiers">' + ICONS.building + '<span class="onglet-nom">Chantiers</span></button>' +
             '<button type="button" class="onglet" data-page="statuts" title="Statuts">' + ICONS.tag + '<span class="onglet-nom">Statuts</span></button>' +
             '<button type="button" class="onglet" data-page="horaires" title="Horaires">' + ICONS.clock + '<span class="onglet-nom">Horaires</span></button>' +
-            '<button type="button" class="onglet" data-page="mise-en-page" title="Mise en page">' + ICONS.miseEnPage + '<span class="onglet-nom">Mise en page</span></button>' +
             '<button type="button" class="onglet" data-page="entree-rapide" title="Entrée rapide">' + ICONS.bolt + '<span class="onglet-nom">Entrée rapide</span></button>' +
           '</div>' +
-          '<button type="button" class="avatar-nav" id="lienDeconnexionNav" title="Se déconnecter" aria-label="Se déconnecter">L</button>' +
+          // Suite 61 : la pastille ouvre le menu du compte (réglages,
+          // déconnexion) au lieu de déconnecter directement.
+          '<button type="button" class="avatar-nav" id="lienDeconnexionNav" title="Compte et réglages" aria-label="Compte et réglages" aria-haspopup="menu" aria-expanded="false">L</button>' +
         '</nav>' +
         '<div class="app-main">' +
-          htmlPagePlanning() + htmlPageJalons() + htmlPageGeneral() + htmlPagePersonnel() + htmlPageIntervenants() +
+          htmlPagePlanning() + htmlPageJalons() + htmlPagePersonnel() + htmlPageIntervenants() +
           htmlPageChantiers() + htmlPageStatuts() + htmlPageEntreeRapide() + htmlPageHoraires() + htmlPageMiseEnPage() +
+          htmlPagesReglages() +
         '</div>' +
+        htmlMenuCompte() +
         // §91 (round du 22.09.2026, suite) — Lionel, mockup mockup-nav-mobile.html
         // validé (croquis Google Sheets à l'appui : « j'aime bien la
         // présentation de Google sheet [...] en bas la bar d'onglets. en
@@ -68,18 +70,16 @@
           // téléphone, il ne figure plus dans la barre d'outils du planning
           // (cf. js/a-reserver.js, style-mobile.css).
           '<button type="button" class="nav-bas-a-reserver" id="btnAReserverNavBas" title="À réserver" aria-label="À réserver" hidden>' + ICONS.reserver + '<span class="compte-a-reserver" hidden></span></button>' +
-          '<button type="button" class="avatar-nav" id="lienDeconnexionNavBas" title="Se déconnecter" aria-label="Se déconnecter">L</button>' +
+          '<button type="button" class="avatar-nav" id="lienDeconnexionNavBas" title="Compte et réglages" aria-label="Compte et réglages" aria-haspopup="menu" aria-expanded="false">L</button>' +
           '<div class="switcher-panneau" id="switcherPanneau">' +
             '<div class="switcher-titre">Pages</div>' +
             '<button type="button" class="onglet switcher-item actif" data-page="planning">' + ICONS.calendar + 'Planning</button>' +
             '<button type="button" class="onglet switcher-item" data-page="jalons">' + ICONS.flag + 'Jalons</button>' +
             '<button type="button" class="onglet switcher-item" data-page="personnel">' + ICONS.people + 'Personnel</button>' +
             '<button type="button" class="onglet switcher-item" data-page="intervenants">' + ICONS.hardhat + 'Intervenants</button>' +
-            '<button type="button" class="onglet switcher-item" data-page="general">' + ICONS.gear + 'Général</button>' +
             '<button type="button" class="onglet switcher-item" data-page="chantiers">' + ICONS.building + 'Chantiers</button>' +
             '<button type="button" class="onglet switcher-item" data-page="statuts">' + ICONS.tag + 'Statuts</button>' +
             '<button type="button" class="onglet switcher-item" data-page="horaires">' + ICONS.clock + 'Horaires</button>' +
-            '<button type="button" class="onglet switcher-item" data-page="mise-en-page">' + ICONS.miseEnPage + 'Mise en page</button>' +
             '<button type="button" class="onglet switcher-item" data-page="entree-rapide">' + ICONS.bolt + 'Entrée rapide</button>' +
           '</div>' +
         '</div>' +
@@ -92,6 +92,8 @@
     cablerPagePlanning();
     cablerAReserver();
     cablerPageSauvegardes();
+    cablerPageRaccourcis();
+    cablerPageCompte();
     cablerPageEntreeRapide();
     cablerPageFeries();
     cablerPageHoraires();
@@ -102,15 +104,152 @@
     // bouton juste posé dans la barre d'onglets ci-dessus.
     var flottant = document.getElementById("lienDeconnexion");
     if (flottant) flottant.remove();
-    // §91 — 2 boutons de déconnexion coexistent désormais (barre du haut,
-    // masquée sur téléphone + barre basse, visible seulement là) : même
-    // action pour les deux, extraite ici plutôt que dupliquée inline comme
-    // avant ce round.
-    function deconnecter() {
-      sbClient.auth.signOut().then(function () { window.location.reload(); });
-    }
-    document.getElementById("lienDeconnexionNav").addEventListener("click", deconnecter);
-    document.getElementById("lienDeconnexionNavBas").addEventListener("click", deconnecter);
+    // §91 — 2 pastilles coexistent (barre du haut, masquée sur téléphone +
+    // barre basse, visible seulement là). Suite 61 : elles ouvrent le même
+    // menu du compte (cablerMenuCompte), « Se déconnecter » y est.
+    cablerMenuCompte();
+  }
+
+  /* ---- Menu du compte et pages de réglages — round du 26.09.2026 (suite 61)
+     Lionel : « Mettre les réglages de l'onglet "Général" dans le pastille
+     de déconnexion. Une page par type de réglage. y mettre les raccourcis
+     claviers. ôter l'onglet général. »
+     La pastille « L » (en haut sur ordinateur/tablette, en bas sur
+     téléphone) ouvre un petit menu : Affichage, Couleurs, Raccourcis
+     clavier, Sauvegardes (puis Mon compte et Mise en page d'impression,
+     ajoutées dans la même suite), puis Se déconnecter. Chaque entrée ouvre sa page
+     (#page-affichage, #page-couleurs, #page-raccourcis, #page-sauvegardes),
+     avec en haut une rangée pour passer d'une page de réglages à l'autre.
+     L'onglet Général et sa page ont disparu : le week-end est dans
+     Affichage, le thème et « Personnaliser » dans Couleurs, les sauvegardes
+     dans Sauvegardes, rien d'autre n'y était. */
+  // « Mon compte » (même suite, message suivant de Lionel) : « Ajouter une
+  // page info personnel, pour entrée ses donnée comme Nom, Prénom,
+  // Entreprise, modification du mot de passe, suppression du compte et
+  // déconnexion. a mettre dans le menu setup » — cf. js/page-compte.js.
+  var PAGES_REGLAGES = [
+    { page: "compte", nom: "Mon compte", court: "Compte", icone: "personne" },
+    { page: "affichage", nom: "Affichage", icone: "affichage" },
+    { page: "couleurs", nom: "Couleurs", icone: "palette" },
+    // Lionel, pendant la même suite : « Mise en page impression passe
+    // aussi dans le menu réglage » — l'onglet Mise en page est retiré.
+    { page: "mise-en-page", nom: "Mise en page d’impression", court: "Impression", icone: "miseEnPage" },
+    { page: "raccourcis", nom: "Raccourcis clavier", court: "Raccourcis", icone: "clavier" },
+    { page: "sauvegardes", nom: "Sauvegardes", icone: "sauvegarde" }
+  ];
+  function pageReglage_(nom) { return PAGES_REGLAGES.filter(function (r) { return r.page === nom; })[0] || null; }
+  function htmlMenuCompte() {
+    return '<div class="menu-compte" id="menuCompte" role="menu" aria-label="Compte et réglages" hidden>' +
+      '<div class="menu-compte-entete"><span class="avatar-nav mc-avatar" aria-hidden="true">L</span>' +
+        '<span class="mc-compte"><b id="menuCompteNom">Mon compte</b><span id="menuCompteEmail"></span></span></div>' +
+      '<div class="outil-menu-titre">Réglages</div>' +
+      PAGES_REGLAGES.map(function (r) {
+        return '<button type="button" class="outil-menu-item" role="menuitem" data-reglage="' + r.page + '">' + ICONS[r.icone] + '<span>' + r.nom + '</span></button>';
+      }).join("") +
+      '<div class="menu-compte-sep"></div>' +
+      '<button type="button" class="outil-menu-item mc-deconnexion" role="menuitem" id="btnDeconnexion">' + ICONS.deconnexion + '<span>Se déconnecter</span></button>' +
+    '</div>';
+  }
+  // Rangée du haut de chaque page de réglages : passer de l'une à l'autre
+  // sans rouvrir le menu.
+  function htmlNavReglages_(actuelle) {
+    return '<div class="reglages-nav" role="tablist" aria-label="Réglages">' +
+      PAGES_REGLAGES.map(function (r) {
+        return '<button type="button" class="reglages-onglet' + (r.page === actuelle ? ' actif' : '') + '" role="tab" aria-selected="' + (r.page === actuelle) + '" data-reglage="' + r.page + '">' +
+          ICONS[r.icone] + '<span>' + (r.court || r.nom) + '</span></button>';
+      }).join("") +
+    '</div>';
+  }
+  function htmlPagesReglages() {
+    return '<div class="page page-reglages" id="page-compte"><div class="page-scroll">' + htmlNavReglages_("compte") + htmlContenuPageCompte() + '</div></div>' +
+      '<div class="page page-reglages" id="page-affichage"><div class="page-scroll">' + htmlNavReglages_("affichage") +
+        '<div class="page-titre"><h1>Affichage</h1></div>' +
+        '<p class="page-sous">Réglages d’affichage du planning.</p>' +
+        '<label class="reglage-ligne"><span class="reglage-texte"><b>Afficher les week-ends</b>' +
+        '<span>Ajoute Samedi et Dimanche à la fin de chaque semaine, pour y poser une tâche ponctuelle.</span></span>' +
+        '<span class="interrupteur"><input type="checkbox" id="chkWeekends"><span class="interrupteur-piste"></span></span></label>' +
+      '</div></div>' +
+      // Couleurs (suite 23.09 puis 54, js/page-couleurs.js) : liste
+      // « Thème », « Personnaliser », et les palettes enregistrées (suite 61).
+      '<div class="page page-reglages" id="page-couleurs"><div class="page-scroll">' + htmlNavReglages_("couleurs") +
+        '<div class="page-titre"><h1>Couleurs</h1></div>' +
+        '<p class="page-sous">Couleurs du planning, les mêmes sur tous les appareils du compte.</p>' +
+        htmlReglagesCouleurs() +
+      '</div></div>' +
+      // Raccourcis clavier (suite 61, js/raccourcis.js).
+      '<div class="page page-reglages" id="page-raccourcis"><div class="page-scroll">' + htmlNavReglages_("raccourcis") +
+        '<div class="page-titre"><h1>Raccourcis clavier</h1><button type="button" class="lien-reset-tout" id="btnRaccourcisDefaut" hidden>Tout rétablir</button></div>' +
+        '<p class="page-sous">Touches d’un clavier d’ordinateur, les mêmes sur tous les appareils du compte. « + » puis la combinaison voulue pour en ajouter une, « × » pour la retirer, « ↺ » pour revenir aux touches d’origine.</p>' +
+        '<div id="listeRaccourcis"></div>' +
+      '</div></div>' +
+      // Sauvegardes (round du 25.09.2026, suite 49 — js/page-sauvegardes.js,
+      // sql/0017_sauvegardes.sql). Lionel, proposition 14 : « Sauvegarde
+      // automatique [...] pour pouvoir revenir en arrière après une grosse
+      // erreur. »
+      '<div class="page page-reglages" id="page-sauvegardes"><div class="page-scroll">' + htmlNavReglages_("sauvegardes") +
+        '<div class="page-titre bloc-sauvegardes"><h1>Sauvegardes</h1>' +
+        '<div class="actions-feries">' +
+          '<button type="button" class="btn-calculer" id="btnImporterSauvegarde">Importer un fichier…</button>' +
+          '<button type="button" class="btn-enregistrer" id="btnSauvegarderMaintenant">Sauvegarder maintenant</button>' +
+          '<input type="file" id="fichierSauvegarde" accept=".json,application/json" hidden>' +
+        '</div></div>' +
+        '<p class="page-sous">Tout le planning (tâches, jalons, notes, personnes, chantiers, horaires, réglages…) est copié chaque nuit, si quelque chose a changé ; les 30 dernières copies sont gardées. « Restaurer » remplace tout le planning par une copie, après avoir sauvegardé l’état actuel. « Télécharger » en garde un fichier sur cet appareil.</p>' +
+        '<div class="liste-intervenants" id="listeSauvegardes"></div>' +
+      '</div></div>';
+  }
+  // true si le menu était ouvert (Échap le referme avant toute autre chose,
+  // cf. formulaires-communs.js).
+  function fermerMenuCompte() {
+    var menu = document.getElementById("menuCompte");
+    if (!menu || menu.hidden) return false;
+    menu.hidden = true;
+    document.querySelectorAll(".avatar-nav[aria-haspopup]").forEach(function (a) { a.setAttribute("aria-expanded", "false"); });
+    return true;
+  }
+  // Menu posé contre la pastille cliquée : dessous et aligné à droite en
+  // haut, au-dessus en bas de l'écran (téléphone).
+  function ouvrirMenuCompte_(avatar) {
+    var menu = document.getElementById("menuCompte");
+    if (!menu) return;
+    var r = avatar.getBoundingClientRect();
+    menu.hidden = false;
+    menu.style.right = Math.max(8, Math.round(window.innerWidth - r.right)) + "px";
+    if (r.top > window.innerHeight / 2) { menu.style.top = "auto"; menu.style.bottom = Math.round(window.innerHeight - r.top + 8) + "px"; }
+    else { menu.style.bottom = "auto"; menu.style.top = Math.round(r.bottom + 6) + "px"; }
+    avatar.setAttribute("aria-expanded", "true");
+    var courant = menu.querySelector('[data-reglage="' + (document.querySelector(".page.actif") || { id: "" }).id.replace("page-", "") + '"]');
+    menu.querySelectorAll("[data-reglage]").forEach(function (b) { b.classList.toggle("actif", b === courant); });
+  }
+  function cablerMenuCompte() {
+    var menu = document.getElementById("menuCompte");
+    if (!menu) return;
+    ["lienDeconnexionNav", "lienDeconnexionNavBas"].forEach(function (id) {
+      var avatar = document.getElementById(id);
+      if (!avatar) return;
+      avatar.addEventListener("click", function (e) {
+        e.stopPropagation();
+        var ouvert = !menu.hidden && avatar.getAttribute("aria-expanded") === "true";
+        fermerMenuCompte();
+        if (typeof fermerSwitcherPages === "function") fermerSwitcherPages();
+        if (!ouvert) ouvrirMenuCompte_(avatar);
+      });
+    });
+    menu.addEventListener("click", function (e) {
+      e.stopPropagation();
+      var b = e.target.closest("[data-reglage]");
+      if (b) { afficherPage(b.dataset.reglage); return; }
+      if (e.target.closest("#btnDeconnexion")) { fermerMenuCompte(); deconnecterCompte(); }
+    });
+    document.addEventListener("click", function () { fermerMenuCompte(); });
+    window.addEventListener("resize", function () { fermerMenuCompte(); });
+    document.querySelectorAll(".reglages-nav").forEach(function (nav) {
+      nav.addEventListener("click", function (e) {
+        var b = e.target.closest("[data-reglage]");
+        if (b) afficherPage(b.dataset.reglage);
+      });
+    });
+    // Nom, adresse et initiale du compte connecté (js/page-compte.js).
+    chargerInfosCompte();
   }
 
   function htmlPagePlanning() {
@@ -418,37 +557,6 @@
       '<div class="liste-intervenants" id="listeJalons"></div>' +
       '</div></div>';
   }
-  function htmlPageGeneral() {
-    return '<div class="page" id="page-general"><div class="page-scroll">' +
-      '<div class="page-titre"><h1>Général</h1></div>' +
-      // « locaux à cet appareil » n'était plus vrai (couleurs partagées par
-      // compte depuis le 24.09.2026) : raccourci à la suite 54.
-      '<p class="page-sous">Réglages d’affichage du planning.</p>' +
-      '<label class="reglage-ligne"><span class="reglage-texte"><b>Afficher les week-ends</b>' +
-      '<span>Ajoute Samedi et Dimanche à la fin de chaque semaine, pour y poser une tâche ponctuelle.</span></span>' +
-      '<span class="interrupteur"><input type="checkbox" id="chkWeekends"><span class="interrupteur-piste"></span></span></label>' +
-      // Round du 23.09.2026 — page de réglages des couleurs, cf.
-      // js/page-couleurs.js (données + logique). Générée par
-      // htmlReglagesCouleurs() plutôt qu'écrite ici en dur : la liste des
-      // groupes de couleurs vit dans un seul fichier, pas dupliquée.
-      // Suite 54 : plus qu'une liste « Thème » et un bouton « Personnaliser ».
-      htmlReglagesCouleurs() +
-      // Sauvegardes (round du 25.09.2026, suite 49 — js/page-sauvegardes.js,
-      // sql/0017_sauvegardes.sql). Lionel, proposition 14 : « Sauvegarde
-      // automatique [...] pour pouvoir revenir en arrière après une grosse
-      // erreur. »
-      '<div class="bloc-sauvegardes">' +
-      '<h2 class="titre-liste">Sauvegardes</h2>' +
-      '<div class="actions-feries">' +
-        '<button type="button" class="btn-calculer" id="btnImporterSauvegarde">Importer un fichier…</button>' +
-        '<button type="button" class="btn-enregistrer" id="btnSauvegarderMaintenant">Sauvegarder maintenant</button>' +
-        '<input type="file" id="fichierSauvegarde" accept=".json,application/json" hidden>' +
-      '</div>' +
-      '<p class="page-sous">Tout le planning (tâches, jalons, notes, personnes, chantiers, horaires, réglages…) est copié chaque nuit, si quelque chose a changé ; les 30 dernières copies sont gardées. « Restaurer » remplace tout le planning par une copie, après avoir sauvegardé l’état actuel. « Télécharger » en garde un fichier sur cet appareil.</p>' +
-      '</div>' +
-      '<div class="liste-intervenants" id="listeSauvegardes"></div>' +
-      '</div></div>';
-  }
   function htmlPagePersonnel() {
     return '<div class="page" id="page-personnel"><div class="page-scroll">' +
       '<div class="page-titre"><h1>Personnel</h1></div>' +
@@ -567,8 +675,9 @@
   // Page Mise en page (round du 25.09.2026, suite 39) — cf.
   // js/page-mise-en-page.js. Réglages à gauche, aperçu schématique de la
   // feuille à droite (l'un sous l'autre sur téléphone).
+  // Suite 61 : page de réglages (menu de la pastille), plus un onglet.
   function htmlPageMiseEnPage() {
-    return '<div class="page" id="page-mise-en-page"><div class="page-scroll">' +
+    return '<div class="page page-reglages" id="page-mise-en-page"><div class="page-scroll">' + htmlNavReglages_("mise-en-page") +
       '<div class="page-titre"><h1>Mise en page</h1>' +
         '<div class="actions-feries"><span class="mep-etat" id="mepEtat"></span><button class="btn-calculer" id="btnReinitMep" type="button">Réinitialiser</button></div>' +
       '</div>' +
@@ -612,18 +721,72 @@
     nav.classList.remove("onglets-compacts");
     if (liste.scrollWidth > liste.clientWidth + 1) nav.classList.add("onglets-compacts");
   }
-  function cablerNavigation() {
-    // §91 (round du 22.09.2026, suite) — querySelectorAll(".onglet") capte
-    // maintenant 18 boutons (9 de .onglets-nav en haut + 9 de
-    // #switcherPanneau en bas, cf. construireCoquille) plutôt que 9 : la
-    // même classe + le même data-page sur les 2 jeux de boutons suffit à
-    // les câbler TOUS ici, sans rien dupliquer côté logique.
-    var ongletsBtns = document.querySelectorAll(".onglet");
-    var switcherBtn = document.getElementById("switcherBtn");
+  // Page affichée (onglet, ou page de réglages du menu de la pastille —
+  // suite 61) : renseignée par cablerNavigation, utilisée par afficherPage.
+  var renduParPage_ = {};
+  function fermerSwitcherPages() {
+    var b = document.getElementById("switcherBtn"), p = document.getElementById("switcherPanneau");
+    if (b) b.classList.remove("ouvert");
+    if (p) p.classList.remove("ouvert");
+  }
+  // Affiche la page « nom » (#page-<nom>) : onglets du haut et liste
+  // « Pages » du bas teintés, sélecteur du bas renommé, rendu propre à la
+  // page. Suite 61 : extrait du clic d'onglet, pour que le menu de la
+  // pastille et les raccourcis clavier ouvrent une page par le même chemin.
+  // Une page de réglages n'a pas d'onglet : aucun n'est teinté, la pastille
+  // l'est.
+  function afficherPage(nom) {
+    var page = document.getElementById("page-" + nom);
+    if (!page) return;
+    // §91 — comparaison par data-page : un clic sur .onglet OU sur
+    // .switcher-item pour la même page teinte les DEUX exemplaires (haut
+    // ET bas), puisque les 2 barres coexistent dans le DOM (l'une des deux
+    // simplement masquée en CSS selon la largeur d'écran).
+    document.querySelectorAll(".onglet").forEach(function (b) { b.classList.toggle("actif", b.dataset.page === nom); });
+    document.querySelectorAll(".page").forEach(function (p) { p.classList.remove("actif"); });
+    page.classList.add("actif");
+    var reglage = pageReglage_(nom);
+    document.querySelectorAll(".avatar-nav[aria-haspopup]").forEach(function (a) { a.classList.toggle("actif", !!reglage); });
+    document.querySelectorAll(".reglages-onglet").forEach(function (b) {
+      var sel = b.dataset.reglage === nom;
+      b.classList.toggle("actif", sel);
+      b.setAttribute("aria-selected", String(sel));
+    });
+    // Sur téléphone la rangée des réglages défile (6 pages) : la puce de la
+    // page ouverte est ramenée au milieu, jamais cachée hors de l'écran.
+    var puce = page.querySelector(".reglages-onglet.actif");
+    if (puce) {
+      var nav = puce.parentNode, rn = nav.getBoundingClientRect(), rp = puce.getBoundingClientRect();
+      nav.scrollLeft += (rp.left + rp.width / 2) - (rn.left + rn.width / 2);
+    }
+    // §91 — icône et libellé du sélecteur de page du bas d'écran, AVANT le
+    // rendu à dessein : la navigation reste cohérente même si le rendu de
+    // la page échoue (ex. souci réseau dans un render*() qui charge ses
+    // données à la demande).
     var switcherIcone = document.getElementById("switcherIcone");
     var switcherNom = document.getElementById("switcherNom");
+    var onglet = document.querySelector('.onglets-liste .onglet[data-page="' + nom + '"]');
+    if (switcherIcone) {
+      var svg = onglet ? onglet.querySelector("svg") : null;
+      if (svg) switcherIcone.innerHTML = svg.outerHTML;
+      else if (reglage) switcherIcone.innerHTML = ICONS[reglage.icone];
+    }
+    if (switcherNom) switcherNom.textContent = onglet ? onglet.textContent.trim() : (reglage ? reglage.nom : nom);
+    fermerSwitcherPages();
+    fermerMenuCompte();
+    ajusterOngletsNav(); // l'onglet actif garde son nom (suite 53)
+    var fn = renduParPage_[nom];
+    if (fn) fn();
+  }
+  function cablerNavigation() {
+    // §91 (round du 22.09.2026, suite) — querySelectorAll(".onglet") capte
+    // les boutons de .onglets-nav en haut ET ceux de #switcherPanneau en
+    // bas (cf. construireCoquille) : la même classe + le même data-page sur
+    // les 2 jeux de boutons suffit à les câbler TOUS ici.
+    var ongletsBtns = document.querySelectorAll(".onglet");
+    var switcherBtn = document.getElementById("switcherBtn");
     var switcherPanneau = document.getElementById("switcherPanneau");
-    var RENDU_PAR_PAGE = {
+    renduParPage_ = {
       // Jalons (revue du 24.09.2026, suite 22) : liste relue à CHAQUE
       // ouverture de la page — chargée une seule fois auparavant, elle
       // ignorait tout ce que la grille avait fait aux jalons depuis.
@@ -635,7 +798,13 @@
       // les horaires de travail.
       horaires: function () { renderFeries(); renderHoraires(); },
       "mise-en-page": renderMiseEnPage,
-      general: renderSauvegardes, // liste relue à chaque ouverture (suite 49)
+      // Pages de réglages (suite 61, ex-onglet Général) : sauvegardes
+      // relues à chaque ouverture (suite 49), raccourcis et palettes
+      // redessinés (un autre appareil a pu les changer).
+      sauvegardes: renderSauvegardes,
+      raccourcis: renderRaccourcis,
+      couleurs: function () { if (typeof majReglagesCouleursAffiches === "function") majReglagesCouleursAffiches(); },
+      compte: chargerInfosCompte,
       // Round du 16.09.2026 (suite, encore) : la page Planning elle-même
       // n'a pas besoin d'un re-rendu complet à chaque activation (ses
       // données restent à jour en tâche de fond, cf. synchroniser()) — mais
@@ -651,40 +820,8 @@
       // simple remesure comme avant.
       planning: function () { if (!verifierModeFenetre()) ajusterEnteteFixe(); }
     };
-    function fermerSwitcher() {
-      if (switcherBtn) switcherBtn.classList.remove("ouvert");
-      if (switcherPanneau) switcherPanneau.classList.remove("ouvert");
-    }
     ongletsBtns.forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        // §91 — comparaison par data-page (et non plus par référence exacte
-        // au bouton cliqué) : un clic sur .onglet OU sur .switcher-item pour
-        // la même page doit teinter les DEUX exemplaires (haut ET bas),
-        // puisque les 2 barres peuvent coexister dans le DOM (l'une des
-        // deux simplement masquée en CSS selon la largeur d'écran).
-        ongletsBtns.forEach(function (b) { b.classList.toggle("actif", b.dataset.page === btn.dataset.page); });
-        document.querySelectorAll(".page").forEach(function (p) { p.classList.remove("actif"); });
-        var page = document.getElementById("page-" + btn.dataset.page);
-        if (page) page.classList.add("actif");
-        // §91 — resynchronise l'icône/le libellé du sélecteur de page bas
-        // d'écran sur la page réellement choisie, quel que soit le bouton
-        // cliqué (barre du haut OU liste du bas) : le texte du bouton
-        // cliqué porte déjà exactement le même libellé que l'entrée
-        // correspondante (même page, cf. construireCoquille), textContent
-        // suffit donc (aucun nœud de texte dans le svg de l'icône). AVANT
-        // fn() ci-dessous à dessein : cette barre de navigation doit rester
-        // cohérente même si le rendu de la page ciblée échoue (ex. souci
-        // réseau dans un render*() qui charge ses données à la demande).
-        if (switcherIcone) {
-          var svg = btn.querySelector("svg");
-          if (svg) switcherIcone.innerHTML = svg.outerHTML;
-        }
-        if (switcherNom) switcherNom.textContent = btn.textContent.trim();
-        fermerSwitcher();
-        ajusterOngletsNav(); // l'onglet actif garde son nom (suite 53)
-        var fn = RENDU_PAR_PAGE[btn.dataset.page];
-        if (fn) fn();
-      });
+      btn.addEventListener("click", function () { afficherPage(btn.dataset.page); });
     });
     // §91 — ouverture/fermeture du panneau "Pages" du bas, même principe que
     // #selectChantier dans cablerPagePlanning (bouton statique, panneau
@@ -694,12 +831,13 @@
       switcherBtn.addEventListener("click", function (e) {
         e.stopPropagation();
         var etaitOuvert = switcherPanneau.classList.contains("ouvert");
+        fermerMenuCompte();
         switcherBtn.classList.toggle("ouvert", !etaitOuvert);
         switcherPanneau.classList.toggle("ouvert", !etaitOuvert);
       });
       switcherPanneau.addEventListener("click", function (e) { e.stopPropagation(); });
     }
-    document.addEventListener("click", fermerSwitcher);
+    document.addEventListener("click", fermerSwitcherPages);
   }
 
   function cablerPagePlanning() {
@@ -1104,10 +1242,10 @@
       chk.checked = afficherWeekends;
       chk.addEventListener("change", function () { afficherWeekends = chk.checked; render(false); });
     }
-    // Round du 23.09.2026 — câblage des sélecteurs de couleur de la page
-    // Général, une fois leur HTML (htmlReglagesCouleurs(), ci-dessus dans
-    // htmlPageGeneral()) posé dans le DOM par le innerHTML tout en haut de
-    // cette fonction. Définie dans js/page-couleurs.js.
+    // Round du 23.09.2026 — câblage des sélecteurs de couleur (page
+    // Couleurs depuis la suite 61, ex-onglet Général : htmlReglagesCouleurs()
+    // dans htmlPagesReglages()), une fois leur HTML posé dans le DOM par le
+    // innerHTML de construireCoquille. Défini dans js/page-couleurs.js.
     initReglagesCouleurs();
   }
 

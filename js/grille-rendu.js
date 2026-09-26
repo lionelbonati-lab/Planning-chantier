@@ -793,6 +793,7 @@
       etat.indexSemaine = idx;
       jourMobileIso = etat.aujourdhui;
       debutFenetreMobile = null;
+      caleJourMobileSurJourOuvre_(); // un samedi/dimanche : le jour ouvré le plus proche (suite 61)
       cibleApresRendu = "aujourdhui"; // impose ce jour au rendu (cf. le relevé de l'ancienne grille, construireGrille)
       bullesSelectionnees = {};
       assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); majBarreSelection(); });
@@ -854,25 +855,25 @@
   // colonne pour eux, on prend le jour ouvré le plus proche (samedi ->
   // vendredi, dimanche -> lundi), en le disant. Vue "1 semaine" : la
   // semaine qui contient la date, comme un choix dans la pilule Sem. N.
-  function allerAuJour(iso) {
+  // apres (suite 61) : appelée une fois le planning affiché sur ce jour
+  // (tout de suite si c'est déjà la semaine affichée) — cf. le résumé des
+  // statuts (js/a-reserver.js), qui y sélectionne la tâche choisie.
+  function allerAuJour(iso, apres) {
     var idx = -1;
     for (var i = 0; i < etat.semaines.length; i++) {
       if (iso >= etat.semaines[i].debut && iso <= etat.semaines[i].fin) { idx = i; break; }
     }
     if (idx < 0) { toast("Date hors du planning."); return; }
     if (!modeJourMobileActif()) {
-      if (idx === etat.indexSemaine) return;
+      if (idx === etat.indexSemaine) { if (apres) apres(); return; }
       etat.indexSemaine = idx;
       bullesSelectionnees = {};
-      assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); majBarreSelection(); });
+      assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); majBarreSelection(); if (apres) apres(); });
       return;
     }
-    var js = jourSemaineIso_(iso);
-    if (js >= 5 && !afficherWeekends) {
-      var d = new Date(iso + "T00:00:00");
-      d.setDate(d.getDate() + (js === 5 ? -1 : 1));
-      iso = isoDeDate(d);
-      if (js === 6) idx = Math.min(idx + 1, etat.semaines.length - 1);
+    if (jourSemaineIso_(iso) >= 5 && !afficherWeekends) {
+      var ouvre = jourOuvreLePlusProche_(iso, idx);
+      iso = ouvre.iso; idx = ouvre.idx;
       toast("Week-end masqué : " + libelleDateCourteIso(iso) + " affiché.");
     }
     etat.indexSemaine = idx;
@@ -880,7 +881,32 @@
     debutFenetreMobile = null;
     cibleApresRendu = "aujourdhui";
     bullesSelectionnees = {};
-    assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); majBarreSelection(); });
+    assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); majBarreSelection(); if (apres) apres(); });
+  }
+  // Jour ouvré le plus proche d'un samedi (le vendredi d'avant, même
+  // semaine) ou d'un dimanche (le lundi d'après, semaine suivante) : date
+  // et index de semaine (etat.semaines). Un jour ouvré est rendu tel quel.
+  function jourOuvreLePlusProche_(iso, idx) {
+    var js = jourSemaineIso_(iso);
+    if (js < 5) return { iso: iso, idx: idx };
+    var d = new Date(iso + "T00:00:00");
+    d.setDate(d.getDate() + (js === 5 ? -1 : 1));
+    return { iso: isoDeDate(d), idx: js === 6 ? Math.min(idx + 1, etat.semaines.length - 1) : idx };
+  }
+  // Round du 26.09.2026 (suite 61) — Lionel : « Lorsqu'on ouvre l'appli en
+  // mode mobile un jour de week-end, ouvrir l'appli sur le jour le plus
+  // proche. » Vue « 1 jour » d'un téléphone, week-ends masqués : le samedi,
+  // le vendredi ; le dimanche, le lundi qui suit. Avant, le lundi de la
+  // semaine écoulée (jourMobileCourant, faute de colonne pour aujourd'hui).
+  // Appelée au démarrage (demarrer, donnees-sync.js), avant le chargement
+  // de la fenêtre, et par « Aujourd'hui ».
+  function caleJourMobileSurJourOuvre_() {
+    if (!modeJourMobileActif() || afficherWeekends || jourSemaineIso_(etat.aujourdhui) < 5) return false;
+    var ouvre = jourOuvreLePlusProche_(etat.aujourdhui, indexSemaineAujourdhui_());
+    etat.indexSemaine = ouvre.idx;
+    jourMobileIso = ouvre.iso;
+    debutFenetreMobile = null;
+    return true;
   }
   // Jour sur lequel s'ouvre le calendrier : le jour affiché en vue
   // "1 jour" ; sinon aujourd'hui s'il est dans la semaine affichée, ou son
@@ -1612,7 +1638,7 @@
       xDejaSuivi = scroller.scrollLeft;
     };
     // Hauteurs des lignes (suite 58) : tout de suite, pas à l'image suivante.
-    scroller.addEventListener("scroll", function () { enteteScroll.scrollLeft = scroller.scrollLeft; suivreHauteursJourMobile(); planifierAjustLargeurBulles(true); });
+    scroller.addEventListener("scroll", function () { enteteScroll.scrollLeft = scroller.scrollLeft; suivreHauteursJourMobile(); planifierAjustLargeurBulles(true); placerSepSemaines_(); });
     reajusterBullesJourMobile = function () { planifierAjustLargeurBulles(false); };
     // Round du 23.09.2026 (suite 5) — Lionel : « Swipper un vendredi permet
     // de passer au lundi de la semaine suivante ? ». Réattaché à chaque
@@ -2325,7 +2351,76 @@
     majSemaineAffichage();
     ajusterDebordementToolbar();
     ajusterEnteteFixe();
+    poserSepSemaines_(enModeJourMobile, enteteFigee, enteteScroll, grilleEntete, cadre, scroller);
   }
+
+  /* Espace entre deux semaines — round du 26.09.2026 (suite 61). Lionel :
+     « Entre 2 semaines, il y a une bordure épaisse. A remplacer par un
+     petite espace de quelque pixel. Mêmes arrondis en haut et bas que sur
+     les bord du cadrillage, comme si on voyait 2 fenêtres côte à côte. »
+     La grille reste UNE grille (bulles d'une semaine à l'autre, glisser,
+     sélection : rien ne change) ; par-dessus, à chaque frontière de
+     semaine, une bande de 8 px couleur du fond de page, bordée des deux
+     côtés du trait du cadre (bord droit de la 1re fenêtre, bord gauche de
+     la 2e), avec en haut et en bas les arrondis de 12 px du cadre
+     (.entete-planning-scroll, .grille-cadre). Deux morceaux : l'un dans
+     l'en-tête figé (il reste en haut avec lui), l'autre posé sur le corps
+     (dans #racine, hors du .grille-cadre qui rogne son propre trait du
+     bas). Une bulle à cheval sur deux semaines passe « derrière » la bande,
+     comme derrière le montant entre deux fenêtres. Placés en JS, au pixel
+     de la frontière (en-tête du lundi), à chaque rendu, défilement
+     horizontal et changement de taille ; cachés quand la frontière passe
+     sous la colonne des noms ou hors de l'écran. Vue « 1 jour » du
+     téléphone : pas concernée (un jour à la fois), trait d'avant gardé. */
+  var sepSemaines_ = null;
+  function poserSepSemaines_(jourMobile, enteteFigee, enteteScroll, grilleEntete, cadre, scroller) {
+    if (sepSemaines_ && sepSemaines_.ro) sepSemaines_.ro.disconnect();
+    sepSemaines_ = null;
+    var ths = jourMobile ? [] : [].slice.call(grilleEntete.querySelectorAll(".th.sem-frontiere:not(.th-demi)"));
+    racineEl.classList.toggle("avec-sep-semaines", ths.length > 0);
+    if (!ths.length) return;
+    function morceau(ou, cote) {
+      var m = document.createElement("div");
+      m.className = "sep-semaines sep-" + cote;
+      m.setAttribute("aria-hidden", "true");
+      m.innerHTML = '<span class="sep-coin sep-coin-g"></span><span class="sep-coin sep-coin-d"></span>';
+      ou.appendChild(m);
+      return m;
+    }
+    sepSemaines_ = {
+      enteteFigee: enteteFigee, enteteScroll: enteteScroll, cadre: cadre, scroller: scroller,
+      paires: ths.map(function (th) { return { th: th, entete: morceau(enteteFigee, "haut"), corps: morceau(racineEl, "bas") }; })
+    };
+    if (window.ResizeObserver) {
+      sepSemaines_.ro = new ResizeObserver(function () { placerSepSemaines_(); });
+      sepSemaines_.ro.observe(cadre);
+      sepSemaines_.ro.observe(enteteFigee);
+    }
+    placerSepSemaines_();
+  }
+  function placerSepSemaines_() {
+    var s = sepSemaines_;
+    if (!s || !s.cadre.isConnected) return;
+    var rr = racineEl.getBoundingClientRect(), rf = s.enteteFigee.getBoundingClientRect();
+    var rc = s.cadre.getBoundingClientRect(), rs = s.scroller.getBoundingClientRect();
+    if (!rc.width) return; // page Planning cachée : refait à son retour (rendu)
+    var z = (niveauZoomPlanning / 100) || 1;
+    var gauche = rs.left + largeurNoms() * z, droite = rs.right;
+    var hautEntete = s.enteteScroll.offsetTop;
+    s.paires.forEach(function (p) {
+      // Bord gauche du lundi : le trait de 1 px de la grille est juste avant.
+      var x = Math.round(p.th.getBoundingClientRect().left);
+      var visible = x - 5 >= gauche && x + 3 <= droite;
+      p.entete.hidden = p.corps.hidden = !visible;
+      if (!visible) return;
+      p.entete.style.left = (x - 5 - rf.left) + "px";
+      p.entete.style.top = hautEntete + "px";
+      p.corps.style.left = (x - 5 - rr.left) + "px";
+      p.corps.style.top = (rc.top - rr.top) + "px";
+      p.corps.style.height = rc.height + "px";
+    });
+  }
+  window.addEventListener("resize", placerSepSemaines_);
 
   // render(sync=true) : reconstruit la grille, puis lance la synchronisation
   // serveur (diff local <-> syncBaseline) sauf appel explicite render(false)

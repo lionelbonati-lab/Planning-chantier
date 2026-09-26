@@ -135,12 +135,13 @@ const choisirCouleur = (page, sel, hex, evt) => page.evaluate(([s, h, e]) => {
     verifier(st2 === 'confirmé ✓ #88dd99', largeur + ' px, Statuts : renommer garde la couleur (' + st2 + ')');
 
     // --- Général : thème + fenêtre Personnaliser ------------------------
-    await allerPage(page, 'general');
+    // Suite 61 : onglet Général retiré — page « Couleurs » du menu de la pastille.
+    await page.evaluate(() => afficherPage('couleurs'));
     await page.waitForTimeout(250);
     const gen = await page.evaluate(() => {
       const sel = document.getElementById('selThemeCouleurs'), btn = document.getElementById('btnPersonnaliserCouleurs');
       const r = document.querySelector('.reglage-theme').getBoundingClientRect(), rb = btn.getBoundingClientRect();
-      return { champs: document.querySelectorAll('#page-general input[type=color]').length, options: [...sel.options].filter((o) => !o.hidden).map((o) => o.textContent).join(', '), valeur: sel.value,
+      return { champs: document.querySelectorAll('#page-couleurs input[type=color]').length, options: [...sel.options].filter((o) => !o.hidden).map((o) => o.textContent).join(', '), valeur: sel.value,
         hauteur: Math.round(r.height), dehors: rb.right > window.innerWidth || r.right > window.innerWidth };
     });
     verifier(gen.champs === 0, largeur + ' px, Général : plus aucun réglage de couleur dans l\'onglet (' + gen.champs + ')');
@@ -204,7 +205,7 @@ const choisirCouleur = (page, sel, hex, evt) => page.evaluate(([s, h, e]) => {
   // Aucune couleur enregistrée : « Classique ».
   {
     const { page, erreurs } = await ouvrirPlanning(browser, { bd: Object.assign({}, BD, { couleurs_perso: [] }) });
-    await allerPage(page, 'general');
+    await page.evaluate(() => afficherPage('couleurs'));
     await page.waitForTimeout(200);
     verifier(await page.inputValue('#selThemeCouleurs') === 'classique', 'sans couleur enregistrée : thème « Classique »');
     toutesErreurs.push(...erreurs);

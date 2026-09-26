@@ -24,7 +24,8 @@ const BD = {
 };
 const CHANTIER = { 'planning.chantierParDefaut': '26182 - Terrain de Padel' };
 
-const ouvrirOnglet = (page) => page.evaluate(() => document.querySelector('.onglet[data-page="mise-en-page"]').click());
+// Suite 61 : Mise en page n'est plus un onglet — page du menu de la pastille.
+const ouvrirOnglet = (page) => page.evaluate(() => afficherPage('mise-en-page'));
 const upserts = (page) => page.evaluate(() => window.__ECRITURES.filter((e) => e.indexOf('reglages:upsert:') === 0).map((e) => JSON.parse(e.slice(16))[0]));
 const feuille = (page) => page.evaluate(() => {
   const f = document.querySelector('.mep-feuille'), r = f.getBoundingClientRect();
@@ -47,8 +48,10 @@ const apercu = (page) => page.evaluate(() => {
   // --- 1 à 6. Ordinateur : onglet, enregistrement, impression ---
   {
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 1300, height: 900 }, bd: BD, localStorage: CHANTIER });
-    const onglets = await page.evaluate(() => [...document.querySelectorAll('.onglet[data-page="mise-en-page"]')].map((b) => b.textContent.trim() + (b.querySelector('svg') ? '+icône' : '')));
-    verifier(onglets.join() === 'Mise en page+icône,Mise en page+icône', 'onglet « Mise en page » dans la barre du haut et dans le sélecteur du bas (' + onglets.join() + ')');
+    // Suite 61 (« Mise en page impression passe aussi dans le menu réglage ») :
+    // plus d'onglet, une entrée du menu de la pastille.
+    const onglets = await page.evaluate(() => [...document.querySelectorAll('.onglet[data-page="mise-en-page"], #menuCompte [data-reglage="mise-en-page"]')].map((b) => b.textContent.trim() + (b.querySelector('svg') ? '+icône' : '')));
+    verifier(onglets.join() === 'Mise en page d’impression+icône', '« Mise en page d’impression » dans le menu de la pastille, plus d\'onglet (' + onglets.join() + ')');
     await ouvrirOnglet(page); await page.waitForTimeout(200);
     const blocs = await page.evaluate(() => ({ actif: document.getElementById('page-mise-en-page').classList.contains('actif'),
       legendes: [...document.querySelectorAll('#mepFormulaire legend')].map((l) => l.textContent) }));
@@ -179,14 +182,14 @@ const apercu = (page) => page.evaluate(() => {
   // --- 10. Téléphone : onglet par le sélecteur du bas, aperçu sous les réglages ---
   {
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 390, height: 844 }, hasTouch: true, bd: BD });
-    await page.click('#switcherBtn');
-    await page.click('#switcherPanneau .onglet[data-page="mise-en-page"]');
+    await page.click('#lienDeconnexionNavBas');
+    await page.click('#menuCompte [data-reglage="mise-en-page"]');
     await page.waitForTimeout(200);
     const m = await page.evaluate(() => {
       const f = document.getElementById('mepFormulaire').getBoundingClientRect(), a = document.querySelector('.mep-feuille').getBoundingClientRect();
       return { dessous: a.top >= f.bottom - 1, largeur: a.width, debord: document.documentElement.scrollWidth > window.innerWidth, nom: document.getElementById('switcherNom').textContent };
     });
-    verifier(m.dessous && m.largeur <= 390 && !m.debord && m.nom === 'Mise en page', 'téléphone : aperçu sous les réglages, sans débordement (' + JSON.stringify(m) + ')');
+    verifier(m.dessous && m.largeur <= 390 && !m.debord && m.nom === 'Mise en page d’impression', 'téléphone : aperçu sous les réglages, sans débordement (' + JSON.stringify(m) + ')');
     toutesErreurs.push(...erreurs);
     await page.close();
   }
