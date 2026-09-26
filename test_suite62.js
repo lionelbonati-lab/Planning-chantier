@@ -27,6 +27,8 @@ const reglageBd = (page) => page.evaluate(() => { const r = (window.__BD.reglage
 const local = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('planning.affichage') || 'null'));
 const attrs = (page) => page.evaluate(() => [...document.documentElement.attributes].filter((a) => a.name.indexOf('data-aff-') === 0).map((a) => a.name.slice(9) + '=' + a.value).sort().join(' '));
 const pastille = (page, id, v) => page.click('#page-affichage .choix-pastille[data-option="' + id + '"][data-valeur="' + v + '"]');
+// Suite 67 : séparation, coins du planning et des bulles sont des interrupteurs.
+const basculer = (page, id) => page.click('#page-affichage .reglage-ligne[data-option="' + id + '"] .interrupteur');
 const style = (page, sel, prop) => page.evaluate(([s, p]) => { const e = document.querySelector(s); return e ? getComputedStyle(e)[p] : null; }, [sel, prop]);
 
 (async () => {
@@ -69,15 +71,16 @@ const style = (page, sel, prop) => page.evaluate(([s, p]) => { const e = documen
     const page0 = await page.evaluate(() => ({
       options: [...document.querySelectorAll('#page-affichage .reglage-ligne[data-option]')].map((l) => l.dataset.option).join(','),
       actifs: [...document.querySelectorAll('#page-affichage .choix-pastille.actif')].map((b) => b.dataset.option + '=' + b.dataset.valeur).join(','),
+      inter: ['separation', 'cadre', 'coins'].filter((id) => document.getElementById('chkAff-' + id).checked).join(','),
       we: document.getElementById('chkWeekends').checked, statut: document.getElementById('chkAff-heures').checked,
       reset: document.getElementById('btnAffichageDefaut').hidden,
       noms: [...document.querySelectorAll('#apercuAffichage .aa-nom')].map((n) => n.textContent).join(','),
       jours: [...document.querySelectorAll('#apercuAffichage .aa-th')].map((n) => n.querySelector('.aa-jour').textContent + ' ' + n.querySelector('.aa-date').textContent).join(','),
       seps: [...document.querySelectorAll('#apercuAffichage .sep-semaines')].filter((s) => !s.hidden).length
     }));
-    verifier(page0.options === 'weekends,auj,zebre,teinte,separation,cadre,jourSemaine,formatDate,heures,ligneDemi,texte,lignes,hauteur,coins,statut,police,vueOrdi,vueTel',
-      'page Affichage : les 18 réglages (' + page0.options + ')');
-    verifier(page0.actifs === 'teinte=aprem,separation=espace,cadre=arrondis,jourSemaine=abrege,formatDate=numero,ligneDemi=horaires,texte=normal,lignes=2,hauteur=normale,coins=arrondis,statut=badge,police=archivo,vueOrdi=1,vueTel=jour' && !page0.we && page0.statut && page0.reset,
+    verifier(page0.options === 'weekends,auj,zebre,teinte,separation,cadre,noms,jourSemaine,formatDate,heures,ligneDemi,texte,lignes,hauteur,coins,statut,police,vueOrdi,vueTel',
+      'page Affichage : les 19 réglages (' + page0.options + ')');
+    verifier(page0.actifs === 'teinte=aprem,noms=normal,jourSemaine=abrege,formatDate=numero,ligneDemi=horaires,texte=normal,lignes=2,hauteur=normale,statut=badge,police=archivo,vueOrdi=1,vueTel=jour' && page0.inter === 'separation,cadre,coins' && !page0.we && page0.statut && page0.reset,
       'valeurs d\'origine affichées, « Tout rétablir » caché (' + page0.actifs + ')');
     verifier(page0.noms === 'Lionel,Mathis,Antoine' && page0.jours === 'Jeu 24,Ven 25,Lun 28,Mar 29' && page0.seps === 2,
       'aperçu : 3 personnes, Jeu Ven | Lun Mar, espace entre les semaines (' + JSON.stringify(page0) + ')');
@@ -107,7 +110,7 @@ const style = (page, sel, prop) => page.evaluate(([s, p]) => { const e = documen
     const ha = await page.evaluate(() => vuPlanning(() => ({ c: getComputedStyle(document.querySelector('.cell.cell-personne')).minHeight, a: getComputedStyle(document.querySelector('#apercuAffichage .aa-cell')).minHeight, lbl: document.querySelector('.lbl-compacte').getBoundingClientRect().height })));
     verifier(hs.c === '34px' && hs.a === '34px' && ha.c === '66px' && ha.a === '66px' && ha.lbl > hs.lbl, 'hauteur serrée puis aérée : cases 34 puis 66 px, planning et aperçu (' + JSON.stringify([hs, ha]) + ')');
     // Coins
-    await pastille(page, 'coins', 'droits'); await page.waitForTimeout(150);
+    await basculer(page, 'coins'); await page.waitForTimeout(150);
     verifier((await style(page, '.bulle .b-carte', 'borderTopLeftRadius')) === '2px' && (await style(page, '#apercuAffichage .aa-carte', 'borderTopLeftRadius')) === '2px', 'coins droits : planning et aperçu');
     // Statut (suite 64 : Non / Pastille / Badge)
     await pastille(page, 'statut', 'non'); await page.waitForTimeout(150);
@@ -138,15 +141,15 @@ const style = (page, sel, prop) => page.evaluate(([s, p]) => { const e = documen
     await page.evaluate(() => basculerDeuxSemaines()); await page.waitForTimeout(400);
     const avantTrait = await page.evaluate(() => document.querySelectorAll('#racine .sep-semaines').length);
     // Suite 64 : « Espace ou rien », plus de trait épais.
-    await pastille(page, 'separation', 'rien'); await page.waitForTimeout(300);
+    await basculer(page, 'separation'); await page.waitForTimeout(300);
     const trait = await page.evaluate(() => ({ seps: document.querySelectorAll('#racine .sep-semaines').length, bord: getComputedStyle(document.querySelector('.cell.sem-frontiere')).borderLeftWidth,
       ap: document.querySelectorAll('#apercuAffichage .sep-semaines').length, apBord: getComputedStyle(document.querySelector('#apercuAffichage .aa-th.aa-lun')).borderLeftWidth }));
-    verifier(avantTrait === 2 && trait.seps === 0 && trait.bord === '0px' && trait.ap === 0 && trait.apBord === '0px', 'entre 2 semaines « Rien » : ni espace ni trait, planning et aperçu (' + JSON.stringify(trait) + ')');
-    // Clavier : flèche dans les pastilles
-    await page.focus('#page-affichage .choix-pastille[data-option="separation"].actif');
-    await page.keyboard.press('ArrowLeft'); await page.waitForTimeout(300);
-    const cl = await page.evaluate(() => ({ v: optionAffichage('separation'), focus: document.activeElement.dataset.valeur, seps: document.querySelectorAll('#racine .sep-semaines').length }));
-    verifier(cl.v === 'espace' && cl.focus === 'espace' && cl.seps === 2, 'clavier : ← revient à « Espace » (' + JSON.stringify(cl) + ')');
+    verifier(avantTrait === 2 && trait.seps === 0 && trait.bord === '0px' && trait.ap === 0 && trait.apBord === '0px', 'espace entre 2 semaines éteint : ni espace ni trait, planning et aperçu (' + JSON.stringify(trait) + ')');
+    // Clavier : Espace sur l'interrupteur (suite 67 ; avant : flèche dans les pastilles)
+    await page.focus('#chkAff-separation');
+    await page.keyboard.press('Space'); await page.waitForTimeout(300);
+    const cl = await page.evaluate(() => ({ v: optionAffichage('separation'), focus: document.activeElement.id, seps: document.querySelectorAll('#racine .sep-semaines').length }));
+    verifier(cl.v === 'espace' && cl.focus === 'chkAff-separation' && cl.seps === 2, 'clavier : Espace rallume l\'espace entre semaines (' + JSON.stringify(cl) + ')');
     // Vue d'ouverture : enregistrée, rien ne bouge maintenant.
     await pastille(page, 'vueOrdi', '2'); await pastille(page, 'vueTel', 'semaine');
     await page.waitForTimeout(700);

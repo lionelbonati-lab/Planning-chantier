@@ -9092,3 +9092,37 @@ Lionel :
 - test_suite65.js : l'icône Important est attendue en triangle.
 - test_chantier_defaut.js et test_grille_compacte.js (tests unitaires qui extraient les fonctions une à une) : ajout de `optionSansChantierHTML_` (et `LIBELLE_SANS_CHANTIER`) et de `comparerRangTaches` à leur liste. 16/16 et 69/69.
 - Suite complète : les 75 tests passent (73/75 au premier passage, les deux tests unitaires ci-dessus corrigés depuis).
+
+## 175. Round du 26.09.2026 (suite 67) — Réglages d'affichage : interrupteurs, style par ligne de dates, année à gauche, taille des noms, profils ordinateur / téléphone ; fiche sans chantier
+
+Lionel :
+- « Setup affichage: * Entre 2 semaine > espace entre 2 semaine, ON/OFF * Coin du planning arrondi, ON/OFF * Idem pour coin des bulles * Ajouter gras, italique et taille de polices (petite,normal,grande, très grande) sur jour de semaine, date, heure de travail et horaire. réglage par ligne * Date sur week-end ne peut pas excéder 24 sept par manque de place * Si le mois apparait dans les case du jour l'enlever de la case de gauche. * Taille de police sur le planning. Planning: * Aouter l'année à la case de gauche »
+- « pas de barre, des icones pour gagner de la place »
+- « Ajouter une fine ligne autour des badge statuts dans les bulles »
+- « Les réglages d'affichage pourraient être différent entre desktop et portable mais doivent etre conserver entre appareil de tailles différentes. »
+- « chantier par défaut désélectionner mais un chantier est attribué à l'ouverture du formulaire. Si aucun chantier n'est sélectionné, l'entête disparait en blanc sur blanc. »
+- « Le surlignement de la case de dépose se dessine au dessus des bulles »
+
+### Ce qui change
+- **Interrupteurs** : « Espace entre 2 semaines » (éteint : un simple trait, comme entre 2 jours), « Coins du planning arrondis » (éteint : carrés) et « Coins des bulles arrondis » (éteint : droits) passent de pastilles à des interrupteurs oui/non. Les anciennes valeurs enregistrées restent lues (« trait » = éteint).
+- **Gras, italique, taille par ligne** : pour le jour de la semaine, la date, les heures de travail et la ligne des horaires, de petites icônes à côté du nom du réglage (pas de ligne à part) : **G** (gras), *I* (italique) et 4 « A » de taille croissante (petite, normale, grande, très grande). Planning et aperçu suivent. Les icônes d'une ligne masquée (jour « Masqué », heures éteintes, horaires masqués) sont cachées.
+- **Date du week-end** : avec une date longue, la colonne étroite du samedi/dimanche garde « 26 » en haut et le mois abrégé (« sept. ») en petit dessous — jamais plus large que « 24 sept. ». Les jours de semaine gardent le format choisi.
+- **Case de gauche** : le mois (ou « sept. – oct. ») et **l'année** en dessous (« 2026 », ou « 2026 – 2027 » à cheval). Quand la date affiche déjà le mois (formats « 24 sept. » et « 24 septembre »), seule l'année reste. Même chose dans l'aperçu.
+- **Taille des noms** (nouveau réglage, groupe Planning) : petite, normale, grande, très grande pour la colonne de gauche (personnes, Jalons, Notes). C'est ma lecture de « Taille de police sur le planning » : la taille du texte des bulles existait déjà (« Taille du texte »).
+- **Badges de statut** : une fine ligne autour, dans les bulles et dans l'aperçu.
+- **Ordinateur / téléphone** : deux jeux de réglages, chacun enregistré sur le compte — l'un pour les ordinateurs et tablettes, l'autre pour les téléphones (écran de 600 px et moins). Tous les ordinateurs du compte partagent le 1er, tous les téléphones le 2nd. Tant que rien n'a été changé sur un téléphone, il reprend ceux de l'ordinateur (« pour l’instant ceux de l’ordinateur »). Un bouton « Reprendre ceux de l’ordinateur » (ou « du téléphone ») recopie l'autre jeu. « À l'ouverture » (qui a déjà un choix ordinateur et un choix téléphone) reste commun.
+- **Fiche d'une nouvelle tâche** : sans chantier par défaut coché dans la légende, elle s'ouvre sur « Aucun chantier », même si la case contient déjà une tâche d'un chantier (avant, le chantier de cette tâche était repris). Sans chantier, le bandeau de la fiche passe en texte foncé (il était blanc sur fond clair, donc invisible), et revient en blanc dès qu'un chantier est choisi.
+- **Glisser une tâche** : le rectangle bleu de la case de dépose passe sous les bulles déjà en place (il les recouvrait).
+
+### Fonctionnement
+- `OPTIONS_AFFICHAGE` (js/page-affichage.js) : `interrupteur` peut valoir `[valeurAllumée, valeurÉteinte]` (`valeursInterrupteur_`). Les 12 réglages de style (`jourSemaineGras`, `formatDateItalique`, `heuresTaille`…) portent `sousLigne` (la ligne où poser leurs icônes, `htmlIconesStyle_`), `attr` (attribut `data-aff-jour-gras`…) et, pour la taille, `variable` : `--aff-t-jour`, `--aff-t-date`, `--aff-t-heures`, `--aff-t-horaires` sont posées sur `<html>` (×0.85, 1, 1.2, 1.4) et multiplient les tailles de base dans style.css. `--aff-t-noms` suit `data-aff-noms`.
+- L'étiquette d'un interrupteur porte désormais `for` : sans lui, un clic sur l'étiquette actionnait le 1er bouton qu'elle contient (l'icône G).
+- Case de gauche : `htmlCoinMoisAnnee` / `htmlCoinPlanning` (js/core.js) remplacent `moisAffichesCoin`. Week-end : `htmlDateWeekEnd` (mois dans `.date-mois-we`), et « 24 septembre » y devient « 24 sept. ».
+- Jeux de réglages : clés `affichage` (ordinateur) et `affichage_tel` (téléphone) de la table `reglages`, copiées en local (`planning.affichage`, `planning.affichage.tel`). `profilAppareil_()` choisit le jeu selon la largeur ; un passage d'une largeur à l'autre réapplique le bon jeu. Les réglages `commun` (vueOrdi, vueTel) sont toujours rangés dans le jeu de l'ordinateur.
+- Fiche tâche (js/formulaires-edition.js) : le pré-choix d'une nouvelle tâche est `chantierParDefautValide()` seul. `chantierExistantDansCase` (round du 03.09.2026) est retirée : elle évitait qu'une 2e tâche change le chantier de la 1re quand la case ne portait qu'un chantier ; depuis la RPC `remplacer_case_personne`, chaque tâche porte le sien. Les formulaires Armature / Béton / Livraison suivent la même règle.
+- `.survol-precis` (style.css) : z-index 0 au lieu de 5 — sous les bulles (1 et 2), au-dessus des cases puisqu'il est ajouté après elles dans la grille.
+
+### Tests
+- test_suite67.js (nouveau), 43/43 : interrupteurs et leurs valeurs ; icônes G/I/tailles sur les 4 lignes, planning et aperçu, enregistrées sur le compte, cachées avec leur ligne, G des heures sans effet sur l'interrupteur ; date du week-end sur 2 lignes sans déborder ; case de gauche (mois, année, 2 mois, 2 années, année seule) ; taille des noms ; ligne autour des badges ; jeux ordinateur / téléphone (héritage, clé `affichage_tel`, réglage commun, autre téléphone, « Reprendre », tablette) ; fiche d'une case occupée sur « Aucun chantier » et bandeau lisible ; surlignement de dépose sous la bulle de la case visée.
+- test_suite62.js et test_suite64.js : interrupteurs au lieu des pastilles, nom du jour lu dans `.th-jour`, nouveau réglage « Taille des noms » dans la liste.
+- test_chantier_defaut.js : la partie `chantierExistantDansCase` est retirée avec la fonction.

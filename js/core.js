@@ -682,19 +682,38 @@
   // chronologique, sans doublon ("sept." ou "août – sept." si la fenêtre
   // chevauche un changement de mois) — posés dans la case coin (cf.
   // construireGrille) qui ne portait plus rien depuis le §83.
-  function moisAffichesCoin(n) {
-    var mois = [];
-    function ajouter(gi) {
-      var info = libelleJourGi(gi);
-      if (info.mois && mois.indexOf(info.mois) === -1) mois.push(info.mois);
-    }
+  //
+  // Suite 67 (round du 26.09.2026) — Lionel : « Ajouter l'année à la case
+  // de gauche » et « Si le mois apparait dans les case du jour l'enlever de
+  // la case de gauche. » La case porte désormais le ou les mois sur une
+  // ligne et l'année (ou « 2026 – 2027 ») dessous ; quand la date des jours
+  // écrit déjà le mois (page Affichage, Date « 24 sept. » ou « 24
+  // septembre »), l'année seule. Dates relues en ISO et triées : les
+  // week-ends (ajoutés après les jours ouvrés) restent dans l'ordre.
+  function isosAffichesCoin_(n) {
+    var isos = [];
+    function ajouter(gi) { if (libelleJourGi(gi).mois) isos.push(isoDeGi(gi)); }
     for (var gi = 0; gi < n; gi++) ajouter(gi);
     if (afficherWeekends) {
       var nbSem = n / 5;
       for (var s = 0; s < nbSem; s++) { ajouter(giWeekend(s, 0)); ajouter(giWeekend(s, 1)); }
     }
-    return mois.join(" – ");
+    return isos;
   }
+  function htmlCoinMoisAnnee(isos) {
+    var mois = [], annees = [];
+    isos.slice().sort().forEach(function (iso) {
+      var m = MOIS_ABBR[+iso.slice(5, 7)], a = iso.slice(0, 4);
+      if (mois.indexOf(m) === -1) mois.push(m);
+      if (annees.indexOf(a) === -1) annees.push(a);
+    });
+    if (!annees.length) return "";
+    var fd = typeof optionAffichage === "function" ? optionAffichage("formatDate") : "numero";
+    var moisDansJours = fd === "abrege" || fd === "complet";
+    return (moisDansJours ? "" : '<span class="coin-mois">' + esc(mois.join(" – ")) + '</span>') +
+      '<span class="coin-annee">' + esc(annees.join(" – ")) + '</span>';
+  }
+  function htmlCoinPlanning(n) { return htmlCoinMoisAnnee(isosAffichesCoin_(n)); }
 
   // ---- espace "week-end" (conservé tel quel du prototype, cf. §1.6/§4.1
   // du prototype et §8 du spec) : gi >= 1000 = case Samedi/Dimanche, pure
@@ -775,49 +794,9 @@
     for (var i = 0; i < noms.length; i++) if (CHANTIERS[noms[i]].actif !== false) return noms[i];
     return noms[0];
   }
-  // Chantier déjà présent dans la case ciblée (round du 03.09.2026, signalé
-  // par Lionel : "lorsque je pose une tache sur une demi journée, l'autre
-  // tâche prend le chantier de la nouvelle créée. il doit etre possible de
-  // rentrer des tache sans changer le chantier de l'autre tâche"). À
-  // L'ÉPOQUE, une case (personne + demi-journée + jour) ne pouvait porter
-  // qu'UN SEUL chantier — cellule à part sur la feuille, partagée de force
-  // par toutes les tâches empilées dessous — et ce pré-remplissage était un
-  // correctif OBLIGATOIRE : sans lui, valider le formulaire sans toucher au
-  // champ changeait silencieusement le chantier de la tâche déjà en place
-  // dès la synchronisation. Round du 16.09.2026
-  // (sql/0010_taches_chantier_id.sql — Lionel : "plusieurs chantier sur la
-  // même case ... actuellement si une tâche est affecté à un chantier, la
-  // tâche déjà en place change de chantier") : chantier_id est désormais
-  // une colonne DE LA TÂCHE, cette limite structurelle a disparu — poser un
-  // chantier différent sur une nouvelle tâche ne touche plus jamais aux
-  // tâches déjà en place. Cette fonction reste néanmoins utile comme simple
-  // DÉFAUT ergonomique (plutôt que correctif nécessaire) : proposer le même
-  // chantier qu'une tâche déjà présente reste un choix probable pour la
-  // suivante, avant de retomber sur le chantier de la légende puis le 1er de
-  // la liste — mais ce n'est plus qu'une suggestion pré-cochée, jamais
-  // modifiable sans risque comme avant ce round. Priorité sur le chantier
-  // par défaut de la légende (round du 03.09.2026, §22) : la case déjà
-  // occupée reste un signal plus fort que le choix global. null si aucune
-  // case ciblée n'a de tâche.
-  function chantierExistantDansCase(cibles, giDebut, duree) {
-    if (!cibles || !cibles.length) return null;
-    var d = Math.max(1, duree || 1);
-    for (var i = 0; i < cibles.length; i++) {
-      var c = cibles[i];
-      for (var g = giDebut; g < giDebut + d; g++) {
-        // demisOccupeesTache (§49, définie plus bas mais déclaration de
-        // fonction — hissée) : une tâche n'a plus un seul champ `demi` fixe
-        // pour toute sa durée, cf. FRONTEND-CHANGELOG.
-        var t = TACHES.filter(function (it) {
-          if (it.type !== "tache" || !it.chantier || it.personneId !== c.personne) return false;
-          var demisG = demisOccupeesTache(it, g);
-          return !!demisG && demisG.indexOf(c.demi) !== -1;
-        })[0];
-        if (t) return t.chantier;
-      }
-    }
-    return null;
-  }
+  // chantierExistantDansCase (round du 03.09.2026) retirée le 26.09.2026
+  // (suite 67) : un nouveau formulaire ne reprend plus le chantier d'une
+  // tâche déjà dans la case (cf. formulaires-edition.js).
 
   var TACHES = [], JALONS = [], NOTES = [];
   var deuxSemaines = false;

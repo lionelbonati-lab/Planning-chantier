@@ -311,7 +311,7 @@
     var etat = { zone: "murs", precision: "" };
     pop.innerHTML =
       '<div class="cp-titre">Ajouter — Armature</div>' +
-      champChantierHTML(chantierExistantDansCase(cibles, giDebut, duree) || chantierParDefautValide()) +
+      champChantierHTML(chantierParDefautValide()) +
       '<div class="label-champ">Zone</div>' +
       '<div class="chip-row zone-row">' +
       '<button type="button" class="chip actif" data-zone="murs">Murs</button>' +
@@ -388,7 +388,7 @@
     var etat = { zone: "murs" };
     pop.innerHTML =
       '<div class="cp-titre">Ajouter — Béton</div>' +
-      champChantierHTML(chantierExistantDansCase(cibles, giDebut, duree) || chantierParDefautValide()) +
+      champChantierHTML(chantierParDefautValide()) +
       '<div class="label-champ">Zone</div>' +
       '<div class="chip-row zone-row">' +
       '<button type="button" class="chip actif" data-zone="murs">Murs</button>' +
@@ -464,7 +464,7 @@
     var etat = { zone: "murs" };
     pop.innerHTML =
       '<div class="cp-titre">Ajouter — Livraison armature</div>' +
-      champChantierHTML(chantierExistantDansCase(cibles, giDebut, duree) || chantierParDefautValide()) +
+      champChantierHTML(chantierParDefautValide()) +
       '<div class="label-champ">Zone</div>' +
       '<div class="chip-row zone-row">' +
       '<button type="button" class="chip actif" data-zone="murs">Murs</button>' +
@@ -541,7 +541,7 @@
     }).join("");
     pop.innerHTML =
       '<div class="cp-titre">Ajouter — ' + esc(f.nom) + '</div>' +
-      champChantierHTML(chantierExistantDansCase(cibles, giDebut, duree) || chantierParDefautValide()) +
+      champChantierHTML(chantierParDefautValide()) +
       champsHTML +
       (estSousTraitantDyn ? champStatutHTML(null) : "") +
       '<div class="apercu"><span class="apercu-label">Aperçu du texte</span><span class="apercu-texte"></span></div>' +
@@ -651,24 +651,23 @@
     var texteInit = itemExisting ? itemExisting.texte : "";
     var champChantier = "", defautNouveau = null;
     if (typeAffiche === "tache") {
-      // Nouvelle tâche : pré-coché EN PRIORITÉ sur le chantier déjà présent
-      // dans la case ciblée s'il y en a un (round du 03.09.2026, cf.
-      // chantierExistantDansCase — sinon ajouter une 2e tâche sur une case
-      // qui en a déjà une change silencieusement le chantier de la 1ère à la
-      // synchronisation), sinon le chantier par défaut choisi dans la
-      // légende, sinon comportement d'avant (aucun "selected", le navigateur
-      // prend le 1er de la liste). Modification d'une tâche existante :
-      // inchangé, son propre chantier.
-      defautNouveau = chantierExistantDansCase(cibles, state.giDebut, state.giFin - state.giDebut + 1) || chantierParDefautValide();
+      // Nouvelle tâche : le chantier par défaut coché dans la légende, sinon
+      // « Aucun chantier ». Modification : son propre chantier.
+      // Round du 26.09.2026 (suite 67) — Lionel : « chantier par défaut
+      // désélectionner mais un chantier est attribué à l'ouverture du
+      // formulaire. » : le chantier d'une tâche déjà dans la case n'est plus
+      // repris (chantierExistantDansCase, round du 03.09.2026, retiré).
+      // Chaque tâche porte son propre chantier depuis la RPC
+      // remplacer_case_personne : ajouter une tâche ne change plus celui de
+      // sa voisine, la raison d'être de cette reprise a disparu.
+      defautNouveau = chantierParDefautValide();
       // Round du 14.09.2026 : même filtre qu'champChantierHTML (un chantier
       // désactivé n'est plus proposé pour du NOUVEAU) — MAIS repéré comme un
       // site à part lors des tests (verif_chantier_desactive_grille.js) :
       // cette construction inline, pas champChantierHTML, sert le vrai
       // formulaire "Tâche" de la grille. Reste proposé/sélectionné si c'est
-      // le chantier déjà en place sur l'item existant modifié, OU celui déjà
-      // présent sur une autre tâche de la même case ciblée (defautNouveau,
-      // cf. chantierExistantDansCase) — jamais fait disparaître un chantier
-      // déjà utilisé juste sous les yeux de Lionel.
+      // le chantier déjà en place sur l'item existant modifié — jamais fait
+      // disparaître un chantier déjà utilisé juste sous les yeux de Lionel.
       var sansChantier = itemExisting ? !(itemExisting.chantier && CHANTIERS[itemExisting.chantier]) : !defautNouveau;
       var options = optionSansChantierHTML_(sansChantier) + Object.keys(CHANTIERS).filter(function (k) {
         return CHANTIERS[k].actif !== false || k === defautNouveau || (itemExisting && itemExisting.chantier === k);
@@ -708,11 +707,13 @@
       nomGrand = "Absence";
     }
     var couleurBandeau = typeAffiche === "tache" ? (CHANTIERS[itemExisting ? itemExisting.chantier : defautNouveau] || {}).couleur : null;
-    // Sans chantier (suite 66) : bandeau neutre, comme la bulle.
+    // Sans chantier (suite 66) : bandeau neutre, comme la bulle. Texte foncé
+    // (classe « clair », round du 26.09.2026, suite 67 — Lionel : « Si aucun
+    // chantier n'est sélectionné, l'entête disparait en blanc sur blanc. »).
     var fondStyle = typeAffiche === "tache" ? ("background:" + (couleurBandeau || "var(--surface-2)")) : "background:var(--absence-bg)";
 
     pop.innerHTML =
-      bandeauHTML({ clair: typeAffiche !== "tache", fondStyle: fondStyle, important: state.important, chantierHTML: champChantier, nomGrand: nomGrand }) +
+      bandeauHTML({ clair: typeAffiche !== "tache" || !couleurBandeau, fondStyle: fondStyle, important: state.important, chantierHTML: champChantier, nomGrand: nomGrand }) +
       datesPlageHTML(state.giDebut, state.giFin, state.demiDebut, state.demiFin, state.debutHorsFenetreIso, state.finHorsFenetreIso) +
       '<div class="contenu-carte">' +
       '<div class="corps"><div class="label-champ" style="margin:0 0 6px">Descriptif</div>' +
@@ -774,8 +775,9 @@
 
     var chantierSel = pop.querySelector(".f-chantier");
     if (chantierSel) chantierSel.addEventListener("change", function () {
-      var c = CHANTIERS[chantierSel.value];
-      pop.querySelector(".bandeau").style.background = c ? c.couleur : "var(--surface-2)";
+      var c = CHANTIERS[chantierSel.value], bandeau = pop.querySelector(".bandeau");
+      bandeau.style.background = c ? c.couleur : "var(--surface-2)";
+      bandeau.classList.toggle("clair", !c);
     });
     var statutRow = pop.querySelector(".statut-row");
     var statutActuel = itemExisting ? (itemExisting.statut || null) : null;
