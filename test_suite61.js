@@ -59,58 +59,40 @@ async function imagePng(page) {
   for (const [largeur, hauteur, tactile] of [[1400, 900, false], [390, 844, true]]) {
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: largeur, height: hauteur }, hasTouch: tactile });
     const lieu = largeur + ' px';
-    const general = await page.evaluate(() => document.querySelectorAll('[data-page="general"], #page-general, .onglet[data-page="mise-en-page"]').length);
+    const general = await page.evaluate(() => document.querySelectorAll('[data-page="general"], #page-general, #ongletsNav .onglets-liste:not(.onglets-reglages) [data-page="mise-en-page"], .switcher-groupe-pages [data-page="mise-en-page"]').length);
     verifier(general === 0, lieu + ' : plus d\'onglet Général ni Mise en page (' + general + ')');
 
+    // Suite 63 : plus de petit menu — la pastille fait basculer la barre
+    // d'onglets sur les réglages (cf. test_suite63.js pour le détail).
     const avatarVisible = () => page.evaluate(() => {
-      const a = [...document.querySelectorAll('.avatar-nav[aria-haspopup]')].filter((x) => x.offsetParent !== null && x.getBoundingClientRect().width > 0)[0];
+      const a = [...document.querySelectorAll('.avatar-nav')].filter((x) => x.offsetParent !== null && x.getBoundingClientRect().width > 0)[0];
       return a ? '#' + a.id : null;
     });
     const avatar = await avatarVisible();
     verifier(!!avatar && await page.getAttribute(avatar, 'aria-label') === 'Compte et réglages', lieu + ' : pastille « Compte et réglages » visible (' + avatar + ')');
     await page.click(avatar);
     await page.waitForTimeout(150);
-    const menu = await page.evaluate(() => {
-      const m = document.getElementById('menuCompte'), r = m.getBoundingClientRect();
-      return { visible: !m.hidden, items: [...m.querySelectorAll('.outil-menu-item')].map((b) => b.textContent.trim()).join('|'),
-        dedans: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight, email: document.getElementById('menuCompteEmail').textContent };
-    });
-    verifier(menu.visible && menu.items === 'Mon compte|Affichage|Couleurs|Mise en page d’impression|Raccourcis clavier|Sauvegardes|Se déconnecter' && menu.dedans,
-      lieu + ' : le menu s\'ouvre contre la pastille, une entrée par réglage (' + menu.items + ')');
-    verifier(menu.email === 'test@local', lieu + ' : le menu rappelle le compte connecté (' + menu.email + ')');
-    if (process.env.CAPTURES) await page.screenshot({ path: process.env.CAPTURES + '/s61-menu-' + largeur + '.png' });
-    await presser(page, 'Escape');
-    verifier(await page.evaluate(() => document.getElementById('menuCompte').hidden), lieu + ' : Échap ferme le menu');
-    await page.click(avatar);
-    await page.mouse.click(Math.round(largeur / 2), Math.round(hauteur / 2));
-    await page.waitForTimeout(100);
-    verifier(await page.evaluate(() => document.getElementById('menuCompte').hidden), lieu + ' : un clic ailleurs ferme le menu');
-
+    const croix = largeur < 600 ? '#btnFermerReglagesBas' : '#btnFermerReglages';
     for (const nom of REGLAGES) {
-      await page.click(avatar);
-      await page.click('#menuCompte [data-reglage="' + nom + '"]');
+      if (largeur < 600) { await page.click('#switcherBtn'); await page.click('#switcherPanneau .switcher-item[data-page="' + nom + '"]'); }
+      else await page.click('#ongletsReglages .onglet[data-page="' + nom + '"]');
       await page.waitForTimeout(200);
       const p = await page.evaluate((nom) => ({
         actif: document.getElementById('page-' + nom).classList.contains('actif'),
         seule: document.querySelectorAll('.page.actif').length,
-        menuFerme: document.getElementById('menuCompte').hidden,
-        pastilleActive: document.querySelector('.avatar-nav[aria-haspopup].actif') !== null,
-        puce: (document.querySelector('#page-' + nom + ' .reglages-onglet.actif') || {}).dataset,
+        onglet: [...document.querySelectorAll('.onglet.actif')].every((b) => b.dataset.page === nom),
         deborde: document.documentElement.scrollWidth > innerWidth + 1 ||
-          [...document.querySelectorAll('#page-' + nom + ' *')].some((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.right > innerWidth + 1 && !e.closest('.reglages-nav'); }),
+          [...document.querySelectorAll('#page-' + nom + ' *')].some((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.right > innerWidth + 1; }),
         titre: (document.querySelector('#page-' + nom + ' h1') || {}).textContent
       }), nom);
-      verifier(p.actif && p.seule === 1 && p.menuFerme && p.pastilleActive && p.puce && p.puce.reglage === nom && !p.deborde,
-        lieu + ' : menu → page « ' + p.titre + ' », pastille marquée, rien ne déborde (' + JSON.stringify({ actif: p.actif, deborde: p.deborde }) + ')');
+      verifier(p.actif && p.seule === 1 && p.onglet && !p.deborde,
+        lieu + ' : onglet → page « ' + p.titre + ' », onglet marqué, rien ne déborde (' + JSON.stringify({ actif: p.actif, deborde: p.deborde }) + ')');
       if (process.env.CAPTURES) await page.screenshot({ path: process.env.CAPTURES + '/s61-' + nom + '-' + largeur + '.png' });
     }
-    // La rangée du haut passe d'une page de réglages à l'autre.
-    await page.click('#page-sauvegardes .reglages-onglet[data-reglage="raccourcis"]');
+    // La croix ramène au planning, la pastille revient.
+    await page.click(croix);
     await page.waitForTimeout(150);
-    verifier(await page.evaluate(() => document.getElementById('page-raccourcis').classList.contains('actif')), lieu + ' : la rangée du haut mène de Sauvegardes à Raccourcis');
-    // Retour au planning : la pastille n'est plus marquée.
-    await page.evaluate(() => afficherPage('planning'));
-    verifier(await page.evaluate(() => !document.querySelector('.avatar-nav.actif')), lieu + ' : de retour au planning, la pastille n\'est plus marquée');
+    verifier(await page.evaluate(() => document.getElementById('page-planning').classList.contains('actif')) && await avatarVisible() === avatar, lieu + ' : la croix ramène au planning, la pastille revient');
     toutesErreurs.push(...erreurs);
     await page.close();
   }
@@ -335,9 +317,10 @@ async function imagePng(page) {
     await page.fill('#compteEntreprise', 'Bonati SA');
     await page.click('#btnEnregistrerInfos');
     await page.waitForTimeout(250);
-    const prof = await page.evaluate(() => ({ bd: window.__BD.profils[0], nom: document.getElementById('menuCompteNom').textContent, local: JSON.parse(localStorage.getItem('planning.profil')) }));
-    verifier(prof.bd && prof.bd.user_id === 'u-test' && prof.bd.prenom === 'Lionel' && prof.bd.nom === 'Bonati' && prof.bd.entreprise === 'Bonati SA' && prof.nom === 'Lionel Bonati' && prof.local.email === 'test@local',
-      lieu + ' : prénom, nom, entreprise enregistrés (profils, copie sur l\'appareil), nom dans le menu (' + prof.nom + ')');
+    // Suite 63 : plus de petit menu (qui rappelait le nom) — l'initiale de la pastille.
+    const prof = await page.evaluate(() => ({ bd: window.__BD.profils[0], lettre: document.getElementById('lienDeconnexionNav').textContent, local: JSON.parse(localStorage.getItem('planning.profil')) }));
+    verifier(prof.bd && prof.bd.user_id === 'u-test' && prof.bd.prenom === 'Lionel' && prof.bd.nom === 'Bonati' && prof.bd.entreprise === 'Bonati SA' && prof.lettre === 'L' && prof.local.email === 'test@local',
+      lieu + ' : prénom, nom, entreprise enregistrés (profils, copie sur l\'appareil), initiale dans la pastille (' + prof.lettre + ')');
 
     // Photo : recadrée en carré 256 px, dans les pastilles.
     await page.setInputFiles('#fichierPhoto', { name: 'moi.png', mimeType: 'image/png', buffer: await imagePng(page) });
@@ -416,10 +399,11 @@ async function imagePng(page) {
     verifier(local === null, lieu + ' : la copie du profil sur l\'appareil est effacée');
     // Se déconnecter depuis le menu.
     await page.evaluate(() => { const so = sbClient.auth.signOut; sbClient.auth.signOut = function () { console.log('DÉCONNEXION'); return so.apply(this, arguments); }; });
+    // Suite 63 : « Se déconnecter » de la page Mon compte (plus de petit menu).
     const avatar = largeur < 600 ? '#lienDeconnexionNavBas' : '#lienDeconnexionNav';
     await page.click(avatar);
-    await Promise.all([page.waitForEvent('load'), page.click('#btnDeconnexion')]);
-    verifier(consoles.indexOf('DÉCONNEXION') >= 0, lieu + ' : « Se déconnecter » du menu → déconnexion et rechargement');
+    await Promise.all([page.waitForEvent('load'), page.click('#btnDeconnexionCompte')]);
+    verifier(consoles.indexOf('DÉCONNEXION') >= 0, lieu + ' : pastille → Mon compte → « Se déconnecter » → déconnexion et rechargement');
     toutesErreurs.push(...erreurs);
     await page.close();
   }
@@ -427,8 +411,9 @@ async function imagePng(page) {
   {
     const { page, erreurs } = await ouvrirPlanning(browser, { bd: { profils: [{ user_id: 'u-test', prenom: 'Marc', nom: 'Rey', entreprise: 'X', photo: null }] } });
     await page.waitForTimeout(200);
-    const r = await page.evaluate(() => ({ lettre: document.getElementById('lienDeconnexionNav').textContent, nom: document.getElementById('menuCompteNom').textContent }));
+    const r = { lettre: await page.textContent('#lienDeconnexionNav') };
     await page.evaluate(() => afficherPage('compte'));
+    r.nom = await page.inputValue('#comptePrenom') + ' ' + await page.inputValue('#compteNom');
     verifier(r.lettre === 'M' && r.nom === 'Marc Rey' && await page.inputValue('#compteEntreprise') === 'X', 'profil existant : initiale, nom et entreprise repris (' + JSON.stringify(r) + ')');
     toutesErreurs.push(...erreurs);
     await page.close();

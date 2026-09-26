@@ -282,7 +282,9 @@
 
     if (e.key === "Escape") {
       if (popFermerActuel) { popFermerActuel(); e.preventDefault(); return; }
-      if (fermerMenuCompte()) { e.preventDefault(); return; }
+      // Suite 63 : Échap referme les réglages (comme la croix), sauf en
+      // pleine saisie dans un champ.
+      if (!dansChamp && fermerReglages()) { e.preventDefault(); return; }
       if (Object.keys(bullesSelectionnees).length > 0 || modeSelectionMultiple) { quitterModeSelection(); render(false); e.preventDefault(); }
       return;
     }
