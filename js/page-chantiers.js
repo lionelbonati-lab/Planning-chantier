@@ -43,7 +43,7 @@
       // position absolute (cf. .interrupteur-piste), le checkbox lui-même
       // n'est donc jamais atteignable au clic direct — seul le
       // label-forwarding natif du navigateur le rend cliquable, exactement
-      // comme .reglage-ligne (chkWeekends, htmlPageGeneral) qui est déjà un
+      // comme .reglage-ligne (chkWeekends, htmlPagesReglages) qui est déjà un
       // <label> pour la même raison. Repéré en écrivant
       // verif_tri_desactiver.js (round du 14.09.2026, Playwright ne
       // parvenait pas à cliquer le checkbox) : sans <label>, l'interrupteur

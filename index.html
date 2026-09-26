@@ -41,7 +41,16 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Planning">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<!-- Round du 26.09.2026 (suite 61) — Lionel : « Améliore le temps
+     d'ouverture de l'appli ». Connexions ouvertes d'avance vers Supabase
+     (données) et le CDN (supabase-js), et polices Google chargées SANS
+     bloquer le premier affichage (media="print" puis "all" une fois
+     arrivées) : la page s'affiche avec la police de secours, Archivo la
+     remplace dès qu'elle est là (display=swap, comme avant). -->
+<link rel="preconnect" href="https://mvqvznohgtpulpgalvxl.supabase.co" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" media="print" onload="this.media='all'">
 <link rel="stylesheet" href="style.css">
 <!-- Round du 22.09.2026 — overrides spécifiques téléphone (≤600px) isolés
      dans leur propre fichier (cf. FRONTEND-CHANGELOG.md §90), pour pouvoir
@@ -72,6 +81,9 @@
 <script src="js/page-horaires.js"></script>
 <script src="js/page-sauvegardes.js"></script>
 <script src="js/page-mise-en-page.js"></script>
+<!-- Suite 61 : raccourcis clavier modifiables, page « Mon compte ». -->
+<script src="js/raccourcis.js"></script>
+<script src="js/page-compte.js"></script>
 <script src="js/equipes.js"></script>
 <script src="js/donnees-sync.js"></script>
 <script src="js/grille-rendu.js"></script>

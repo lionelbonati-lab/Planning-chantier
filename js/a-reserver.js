@@ -195,12 +195,61 @@
             var onglet = document.querySelector('.onglet[data-page="planning"]');
             if (onglet) onglet.click();
           }
-          allerAuJour(g.du);
+          allerAuJour(g.du, function () { selectionnerDepuisResume_(g); });
         });
       });
     }
     if (dernierResumeAReserver) dessiner();
     majBoutonAReserver().then(function () { if (pop.isConnected) dessiner(); });
+  }
+
+  // Round du 26.09.2026 (suite 61) — Lionel : « Quand on appuie sur une
+  // tâche dans le résumé des statuts, le planning se place sur la semaine de
+  // la tâche, c'est une bonne idée, ajoute la sélection automatique de la
+  // tâche pour la retrouver plus vite et pouvoir faire les ajustements
+  // nécessaires. » Une fois la semaine affichée : la bulle de cette tâche
+  // (même personne, texte, statut, chantier, et couvrant son 1er jour) est
+  // sélectionnée seule, comme d'un clic — Entrée l'ouvre, Suppr, Ctrl+X,
+  // glisser… marchent tout de suite —, amenée à l'écran si elle est plus
+  // bas (ou à droite), et clignote une seconde pour que l'œil la trouve.
+  function selectionnerDepuisResume_(g) {
+    var gi = giDepuisIso(g.du);
+    var it = gi == null ? null : TACHES.filter(function (t) {
+      return String(t.personneId) === String(g.personneId) && (t.texte || "") === g.texte &&
+        (t.statut || null) === (g.statut || null) && (t.chantier || null) === (g.chantier || null) &&
+        gi >= t.giDebut && gi < t.giDebut + t.duree;
+    })[0];
+    if (!it) return;
+    quitterModeSelection();
+    bullesSelectionnees[it.id] = true;
+    var dom = document.querySelector('.bulle[data-id="' + it.id + '"]');
+    majBarreSelection();
+    if (!dom) return;
+    dom.classList.add("selectionnee");
+    amenerBulleEnVue_(dom);
+    dom.classList.remove("bulle-retrouvee");
+    void dom.offsetWidth; // relance l'animation si la même bulle est choisie deux fois
+    dom.classList.add("bulle-retrouvee");
+    setTimeout(function () { dom.classList.remove("bulle-retrouvee"); }, 1300);
+  }
+  // Verticalement : entre l'en-tête figé du planning et le bas de l'écran
+  // (barre du bas du téléphone comprise), seul #app défile. En largeur (2
+  // semaines serrées, zoom) : le planning défile jusqu'à la bulle, à droite
+  // de la colonne des noms — jamais en vue « 1 jour » du téléphone, où le
+  // jour est déjà calé.
+  function amenerBulleEnVue_(dom) {
+    var app = document.getElementById("app"), r = dom.getBoundingClientRect();
+    var entete = document.querySelector(".entete-planning-figee");
+    var navBas = document.getElementById("navBas");
+    var haut = (entete ? entete.getBoundingClientRect().bottom : 0) + 8;
+    var bas = (navBas && navBas.offsetParent !== null ? navBas.getBoundingClientRect().top : window.innerHeight) - 8;
+    if (app && r.top < haut) app.scrollTop -= haut - r.top;
+    else if (app && r.bottom > bas) app.scrollTop += Math.min(r.bottom - bas, r.top - haut);
+    var scroller = dom.closest(".scroller");
+    if (!scroller || modeJourMobileActif()) return;
+    var rs = scroller.getBoundingClientRect(), gauche = rs.left + largeurNoms() * ((niveauZoomPlanning / 100) || 1) + 8;
+    if (r.left < gauche) scroller.scrollLeft -= gauche - r.left;
+    else if (r.right > rs.right - 8) scroller.scrollLeft += Math.min(r.right - rs.right + 8, r.left - gauche);
   }
 
   function cablerAReserver() {

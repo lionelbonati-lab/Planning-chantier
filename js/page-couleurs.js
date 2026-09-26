@@ -388,14 +388,21 @@
       '</span>' +
     '</div>';
   }
-  function htmlSelectTheme_(id) {
-    return '<select class="sel-theme-couleurs"' + (id ? ' id="' + id + '"' : '') + ' aria-label="Thème de couleurs">' +
-      THEMES_COULEURS.map(function (t) { return '<option value="' + t.id + '">' + t.nom + '</option>'; }).join("") +
+  // Suite 61 : les palettes enregistrées suivent les thèmes, sous « Mes
+  // palettes » ; la liste est refaite à chaque mise à jour (majSelectsTheme_),
+  // une palette pouvant être ajoutée ou supprimée pendant que la page est
+  // ouverte.
+  function htmlOptionsTheme_() {
+    var pal = palettes_();
+    return THEMES_COULEURS.map(function (t) { return '<option value="' + t.id + '">' + esc2(t.nom) + '</option>'; }).join("") +
+      (pal.length ? '<optgroup label="Mes palettes">' + pal.map(function (p) { return '<option value="pal:' + esc2(p.id) + '">' + esc2(p.nom) + '</option>'; }).join("") + '</optgroup>' : '') +
       // Visible seulement quand les couleurs ne suivent aucun thème
       // (majSelectsTheme_) : on ne le choisit pas, on y arrive en
       // personnalisant.
-      '<option value="perso" disabled hidden>Personnalisé</option>' +
-    '</select>';
+      '<option value="perso" disabled hidden>Personnalisé</option>';
+  }
+  function htmlSelectTheme_(id) {
+    return '<select class="sel-theme-couleurs"' + (id ? ' id="' + id + '"' : '') + ' aria-label="Thème de couleurs">' + htmlOptionsTheme_() + '</select>';
   }
 
   // Round du 23.09.2026 (suite ×3) — chaque groupe porte un `page`
@@ -406,13 +413,20 @@
   function htmlReglagesCouleurs(page) {
     page = page || "general";
     if (page === "general") {
-      return '<div class="reglage-couleurs-entete"><h2>Couleurs</h2></div>' +
-        '<div class="reglage-couleurs-groupe reglage-theme">' +
+      // Suite 61 : page « Couleurs » du menu de la pastille (ex-onglet
+      // Général) — son titre remplace l'ancien sous-titre « Couleurs ».
+      // Dessous, les palettes enregistrées (renderPalettes_).
+      return '<div class="reglage-couleurs-groupe reglage-theme">' +
           '<span class="reglage-texte"><b>Thème</b></span>' +
           '<span class="reglage-couleurs-paires">' + htmlSelectTheme_("selThemeCouleurs") +
             '<button type="button" class="btn-personnaliser-couleurs" id="btnPersonnaliserCouleurs">' +
               (window.ICONS && ICONS.palette ? ICONS.palette : "") + '<span>Personnaliser</span></button>' +
           '</span>' +
+        '</div>' +
+        '<div class="bloc-palettes">' +
+          '<div class="titre-palettes"><h2 class="titre-liste">Mes palettes</h2>' +
+          '<button type="button" class="btn-calculer" id="btnEnregistrerPalette">Enregistrer les couleurs actuelles…</button></div>' +
+          '<div class="liste-intervenants" id="listePalettes"></div>' +
         '</div>';
     }
     return GROUPES_COULEURS.filter(function (g) { return g.page === page; }).map(htmlLigneCouleurCompacte).join("");
@@ -489,10 +503,15 @@
   // de Général seulement), ou null (« Personnalisé »). Un groupe absent du
   // thème doit être absent des réglages (ou vide) ; un thème vide dans un
   // mode (sombre: null) veut dire « couleur d'origine » dans ce mode.
+  // Suite 61 : une palette peut avoir les mêmes couleurs qu'un thème (ou
+  // qu'une autre palette). Le dernier choisi ou enregistré passe d'abord :
+  // juste après « Enregistrer », la liste montre la palette, pas « Forêt ».
+  var themePrefere_ = null;
   function themeActuel_() {
-    var r = lireReglages();
-    for (var i = 0; i < THEMES_COULEURS.length; i++) {
-      var t = THEMES_COULEURS[i];
+    var r = lireReglages(), tous = themesEtPalettes_();
+    if (themePrefere_) tous = tous.filter(function (t) { return t.id === themePrefere_; }).concat(tous.filter(function (t) { return t.id !== themePrefere_; }));
+    for (var i = 0; i < tous.length; i++) {
+      var t = tous[i];
       var ok = groupesGeneral_().every(function (g) {
         var a = r[g.id] || {}, b = t.valeurs[g.id] || {};
         return hexOuNull_(a.clair) === hexOuNull_(b.clair) && hexOuNull_(a.sombre) === hexOuNull_(b.sombre);
@@ -504,7 +523,9 @@
   window.themeCouleursActuel = function () { var t = themeActuel_(); return t ? t.id : "perso"; };
   function majSelectsTheme_() {
     var t = themeActuel_();
+    var options = htmlOptionsTheme_();
     document.querySelectorAll(".sel-theme-couleurs").forEach(function (sel) {
+      if (sel.dataset.options !== options) { sel.innerHTML = options; sel.dataset.options = options; }
       var perso = sel.querySelector('option[value="perso"]');
       if (perso) perso.hidden = !!t;
       sel.value = t ? t.id : "perso";
@@ -564,8 +585,9 @@
   // thème réécrits en entier (clair ET sombre, null compris), les autres
   // groupes de Général supprimés.
   function appliquerTheme_(themeId) {
-    var t = THEMES_COULEURS.filter(function (x) { return x.id === themeId; })[0];
+    var t = themeParId_(themeId);
     if (!t) return Promise.resolve();
+    themePrefere_ = t.id;
     var r = lireReglages();
     var ids = groupesGeneral_().map(function (g) { return g.id; });
     // Une écriture encore en attente (couleur changée il y a moins de
@@ -587,6 +609,7 @@
     appliquerCouleursPersonnalisees();
     majChampsCouleurs_();
     majSelectsTheme_();
+    renderPalettes_();
     return Promise.all([
       reinitialiserToutesCouleursServeur_(aSupprimer),
       lignes.length ? sbClient.from("couleurs_perso").upsert(lignes, { onConflict: "id" }).then(function (res) { if (res.error) throw res.error; }) : null
@@ -598,11 +621,139 @@
   function choisirTheme_(sel, apres) {
     var id = sel.value;
     if (themeActuel_()) { appliquerTheme_(id); return; }
-    var t = THEMES_COULEURS.filter(function (x) { return x.id === id; })[0];
+    var t = themeParId_(id);
     sel.value = "perso";
-    demanderConfirmation("Remplacer tes couleurs personnalisées par le thème « " + (t ? t.nom : id) + " » ?", function () {
+    demanderConfirmation("Remplacer tes couleurs personnalisées par " + (t && t.palette ? "la palette" : "le thème") + " « " + (t ? t.nom : id) + " » ? (« Enregistrer comme palette » les garde.)", function () {
       appliquerTheme_(id);
     }, apres);
+  }
+
+  // ---- Palettes enregistrées (round du 26.09.2026, suite 61) ------------
+  // Lionel : « Possibilité d'enregistrer sa palette de couleur. » Une
+  // palette = les couleurs actuelles des groupes de Général (ceux que les
+  // thèmes règlent, clair ET sombre), sous un nom. Elle se choisit comme un
+  // thème (liste « Thème », sous « Mes palettes », ou « Appliquer » dans la
+  // liste de la page Couleurs), et le thème affiché la reconnaît
+  // (themeActuel_). Enregistrées dans `reglages` (clé « palettes »,
+  // [{ id, nom, valeurs }]) : les mêmes sur tous les appareils du compte,
+  // copie locale (« planning.palettes ») quand la table ne répond pas.
+  var CLE_PALETTES = "palettes", CLE_PALETTES_LOCAL = "planning.palettes";
+  function palettes_() {
+    var r = window.etat && window.etat.reglages, l = null;
+    if (r) l = r[CLE_PALETTES];
+    else { try { l = JSON.parse(localStorage.getItem(CLE_PALETTES_LOCAL) || "null"); } catch (e) { l = null; } }
+    return Array.isArray(l) ? l.filter(function (p) { return p && p.id && p.nom && p.valeurs && typeof p.valeurs === "object"; }) : [];
+  }
+  function enregistrerPalettes_(liste) {
+    if (window.etat && window.etat.reglages) window.etat.reglages[CLE_PALETTES] = liste;
+    try { localStorage.setItem(CLE_PALETTES_LOCAL, JSON.stringify(liste)); } catch (e) {}
+    return Promise.resolve(sbClient.from("reglages").upsert({ cle: CLE_PALETTES, valeur: liste, maj: new Date().toISOString() }, { onConflict: "cle" })).then(function (res) {
+      if (res && res.error) throw res.error;
+      if (window.etat && !window.etat.reglages) { window.etat.reglages = {}; window.etat.reglages[CLE_PALETTES] = liste; }
+    }).catch(function (err) {
+      if (typeof toast === "function") toast("Palette gardée sur cet appareil, mais pas enregistrée sur le compte : " + (err && err.message ? err.message : err));
+    });
+  }
+  // Thèmes intégrés d'abord (à couleurs égales, c'est le thème qui est
+  // reconnu), puis les palettes, au même format ({ id, nom, valeurs }).
+  function themesEtPalettes_() {
+    return THEMES_COULEURS.concat(palettes_().map(function (p) { return { id: "pal:" + p.id, nom: p.nom, valeurs: p.valeurs, palette: p }; }));
+  }
+  function themeParId_(id) { return themesEtPalettes_().filter(function (x) { return x.id === id; })[0] || null; }
+  // Couleurs actuelles des groupes de Général (seulement celles qui
+  // diffèrent de l'origine) : le contenu d'une nouvelle palette.
+  function valeursActuelles_() {
+    var r = lireReglages(), v = {};
+    groupesGeneral_().forEach(function (g) {
+      var a = r[g.id];
+      if (!a) return;
+      var clair = hexOuNull_(a.clair), sombre = hexOuNull_(a.sombre);
+      if (clair || sombre) v[g.id] = { clair: clair, sombre: sombre };
+    });
+    return v;
+  }
+  function enregistrerPaletteSous_(nom) {
+    var liste = palettes_().slice();
+    var existante = liste.filter(function (p) { return p.nom.toLowerCase() === nom.toLowerCase(); })[0];
+    // Identifiant unique même pour deux palettes enregistrées dans la même
+    // milliseconde (horloge figée des tests, double clic).
+    var id = existante ? existante.id : Date.now().toString(36);
+    while (!existante && liste.some(function (p) { return p.id === id; })) id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    var palette = { id: id, nom: existante ? existante.nom : nom, valeurs: valeursActuelles_() };
+    if (existante) liste[liste.indexOf(existante)] = palette; else liste.push(palette);
+    themePrefere_ = "pal:" + palette.id;
+    enregistrerPalettes_(liste);
+    majSelectsTheme_();
+    renderPalettes_();
+    if (typeof toast === "function") toast("Palette « " + palette.nom + " » enregistrée.");
+  }
+  // Petite fenêtre « Nom de la palette » (par-dessus « Personnaliser » si
+  // elle est ouverte : `avant` lui rend la main, comme demanderConfirmation).
+  // Un nom déjà pris : la palette est remplacée, après confirmation.
+  function demanderNomPalette_(avant) {
+    var overlay = document.createElement("div");
+    overlay.className = "voile-confirm";
+    var pop = document.createElement("div");
+    pop.className = "pop confirm-pop pop-nom-palette";
+    var t = themeActuel_();
+    pop.innerHTML = '<div class="cp-titre">Enregistrer comme palette</div>' +
+      '<p class="confirm-texte">Les couleurs affichées maintenant, sous un nom, pour les retrouver dans la liste « Thème ».</p>' +
+      '<label class="champ-compte"><span>Nom de la palette</span><input type="text" class="np-nom" maxlength="40" autocomplete="off" value="' + esc2(t && t.palette ? t.nom : "") + '"></label>' +
+      '<div class="confirm-boutons"><button type="button" class="c-annuler">Annuler</button><button type="button" class="c-ok">Enregistrer</button></div>';
+    document.body.appendChild(overlay);
+    document.body.appendChild(pop);
+    var champ = pop.querySelector(".np-nom");
+    function nettoyer() {
+      overlay.remove(); pop.remove();
+      if (popFermerActuel === nettoyer) popFermerActuel = null;
+      if (popValiderActuel === valider) popValiderActuel = null;
+      if (avant) avant();
+    }
+    function valider() {
+      var nom = champ.value.trim();
+      if (!nom) { champ.focus(); return; }
+      var existe = palettes_().some(function (p) { return p.nom.toLowerCase() === nom.toLowerCase(); });
+      nettoyer();
+      if (existe) demanderConfirmation("Remplacer la palette « " + nom + " » par les couleurs actuelles ?", function () { enregistrerPaletteSous_(nom); }, avant);
+      else enregistrerPaletteSous_(nom);
+    }
+    overlay.addEventListener("pointerdown", nettoyer);
+    pop.querySelector(".c-annuler").addEventListener("click", nettoyer);
+    pop.querySelector(".c-ok").addEventListener("click", valider);
+    popFermerActuel = nettoyer;
+    popValiderActuel = valider;
+    champ.focus();
+    champ.select();
+  }
+  // Liste de la page Couleurs : 4 pastilles (principale, onglet actif,
+  // fond, week-end, dans le mode affiché), le nom, « Appliquer » (ou
+  // « Actuelle ») et la corbeille.
+  function renderPalettes_() {
+    var zone = document.getElementById("listePalettes");
+    if (!zone) return;
+    var pal = palettes_(), t = themeActuel_();
+    var sombre = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches && document.documentElement.dataset.theme !== "light";
+    if (!pal.length) {
+      zone.innerHTML = '<p class="page-sous">Aucune palette pour l’instant. Règle tes couleurs avec « Personnaliser », puis « Enregistrer les couleurs actuelles ».</p>';
+      return;
+    }
+    zone.innerHTML = pal.map(function (p) {
+      var actuelle = t && t.id === "pal:" + p.id;
+      var pastilles = ["principale", "onglet-fond", "fond", "weekend"].map(function (id) {
+        var g = groupeParId_(id);
+        if (!g) return "";
+        var v = p.valeurs[id] || {};
+        var c = (sombre ? v.sombre : v.clair) || (sombre ? g.defautSombre : g.defautClair);
+        return '<i class="pastille-palette" style="background:' + esc2(c) + '"></i>';
+      }).join("");
+      return '<div class="ligne-intervenant ligne-palette' + (actuelle ? ' actuelle' : '') + '" data-id="' + esc2(p.id) + '">' +
+        '<span class="palette-apercu" aria-hidden="true">' + pastilles + '</span>' +
+        '<span class="palette-nom">' + esc(p.nom) + '</span>' +
+        '<span class="ligne-actions">' +
+          (actuelle ? '<span class="palette-actuelle">Actuelle</span>' : '<button type="button" class="lien-appliquer-palette">Appliquer</button>') +
+          (typeof boutonIconeLigne === "function" && window.ICONS ? boutonIconeLigne("lien-supprimer", ICONS.trash, "Supprimer la palette") : '<button type="button" class="lien-supprimer">Supprimer</button>') +
+        '</span></div>';
+    }).join("");
   }
 
   // ---- Fenêtre « Personnaliser » (suite 54) ------------------------------
@@ -614,7 +765,7 @@
     var fondTache = chantier ? esc2(chantier.couleur) : "#cfe0f5";
     var tache = function (texte, extra) { return '<i class="ac-bulle" style="background:' + fondTache + '">' + texte + (extra || "") + '</i>'; };
     return '<div class="apercu-couleurs" aria-hidden="true">' +
-      '<div class="ac-haut"><span class="ac-onglet ac-actif">Planning</span><span class="ac-onglet">Jalons</span><span class="ac-onglet">Général</span><span class="ac-sync"></span></div>' +
+      '<div class="ac-haut"><span class="ac-onglet ac-actif">Planning</span><span class="ac-onglet">Jalons</span><span class="ac-onglet">Chantiers</span><span class="ac-sync"></span></div>' +
       '<div class="ac-barre"><span class="ac-outil"></span><span class="ac-outil"></span><span class="ac-bouton">Aujourd’hui</span><span class="ac-supprimer">Supprimer</span></div>' +
       '<div class="ac-grille">' +
         '<div class="ac-ligne ac-entete"><span class="ac-nom"></span><span>Lun</span><span>Mar</span><span>Mer</span><span class="ac-we">Sam</span></div>' +
@@ -642,7 +793,9 @@
         htmlEnteteColonnes_() +
         groupesGeneral_().map(htmlLigneCouleur).join("") +
       '</div>' +
-      '<div class="form-actions"><button type="button" class="f-fermer">Fermer</button></div>';
+      // Suite 61 : « Possibilité d'enregistrer sa palette de couleur. »
+      '<div class="form-actions"><button type="button" class="btn-calculer cm-enregistrer-palette">Enregistrer comme palette…</button>' +
+      '<button type="button" class="f-fermer">Fermer</button></div>';
     document.body.appendChild(overlay);
     document.body.appendChild(pop);
     function fermer() {
@@ -652,6 +805,7 @@
     function reprendreLaMain() { popFermerActuel = fermer; }
     overlay.addEventListener("pointerdown", fermer);
     pop.querySelector(".f-fermer").addEventListener("click", fermer);
+    pop.querySelector(".cm-enregistrer-palette").addEventListener("click", function () { demanderNomPalette_(reprendreLaMain); });
     var sel = pop.querySelector(".sel-theme-couleurs");
     sel.addEventListener("change", function () { choisirTheme_(sel, reprendreLaMain); });
     cablerChampsCouleurs_(pop);
@@ -671,11 +825,33 @@
     if (sel) sel.addEventListener("change", function () { choisirTheme_(sel); });
     var btn = document.getElementById("btnPersonnaliserCouleurs");
     if (btn) btn.addEventListener("click", ouvrirPersonnaliserCouleurs_);
+    var btnPal = document.getElementById("btnEnregistrerPalette");
+    if (btnPal) btnPal.addEventListener("click", function () { demanderNomPalette_(); });
+    var liste = document.getElementById("listePalettes");
+    if (liste) liste.addEventListener("click", function (e) {
+      var ligne = e.target.closest(".ligne-palette");
+      var p = ligne && palettes_().filter(function (x) { return x.id === ligne.dataset.id; })[0];
+      if (!p) return;
+      if (e.target.closest(".lien-appliquer-palette")) {
+        var sel = document.getElementById("selThemeCouleurs");
+        if (sel) { sel.value = "pal:" + p.id; choisirTheme_(sel); }
+        return;
+      }
+      if (e.target.closest(".lien-supprimer")) {
+        demanderConfirmation("Supprimer la palette « " + p.nom + " » ? Les couleurs affichées ne changent pas.", function () {
+          enregistrerPalettes_(palettes_().filter(function (x) { return x.id !== p.id; }));
+          majSelectsTheme_();
+          renderPalettes_();
+          toast("Palette « " + p.nom + " » supprimée.");
+        });
+      }
+    });
     majChampsCouleurs_();
     majSelectsTheme_();
+    renderPalettes_();
   }
   window.initReglagesCouleurs = initReglagesCouleurs;
   // Couleurs arrivées du serveur (js/donnees-sync.js) ou d'un autre
-  // appareil : la liste « Thème » et les champs suivent.
-  window.majReglagesCouleursAffiches = function () { majChampsCouleurs_(); majSelectsTheme_(); };
+  // appareil : la liste « Thème », les champs et les palettes suivent.
+  window.majReglagesCouleursAffiches = function () { majChampsCouleurs_(); majSelectsTheme_(); renderPalettes_(); };
 })();

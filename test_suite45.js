@@ -147,7 +147,7 @@ const ouvrirApercu = async (page) => {
     let e = await entete(page);
     verifier(e.mois === 1 && e.jours.join() === 'Lun 21,Mar 22,Mer 23,Jeu 24,Ven 25' && e.coin === 'Semaine 39',
       largeur + ' px : par défaut, comme avant — ligne des mois, « Lun 21 », « Semaine 39 » (' + e.jours.join() + ')');
-    await page.evaluate(() => { if (popFermerActuel) popFermerActuel(); document.querySelector('.onglet[data-page="mise-en-page"]').click(); });
+    await page.evaluate(() => { if (popFermerActuel) popFermerActuel(); afficherPage('mise-en-page'); });
     await page.waitForTimeout(200);
     let o = await page.evaluate(() => ({
       legendes: [...document.querySelectorAll('#mepFormulaire legend')].map((l) => l.textContent).join(),

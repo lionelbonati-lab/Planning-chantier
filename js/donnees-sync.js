@@ -460,6 +460,8 @@
       etat.cache = {}; etat.cacheTs = {};
       etat.semaines = genererSemaines(etat.aujourdhui, FENETRE_SEMAINES, FENETRE_SEMAINES);
       etat.indexSemaine = indexSemaineAujourdhui_(); // réutilise la règle existante (semaine du jour, sinon prochaine, sinon dernière)
+      // Téléphone, un week-end : le jour ouvré le plus proche (suite 61).
+      caleJourMobileSurJourOuvre_();
 
       // Toute la fenêtre d'affichage (fenetreLabGs), et plus seulement la
       // semaine du jour : la vue "1 jour" téléphone, par défaut à

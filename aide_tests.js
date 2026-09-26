@@ -31,6 +31,7 @@ const FAUX_SUPABASE = LOGIQUE_PLAGE + '\n(' + function () {
   Object.keys(initiale).forEach(function (t) { BD[t] = initiale[t].map(function (r) { return Object.assign({}, r); }); });
   var prochainId = 1000;
   window.__ECRITURES = [];
+  window.__AUTH = Object.assign({ id: 'u-test', email: 'test@local', motDePasse: 'secret' }, window.__AUTH_INITIALE || {});
   function requete(table) {
     var filtres = [], mode = 'select', valeurs = null, plage = null, conflit = null;
     var q = {
@@ -81,10 +82,27 @@ const FAUX_SUPABASE = LOGIQUE_PLAGE + '\n(' + function () {
     // Options passées par js/core.js (suite 34 : global.fetch = rejeu JWT).
     window.__OPTIONS_CLIENT = options || null;
     return {
+      // Suite 61 (page Mon compte) : un compte de test, son mot de passe
+      // (« secret », ou window.__AUTH_INITIALE), la vérification à la
+      // connexion et le changement de mot de passe. window.__AUTH garde
+      // l'état ; déconnexion notée dans window.__ECRITURES.
       auth: {
-        getSession: function () { return Promise.resolve({ data: { session: { user: { email: 'test@local' } } } }); },
+        getSession: function () { return Promise.resolve({ data: { session: { user: { id: window.__AUTH.id, email: window.__AUTH.email } } } }); },
         onAuthStateChange: function () { return { data: { subscription: { unsubscribe: function () {} } } }; },
-        signOut: function () { return Promise.resolve({}); }
+        signInWithPassword: function (a) {
+          var ok = a && a.email === window.__AUTH.email && a.password === window.__AUTH.motDePasse;
+          window.__ECRITURES.push('auth:signIn:' + (ok ? 'ok' : 'refus'));
+          return Promise.resolve(ok ? { data: { session: { user: { id: window.__AUTH.id, email: window.__AUTH.email } } }, error: null } : { data: {}, error: { message: 'Invalid login credentials' } });
+        },
+        updateUser: function (a) {
+          if (a && a.password) {
+            if (a.password === window.__AUTH.motDePasse) return Promise.resolve({ data: {}, error: { message: 'New password should be different from the old password.' } });
+            window.__AUTH.motDePasse = a.password;
+          }
+          window.__ECRITURES.push('auth:updateUser');
+          return Promise.resolve({ data: { user: { id: window.__AUTH.id, email: window.__AUTH.email } }, error: null });
+        },
+        signOut: function () { window.__ECRITURES.push('auth:signOut'); return Promise.resolve({}); }
       },
       from: requete,
       // remplacer_case_personne (sql/0012) : même effet que la vraie

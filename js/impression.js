@@ -986,8 +986,7 @@
         appliquerReglages_(true);
       } else if (e.target.closest(".lien-mep")) {
         nettoyer();
-        var onglet = document.querySelector('.onglet[data-page="mise-en-page"]');
-        if (onglet) onglet.click();
+        afficherPage("mise-en-page"); // suite 61 : page du menu de la pastille, plus un onglet
       }
     });
     // Date d'impression remise à l'heure au moment d'imprimer (l'aperçu a

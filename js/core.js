@@ -289,7 +289,13 @@
     // revient). Modifier/Renommer = pencil, supprimer = trash.
     lien: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M8.6 11.4a3.2 3.2 0 0 0 4.5 0l2.6-2.6a3.2 3.2 0 0 0-4.5-4.5l-1.1 1.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M11.4 8.6a3.2 3.2 0 0 0-4.5 0l-2.6 2.6a3.2 3.2 0 0 0 4.5 4.5l1.1-1.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
     palette: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M10 2.5a7.5 7.5 0 0 0 0 15c1 0 1.6-.7 1.6-1.5 0-.5-.2-.8-.4-1.1-.3-.3-.4-.6-.4-1 0-.9.7-1.5 1.5-1.5h1.8a3.4 3.4 0 0 0 3.4-3.4C17.5 5.5 14.1 2.5 10 2.5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="6.4" cy="9.6" r="1.1" fill="currentColor"/><circle cx="8.6" cy="6.2" r="1.1" fill="currentColor"/><circle cx="12.6" cy="6.4" r="1.1" fill="currentColor"/></svg>',
-    restaurer: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M4 10a6 6 0 1 0 1.8-4.3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M4.2 2.8v3.4h3.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+    restaurer: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M4 10a6 6 0 1 0 1.8-4.3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M4.2 2.8v3.4h3.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    // Suite 61 — menu de la pastille (compte et réglages).
+    personne: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="6.8" r="3.3" stroke="currentColor" stroke-width="1.5"/><path d="M3.5 17.2c0-3.4 2.9-5.7 6.5-5.7s6.5 2.3 6.5 5.7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    affichage: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="2.5" y="3.5" width="15" height="10.5" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M7 17h6M10 14v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    clavier: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="1.8" y="5" width="16.4" height="10" rx="1.6" stroke="currentColor" stroke-width="1.5"/><path d="M5 8.2h.01M8 8.2h.01M11 8.2h.01M14 8.2h.01M5 11h.01M14 11h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M7.5 11.6h4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    sauvegarde: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><ellipse cx="10" cy="4.8" rx="6.5" ry="2.3" stroke="currentColor" stroke-width="1.5"/><path d="M3.5 4.8v10.4c0 1.3 2.9 2.3 6.5 2.3s6.5-1 6.5-2.3V4.8M3.5 10c0 1.3 2.9 2.3 6.5 2.3s6.5-1 6.5-2.3" stroke="currentColor" stroke-width="1.5"/></svg>',
+    deconnexion: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M8 3.5H4.5a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1H8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M12.5 6.5 16 10l-3.5 3.5M16 10H7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
   };
   // Bouton icône d'une ligne de liste (suite 53) : la classe d'origine
   // (.lien-modifier, .lien-supprimer…) reste, c'est elle que les pages
@@ -506,7 +512,12 @@
       d = new Date(s.debut + "T00:00:00"); d.setDate(d.getDate() + Math.min(4, jourSemaineIso_(jourMobileIso)));
       jourMobileIso = isoDeDate(d);
     } else {
-      jourMobileIso = (etat.aujourdhui >= s.debut && etat.aujourdhui <= s.fin && jourSemaineIso_(etat.aujourdhui) < 5) ? etat.aujourdhui : s.debut;
+      // Aujourd'hui dans cette semaine mais un week-end (suite 61) : le
+      // vendredi, jour ouvré le plus proche dans la semaine — plus son lundi.
+      var dansSemaine = etat.aujourdhui >= s.debut && etat.aujourdhui <= s.fin;
+      if (dansSemaine && jourSemaineIso_(etat.aujourdhui) < 5) jourMobileIso = etat.aujourdhui;
+      else if (dansSemaine) { d = new Date(s.debut + "T00:00:00"); d.setDate(d.getDate() + 4); jourMobileIso = isoDeDate(d); }
+      else jourMobileIso = s.debut;
     }
     return jourMobileIso;
   }
