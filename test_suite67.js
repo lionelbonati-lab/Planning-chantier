@@ -209,7 +209,7 @@ const style = ([sel, prop]) => { const n = document.querySelector(sel); return n
   {
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 1400, height: 900 }, bd: BD() });
     const lire = () => { const p = document.querySelector('.form-pop'), b = p.querySelector('.bandeau');
-      return { valeur: p.querySelector('.f-chantier').value, clair: b.classList.contains('clair'), texte: getComputedStyle(b.querySelector('.nom-grand')).color, fond: getComputedStyle(b).backgroundColor }; };
+      return { valeur: p.querySelector('.f-chantier').value, clair: b.classList.contains('clair'), texte: getComputedStyle(b.querySelector('.nom-grand')).color, fond: getComputedStyle(b).backgroundColor, bulles: getComputedStyle(document.querySelector('.grille .bulle')).color }; };
     const f = await page.evaluate((src) => {
       const gi = giDepuisIso('2026-09-24');
       ouvrirEdition(document.querySelector('.cell[data-kind="personne"][data-personne="1"][data-jour="' + gi + '"]'), null, 'tache', 300, 300);
@@ -218,7 +218,7 @@ const style = ([sel, prop]) => { const n = document.querySelector(sel); return n
     verifier(f.valeur === '' && f.clair && f.texte !== 'rgb(255, 255, 255)', 'case déjà occupée (Padel), aucun chantier par défaut : « Aucun chantier », texte foncé (' + JSON.stringify(f) + ')');
     await page.selectOption('.form-pop .f-chantier', '26182 - Terrain de Padel');
     const f2 = await page.evaluate((src) => (0, eval)(src)(), lire.toString());
-    verifier(f2.valeur === '26182 - Terrain de Padel' && !f2.clair && f2.texte === 'rgb(255, 255, 255)', 'chantier choisi : sa couleur, texte blanc (' + JSON.stringify(f2) + ')');
+    verifier(f2.valeur === '26182 - Terrain de Padel' && !f2.clair && f2.texte === f2.bulles && f2.texte !== 'rgb(255, 255, 255)', 'chantier choisi : sa couleur, texte de la couleur du texte des tâches (« texte d\'entête du formulaire peu visible », ' + JSON.stringify(f2) + ')');
     await page.selectOption('.form-pop .f-chantier', '');
     const f3 = await page.evaluate((src) => (0, eval)(src)(), lire.toString());
     verifier(f3.clair && f3.texte !== 'rgb(255, 255, 255)' && f3.fond !== f2.fond, 'revenu à « Aucun chantier » : plus de blanc sur blanc (' + JSON.stringify(f3) + ')');

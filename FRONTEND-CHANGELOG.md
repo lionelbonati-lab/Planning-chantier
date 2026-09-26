@@ -9126,3 +9126,16 @@ Lionel :
 - test_suite67.js (nouveau), 43/43 : interrupteurs et leurs valeurs ; icônes G/I/tailles sur les 4 lignes, planning et aperçu, enregistrées sur le compte, cachées avec leur ligne, G des heures sans effet sur l'interrupteur ; date du week-end sur 2 lignes sans déborder ; case de gauche (mois, année, 2 mois, 2 années, année seule) ; taille des noms ; ligne autour des badges ; jeux ordinateur / téléphone (héritage, clé `affichage_tel`, réglage commun, autre téléphone, « Reprendre », tablette) ; fiche d'une case occupée sur « Aucun chantier » et bandeau lisible ; surlignement de dépose sous la bulle de la case visée.
 - test_suite62.js et test_suite64.js : interrupteurs au lieu des pastilles, nom du jour lu dans `.th-jour`, nouveau réglage « Taille des noms » dans la liste.
 - test_chantier_defaut.js : la partie `chantierExistantDansCase` est retirée avec la fonction.
+
+## 176. Round du 26.09.2026 (suite 68) — Texte du bandeau des fiches lisible
+
+Lionel : « texte d'entête du formulaire peu visible. Mettre de la couleur du texte du document. »
+
+### Ce qui change
+- Le bandeau en haut des fiches (chantier, nom de la personne, boutons Important et Fermer) s'écrit dans la couleur du texte des tâches, au lieu du blanc qui disparaissait sur les couleurs claires des chantiers (ex. « 26182 - Terrain de Padel »). C'est la couleur « Texte principal et texte des tâches » de la page Couleurs, la même que dans les bulles : elle suit donc un changement de palette.
+
+### Fonctionnement
+- style.css : `.carte-item .bandeau` en `color: var(--bubble-ink)` ; les boutons ronds du bandeau prennent `color: inherit` et le fond foncé léger (`rgba(20, 24, 20, .1)`) auparavant réservé à `.bandeau.clair`, dont la règle dédiée disparaît. `.bandeau.clair` (absence, tâche sans chantier) garde `var(--ink)`.
+
+### Tests
+- test_suite67.js : avec un chantier, le nom dans le bandeau a la couleur du texte des bulles (plus du blanc). 43/43.
