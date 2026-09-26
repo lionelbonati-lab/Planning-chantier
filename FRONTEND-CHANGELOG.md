@@ -8943,3 +8943,4 @@ Lionel : « Le menu setting vient se placer à la place du menu principal en hau
   - téléphone : barre du bas, liste « Réglages », croix.
 - test_suite61.js : le parcours des 6 pages passe par les onglets (haut) ou la liste (bas) ; déconnexion depuis Mon compte ; l'initiale de la pastille au lieu du nom du petit menu. 99/99.
 - test_suite39.js : Mise en page d'impression ouverte depuis la liste « Réglages » du bas. 29/29.
+- Suite complète : 72/72.
