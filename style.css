@@ -1002,6 +1002,23 @@
      semaine, cf. .sem-frontiere juste au-dessus — un trait plus discret
      ici, ce n'est qu'un repère de colonne, pas une frontière temporelle). */
   .th.coin, .lbl, .lbl-speciale { border-right: 1px solid var(--border); }
+  /* Suite 60 (round du 26.09.2026) — Lionel, après la suite 59 : « On
+     remarque encore des bulles dans les bordures entre Mathis et Antoine. »
+     Le trait de 1 px entre deux noms est l'espace de la grille (gap), que
+     l'étiquette sticky ne couvre pas : tout ce qui passe dessous s'y voit.
+     En vue « 1 jour », la carte de la veille est rangée sous la colonne des
+     noms, et son ombre (0 1px 2px) dépasse de 1 px au-dessus de sa piste —
+     pile dans ce trait, sur toute la largeur de la colonne (nettement sur
+     un écran haute densité). Plutôt que de rogner chaque bulle, chaque
+     étiquette prolonge son trait du bas sur l'espace de la grille (même
+     couleur que lui, bordure droite comprise) : la colonne des noms est
+     opaque de haut en bas, quoi qu'il passe dessous. Idem vers le haut :
+     sous la ligne « Personnel »/« Intervenants » (.section-row, pleine
+     largeur mais pas collée à gauche), le trait au-dessus de la 1re
+     personne n'appartient à aucune étiquette. */
+  .lbl::before, .lbl::after, .lbl-speciale::before, .lbl-speciale::after { content: ""; position: absolute; left: 0; right: -1px; height: 1px; background: var(--border); pointer-events: none; }
+  .lbl::before, .lbl-speciale::before { top: -1px; }
+  .lbl::after, .lbl-speciale::after { bottom: -1px; }
   .th.sem-frontiere, .cell.sem-frontiere, .lbl.sem-frontiere { border-left: 2px solid var(--border-strong); }
   .th-weekend { min-width: 46px; }
   .cell.case-weekend { background: var(--weekend-bg); }

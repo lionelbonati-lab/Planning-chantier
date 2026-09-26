@@ -8723,3 +8723,21 @@ Lionel, capture à l'appui : « Certaines bulles se distinguent derrière les bo
   - jeudi : aucune bulle visible sous la colonne des noms, aucune bulle plus haute que sa piste. Sans le correctif, la vérification échoue (« Plans artisans » à y = 266 px) ;
   - mercredi : « Plans artisans » entière dans sa piste.
 - Suite complète : 68/68 (test_suite35 relancé seul : son étirement contre le bord dépend du minutage sous charge parallèle).
+
+## 168. Round du 26.09.2026 (suite 60) — Téléphone : trait entre deux noms toujours net
+
+Lionel, après la suite 59 : « On remarque encore des bulles dans les bordures entre Mathis et Antoine. »
+
+### Cause
+- Le trait de 1 px entre deux noms est l'espace de la grille (`gap`). L'étiquette de nom, collée à gauche, ne le couvre pas : tout ce qui passe dessous s'y voit.
+- Vue « 1 jour » : la carte de la veille est rangée sous la colonne des noms. Son ombre (`0 1px 2px`) dépasse de 1 px au-dessus de sa piste, pile dans ce trait, sur toute la largeur de la colonne. Même chose sous la ligne « Personnel » / « Intervenants », au-dessus de la 1re personne.
+- Reproduit sur les semaines du 28.09 et du 05.10 du planning réel (journées entières qui se suivent pour Lionel, Mathis, Antoine et François) : invisible à densité 1, net à densité 3 (écran de téléphone), au jour posé comme pendant le glissé.
+
+### Correctif (style.css)
+- `.lbl` / `.lbl-speciale` : `::before` et `::after` prolongent l'étiquette de 1 px au-dessus et au-dessous, de la couleur du trait (`var(--border)`), bordure droite comprise.
+- La colonne des noms est opaque de haut en bas, quoi qu'il passe dessous. Rien ne change à l'affichage : ces 2 lignes ont déjà la couleur du trait.
+- Plus robuste que de rogner chaque bulle (la suite 59 bornait la hauteur des bulles à leur piste ; ce réglage reste en place).
+
+### Tests
+- aide_tests.js : option `dpr` (densité d'écran) pour `ouvrirPlanning`.
+- test_suite60.js (nouveau, 13 vérifications) : téléphone 390 px, densité 3, semaine calquée sur le planning réel ; la colonne des noms est identique au pixel près avec et sans les bulles, au jour posé et doigt posé en plein glissé, sur 5 changements de jour. Sans le correctif : 2 000 à 2 760 pixels d'écran diffèrent à chaque relevé.
