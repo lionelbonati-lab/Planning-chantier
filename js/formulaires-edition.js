@@ -273,12 +273,24 @@
   // Round du 14.09.2026 : idem champChantierJalonHTML — un chantier
   // désactivé n'est plus proposé pour une NOUVELLE tâche, sauf s'il s'agit
   // du chantier déjà en place sur la tâche en cours d'édition.
+  // « Aucun chantier » (round du 26.09.2026, suite 66 — Lionel :
+  // « Possibilité d'affecter une tâches à aucun chantier. il est déjà
+  // possible de désélectionner un chantier par défaut. dans l'impression il
+  // sera noté autre. Reste sans couleur. ») : 1re option, valeur "" (lue
+  // comme null), choisie quand la case n'a pas de chantier et qu'aucun
+  // chantier par défaut n'est coché dans la légende — avant, le navigateur
+  // prenait le 1er chantier de la liste (ou premierChantierActif_).
+  var LIBELLE_SANS_CHANTIER = "Aucun chantier";
+  function optionSansChantierHTML_(choisi) {
+    return '<option value=""' + (choisi ? " selected" : "") + '>' + LIBELLE_SANS_CHANTIER + '</option>';
+  }
   function champChantierHTML(chantierInit) {
     var noms = Object.keys(CHANTIERS).filter(function (nom) {
       var c = CHANTIERS[nom];
       return (c && c.actif !== false) || nom === chantierInit;
     });
-    var options = noms.map(function (nom) { return '<option value="' + esc(nom) + '"' + (chantierInit === nom ? " selected" : "") + '>' + esc(nom) + '</option>'; }).join("");
+    var options = optionSansChantierHTML_(!chantierInit || !CHANTIERS[chantierInit]) +
+      noms.map(function (nom) { return '<option value="' + esc(nom) + '"' + (chantierInit === nom ? " selected" : "") + '>' + esc(nom) + '</option>'; }).join("");
     return '<select class="f-chantier">' + options + '</select>';
   }
   function champStatutHTML(statutInit) {
@@ -299,7 +311,7 @@
     var etat = { zone: "murs", precision: "" };
     pop.innerHTML =
       '<div class="cp-titre">Ajouter — Armature</div>' +
-      champChantierHTML(chantierExistantDansCase(cibles, giDebut, duree) || chantierParDefautValide() || premierChantierActif_()) +
+      champChantierHTML(chantierExistantDansCase(cibles, giDebut, duree) || chantierParDefautValide()) +
       '<div class="label-champ">Zone</div>' +
       '<div class="chip-row zone-row">' +
       '<button type="button" class="chip actif" data-zone="murs">Murs</button>' +
@@ -366,7 +378,7 @@
     pop.querySelector(".f-ok").addEventListener("click", function () {
       var texte = majApercu();
       sauvegarderUndo();
-      creerGroupeTaches(cibles, giDebut, duree, { type: "tache", texte: texte, important: false, chantier: champChantierSel.value, statut: statutActuel, demiDebut: demiDebut, demiFin: demiFin });
+      creerGroupeTaches(cibles, giDebut, duree, { type: "tache", texte: texte, important: false, chantier: champChantierSel.value || null, statut: statutActuel, demiDebut: demiDebut, demiFin: demiFin });
       fermer(); render(); toast("Ajouté.");
     });
   }
@@ -376,7 +388,7 @@
     var etat = { zone: "murs" };
     pop.innerHTML =
       '<div class="cp-titre">Ajouter — Béton</div>' +
-      champChantierHTML(chantierExistantDansCase(cibles, giDebut, duree) || chantierParDefautValide() || premierChantierActif_()) +
+      champChantierHTML(chantierExistantDansCase(cibles, giDebut, duree) || chantierParDefautValide()) +
       '<div class="label-champ">Zone</div>' +
       '<div class="chip-row zone-row">' +
       '<button type="button" class="chip actif" data-zone="murs">Murs</button>' +
@@ -442,7 +454,7 @@
     pop.querySelector(".f-ok").addEventListener("click", function () {
       var texte = majApercu();
       sauvegarderUndo();
-      creerGroupeTaches(cibles, giDebut, duree, { type: "tache", texte: texte, important: false, chantier: champChantierSel.value, statut: statutActuel, demiDebut: demiDebut, demiFin: demiFin });
+      creerGroupeTaches(cibles, giDebut, duree, { type: "tache", texte: texte, important: false, chantier: champChantierSel.value || null, statut: statutActuel, demiDebut: demiDebut, demiFin: demiFin });
       fermer(); render(); toast("Ajouté.");
     });
   }
@@ -452,7 +464,7 @@
     var etat = { zone: "murs" };
     pop.innerHTML =
       '<div class="cp-titre">Ajouter — Livraison armature</div>' +
-      champChantierHTML(chantierExistantDansCase(cibles, giDebut, duree) || chantierParDefautValide() || premierChantierActif_()) +
+      champChantierHTML(chantierExistantDansCase(cibles, giDebut, duree) || chantierParDefautValide()) +
       '<div class="label-champ">Zone</div>' +
       '<div class="chip-row zone-row">' +
       '<button type="button" class="chip actif" data-zone="murs">Murs</button>' +
@@ -484,7 +496,7 @@
     pop.querySelector(".f-ok").addEventListener("click", function () {
       var texte = majApercu();
       sauvegarderUndo();
-      creerGroupeTaches(cibles, giDebut, duree, { type: "tache", texte: texte, important: false, chantier: champChantierSel.value, statut: statutActuel, demiDebut: demiDebut, demiFin: demiFin });
+      creerGroupeTaches(cibles, giDebut, duree, { type: "tache", texte: texte, important: false, chantier: champChantierSel.value || null, statut: statutActuel, demiDebut: demiDebut, demiFin: demiFin });
       fermer(); render(); toast("Ajouté.");
     });
   }
@@ -529,7 +541,7 @@
     }).join("");
     pop.innerHTML =
       '<div class="cp-titre">Ajouter — ' + esc(f.nom) + '</div>' +
-      champChantierHTML(chantierExistantDansCase(cibles, giDebut, duree) || chantierParDefautValide() || premierChantierActif_()) +
+      champChantierHTML(chantierExistantDansCase(cibles, giDebut, duree) || chantierParDefautValide()) +
       champsHTML +
       (estSousTraitantDyn ? champStatutHTML(null) : "") +
       '<div class="apercu"><span class="apercu-label">Aperçu du texte</span><span class="apercu-texte"></span></div>' +
@@ -573,7 +585,7 @@
     pop.querySelector(".f-annuler").addEventListener("click", fermer);
     pop.querySelector(".f-ok").addEventListener("click", function () {
       var texte = majApercu();
-      var chantier = champChantierSel ? champChantierSel.value : null;
+      var chantier = champChantierSel ? (champChantierSel.value || null) : null;
       var choixSerie = lireChoixSerie();
       if (choixSerie) {
         fermer();
@@ -657,7 +669,8 @@
       // présent sur une autre tâche de la même case ciblée (defautNouveau,
       // cf. chantierExistantDansCase) — jamais fait disparaître un chantier
       // déjà utilisé juste sous les yeux de Lionel.
-      var options = Object.keys(CHANTIERS).filter(function (k) {
+      var sansChantier = itemExisting ? !(itemExisting.chantier && CHANTIERS[itemExisting.chantier]) : !defautNouveau;
+      var options = optionSansChantierHTML_(sansChantier) + Object.keys(CHANTIERS).filter(function (k) {
         return CHANTIERS[k].actif !== false || k === defautNouveau || (itemExisting && itemExisting.chantier === k);
       }).map(function (k) {
         var sel = itemExisting ? (itemExisting.chantier === k) : (defautNouveau === k);
@@ -695,7 +708,8 @@
       nomGrand = "Absence";
     }
     var couleurBandeau = typeAffiche === "tache" ? (CHANTIERS[itemExisting ? itemExisting.chantier : defautNouveau] || {}).couleur : null;
-    var fondStyle = typeAffiche === "tache" ? ("background:" + (couleurBandeau || "var(--accent)")) : "background:var(--absence-bg)";
+    // Sans chantier (suite 66) : bandeau neutre, comme la bulle.
+    var fondStyle = typeAffiche === "tache" ? ("background:" + (couleurBandeau || "var(--surface-2)")) : "background:var(--absence-bg)";
 
     pop.innerHTML =
       bandeauHTML({ clair: typeAffiche !== "tache", fondStyle: fondStyle, important: state.important, chantierHTML: champChantier, nomGrand: nomGrand }) +
@@ -761,7 +775,7 @@
     var chantierSel = pop.querySelector(".f-chantier");
     if (chantierSel) chantierSel.addEventListener("change", function () {
       var c = CHANTIERS[chantierSel.value];
-      pop.querySelector(".bandeau").style.background = c ? c.couleur : "";
+      pop.querySelector(".bandeau").style.background = c ? c.couleur : "var(--surface-2)";
     });
     var statutRow = pop.querySelector(".statut-row");
     var statutActuel = itemExisting ? (itemExisting.statut || null) : null;
@@ -853,7 +867,7 @@
       if (!texte) { fermer(); return; }
       var important = state.important;
       var chantierSel2 = pop.querySelector(".f-chantier");
-      var chantier = chantierSel2 ? chantierSel2.value : (itemExisting ? itemExisting.chantier : null);
+      var chantier = chantierSel2 ? (chantierSel2.value || null) : (itemExisting ? itemExisting.chantier : null);
       var statutFinal = statutRow ? statutActuel : null;
       var giDebutFinal = state.giDebut, dureeFinal = state.giFin - state.giDebut + 1;
       var demiDebutFinal = state.demiDebut, demiFinFinal = state.demiFin;

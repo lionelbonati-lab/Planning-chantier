@@ -126,9 +126,16 @@
   // fond à expliquer). Sortie de openPrintSheet à la suite 48 : sous
   // chaque semaine, ou une seule fois sous toutes les semaines d'un
   // planning individuel.
+  // Tâches sans chantier (suite 66 — Lionel : « dans l'impression il sera
+  // noté autre. Reste sans couleur. ») : clé "" dans les chantiers utilisés,
+  // « Autre » en fin de légende, pastille blanche cerclée ; en noir et
+  // blanc, « Autre » écrit sous la tâche comme un nom de chantier.
+  var LIBELLE_AUTRE_IMPR_ = "Autre";
   function legendeImpression_(noms, r) {
     if (!r.legende || r.rendu === "nb" || !noms.length) return "";
+    noms = noms.filter(function (n) { return n !== ""; }).concat(noms.indexOf("") >= 0 ? [""] : []);
     return '<div class="print-legend">' + noms.map(function (nomChantier) {
+      if (nomChantier === "") return '<div class="legend-item"><span class="sw sw-autre" style="background:#fff"></span>' + LIBELLE_AUTRE_IMPR_ + '</div>';
       var ch = etat.chantierParNom[nomChantier];
       return '<div class="legend-item"><span class="sw" style="background:' + (ch ? ch.couleur : "#e5e5e5") + '"></span>' + esc(nomChantier) + '</div>';
     }).join("") + '</div>';
@@ -471,7 +478,7 @@
             if (taches.length) {
               taches.forEach(function (t) {
                 var estAbs = !!t.absence || estAbsence(t.texte);
-                if (t.chantier && !estAbs) chantiersUtilises[t.chantier] = true;
+                if (!estAbs) chantiersUtilises[t.chantier && etat.chantierParNom[t.chantier] ? t.chantier : ""] = true;
               });
             } else if (cell && cell.chantier) {
               chantiersUtilises[cell.chantier] = true;
@@ -554,9 +561,10 @@
             var bg = "transparent";
             if (estAbs) {
               bg = "var(--absence-bg)";
-            } else if (t.chantier) {
-              var ch = etat.chantierParNom[t.chantier];
-              bg = ch ? ch.couleur : "#e5e5e5";
+            } else if (t.chantier && etat.chantierParNom[t.chantier]) {
+              bg = etat.chantierParNom[t.chantier].couleur;
+            } else {
+              bg = "#fff"; // sans chantier (suite 66) : blanc
             }
             // Réglages (suite 38). Lionel : « Si les couleurs sont enlevées,
             // prévoir de noter le nom du chantier » — sans couleurs, fond blanc
@@ -568,7 +576,7 @@
             var nb = r.rendu === "nb", nomChantier = "";
             if (nb) {
               bg = "transparent";
-              if (t.chantier && !estAbs) nomChantier = '<span class="print-chantier">' + esc(t.chantier) + '</span>';
+              if (!estAbs) nomChantier = '<span class="print-chantier">' + esc(t.chantier && etat.chantierParNom[t.chantier] ? t.chantier : LIBELLE_AUTRE_IMPR_) + '</span>';
             }
             var badge = (r.statuts && p.sousTraitant && t.statut && STATUTS[t.statut]) ? ' <span class="print-statut" style="background:' + (nb ? "transparent" : STATUTS[t.statut].couleur) + '">' + esc(STATUTS[t.statut].nom) + '</span>' : "";
             var ouvre = t.important ? '<span class="print-important">' : "";

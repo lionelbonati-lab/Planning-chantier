@@ -9045,3 +9045,50 @@ Lionel :
   - barres : natives masquées, `.scroller` sans défilement vertical, poignée fine au bord droit pendant le défilement puis effacée, poignée saisie qui fait défiler, poignée horizontale du planning dans l'écran.
 - test_suite53.js : 9 onglets avec leur nom à 1400 et 1024 px (resserrés à 1024 px). 46/46.
 - test_suite56.js et test_suite54.js : 15 réglages dans « Personnaliser » (au lieu de 16) : Note est maintenant sur sa page.
+
+## 174. Round du 26.09.2026 (suite 66) — Tâches d'intervenant verrouillées, tri par glisser-déposer, « Aucun chantier », logo, icône Important
+
+Lionel :
+- « J'arrive à changer les tâches entre intervenants alors que cela devrait être interdit. » puis « une tache doit pouvoir naviguer entre personnel, mais pas entre intervenant. un électricien n'est pas un ehafaudeur. on ne peut pas leur attribuer les même taches »
+- « J'aimerai pouvoir trier mes tâches si plusieurs tâches se chevauchent. Pour le moment aucun moyen de faire monter l'une ou l'autre tâches à l'intérieur de la même case. » puis « pas de bouton, un glisser déposer par dessus fait monter la tâche d'un rang »
+- « Possibilité d'affecter une tâches à aucun chantier. il est déjà possible de désélectionner un chantier par défaut. dans l'impression il sera noté autre. Reste sans couleur. »
+- « Logo en haut a gauche mal centré gauche droite dans sa case »
+- « icone attention, Triangle avec point d'exclamation. »
+
+### Ce qui change
+- **Tâches d'intervenant** : une tâche d'intervenant ne quitte plus sa ligne. La lâcher sur un autre intervenant (ou sur le personnel) la remet à sa place avec le message « Une tâche d’intervenant reste sur sa ligne. ». La case visée est marquée interdite pendant le geste. Les tâches du personnel passent toujours d'une personne à l'autre. La règle est `changementPersonneAutorise` (js/grille-rendu.js) : même personne, ou même secteur à condition que ce ne soit pas « sous-traitant ».
+- **Trier des tâches qui se chevauchent** : on glisse une tâche et on la lâche **par-dessus** une autre tâche de la même personne qui la chevauche.
+  - Lâchée sur celle du dessus, elle monte au-dessus ; lâchée sur celle du dessous, elle descend.
+  - Pendant le geste, la tâche visée s'entoure et la case n'est pas surlignée.
+  - Les dates ne bougent pas.
+  - L'action s'annule en une étape (Ctrl+Z).
+  - Il n'y a pas de bouton.
+- **Aucun chantier** :
+  - Dans les fiches de tâche (fiche complète et formulaires rapides), la 1re option est « Aucun chantier ». Elle est choisie par défaut quand la case n'a pas de chantier et qu'aucun chantier par défaut n'est coché. Avant, le premier chantier de la liste était pris d'office.
+  - La tâche est enregistrée sans chantier (`chantier_id` nul).
+  - Au planning, la bulle reste sans couleur : fond blanc de la page, fin filet, et « Aucun chantier » au survol.
+  - À l'impression, la tâche reste blanche. « Autre » ferme la légende (pastille blanche cerclée), et en noir et blanc « Autre » est écrit à la place du nom de chantier.
+- **Logo** : même marge à gauche et à droite dans sa case (il touchait le bord gauche).
+- **Icône Important** : triangle d'attention avec un point d'exclamation (au lieu du cercle de la suite 65), partout où elle paraît : barre de sélection, fiches, pages Jalons et Notes.
+
+### Fonctionnement
+- **Ordre d'empilement** : chaque tâche porte un `rang` par personne, et l'empilement à l'écran (`assignerPistesCompact`, trié par `comparerRangTaches`) le suit.
+  - Il n'y a pas de nouvelle colonne en base : le rang s'écrit dans l'`ordre` de chaque case (RPC `remplacer_case_personne`, dans l'ordre de `calculerEtatLocal`).
+  - Au chargement, `attribuerRangsTaches_` (js/donnees-sync.js) retrouve un rang cohérent pour toute la semaine par un tri topologique sur l'ordre de chaque case. En cas de désaccord entre deux cases, la plus ancienne dans la construction l'emporte.
+  - Une tâche nouvelle ou copiée va en dessous.
+- **Glisser par-dessus** : `bulleRangSous` (js/grille-interactions.js) teste la géométrie des bulles sous le pointeur, parce que les autres bulles sont en `pointer-events:none` pendant le glisser.
+  - Cela ne vaut que pour une tâche seule (pas un groupe, pas une copie avec Maj ou ⧉), de la même personne, qui chevauche la tâche glissée.
+  - Au relâcher, `placerTacheAuRangDe` (js/formulaires-communs.js) déplace le rang devant (ou derrière) les tâches qui la chevauchent, jusqu'à ce qu'elle passe réellement de l'autre côté à l'écran.
+
+### Tests
+- test_suite66.js (nouveau), 22/22 :
+  - intervenant → intervenant refusé (et le message) ; personnel → personnel permis ;
+  - tri par-dessus : cible entourée, ordre inversé à l'écran puis dans les deux demi-cases en base, repris au rechargement, annulé par Ctrl+Z, puis redescente ;
+  - « Aucun chantier » : 1re option, choisie par défaut, enregistrée sans chantier ; le chantier par défaut reste pré-choisi quand il est coché ;
+  - bulle blanche ;
+  - impression : « Autre » dans la légende, fond blanc, et en noir et blanc ;
+  - logo centré ;
+  - icône triangle.
+- test_suite65.js : l'icône Important est attendue en triangle.
+- test_chantier_defaut.js et test_grille_compacte.js (tests unitaires qui extraient les fonctions une à une) : ajout de `optionSansChantierHTML_` (et `LIBELLE_SANS_CHANTIER`) et de `comparerRangTaches` à leur liste. 16/16 et 69/69.
+- Suite complète : les 75 tests passent (73/75 au premier passage, les deux tests unitaires ci-dessus corrigés depuis).

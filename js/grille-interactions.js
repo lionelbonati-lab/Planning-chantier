@@ -750,7 +750,9 @@
     function kindOrigineGeste() { return plageClic.liste === TACHES ? "personne" : itemClic.type; }
     function celluleValidePourGeste(cible) {
       if (!cible || cible.dataset.kind !== kindOrigineGeste()) return false;
-      if (plageClic.liste === TACHES && secteurPersonne(cible.dataset.personne) !== secteurPersonne(itemClic.personneId)) return false;
+      // Suite 66 : changementPersonneAutorise (js/grille-rendu.js) — même
+      // secteur, et une tâche d'intervenant reste sur sa ligne.
+      if (plageClic.liste === TACHES && !changementPersonneAutorise(itemClic.personneId, cible.dataset.personne)) return false;
       return true;
     }
     function cellulesPlagePourSurvol(celluleSousPointeur) {
@@ -948,7 +950,35 @@
       parent.appendChild(el);
       surlignagesPrecis.push(el);
     }
+    // Déposer PAR-DESSUS une tâche pour la trier (round du 26.09.2026,
+    // suite 66 — Lionel : « pas de bouton, un glisser déposer par dessus
+    // fait monter la tâche d'un rang »). cibleRang = { el, item } quand le
+    // pointeur survole une autre tâche de la même personne qui chevauche
+    // celle qu'on glisse : la case n'est alors plus surlignée, c'est la
+    // bulle visée qui s'entoure (.cible-rang), et le relâcher change l'ordre
+    // d'empilement (placerTacheAuRangDe, js/formulaires-communs.js) au lieu
+    // de déplacer la tâche. Seulement pour UNE tâche déplacée (pas un
+    // groupe, pas une copie Maj/⧉).
+    // Test géométrique plutôt que elementFromPoint : pendant le glisser, les
+    // autres bulles sont en pointer-events:none (body.en-glissement) et le
+    // fantôme passe sous le pointeur.
+    var cibleRang = null;
+    function bulleRangSous(x, y) {
+      if (!estBulleUnitaireDeplacable() || copieActuelle) return null;
+      var bulles = document.querySelectorAll(".bulle[data-id]:not(.fantome-glisse)");
+      for (var i = 0; i < bulles.length; i++) {
+        var b = bulles[i];
+        if (b.dataset.id === String(idClic)) continue;
+        var r = (b.querySelector(".b-carte") || b).getBoundingClientRect();
+        if (x < r.left || x > r.right || y < r.top || y > r.bottom) continue;
+        var p = itemParId(b.dataset.id);
+        if (!p || p.liste !== TACHES || String(p.item.personneId) !== String(itemClic.personneId)) return null;
+        return tachesSeChevauchent(p.item, itemClic) ? { el: b, item: p.item } : null;
+      }
+      return null;
+    }
     function nettoyerSurvol() {
+      document.querySelectorAll(".bulle.cible-rang").forEach(function (b) { b.classList.remove("cible-rang"); });
       cellulesSurvoleesActuelles.forEach(function (c) { c.classList.remove("drop-hover", "cell-interdite"); });
       cellulesSurvoleesActuelles = [];
       surlignagesPrecis.forEach(function (el) { el.remove(); });
@@ -1092,7 +1122,9 @@
       var xCible = xDansJourVisible_(scroller, e2.clientX);
       var sous = document.elementFromPoint(xCible, e2.clientY);
       cibleActuelle = sous && sous.closest(".cell");
-      survolerCible(cibleActuelle, xCible);
+      cibleRang = bulleRangSous(e2.clientX, e2.clientY);
+      if (cibleRang) { nettoyerSurvol(); cibleRang.el.classList.add("cible-rang"); }
+      else survolerCible(cibleActuelle, xCible);
     }
     function appliquerDelta(delta, copieFinale) {
       var nTotal = nbJoursAffiches();
@@ -1201,7 +1233,7 @@
     function estBulleUnitaireDeplacable() { return groupeIds.length === 1 && plageClic.liste === TACHES; }
     function celluleValidePourUnitaire(celluleCible) {
       if (!celluleCible || celluleCible.dataset.kind !== "personne") return false;
-      return secteurPersonne(celluleCible.dataset.personne) === secteurPersonne(itemClic.personneId);
+      return changementPersonneAutorise(itemClic.personneId, celluleCible.dataset.personne);
     }
     function appliquerCibleUnitaire(cible, copieFinale) {
       nettoyerFantomes();
@@ -1224,7 +1256,13 @@
       if (!celluleCible) { nettoyerFantomes(); render(false); return; }
       var giCibleBrut = +celluleCible.dataset.jour;
       if (estBulleUnitaireDeplacable()) {
-        if (!celluleValidePourUnitaire(celluleCible)) { nettoyerFantomes(); render(false); return; }
+        if (!celluleValidePourUnitaire(celluleCible)) {
+          nettoyerFantomes(); render(false);
+          // Suite 66 : dire pourquoi la tâche revient à sa place.
+          if (celluleCible.dataset.kind === "personne" && secteurPersonne(itemClic.personneId) === "sous-traitant" &&
+              secteurPersonne(celluleCible.dataset.personne) === "sous-traitant") toast("Une tâche d’intervenant reste sur sa ligne.");
+          return;
+        }
         var demiDebutActuelTache = itemClic.demiDebut || null, demiFinActuelTache = itemClic.demiFin || null;
         var estWEUnitaire = estGiWeekend(giCibleBrut);
         var cible;
@@ -1319,6 +1357,16 @@
       if (enDefilement) { nettoyerFantomes(); return; }
       // appuiLong : la sélection a déjà été faite par le minuteur (suite 11).
       if (!arme || !bouge) { nettoyerFantomes(); if (!appuiLong) resoudreClicBulle(idClic, !tactile && (e2.ctrlKey || e2.metaKey)); return; }
+      if (cibleRang) {
+        var viseeRang = cibleRang.item;
+        cibleRang = null;
+        nettoyerFantomes();
+        quitterModeSelection();
+        // Objets frais (une synchro a pu reconstruire TACHES pendant le geste).
+        var pT = itemParId(idClic), pV = itemParId(viseeRang.id);
+        if (!pT || !pV || !placerTacheAuRangDe(pT.item, pV.item)) render(false);
+        return;
+      }
       resoudreCibleGroupe(celluleCible, xDansJourVisible_(scroller, e2.clientX));
     }
     function onCancel(e2) { if (e2.pointerId !== pointerId) return; detacher(); nettoyerFantomes(); }

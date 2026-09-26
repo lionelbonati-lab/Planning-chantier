@@ -1349,6 +1349,13 @@
   }
   .bulle-plage { z-index: 1; align-self: start; margin-bottom: 14px; }
   .bulle.selectionnee .b-carte { box-shadow: 0 0 0 2.5px var(--accent), 0 1px 2px var(--shadow); }
+  /* Suite 66 — tri par-dessus : la tâche visée pendant le glisser (cf.
+     bulleRangSous, js/grille-interactions.js). */
+  .bulle.cible-rang .b-carte { box-shadow: 0 0 0 2.5px var(--accent), 0 0 0 5px var(--accent-soft), 0 1px 2px var(--shadow); }
+  /* Suite 66 — tâche sans chantier (Lionel : « Reste sans couleur ») : fond
+     de la surface, simple filet pour la détacher de la case. */
+  .bulle.sans-chantier .b-carte { box-shadow: inset 0 0 0 1px var(--ink-faint), 0 1px 2px var(--shadow); color: var(--ink); }
+  .bulle.sans-chantier.selectionnee .b-carte { box-shadow: inset 0 0 0 1px var(--ink-faint), 0 0 0 2.5px var(--accent), 0 1px 2px var(--shadow); }
   .bulle:active { cursor: grabbing; }
   .bulle.dragging {
     position: fixed; z-index: 60;
@@ -1940,9 +1947,13 @@
      existante (icons/icon-32.png, motif "mur de briques", cf. §76 — pas de
      nouveau logo à inventer) SANS le nom "Planning Chantiers" à côté
      (Lionel : « l'icône suffit »). */
+  /* Round du 26.09.2026 (suite 66) — Lionel : « Logo en haut a gauche mal
+     centré gauche droite dans sa case ». Seul un padding-right existait :
+     l'icône touchait le bord gauche et laissait 10 px avant le trait de
+     séparation. Même marge des deux côtés désormais. */
   .marque-nav {
-    display: flex; align-items: center; flex-shrink: 0;
-    padding-right: 10px; border-right: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    padding: 0 10px; border-right: 1px solid var(--border);
   }
   .marque-nav img { width: 28px; height: 28px; border-radius: 7px; display: block; }
   .onglets-liste {
@@ -2877,6 +2888,7 @@
   .print-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: var(--impr-esp-legende, 14px); padding-top: 12px; border-top: 1px solid var(--border); }
   .print-legend .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink); }
   .print-legend .legend-item .sw { width: 13px; height: 13px; border-radius: 3px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.15); }
+  .print-legend .legend-item .sw.sw-autre { box-shadow: inset 0 0 0 1px rgba(0,0,0,.4); }
   .skip-note { font-size: 11.5px; color: var(--ink-faint); font-style: italic; margin-top: 10px; }
   .impression-actions { display: flex; gap: 10px; margin-top: 16px; justify-content: flex-end; }
   /* Ligne des horaires sous Matin/Aprem (suite 27) : même discrétion que

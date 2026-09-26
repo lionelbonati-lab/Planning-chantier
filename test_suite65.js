@@ -11,7 +11,7 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //     défilement soient des barres discrètes, visibles unique si il y a
 //     déplacement. »
 // Vérifie :
-//   1. Important : une icône (cercle « ! ») différente du drapeau des
+//   1. Important : une icône (triangle « ! » depuis la suite 66) différente du drapeau des
 //      jalons — barre de sélection, fiche, liste des jalons ;
 //   2. Onglet Notes entre Jalons et Personnel (barre du haut et menu des
 //      pages), raccourci « page Notes » ;
@@ -47,13 +47,13 @@ const svg = (page, sel) => page.evaluate((s) => { const e = document.querySelect
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 1400, height: 900 }, bd: BD });
 
     // 1. Icône « Important »
-    const ic = await page.evaluate(() => ({ diff: ICONS.important !== ICONS.flag, rond: /<circle/.test(ICONS.important) }));
+    const ic = await page.evaluate(() => ({ diff: ICONS.important !== ICONS.flag, rond: /M10 2\.8 /.test(ICONS.important) }));
     const iSel = await svg(page, '#selImportant'), iJalons = await svg(page, '.onglet[data-page="jalons"]');
-    verifier(ic.diff && ic.rond && iSel && iSel !== iJalons && /circle/.test(iSel),
-      'Important : icône en cercle « ! », différente du drapeau des jalons (barre de sélection)');
+    verifier(ic.diff && ic.rond && iSel && iSel !== iJalons && /M10 2\.8 /.test(iSel),
+      'Important : icône triangle « ! », différente du drapeau des jalons (barre de sélection)');
     await page.evaluate(() => afficherPage('jalons')); await page.waitForTimeout(300);
     const iListe = await svg(page, '#listeJalons .jalon-important');
-    verifier(/circle/.test(iListe) && iListe !== iJalons, 'page Jalons : le jalon important porte l\'icône « Important », pas le drapeau');
+    verifier(/M10 2\.8 /.test(iListe) && iListe !== iJalons, 'page Jalons : le jalon important porte l\'icône « Important », pas le drapeau');
 
     // 2. Onglets
     const ordre = await page.evaluate(() => [
@@ -91,8 +91,8 @@ const svg = (page, sel) => page.evaluate((s) => { const e = document.querySelect
 
     // Ajouter
     await page.click('#listeNotesAVenir .ligne-ajouter'); await page.waitForTimeout(250);
-    const fiche = await page.evaluate(() => ({ nom: (document.querySelector('.fiche-note .bandeau') || {}).textContent || '', imp: !!document.querySelector('.fiche-note .f-important svg circle') }));
-    verifier(/Note/.test(fiche.nom) && fiche.imp, 'fiche « Note » avec le bouton Important en cercle « ! » (' + JSON.stringify(fiche) + ')');
+    const fiche = await page.evaluate(() => ({ nom: (document.querySelector('.fiche-note .bandeau') || {}).textContent || '', imp: !!document.querySelector('.fiche-note .f-important svg path[d^="M12 3.4"]') }));
+    verifier(/Note/.test(fiche.nom) && fiche.imp, 'fiche « Note » avec le bouton Important en triangle « ! » (' + JSON.stringify(fiche) + ')');
     await page.fill('.fiche-note .f-texte-note', 'Visite du bureau de contrôle');
     await page.click('.fiche-note .f-ok'); await page.waitForTimeout(600);
     const bdAjout = await page.evaluate(() => __BD.notes.filter((n) => n.texte === 'Visite du bureau de contrôle').map((n) => n.date).join());
