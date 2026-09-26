@@ -8588,3 +8588,4 @@ Lionel : « Corrige aussi le mode sombre de la barre d'outils » (signalé à la
 
 ### Tests
 - test_suite55.js (nouveau), 16 vérifications, 16 OK : contraste d'au moins 4,5:1 sur chaque case blanche, en mode sombre et clair, à 1400 px et dans le menu « ⋮ » à 390 px ; pastille en pointillés puis à la couleur du chantier choisi. Sans la correction : 8 échecs.
+- Suite complète : 65/65.
