@@ -186,7 +186,7 @@
       // Raccourcis clavier (suite 61, js/raccourcis.js).
       '<div class="page page-reglages" id="page-raccourcis"><div class="page-scroll">' +
         '<div class="page-titre"><h1>Raccourcis clavier</h1><button type="button" class="lien-reset-tout" id="btnRaccourcisDefaut" hidden>Tout rétablir</button></div>' +
-        '<p class="page-sous">Touches d’un clavier d’ordinateur, les mêmes sur tous les appareils du compte. « + » puis la combinaison voulue pour en ajouter une, « × » pour la retirer, « ↺ » pour revenir aux touches d’origine.</p>' +
+        '<p class="page-sous">Touches du clavier et boutons de la souris d’un ordinateur, les mêmes sur tous les appareils du compte. « + » puis la combinaison voulue (ou le bouton du milieu, précédent, suivant de la souris) pour en ajouter une, « × » pour la retirer, « ↺ » pour revenir aux touches d’origine.</p>' +
         '<div id="listeRaccourcis"></div>' +
       '</div></div>' +
       // Sauvegardes (round du 25.09.2026, suite 49 — js/page-sauvegardes.js,
@@ -776,6 +776,9 @@
       raccourcis: renderRaccourcis,
       couleurs: function () { if (typeof majReglagesCouleursAffiches === "function") majReglagesCouleursAffiches(); },
       compte: chargerInfosCompte,
+      // Suite 64 : aperçu redessiné (chantiers, statuts) et polices des
+      // pastilles chargées à l'ouverture de la page.
+      affichage: majPageAffichage,
       // Round du 16.09.2026 (suite, encore) : la page Planning elle-même
       // n'a pas besoin d'un re-rendu complet à chaque activation (ses
       // données restent à jour en tâche de fond, cf. synchroniser()) — mais

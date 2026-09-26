@@ -7,7 +7,7 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 // Vérifie :
 //   1. plus de bande sous la dernière ligne : le cadre se referme pile
 //      dessous (ordinateur 1920 et 1400 en 2 semaines, téléphone) ;
-//   2. page Affichage : les 11 réglages, à l'origine rien ne change
+//   2. page Affichage : les 18 réglages (suite 64 : 11 → 18), à l'origine rien ne change
 //      (aucun attribut, mêmes tailles qu'avant), aperçu présent ;
 //   3. chaque réglage, choisi à la souris ou au clavier, change le vrai
 //      planning ET l'aperçu, et s'enregistre (compte + appareil) ;
@@ -69,15 +69,15 @@ const style = (page, sel, prop) => page.evaluate(([s, p]) => { const e = documen
     const page0 = await page.evaluate(() => ({
       options: [...document.querySelectorAll('#page-affichage .reglage-ligne[data-option]')].map((l) => l.dataset.option).join(','),
       actifs: [...document.querySelectorAll('#page-affichage .choix-pastille.actif')].map((b) => b.dataset.option + '=' + b.dataset.valeur).join(','),
-      we: document.getElementById('chkWeekends').checked, statut: document.getElementById('chkAff-statut').checked,
+      we: document.getElementById('chkWeekends').checked, statut: document.getElementById('chkAff-heures').checked,
       reset: document.getElementById('btnAffichageDefaut').hidden,
       noms: [...document.querySelectorAll('#apercuAffichage .aa-nom')].map((n) => n.textContent).join(','),
-      jours: [...document.querySelectorAll('#apercuAffichage .aa-th')].map((n) => n.textContent).join(','),
+      jours: [...document.querySelectorAll('#apercuAffichage .aa-th')].map((n) => n.querySelector('.aa-jour').textContent + ' ' + n.querySelector('.aa-date').textContent).join(','),
       seps: [...document.querySelectorAll('#apercuAffichage .sep-semaines')].filter((s) => !s.hidden).length
     }));
-    verifier(page0.options === 'weekends,auj,zebre,separation,texte,lignes,hauteur,coins,statut,vueOrdi,vueTel',
-      'page Affichage : les 11 réglages (' + page0.options + ')');
-    verifier(page0.actifs === 'separation=espace,texte=normal,lignes=2,hauteur=normale,coins=arrondis,vueOrdi=1,vueTel=jour' && !page0.we && page0.statut && page0.reset,
+    verifier(page0.options === 'weekends,auj,zebre,teinte,separation,cadre,jourSemaine,formatDate,heures,ligneDemi,texte,lignes,hauteur,coins,statut,police,vueOrdi,vueTel',
+      'page Affichage : les 18 réglages (' + page0.options + ')');
+    verifier(page0.actifs === 'teinte=aprem,separation=espace,cadre=arrondis,jourSemaine=abrege,formatDate=numero,ligneDemi=horaires,texte=normal,lignes=2,hauteur=normale,coins=arrondis,statut=badge,police=archivo,vueOrdi=1,vueTel=jour' && !page0.we && page0.statut && page0.reset,
       'valeurs d\'origine affichées, « Tout rétablir » caché (' + page0.actifs + ')');
     verifier(page0.noms === 'Lionel,Mathis,Antoine' && page0.jours === 'Jeu 24,Ven 25,Lun 28,Mar 29' && page0.seps === 2,
       'aperçu : 3 personnes, Jeu Ven | Lun Mar, espace entre les semaines (' + JSON.stringify(page0) + ')');
@@ -109,8 +109,8 @@ const style = (page, sel, prop) => page.evaluate(([s, p]) => { const e = documen
     // Coins
     await pastille(page, 'coins', 'droits'); await page.waitForTimeout(150);
     verifier((await style(page, '.bulle .b-carte', 'borderTopLeftRadius')) === '2px' && (await style(page, '#apercuAffichage .aa-carte', 'borderTopLeftRadius')) === '2px', 'coins droits : planning et aperçu');
-    // Statut (interrupteur)
-    await page.click('#page-affichage .reglage-ligne[data-option="statut"]'); await page.waitForTimeout(150);
+    // Statut (suite 64 : Non / Pastille / Badge)
+    await pastille(page, 'statut', 'non'); await page.waitForTimeout(150);
     verifier((await style(page, '.bulle .b-statut', 'display')) === 'none' && (await style(page, '#apercuAffichage .aa-statut', 'display')) === 'none', 'statut masqué : planning et aperçu');
     // Aujourd'hui
     await page.click('#page-affichage .reglage-ligne[data-option="auj"]'); await page.waitForTimeout(150);
@@ -132,15 +132,16 @@ const style = (page, sel, prop) => page.evaluate(([s, p]) => { const e = documen
     verifier(zb.mathis && zb.lionel === 'none' && zb.lbl && zb.deux === 2 && zb.ap, 'lignes alternées : Mathis teinté, pas Lionel ; avec aujourd\'hui, les 2 teintes (' + JSON.stringify(zb) + ')');
     // Week-ends
     await page.click('#page-affichage .reglage-ligne[data-option="weekends"]'); await page.waitForTimeout(300);
-    const we = await page.evaluate(() => ({ v: afficherWeekends, cases: document.querySelectorAll('.cell.case-weekend').length, ap: [...document.querySelectorAll('#apercuAffichage .aa-th')].map((n) => n.textContent).join(',') }));
+    const we = await page.evaluate(() => ({ v: afficherWeekends, cases: document.querySelectorAll('.cell.case-weekend').length, ap: [...document.querySelectorAll('#apercuAffichage .aa-th')].map((n) => n.querySelector('.aa-jour').textContent + ' ' + n.querySelector('.aa-date').textContent).join(',') }));
     verifier(we.v && we.cases > 0 && we.ap === 'Jeu 24,Ven 25,Sam 26,Dim 27,Lun 28,Mar 29', 'week-ends affichés : planning et aperçu (' + JSON.stringify(we) + ')');
     // Séparation (en 2 semaines)
     await page.evaluate(() => basculerDeuxSemaines()); await page.waitForTimeout(400);
     const avantTrait = await page.evaluate(() => document.querySelectorAll('#racine .sep-semaines').length);
-    await pastille(page, 'separation', 'trait'); await page.waitForTimeout(300);
+    // Suite 64 : « Espace ou rien », plus de trait épais.
+    await pastille(page, 'separation', 'rien'); await page.waitForTimeout(300);
     const trait = await page.evaluate(() => ({ seps: document.querySelectorAll('#racine .sep-semaines').length, bord: getComputedStyle(document.querySelector('.cell.sem-frontiere')).borderLeftWidth,
       ap: document.querySelectorAll('#apercuAffichage .sep-semaines').length, apBord: getComputedStyle(document.querySelector('#apercuAffichage .aa-th.aa-lun')).borderLeftWidth }));
-    verifier(avantTrait === 2 && trait.seps === 0 && trait.bord === '3px' && trait.ap === 0 && trait.apBord === '3px', 'entre 2 semaines « Trait » : trait épais, plus d\'espace, planning et aperçu (' + JSON.stringify(trait) + ')');
+    verifier(avantTrait === 2 && trait.seps === 0 && trait.bord === '0px' && trait.ap === 0 && trait.apBord === '0px', 'entre 2 semaines « Rien » : ni espace ni trait, planning et aperçu (' + JSON.stringify(trait) + ')');
     // Clavier : flèche dans les pastilles
     await page.focus('#page-affichage .choix-pastille[data-option="separation"].actif');
     await page.keyboard.press('ArrowLeft'); await page.waitForTimeout(300);
@@ -175,7 +176,7 @@ const style = (page, sel, prop) => page.evaluate(([s, p]) => { const e = documen
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: largeur, height: hauteur }, hasTouch: tactile, bd: Object.assign({ reglages: [{ cle: 'affichage', valeur, maj: '2026-09-24T10:00:00Z' }] }, BD) });
     const r = await page.evaluate(() => ({ deux: deuxSemaines, jour: vueJourMobile, we: afficherWeekends, cases: document.querySelectorAll('.cell.case-weekend').length,
       txt: getComputedStyle(document.querySelector('.bulle .b-txt')).fontSize, seps: document.querySelectorAll('#racine .sep-semaines').length }));
-    verifier((await attrs(page)) === 'auj=oui texte=grand' && r.we && r.cases > 0 && r.txt === '13.5px' && r.seps === 0, lieu + ' : réglages du compte relus à l\'ouverture (' + JSON.stringify(r) + ')');
+    verifier((await attrs(page)) === 'auj=oui separation=rien texte=grand' && r.we && r.cases > 0 && r.txt === '13.5px' && r.seps === 0, lieu + ' : réglages du compte relus à l\'ouverture (' + JSON.stringify(r) + ')');
     if (largeur > 600) verifier(r.deux === true, lieu + ' : ouvre en 2 semaines');
     else verifier(r.jour === false && r.deux === false, lieu + ' : ouvre en 1 semaine (pas 1 jour)');
     toutesErreurs.push(...erreurs);
@@ -193,7 +194,7 @@ const style = (page, sel, prop) => page.evaluate(([s, p]) => { const e = documen
     // Téléphone : aperçu sans le mardi, rien ne déborde.
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 390, height: 844 }, hasTouch: true, bd: BD });
     await page.evaluate(() => afficherPage('affichage')); await page.waitForTimeout(250);
-    const t = await page.evaluate(() => ({ jours: [...document.querySelectorAll('#apercuAffichage .aa-th')].map((n) => n.textContent).join(','),
+    const t = await page.evaluate(() => ({ jours: [...document.querySelectorAll('#apercuAffichage .aa-th')].map((n) => n.querySelector('.aa-jour').textContent + ' ' + n.querySelector('.aa-date').textContent).join(','),
       large: document.documentElement.scrollWidth, ap: Math.round(document.querySelector('#apercuAffichage .apercu-affichage').getBoundingClientRect().right) }));
     verifier(t.jours === 'Jeu 24,Ven 25,Lun 28' && t.large <= 390 && t.ap <= 390, 'téléphone : aperçu Jeu Ven | Lun, sans débordement (' + JSON.stringify(t) + ')');
     toutesErreurs.push(...erreurs);

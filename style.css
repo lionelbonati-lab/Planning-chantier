@@ -146,7 +146,8 @@
   html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
   body {
     background: var(--bg); color: var(--ink);
-    font-family: 'Archivo', 'Helvetica Neue', Arial, sans-serif;
+    /* Police choisie (suite 64, page Affichage) : --police, posée sur <html>. */
+    font-family: var(--police, 'Archivo', 'Helvetica Neue', Arial, sans-serif);
     -webkit-font-smoothing: antialiased; overscroll-behavior: none;
   }
   @media (prefers-reduced-motion: reduce) {
@@ -278,9 +279,9 @@
   .topbar {
     display: flex; align-items: center; gap: 10px; padding: 8px 16px;
     background: var(--surface-2); border-bottom: 1px solid var(--border);
-    font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink-muted);
+    font-family: var(--police-mono); font-size: 11px; color: var(--ink-muted);
   }
-  .topbar .brand-mini { display: flex; align-items: center; gap: 7px; font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 13px; color: var(--ink); }
+  .topbar .brand-mini { display: flex; align-items: center; gap: 7px; font-family: var(--police, 'Archivo', sans-serif); font-weight: 800; font-size: 13px; color: var(--ink); }
   .topbar .brand-mini .mark-mono {
     width: 20px; height: 20px; border-radius: 6px; background: var(--accent); color: var(--accent-ink);
     display: grid; place-items: center; font-size: 10px; font-weight: 800; flex-shrink: 0;
@@ -292,7 +293,7 @@
     display: inline-flex; align-items: center; gap: 6px;
     background: var(--surface); border: 1px solid var(--border); color: var(--ink);
     border-radius: 8px; padding: 6px 11px; font-size: 12px; font-weight: 600; cursor: pointer;
-    font-family: 'Archivo', sans-serif; transition: background .12s, border-color .12s;
+    font-family: var(--police, 'Archivo', sans-serif); transition: background .12s, border-color .12s;
   }
   @media (hover: hover) and (pointer: fine) { .topbar button:hover { background: var(--accent-soft); border-color: var(--accent); } }
 
@@ -503,7 +504,7 @@
   .select-chantier-btn {
     display: flex; align-items: center; gap: 7px; padding: 5px 8px; border-radius: 7px;
     border: 1px solid var(--border); background: var(--case-fixe-bg); cursor: pointer; font: inherit;
-    font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 700; color: var(--case-fixe-ink);
+    font-family: var(--police-mono); font-size: 12px; font-weight: 700; color: var(--case-fixe-ink);
     transition: background .12s, border-color .12s, color .12s;
   }
   .select-chantier.ouvert .select-chantier-btn { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
@@ -620,7 +621,7 @@
   .zoom-pill {
     min-width: 58px; padding: 5px 8px; border-radius: 7px; border: 1px solid var(--border); background: var(--case-fixe-bg);
     font: inherit; font-size: 12px; font-weight: 700; color: var(--case-fixe-ink); cursor: pointer; text-align: center;
-    font-family: 'IBM Plex Mono', monospace; transition: background .12s, border-color .12s, color .12s;
+    font-family: var(--police-mono); transition: background .12s, border-color .12s, color .12s;
     white-space: nowrap;
   }
   @media (hover: hover) and (pointer: fine) { .zoom-pill:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); } }
@@ -742,7 +743,7 @@
   @media (hover: hover) and (pointer: fine) { .panneau-selection .toolbar-btn:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); } }
   .panneau-selection .toolbar-btn.actif { background: var(--accent); color: var(--accent-ink); border: none; }
   .panneau-selection .sel-compte {
-    min-width: 2.2em; padding: 0 4px; text-align: center; font-family: 'IBM Plex Mono', monospace;
+    min-width: 2.2em; padding: 0 4px; text-align: center; font-family: var(--police-mono);
     font-size: 12px; font-weight: 700; color: var(--accent);
   }
   .panneau-selection .sel-fleches { display: flex; align-items: center; gap: 2px; }
@@ -971,7 +972,7 @@
   .grille { display: grid; gap: 1px; background: var(--border); }
   .th, .lbl, .cell { background: var(--surface-2); }
   .th {
-    padding: 9px 10px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600;
+    padding: 9px 10px; font-family: var(--police-mono); font-size: 11px; font-weight: 600;
     text-transform: uppercase; letter-spacing: .06em; color: var(--ink-muted); text-align: center;
   }
   .th.coin { background: var(--surface); }
@@ -997,7 +998,7 @@
     font-size: 12.5px; font-weight: 700; line-height: 1.2;
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: break-word;
   }
-  .lbl span { font-size: 10px; color: var(--ink-faint); font-family: 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: .04em; }
+  .lbl span { font-size: 10px; color: var(--ink-faint); font-family: var(--police-mono); text-transform: uppercase; letter-spacing: .04em; }
   .lbl-speciale { background: var(--surface); }
   .lbl-speciale b { color: var(--ink-muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
   .th.coin, .lbl, .lbl-speciale { position: sticky; left: 0; z-index: 2; }
@@ -1063,6 +1064,15 @@
   .th-duree { display: block; font-size: 9.5px; font-weight: 600; margin-top: 1px; color: var(--ink-muted); text-transform: none; letter-spacing: 0; font-variant-numeric: tabular-nums; }
   .cell.cell-aprem { background: color-mix(in srgb, var(--surface-2) 88%, var(--ink-faint)); }
   .th.th-demi-aprem { background: color-mix(in srgb, var(--surface) 92%, var(--ink-faint)); }
+  /* Colonnes teintées (suite 64, page Affichage) — Lionel : « Colorier ou
+     non les colonnes matin ou après-midi. » Aucune, ou le matin à la place
+     de l'après-midi. :where : même poids que les 2 règles ci-dessus, pour
+     que les surlignages plus bas (dépôt, sélection…) passent toujours
+     devant. */
+  :where(html[data-aff-teinte]) .cell.cell-aprem { background: var(--surface-2); }
+  :where(html[data-aff-teinte]) .th.th-demi-aprem { background: var(--surface); }
+  :where(html[data-aff-teinte="matin"]) .cell.cell-matin { background: color-mix(in srgb, var(--surface-2) 88%, var(--ink-faint)); }
+  :where(html[data-aff-teinte="matin"]) .th.th-demi-matin { background: color-mix(in srgb, var(--surface) 92%, var(--ink-faint)); }
   /* Frontière entre deux JOURS : plus de trait dédié. Historique le même
      jour (03.09.2026) : d'abord épaissie (2px, var(--border-strong)) sur
      retour de Lionel ("il faudrait marquer un peu plus les bordures entre
@@ -1210,7 +1220,7 @@
   .section-row-personnel { background: var(--section-personnel-bg); }
   .section-row-intervenants { background: var(--section-intervenants-bg); }
   .section-row-sticky { position: sticky; left: 0; display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px; }
-  .section-label { font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-muted); }
+  .section-label { font-family: var(--police-mono); font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-muted); }
   /* .btn-plage-ligne (le "+" de fin de ligne section) a vécu : §85 (round du
      17.09.2026) — Lionel, mockup mockup-sous-menu-outils.html à l'appui,
      « on peut aussi enlever le "+" des lignes personnel et intervenant » —
@@ -1401,7 +1411,7 @@
   .b-txt { align-self: flex-start; }
   .b-statut {
     align-self: flex-start; margin-top: 1px; display: inline-flex; align-items: center; gap: 4px;
-    font-family: 'IBM Plex Mono', monospace; font-size: 8.5px; font-weight: 600; text-transform: uppercase;
+    font-family: var(--police-mono); font-size: 8.5px; font-weight: 600; text-transform: uppercase;
     padding: 1px 6px 1px 5px; border-radius: 999px; color: var(--ink);
   }
   .b-statut .dot { width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
@@ -1658,8 +1668,8 @@
   .champ-unite { position: relative; }
   .champ-unite input[type=text] { padding-right: 30px; }
   .champ-unite .unite { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 11.5px; color: var(--ink-faint); font-weight: 700; pointer-events: none; }
-  .apercu { margin-top: 2px; padding: 9px 11px; border-radius: 9px; background: var(--accent-soft); color: var(--accent); font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; word-break: break-word; }
-  .apercu .apercu-label { display: block; font-family: 'Archivo', sans-serif; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-faint); margin-bottom: 3px; }
+  .apercu { margin-top: 2px; padding: 9px 11px; border-radius: 9px; background: var(--accent-soft); color: var(--accent); font-family: var(--police-mono); font-size: 12px; font-weight: 600; word-break: break-word; }
+  .apercu .apercu-label { display: block; font-family: var(--police, 'Archivo', sans-serif); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-faint); margin-bottom: 3px; }
   .form-pop .chk { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-muted); padding: 2px 1px; cursor: pointer; }
   .form-pop .chk-ligne { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--ink-muted); padding: 2px 1px; }
   .form-pop .chk-ligne input[type=number] { width: 56px; font: inherit; font-size: 12.5px; padding: 5px 7px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); }
@@ -1726,7 +1736,7 @@
   .carte-item .date-ligne-gauche { display: flex; align-items: center; gap: 10px; }
   .carte-item .label-date { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-faint); width: 32px; flex-shrink: 0; }
   .carte-item .date-nav {
-    display: inline-flex; align-items: center; gap: 8px; font-family: 'IBM Plex Mono', monospace; font-weight: 700;
+    display: inline-flex; align-items: center; gap: 8px; font-family: var(--police-mono); font-weight: 700;
     font-size: 12.5px; letter-spacing: .03em; color: var(--ink-muted); text-transform: uppercase;
   }
   .carte-item .date-nav .fleche {
@@ -1943,7 +1953,7 @@
     flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%;
     background: var(--accent-soft); color: var(--accent); border: 1px solid var(--border);
     display: grid; place-items: center; font-size: 12px; font-weight: 800;
-    font-family: 'IBM Plex Mono', monospace; cursor: pointer; margin-right: 12px;
+    font-family: var(--police-mono); cursor: pointer; margin-right: 12px;
     transition: background .12s, border-color .12s, color .12s;
   }
   @media (hover: hover) and (pointer: fine) { .avatar-nav:hover { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); } }
@@ -2106,7 +2116,11 @@
   .apercu-couleurs .ac-bulle { font-style: normal; display: block; width: 100%; padding: 2px 5px; border-radius: 5px; color: var(--bubble-ink); font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
   .apercu-couleurs .ac-jalon { background: var(--jalon-bg); }
   .apercu-couleurs .ac-note { background: var(--note-bg); }
-  .apercu-couleurs .ac-statut { font-size: 9.5px; padding: 0 5px; border-radius: 999px; background: var(--status-confirme-bg); color: var(--status-confirme-ink); }
+  .apercu-couleurs .ac-statut { font-size: 9.5px; padding: 0 5px; border-radius: 999px; background: var(--status-confirme-bg); color: var(--bubble-ink); }
+  /* Suite 64 : l'aperçu aussi sur la page Couleurs, sous la liste « Thème ». */
+  .apercu-couleurs-page { max-width: 620px; margin: 14px 0 22px; }
+  .apercu-couleurs-page .apercu-couleurs { font-size: 12px; }
+  .apercu-couleurs-page .apercu-couleurs .ac-ligne { min-height: 28px; }
   .apercu-couleurs .ac-legende { display: flex; gap: 10px; padding: 5px 8px; color: var(--ink-muted); background: var(--surface); }
   .apercu-couleurs .ac-important { color: var(--important-ink); font-weight: 700; }
   .apercu-couleurs .ac-discret { color: var(--ink-faint); }
@@ -2188,7 +2202,7 @@
      liste (40x24). */
   .champ-actif {
     display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--ink-faint);
-    font-family: 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: .03em;
+    font-family: var(--police-mono); text-transform: uppercase; letter-spacing: .03em;
   }
   .ligne-desactivee { opacity: .62; }
   .ligne-desactivee b { font-weight: 700; text-decoration: line-through; text-decoration-color: var(--ink-faint); }
@@ -2208,7 +2222,7 @@
   .repli-desactives {
     display: flex; align-items: center; gap: 6px; margin-top: 10px; padding: 8px 4px; max-width: 520px;
     font-size: 11.5px; font-weight: 700; color: var(--ink-faint); cursor: pointer; background: none; border: none;
-    font-family: 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: .04em;
+    font-family: var(--police-mono); text-transform: uppercase; letter-spacing: .04em;
   }
   @media (hover: hover) and (pointer: fine) { .repli-desactives:hover { color: var(--ink-muted); } }
   .repli-desactives .chevron { display: inline-block; transition: transform .15s; }
@@ -2219,7 +2233,7 @@
   .carte-form { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); gap: 10px; flex-wrap: wrap; }
   .carte-form .gauche { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
   .carte-form b { font-size: 13.5px; }
-  .carte-form .champs { font-size: 11px; color: var(--ink-faint); font-family: 'IBM Plex Mono', monospace; }
+  .carte-form .champs { font-size: 11px; color: var(--ink-faint); font-family: var(--police-mono); }
   .badge-intervenant { font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); white-space: nowrap; }
   .badge-type-absence { font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: var(--absence-bg); color: var(--ink); white-space: nowrap; }
   .carte-form .droite { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
@@ -2264,7 +2278,7 @@
   .aucun-champ { font-size: 11.5px; color: var(--ink-faint); font-style: italic; }
   .ligne-champ-form { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
   .ligne-champ-form .cf-label { font-size: 12.5px; font-weight: 700; }
-  .ligne-champ-form .cf-type { font-size: 11px; color: var(--ink-faint); font-family: 'IBM Plex Mono', monospace; flex: 1; margin: 0 8px; }
+  .ligne-champ-form .cf-type { font-size: 11px; color: var(--ink-faint); font-family: var(--police-mono); flex: 1; margin: 0 8px; }
   .ligne-champ-form .cf-suppr { background: none; border: none; color: var(--ink-faint); cursor: pointer; font-size: 13px; padding: 2px 4px; font-family: inherit; }
   @media (hover: hover) and (pointer: fine) { .ligne-champ-form .cf-suppr:hover { color: var(--important-ink); } }
   /* Actions par champ : monter / descendre / modifier / retirer (round du
@@ -2325,7 +2339,7 @@
      consultation, puis Nouveau lien / Supprimer en petits liens. */
   .pop-lien-consultation { width: min(360px, calc(100vw - 20px)); }
   .pop-lien-consultation .lc-aide { font-size: 12.5px; color: var(--ink-muted); line-height: 1.45; margin: 4px 0 10px; }
-  .pop-lien-consultation .lc-url { width: 100%; font: inherit; font-size: 12px; font-family: 'IBM Plex Mono', monospace; padding: 8px 10px;
+  .pop-lien-consultation .lc-url { width: 100%; font: inherit; font-size: 12px; font-family: var(--police-mono); padding: 8px 10px;
     border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); }
   .pop-lien-consultation .lc-boutons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
   .pop-lien-consultation .lc-boutons > * { flex: 1 1 auto; text-align: center; text-decoration: none; }
@@ -3156,11 +3170,16 @@
   .rc-combo { display: inline-flex; align-items: center; gap: 2px; padding: 2px 2px 2px 6px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); }
   .rc-fixe .rc-combo { padding-right: 6px; }
   .rc-combo kbd {
-    font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; font-weight: 600; color: var(--ink);
+    font-family: var(--police-mono); font-size: 11.5px; font-weight: 600; color: var(--ink);
     min-width: 20px; text-align: center; padding: 1px 5px; border-radius: 5px;
     background: var(--surface-2); border: 1px solid var(--border-strong); border-bottom-width: 2px;
   }
   .rc-plus { font-size: 10px; color: var(--ink-faint); padding: 0 1px; }
+  /* Suite 64 : touche de souris (bouton, clic, glisser, molette) — petite
+     souris devant le nom, et les gestes du planning un ton en dessous. */
+  .rc-combo kbd.kbd-souris { display: inline-flex; align-items: center; gap: 3px; font-family: var(--police, 'Archivo', sans-serif); }
+  .rc-souris { width: 11px; height: 11px; flex: none; color: var(--ink-muted); }
+  .liste-gestes-souris .rc-nom { color: var(--ink-muted); }
   .rc-retirer, .rc-ajouter, .rc-defaut {
     display: inline-grid; place-items: center; width: 26px; height: 26px; padding: 0; border-radius: 7px;
     border: none; background: none; color: var(--ink-faint); font: inherit; font-size: 15px; line-height: 1; cursor: pointer;
@@ -3210,7 +3229,7 @@
   .compte-photo-apercu {
     flex-shrink: 0; width: 72px; height: 72px; border-radius: 50%; display: grid; place-items: center; overflow: hidden;
     background: var(--accent-soft); color: var(--accent); border: 1px solid var(--border);
-    font-family: 'IBM Plex Mono', monospace; font-size: 28px; font-weight: 800;
+    font-family: var(--police-mono); font-size: 28px; font-weight: 800;
   }
   .compte-photo-apercu img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .compte-photo-actions { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
@@ -3259,9 +3278,15 @@
      qui suit donc exactement les mêmes règles.
      ============================================================ */
   :root { --aff-auj: color-mix(in srgb, var(--accent) 10%, transparent); --aff-zebre: color-mix(in srgb, var(--ink) 4.5%, transparent); }
+  /* Police (suite 64) — Lionel : « police pour l'ensemble du document ».
+     La police des chiffres et étiquettes (IBM Plex Mono) suit elle aussi
+     la police choisie. */
+  :root { --police-mono: 'IBM Plex Mono', monospace; }
+  html[data-aff-police] { --police-mono: var(--police); }
   /* Taille du texte des bulles (origine : 12px). */
   html[data-aff-texte="petit"] :is(.b-txt, .aa-txt) { font-size: 11px; }
   html[data-aff-texte="grand"] :is(.b-txt, .aa-txt) { font-size: 13.5px; }
+  html[data-aff-texte="tresgrand"] :is(.b-txt, .aa-txt) { font-size: 15px; line-height: 1.22; }
   /* Lignes de texte (origine : 2). */
   html[data-aff-lignes="1"] :is(.b-txt, .aa-txt) { -webkit-line-clamp: 1; line-clamp: 1; }
   html[data-aff-lignes="3"] :is(.b-txt, .aa-txt) { -webkit-line-clamp: 3; line-clamp: 3; }
@@ -3279,6 +3304,29 @@
   html[data-aff-coins="droits"] :is(.b-carte, .aa-carte) { border-radius: 2px; }
   /* Statut dans la bulle (origine : affiché). */
   html[data-aff-statut="non"] :is(.b-statut, .aa-statut) { display: none; }
+  /* Statut en pastille (suite 64) : un point de la couleur du statut dans
+     le coin haut droit de la bulle, le nom au survol (title). :where : la
+     vue « 1 jour » garde sa carte collante (position: sticky, positionnée
+     elle aussi). */
+  html[data-aff-statut="pastille"] :where(.bulle > .b-carte, .aa-carte) { position: relative; }
+  html[data-aff-statut="pastille"] .bulle .b-carte .b-statut, html[data-aff-statut="pastille"] .aa-carte .aa-statut {
+    position: absolute; top: 4px; right: 4px; left: auto; width: 9px; height: 9px; padding: 0; margin: 0; gap: 0;
+    font-size: 0; border-radius: 50%; box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--surface-2) 85%, transparent), 0 0 0 2.5px color-mix(in srgb, var(--ink) 25%, transparent);
+  }
+  html[data-aff-statut="pastille"] :is(.b-statut .dot, .aa-statut i) { display: none; }
+  /* Colonnes teintées (suite 64) : cf. .cell.cell-aprem, plus haut. */
+  html[data-aff-teinte] .aa-demi.aa-aprem { background-color: var(--surface); }
+  html[data-aff-teinte] .aa-cell.aa-aprem { background-color: var(--surface-2); }
+  html[data-aff-teinte="matin"] .aa-cell.aa-matin { background-color: color-mix(in srgb, var(--surface-2) 88%, var(--ink-faint)); }
+  html[data-aff-teinte="matin"] .aa-demi.aa-matin { background-color: color-mix(in srgb, var(--surface) 92%, var(--ink-faint)); }
+  /* Entre 2 semaines : rien (suite 64) — Lionel : « plus de ligne
+     épaisse ». Le simple trait de grille, comme entre 2 jours (vue « 1
+     jour » du téléphone comprise). */
+  html[data-aff-separation="rien"] :is(.th, .cell, .lbl).sem-frontiere { border-left: 0; }
+  /* Coins du planning (suite 64) : cadre carré, espace entre semaines
+     compris. */
+  html[data-aff-cadre="carres"] :is(.entete-planning-scroll, .grille-cadre, .aa-cadre) { border-radius: 0; }
+  html[data-aff-cadre="carres"] .sep-coin::before { border-radius: 0 !important; }
   /* Colonne d'aujourd'hui (origine : seul l'en-tête est teinté). */
   html[data-aff-auj="oui"] :is(.cell.cell-auj, .aa-cell.aa-auj) { background-image: linear-gradient(var(--aff-auj), var(--aff-auj)); }
   /* Lignes alternées (origine : non). */
@@ -3299,6 +3347,9 @@
   .choix-pastille.actif { background: var(--accent); color: var(--accent-ink); }
   @media (hover: hover) and (pointer: fine) { .choix-pastille:not(.actif):hover { background: var(--accent-soft); color: var(--accent); } }
   .affichage-note { margin-top: 4px; }
+  /* Suite 64 : 4 à 6 pastilles (police, format de date) ne tiennent plus
+     sur une ligne de téléphone — elles passent à la ligne dans leur cadre. */
+  .choix-pastilles { flex-wrap: wrap; max-width: 100%; min-width: 0; }
 
   /* Mise en page : aperçu à droite (collé en haut au défilement) sur
      écran large, au-dessus des réglages sur téléphone. */
@@ -3317,18 +3368,27 @@
   .apercu-affichage { --aa-noms: 70px; position: relative; font-size: 11px; color: var(--ink); }
   .aa-cadre { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--border); }
   .aa-grille { display: grid; gap: 1px; }
-  .aa-coin, .aa-th { background: var(--surface); color: var(--ink-muted); font-family: 'IBM Plex Mono', monospace; font-size: 10px; text-transform: uppercase; padding: 6px 2px; text-align: center; white-space: nowrap; overflow: hidden; }
+  .aa-coin, .aa-th, .aa-demi { background: var(--surface); color: var(--ink-muted); font-family: var(--police-mono); font-size: 10px; text-transform: uppercase; padding: 6px 2px; text-align: center; overflow: hidden; min-width: 0; }
   .aa-coin { text-align: left; padding-left: 8px; }
-  .aa-th b { font-weight: 700; }
+  /* En-tête d'un jour (suite 64) : comme .th du planning — nom, date en
+     gros, durée de travail. */
+  .aa-th { background: var(--surface-2); letter-spacing: .04em; overflow-wrap: anywhere; }
+  .aa-jour { display: block; }
+  .aa-date { display: block; font-size: 12px; font-weight: 700; color: var(--ink); text-transform: none; letter-spacing: normal; line-height: 1.2; }
+  .aa-duree { display: block; font-size: 8.5px; font-weight: 600; text-transform: none; letter-spacing: 0; }
   .aa-th.aa-today { background: var(--accent-soft); color: var(--accent); }
+  .aa-th.aa-today .aa-date { color: var(--accent); }
+  /* Ligne sous les jours : horaires ou M | A ; l'après-midi teinté. */
+  .aa-demi { font-size: 7.5px; letter-spacing: 0; padding: 2px 1px; line-height: 1.25; opacity: .9; font-variant-numeric: tabular-nums; }
+  .aa-demi.aa-aprem { background: color-mix(in srgb, var(--surface) 92%, var(--ink-faint)); }
+  .aa-cell.aa-aprem { background: color-mix(in srgb, var(--surface-2) 88%, var(--ink-faint)); }
   .aa-nom { background: var(--surface); font-weight: 700; font-size: 12px; display: flex; align-items: center; padding: 0 8px; overflow: hidden; }
   .aa-cell { background: var(--surface-2); min-height: 52px; }
-  .aa-th.aa-we, .aa-cell.aa-we { background-color: var(--weekend-bg); }
-  .aa-sem { border-left: 3px solid var(--ink-faint); }
+  .aa-th.aa-we, .aa-cell.aa-we, .aa-demi.aa-we { background-color: var(--weekend-bg); }
   .aa-bulle { position: relative; z-index: 1; align-self: center; margin: 4px 3px; min-width: 0; }
   .aa-carte { display: flex; flex-direction: column; gap: 1px; border-radius: 9px; padding: 6px 8px; box-shadow: 0 1px 2px var(--shadow); color: var(--bubble-ink); min-width: 0; }
   .aa-txt { font-size: 12px; font-weight: 600; line-height: 1.25; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
-  .aa-statut { align-self: flex-start; display: inline-flex; align-items: center; gap: 4px; font-family: 'IBM Plex Mono', monospace; font-size: 8.5px; font-weight: 600; text-transform: uppercase; padding: 1px 6px 1px 5px; border-radius: 999px; background: var(--status-confirme-bg); color: var(--ink); }
+  .aa-statut { align-self: flex-start; display: inline-flex; align-items: center; gap: 4px; font-family: var(--police-mono); font-size: 8.5px; font-weight: 600; text-transform: uppercase; padding: 1px 6px 1px 5px; border-radius: 999px; background: var(--status-confirme-bg); color: var(--ink); }
   .aa-statut i { width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
   @media (max-width: 600px) {
     .apercu-affichage { --aa-noms: 58px; }

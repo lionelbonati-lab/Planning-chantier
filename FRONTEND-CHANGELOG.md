@@ -8945,3 +8945,56 @@ Lionel : « Le menu setting vient se placer à la place du menu principal en hau
 - test_suite39.js : Mise en page d'impression ouverte depuis la liste « Réglages » du bas. 29/29.
 - Suite complète : 72/72.
 - test_suite57.js (échec intermittent sur la CI de la PR, reproduit aussi sur main, 1 fois sur 6) : sous charge, le geste commençait avant la 1re image du journal, qui partait donc d'une hauteur déjà en train de glisser (`iPremiere` = 0). `journaliser` ne rend plus la main qu'une fois la 1re image notée. 10/10 seul, 8/8 à 4 en parallèle.
+
+## 172. Round du 26.09.2026 (suite 64) — Affichage, Couleurs, souris dans les raccourcis
+
+Lionel :
+- « Setup affichage planning : Proposer divers option d'affichage des dates. afficher ou non les heures de travaille. Afficher ou non la ligne des horaires, pouvoir choisir entre horaire ou M|A. Colorier ou non les colonnes matin ou après-midi. Entre 2 semaines, proposer espace ou rien. plus de ligne épaisse. Coins du planning arrondi ou carré. Afficher statuts: non, pastille, badge. taille du texte planning. police pour l'ensemble du document »
+- « Setup couleur : Enlever thème classique. Enlever le choix de la couleur du statuts à confirmé, déjà dans les statuts. Ajoute d'autres thèmes. Aperçu sur la page aussi »
+- « Ajouter les touches souris aux raccourcis »
+
+### Ce qui change
+- Page Affichage : 18 réglages (11 avant), en 5 groupes (Planning, Dates, Bulles, Police, À l'ouverture). Nouveaux :
+  - **Colonnes teintées** : aucune, matin, après-midi (origine).
+  - **Entre 2 semaines** : espace (origine) ou rien. Le « trait » épais disparaît ; un « trait » déjà enregistré se lit « rien ».
+  - **Coins du planning** : arrondis ou carrés (cadre, en-tête, espace entre semaines).
+  - **Jour** : abrégé « Jeu » (origine), complet « Jeudi », initiale « J », masqué.
+  - **Date** : « 24 » (origine), « 24.09 », « 24 sept. », « 24 septembre » (« 1er » pour le premier du mois).
+  - **Heures de travail** : la durée sous la date, oui (origine) ou non.
+  - **Ligne des horaires** : horaires (origine), « M | A », masquée.
+  - **Statut** : non, pastille (un point de sa couleur dans le coin de la bulle, le nom au survol), badge (origine). Un ancien « oui » se lit « badge ».
+  - **Taille du texte** : « Très grand » (15 px) en plus.
+  - **Police** de tout le document, chiffres compris : Archivo (origine), Inter, Roboto, Nunito, Source Sans 3, police du système. Les polices Google ne se chargent qu'une fois choisies (ou la page ouverte, pour les pastilles écrites chacune dans sa police).
+- L'aperçu de la page Affichage suit tout : 2 colonnes par jour (matin, après-midi), ligne des horaires, durée, statut.
+- Page Couleurs :
+  - plus de thème « Classique ». Sans aucune couleur enregistrée, la liste affiche « Couleurs d'origine » (comme « Personnalisé », jamais choisi à la main) ;
+  - plus de réglage « Statut confirmé » : les badges prennent la couleur réglée sur la page Statuts ;
+  - 6 thèmes de plus : Océan, Lavande, Sable, Bordeaux, Chantier (orange sécurité), Graphite ;
+  - l'aperçu du planning (celui de « Personnaliser ») aussi sur la page, sous la liste « Thème ». Il suit le thème en direct ; son badge prend la couleur du statut « Confirmé ».
+- Page Raccourcis clavier :
+  - les boutons de la souris qui ne servent pas sur le planning deviennent des touches : bouton du milieu, précédent et suivant (boutons de côté), avec Ctrl, Alt, Maj si on veut. « + » puis le bouton pour l'attribuer ;
+  - par défaut, précédent/suivant = semaine précédente/suivante sur le planning (au lieu de « Page précédente » du navigateur, qui faisait quitter l'appli) ;
+  - nouvelle section « Souris » : les gestes de la souris sur le planning (clic, Ctrl+clic, glisser, Maj+glisser, poignées, case vide, clic droit + glisser, Maj+molette), affichés, pas modifiables ;
+  - une petite souris devant chaque touche de souris.
+
+### Fonctionnement
+- js/page-affichage.js :
+  - `OPTIONS_AFFICHAGE` : une option peut porter `alias` (ancienne valeur → nouvelle, `valeurAffichage_`) et `css` (attribut `data-aff-<id>` sur `<html>`, seulement hors valeur d'origine) ;
+  - `enteteJourAffichage(iso, numero)` → `{ nom, date }`, utilisé par la grille et l'aperçu ;
+  - police : variable `--police` (style de `<html>`) et `chargerPolices_` (un `<link data-polices>` vers Google Fonts).
+- js/grille-rendu.js : en-têtes par `enteteJourAffichage` ; durée selon « Heures de travail » ; ligne des horaires sautée (et rangées décalées) quand masquée, « M »/« A » sans horaires ; `th-demi-matin` et `cell-matin` pour la teinte du matin ; plus d'espace entre semaines quand « rien ».
+- style.css :
+  - `font-family: var(--police, 'Archivo', …)` ; les 20 `'IBM Plex Mono'` deviennent `var(--police-mono)`, qui suit `--police` quand une police est choisie ;
+  - teintes par `:where(html[data-aff-teinte])` (spécificité nulle : la sélection et les surbrillances de dépôt gardent la main) ;
+  - pastilles des choix qui passent à la ligne sur téléphone (police, date).
+- js/page-couleurs.js : groupe `statut-confirme` retiré (une ancienne ligne `couleurs_perso` est ignorée) ; `THEME_ORIGINE_` reconnu en dernier par `themeActuel_` ; `#apercuCouleursPage` redessiné par `majReglagesCouleursAffiches`.
+- js/raccourcis.js : `comboDepuisSouris` (« Clic milieu », « Souris précédent », « Souris suivant ») ; l'action part au `mousedown`, `mouseup` et `auxclick` du même bouton sont bloqués (le navigateur ne recule pas, pas d'onglet ouvert) ; un bouton sans action garde son effet ; `GESTES_SOURIS_` pour la liste.
+
+### Tests
+- test_suite64.js (nouveau), 26 vérifications :
+  - dates (Jeudi 24 septembre, J 1er oct., 01.10), heures, ligne des horaires, teintes, cadre carré, statut en pastille, très grand, police Inter, attributs et enregistrement, « Tout rétablir » ;
+  - Couleurs : liste des thèmes, « Couleurs d'origine », aperçu sur la page (ordinateur et téléphone), badge à la couleur du statut, thème Bordeaux, plus de ligne « confirmé » ;
+  - souris : précédent/suivant changent de semaine sans laisser faire le navigateur, milieu libre, Ctrl + milieu attribué puis utilisé, rien hors du planning.
+- test_suite62.js : 18 réglages et leurs valeurs d'origine, en-têtes de l'aperçu (jour + date), statut en pastilles, « Rien » au lieu de « Trait », `separation=rien` relu depuis un ancien « trait ». 29/29.
+- test_suite54.js : liste des thèmes sans « Classique », thème Océan, 16 réglages dans Personnaliser, « Couleurs d'origine ». OK.
+- test_suite61.js : touches par défaut des semaines avec les boutons de souris, section « Souris » (11 lignes fixes). 99/99.

@@ -145,7 +145,7 @@ const choisirCouleur = (page, sel, hex, evt) => page.evaluate(([s, h, e]) => {
         hauteur: Math.round(r.height), dehors: rb.right > window.innerWidth || r.right > window.innerWidth };
     });
     verifier(gen.champs === 0, largeur + ' px, Général : plus aucun réglage de couleur dans l\'onglet (' + gen.champs + ')');
-    verifier(gen.options === 'Mes couleurs, Classique, Ardoise, Forêt, Terre cuite, Contraste fort' && gen.valeur === 'mes-couleurs',
+    verifier(gen.options === 'Mes couleurs, Ardoise, Forêt, Terre cuite, Contraste fort, Océan, Lavande, Sable, Bordeaux, Chantier, Graphite' && gen.valeur === 'mes-couleurs',
       largeur + ' px, Général : liste de thèmes, « Mes couleurs » reconnu dans les couleurs enregistrées (' + gen.valeur + ' ; ' + gen.options + ')');
     verifier(gen.hauteur <= 120 && !gen.dehors, largeur + ' px, Général : ligne Thème compacte et dans l\'écran (' + gen.hauteur + ' px)');
     if (CAPTURES) await page.screenshot({ path: CAPTURES + '/s54-general-' + largeur + '.png' });
@@ -156,10 +156,11 @@ const choisirCouleur = (page, sel, hex, evt) => page.evaluate(([s, h, e]) => {
     verifier(foret.accent === '#2e6b3c' && foret.bg === '#fbfdf9' && foret.perso === '#ddeeff', largeur + ' px, thème Forêt appliqué, couleur Personnel gardée (' + JSON.stringify(foret) + ')');
     verifier(foret.bd === '["fond=#fbfdf9/#0f1511","onglet-fond=#e0efe2/#1e3324","principale=#2e6b3c/#7dc58c","section-intervenants=#e7f3e2/-","section-personnel=#ddeeff/-","weekend=#d2dccd/#1f2a21"]',
       largeur + ' px, thème Forêt enregistré sur le compte (' + foret.bd + ')');
-    await page.selectOption('#selThemeCouleurs', 'classique');
+    // Suite 64 : plus de thème « Classique » ; un des nouveaux thèmes.
+    await page.selectOption('#selThemeCouleurs', 'ocean');
     await page.waitForTimeout(300);
-    verifier(await bdCouleurs(page) === '["section-intervenants=#e7f3e2/-","section-personnel=#ddeeff/-"]' && await variable(page, '--accent') === '#1f4d8f',
-      largeur + ' px, thème Classique : couleurs d\'origine, seules les couleurs de page restent (' + await bdCouleurs(page) + ')');
+    verifier(await bdCouleurs(page) === '["fond=#f8fcfd/#0d151a","onglet-fond=#dbeef4/#17303a","principale=#1b6a86/#76c4de","section-intervenants=#e7f3e2/-","section-personnel=#ddeeff/-","weekend=#cddce1/#1c2a31"]' && await variable(page, '--accent') === '#1b6a86',
+      largeur + ' px, thème Océan appliqué, seules les couleurs de page restent en plus (' + await bdCouleurs(page) + ')');
     await page.selectOption('#selThemeCouleurs', 'mes-couleurs');
     await page.waitForTimeout(300);
     verifier(await bdCouleurs(page) === '["fond=#ffffff/-","section-intervenants=#e7f3e2/-","section-personnel=#ddeeff/-"]', largeur + ' px, retour à « Mes couleurs » (' + await bdCouleurs(page) + ')');
@@ -172,7 +173,7 @@ const choisirCouleur = (page, sel, hex, evt) => page.evaluate(([s, h, e]) => {
       return { lignes: m.querySelectorAll('.reglage-couleurs-groupe').length, attendues: GROUPES_COULEURS.filter((g) => !g.page).length, apercu: Math.round(a.height), dedans: r.left >= 0 && r.right <= window.innerWidth && r.top >= 0 && r.bottom <= window.innerHeight,
         theme: m.querySelector('.sel-theme-couleurs').value, largeur: Math.round(r.width) };
     });
-    verifier(modal.lignes === modal.attendues && modal.lignes === 17 && modal.apercu > 150 && modal.dedans && modal.theme === 'mes-couleurs',
+    verifier(modal.lignes === modal.attendues && modal.lignes === 16 && modal.apercu > 150 && modal.dedans && modal.theme === 'mes-couleurs',
       largeur + ' px, Personnaliser : fenêtre dans l\'écran, aperçu + ' + modal.lignes + ' réglages (' + JSON.stringify(modal) + ')');
     // L'aperçu suit la couleur réglée, et le thème devient « Personnalisé ».
     await choisirCouleur(page, '.couleurs-modal .rc-clair[data-groupe="onglet-fond"]', '#ffe0b0', 'input');
@@ -202,12 +203,13 @@ const choisirCouleur = (page, sel, hex, evt) => page.evaluate(([s, h, e]) => {
     await page.close();
   }
 
-  // Aucune couleur enregistrée : « Classique ».
+  // Aucune couleur enregistrée : « Couleurs d’origine » (suite 64, ex-« Classique »).
   {
     const { page, erreurs } = await ouvrirPlanning(browser, { bd: Object.assign({}, BD, { couleurs_perso: [] }) });
     await page.evaluate(() => afficherPage('couleurs'));
     await page.waitForTimeout(200);
-    verifier(await page.inputValue('#selThemeCouleurs') === 'classique', 'sans couleur enregistrée : thème « Classique »');
+    const origine = await page.evaluate(() => { const sel = document.getElementById('selThemeCouleurs'); return sel.value + ':' + sel.selectedOptions[0].textContent + ':' + [...sel.options].filter((o) => !o.hidden).length; });
+    verifier(origine === 'origine:Couleurs d’origine:12', 'sans couleur enregistrée : « Couleurs d’origine » affiché, pas de « Classique » (' + origine + ')');
     toutesErreurs.push(...erreurs);
     await page.close();
   }
