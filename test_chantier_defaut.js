@@ -7,6 +7,7 @@
  * signalé que poser une 2e tâche sur une case en occupant déjà une change
  * silencieusement le chantier de la 1ère (« lorsque je pose une tache sur
  * une demi journée, l'autre tâche prend le chantier de la nouvelle créée »).
+ * Retirée le 26.09.2026 (suite 67) : cf. section 3.
  *
  * Comme test_grille_compacte.js / test_formulaires_assignation.js, ce
  * fichier extrait les fonctions RÉELLES de l'appli (`js/*.js`) plutôt que d'en
@@ -36,7 +37,7 @@ function extraireFonction(nom) {
   throw new Error('accolades non équilibrées pour ' + nom);
 }
 
-const NOMS = ['esc', 'esc2', 'chantierParDefautValide', 'optionSansChantierHTML_', 'champChantierHTML', 'chantierExistantDansCase', 'demisOccupeesTache'];
+const NOMS = ['esc', 'esc2', 'chantierParDefautValide', 'optionSansChantierHTML_', 'champChantierHTML'];
 
 const sandbox = { LIBELLE_SANS_CHANTIER: 'Aucun chantier', CHANTIERS: {}, chantierParDefaut: null, TACHES: [], String: String, Math: Math };
 vm.createContext(sandbox);
@@ -96,52 +97,11 @@ sandbox.chantierParDefaut = null;
 })();
 
 // =======================================================================
-// 3) chantierExistantDansCase — round du 03.09.2026 (suite), signalé par
-//    Lionel : « lorsque je pose une tache sur une demi journée, l'autre
-//    tâche prend le chantier de la nouvelle créée. il doit etre possible de
-//    rentrer des tache sans changer le chantier de l'autre tâche ». Une case
-//    (personne + demi-journée + jour) ne porte qu'UN SEUL chantier côté
-//    feuille (cf. WebApp.gs, apiEnregistrerCellulePersonne) : le vrai
-//    correctif est en amont, dans le formulaire d'ajout, qui doit pré-cocher
-//    ce chantier déjà présent plutôt que le chantier par défaut de la
-//    légende ou le 1er de la liste — sinon valider sans toucher au champ
-//    écrase silencieusement le chantier de la tâche déjà en place.
+// 3) chantierExistantDansCase — retirée le 26.09.2026 (suite 67), Lionel :
+//    « chantier par défaut désélectionner mais un chantier est attribué à
+//    l'ouverture du formulaire. » Chaque tâche porte son chantier depuis la
+//    RPC remplacer_case_personne : plus rien à reprendre de la case.
 // =======================================================================
-// demiDebut/demiFin (§49, pas un `demi` fixe pour toute la durée — cf.
-// demisOccupeesTache) : t3 (3 jours, bords "matin") occupe donc son 1er et
-// son dernier jour au matin seul, et le jour du MILIEU en journée entière
-// (règle "tout jour strictement entre les 2 bords est entier") — sans
-// incidence sur les assertions ci-dessous, qui ne testent que "matin".
-sandbox.TACHES = [
-  { id: 't1', type: 'tache', chantier: 'Villa Rossi', personneId: 'p1', demiDebut: 'matin', demiFin: 'matin', giDebut: 5, duree: 1 },
-  { id: 't2', type: 'absence', chantier: null, personneId: 'p1', demiDebut: 'aprem', demiFin: 'aprem', giDebut: 5, duree: 1 },
-  { id: 't3', type: 'tache', chantier: 'École primaire', personneId: 'p2', demiDebut: 'matin', demiFin: 'matin', giDebut: 3, duree: 3 }
-];
-
-assertEqual(sandbox.chantierExistantDansCase([{ personne: 'p1', demi: 'matin' }], 5, 1), 'Villa Rossi',
-  'case déjà occupée par une tâche avec chantier -> ce chantier-là, pas un autre (le scénario exact de Lionel)');
-assertEqual(sandbox.chantierExistantDansCase([{ personne: 'p1', demi: 'aprem' }], 5, 1), null,
-  'case occupée seulement par une ABSENCE (jamais de chantier) -> null, repli sur le comportement précédent');
-assertEqual(sandbox.chantierExistantDansCase([{ personne: 'p1', demi: 'matin' }], 6, 1), null,
-  'case vide (aucune tâche ce jour-là) -> null, repli inchangé sur le chantier par défaut de la légende');
-assertEqual(sandbox.chantierExistantDansCase([{ personne: 'p9', demi: 'matin' }], 5, 1), null,
-  'personne sans aucune tâche -> null, jamais une exception');
-assertEqual(sandbox.chantierExistantDansCase(null, 5, 1), null, 'aucune cible -> null, jamais une exception');
-assertEqual(sandbox.chantierExistantDansCase([], 5, 1), null, 'liste de cibles vide -> null, jamais une exception');
-
-// Plage de plusieurs jours (ajout via une sélection multi-jours) : une tâche
-// de 3 jours (giDebut=3, duree=3) doit être trouvée pour CHAQUE jour qu'elle
-// couvre, pas seulement son 1er jour.
-assertEqual(sandbox.chantierExistantDansCase([{ personne: 'p2', demi: 'matin' }], 4, 1), 'École primaire',
-  'tâche de plusieurs jours détectée sur un jour du MILIEU de sa plage, pas seulement son 1er jour');
-assertEqual(sandbox.chantierExistantDansCase([{ personne: 'p2', demi: 'matin' }], 3, 3), 'École primaire',
-  'plage ciblée qui chevauche une tâche existante -> son chantier');
-
-// Plusieurs cibles (plusieurs personnes sélectionnées ensemble) : la 1ère
-// case occupée trouvée l'emporte — mieux qu'ignorer purement et simplement
-// une case déjà prise parmi la sélection.
-assertEqual(sandbox.chantierExistantDansCase([{ personne: 'p9', demi: 'matin' }, { personne: 'p1', demi: 'matin' }], 5, 1), 'Villa Rossi',
-  'plusieurs cibles : la 1ère case occupée de la sélection donne son chantier');
 
 console.log('\n' + (total - echecs) + '/' + total + ' assertions passées.');
 if (echecs > 0) { console.error(echecs + ' échec(s).'); process.exit(1); }

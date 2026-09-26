@@ -39,7 +39,7 @@ const pastille = async (page, id, v) => { await page.click('#page-affichage .cho
 // Mesure sur le vrai planning (la page Affichage reste ouverte).
 const auPlanning = (page, f, arg) => page.evaluate(([src, a]) => { afficherPage('planning'); const r = (0, eval)(src)(a); afficherPage('affichage'); return r; }, [f.toString(), arg]);
 const entete = (iso) => { const th = [...document.querySelectorAll('.th[data-gi]:not(.th-demi)')].find((t) => isoDeGi(+t.dataset.gi) === iso);
-  return th ? { nom: th.firstChild && th.firstChild.nodeType === 3 ? th.firstChild.textContent : '', date: (th.querySelector('.th-date') || {}).textContent, duree: !!th.querySelector('.th-duree') } : null; };
+  return th ? { nom: (th.querySelector('.th-jour') || {}).textContent || '', date: (th.querySelector('.th-date') || {}).textContent, duree: !!th.querySelector('.th-duree') } : null; };
 const semaine = (page) => page.evaluate(() => etat.semaines[etat.indexSemaine].debut);
 const combos = (page, id) => page.$$eval('.ligne-raccourci[data-action="' + id + '"] .rc-combo', (cs) => cs.map((c) => c.dataset.combo));
 // Bouton de souris « à la main » (Playwright ne connaît que gauche/milieu/droit).
@@ -75,7 +75,7 @@ const souris = (page, type, button, opts) => page.evaluate(([t, b, o]) => {
       verifier(e && e.nom === nom && e.date === date && ap[0] === nom && ap[1] === (iso === '2026-10-01' ? date.replace('1er', '24').replace('01.10', '24.09').replace('oct.', 'sept.') : date), 'dates « ' + v1 + ' / ' + v2 + ' » : ' + iso + ' → « ' + [nom, date].join(' ').trim() + ' » (' + JSON.stringify(e) + ', aperçu ' + ap.join(' ') + ')');
     }
     // Heures de travail
-    await page.click('#page-affichage .reglage-ligne[data-option="heures"]'); await page.waitForTimeout(200);
+    await page.click('#page-affichage .reglage-ligne[data-option="heures"] .interrupteur'); await page.waitForTimeout(200);
     const sansH = await auPlanning(page, () => document.querySelectorAll('.th-duree').length);
     const apH = await page.evaluate(() => document.querySelectorAll('#apercuAffichage .aa-duree').length);
     verifier(sansH === 0 && apH === 0, 'heures de travail masquées : plus de durée, planning et aperçu (' + sansH + ', ' + apH + ')');
@@ -102,7 +102,7 @@ const souris = (page, type, button, opts) => page.evaluate(([t, b, o]) => {
     verifier(tAprem.matin !== tAprem.aprem && tAucune.matin === tAucune.aprem && tMatin.matin !== tMatin.aprem && tMatin.aprem === tAucune.aprem && apT.matin !== apT.aprem,
       'colonnes teintées : après-midi (origine), aucune, matin — planning et aperçu (' + JSON.stringify([tAprem, tAucune, tMatin, apT]) + ')');
     // Cadre carré
-    await pastille(page, 'cadre', 'carres');
+    await page.click('#page-affichage .reglage-ligne[data-option="cadre"] .interrupteur'); await page.waitForTimeout(200);
     const cadre = await auPlanning(page, () => getComputedStyle(document.querySelector('.grille-cadre')).borderTopLeftRadius);
     const apCadre = await page.evaluate(() => getComputedStyle(document.querySelector('#apercuAffichage .aa-cadre')).borderTopLeftRadius);
     verifier(cadre === '0px' && apCadre === '0px', 'coins du planning carrés : planning et aperçu (' + cadre + ', ' + apCadre + ')');

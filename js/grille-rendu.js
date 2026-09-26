@@ -1839,6 +1839,9 @@
     // directement sur la ligne des jours (avant : row 2, décalée d'une ligne
     // par coinNav/navSemaine).
     var row = 1;
+    // Nom du jour dans son propre <span> (suite 67) : gras, italique et
+    // taille réglables à part de la date (page Affichage).
+    function nomJourHTML_(nom) { return nom ? '<span class="th-jour">' + esc(nom) + '</span>' : ""; }
 
     var aujIso = etat.aujourdhui;
     // Cellule coin de la ligne des jours : vide depuis le §83 (round du
@@ -1846,9 +1849,10 @@
     // l'occupaient depuis le round précédent, ont rejoint la nouvelle barre
     // d'outils fixe sous les onglets (cf. son historique plus haut). §89
     // (round du 17.09.2026, suite×4) — Lionel : le mois n'est plus affiché
-    // nulle part depuis le §87 (cf. le commentaire de moisAffichesCoin) ;
+    // nulle part depuis le §87 (cf. le commentaire de htmlCoinMoisAnnee, js/core.js) ;
     // posé ici, dans cette case restée vide depuis le §83.
-    var coin = document.createElement("div"); coin.className = "th coin"; coin.textContent = moisAffichesCoin(n); poser(coin, 1, row);
+    // Suite 67 : mois + année, cf. htmlCoinMoisAnnee (js/core.js).
+    var coin = document.createElement("div"); coin.className = "th coin"; coin.innerHTML = htmlCoinPlanning(n); poser(coin, 1, row);
     for (var gi = 0; gi < n; gi++) {
       var th = document.createElement("div");
       var estAuj = isoDeGi(gi) === aujIso;
@@ -1875,9 +1879,9 @@
       if (ferJour) {
         th.style.background = hexToRgba(ferJour.couleur, .55);
         th.title = ferJour.label;
-        th.innerHTML = esc(entete.nom) + dateHTML + '<span class="th-ferie-label">' + esc(ferJour.label) + "</span>";
+        th.innerHTML = nomJourHTML_(entete.nom) + dateHTML + '<span class="th-ferie-label">' + esc(ferJour.label) + "</span>";
       } else {
-        th.innerHTML = esc(entete.nom) + dateHTML;
+        th.innerHTML = nomJourHTML_(entete.nom) + dateHTML;
       }
       poser(th, colonneGrille(gi), row, colsParJour());
       if (afficherWeekends && (gi + 1) % 5 === 0) {
@@ -1888,7 +1892,7 @@
           thWE.className = "th th-weekend";
           thWE.dataset.gi = giWE;
           var infoWE = libelleJourGi(giWE), enteteWE = enteteJourAffichage(isoDeGi(giWE), infoWE.jour);
-          thWE.innerHTML = esc(enteteWE.nom) + '<span class="th-date">' + esc(enteteWE.date) + "</span>";
+          thWE.innerHTML = nomJourHTML_(enteteWE.nom) + '<span class="th-date">' + htmlDateWeekEnd(enteteWE.date) + "</span>";
           poser(thWE, colonneGrille(giWE), row);
         });
       }

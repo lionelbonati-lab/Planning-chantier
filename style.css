@@ -988,7 +988,7 @@
     display: block; font-size: 8.5px; font-weight: 700; margin-top: 3px;
     color: var(--ink); opacity: .78; text-transform: none; letter-spacing: 0;
   }
-  .th-date { display: block; font-size: 14px; font-weight: 700; margin-top: 2px; color: var(--ink); text-transform: none; letter-spacing: normal; }
+  .th-date { display: block; font-size: calc(14px * var(--aff-t-date, 1)); font-weight: 700; margin-top: 2px; color: var(--ink); text-transform: none; letter-spacing: normal; }
   .th.today { background: var(--accent-soft); }
   .th.today .th-date { color: var(--accent); }
   /* Colonne des noms — round du 25.09.2026 (suite 35). Lionel : « Rétréci
@@ -1003,12 +1003,12 @@
   :root { --largeur-noms: 92px; }
   .lbl { padding: 9px 4px 9px 8px; display: flex; flex-direction: column; justify-content: center; gap: 1px; }
   .lbl b {
-    font-size: 12.5px; font-weight: 700; line-height: 1.2;
+    font-size: calc(12.5px * var(--aff-t-noms, 1)); font-weight: 700; line-height: 1.2;
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: break-word;
   }
-  .lbl span { font-size: 10px; color: var(--ink-faint); font-family: var(--police-mono); text-transform: uppercase; letter-spacing: .04em; }
+  .lbl span { font-size: calc(10px * var(--aff-t-noms, 1)); color: var(--ink-faint); font-family: var(--police-mono); text-transform: uppercase; letter-spacing: .04em; }
   .lbl-speciale { background: var(--surface); }
-  .lbl-speciale b { color: var(--ink-muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+  .lbl-speciale b { color: var(--ink-muted); font-size: calc(11px * var(--aff-t-noms, 1)); text-transform: uppercase; letter-spacing: .04em; }
   .th.coin, .lbl, .lbl-speciale { position: sticky; left: 0; z-index: 2; }
   /* Round du 24.09.2026 — Lionel : « ajoute un bordure à droite de la
      première colonne. » La colonne d'étiquette (116px, sticky left:0)
@@ -1046,6 +1046,10 @@
   .lbl::after, .lbl-speciale::after { bottom: -1px; }
   .th.sem-frontiere, .cell.sem-frontiere, .lbl.sem-frontiere { border-left: 2px solid var(--border-strong); }
   .th-weekend { min-width: 46px; }
+  /* Suite 67 — date d'un week-end : marges réduites et mois sous le
+     numéro (htmlDateWeekEnd), pour tenir dans la colonne étroite. */
+  .th.th-weekend:not(.th-demi) { padding-left: 2px; padding-right: 2px; }
+  .date-mois-we { display: block; font-size: .72em; line-height: 1.15; }
   .cell.case-weekend { background: var(--weekend-bg); }
   /* ---- Mode compact : 2 colonnes par jour, 1 ligne par personne ---------
      Round du 02.09.2026 (demande de Lionel). Repères visuels indispensables
@@ -1054,7 +1058,7 @@
      deux JOURS (voir plus bas, round du 03.09.2026) ni entre matin et
      après-midi d'un même jour — seule la teinte de l'aprem les distingue. */
   .th.th-demi {
-    padding: 2px 0 3px; font-size: 8.5px; letter-spacing: .1em; opacity: .75;
+    padding: 2px 0 3px; font-size: calc(8.5px * var(--aff-t-horaires, 1)); letter-spacing: .1em; opacity: .75;
     background: var(--surface);
   }
   /* Horaires dans la ligne M | A et durée sous la date (suite 27) :
@@ -1068,8 +1072,8 @@
      transparente — l'horaire de la veille (« 13:00–17:15 ») se voyait à
      travers en vue « 1 jour ». Opaque, comme les autres cases figées. */
   .th.coin.th-demi { opacity: 1; }
-  .th.th-demi.th-horaire { letter-spacing: 0; font-size: 8.5px; line-height: 1.25; opacity: .9; padding: 2px 1px 3px; font-variant-numeric: tabular-nums; }
-  .th-duree { display: block; font-size: 9.5px; font-weight: 600; margin-top: 1px; color: var(--ink-muted); text-transform: none; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+  .th.th-demi.th-horaire { letter-spacing: 0; font-size: calc(8.5px * var(--aff-t-horaires, 1)); line-height: 1.25; opacity: .9; padding: 2px 1px 3px; font-variant-numeric: tabular-nums; }
+  .th-duree { display: block; font-size: calc(9.5px * var(--aff-t-heures, 1)); font-weight: 600; margin-top: 1px; color: var(--ink-muted); text-transform: none; letter-spacing: 0; font-variant-numeric: tabular-nums; }
   .cell.cell-aprem { background: color-mix(in srgb, var(--surface-2) 88%, var(--ink-faint)); }
   .th.th-demi-aprem { background: color-mix(in srgb, var(--surface) 92%, var(--ink-faint)); }
   /* Colonnes teintées (suite 64, page Affichage) — Lionel : « Colorier ou
@@ -1430,6 +1434,10 @@
     padding: 1px 6px 1px 5px; border-radius: 999px; color: var(--ink);
   }
   .b-statut .dot { width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
+  /* Suite 67 — Lionel : « Ajouter une fine ligne autour des badge statuts
+     dans les bulles » (bulles et aperçu de la page Affichage ; la pastille
+     garde son propre cerne, plus bas). */
+  .b-statut, .aa-statut { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 32%, transparent); }
   .b-serie { align-self: flex-start; font-size: 9px; opacity: .55; }
   .poignee { position: absolute; top: 0; bottom: 0; width: 12px; cursor: ew-resize; touch-action: none; z-index: 2; }
   .poignee::after {
@@ -3365,6 +3373,42 @@
     background-image: linear-gradient(var(--aff-auj), var(--aff-auj)), linear-gradient(var(--aff-zebre), var(--aff-zebre));
   }
   @media print { html[data-aff-auj], html[data-aff-zebre] { --aff-auj: transparent; --aff-zebre: transparent; } }
+  /* Suite 67 — en-têtes des jours, ligne par ligne (jour, date, heures de
+     travail, horaires) : gras (allumé à l'origine = l'apparence d'avant ;
+     éteint = 400), italique, taille (--aff-t-<ligne>, posée par
+     appliquerStyleAffichage_ : .85, 1.2 ou 1.4 fois la taille d'origine).
+     Mêmes règles pour l'aperçu (.aa-*). */
+  .th-jour, .aa-jour { font-size: calc(1em * var(--aff-t-jour, 1)); }
+  html[data-aff-jour-gras="non"] :is(.th-jour, .aa-jour) { font-weight: 400; }
+  html[data-aff-date-gras="non"] :is(.th-date, .aa-date) { font-weight: 400; }
+  html[data-aff-heures-gras="non"] :is(.th-duree, .aa-duree) { font-weight: 400; }
+  html[data-aff-horaires-gras="non"] :is(.th.th-demi, .aa-demi) { font-weight: 400; }
+  html[data-aff-jour-italique="oui"] :is(.th-jour, .aa-jour) { font-style: italic; }
+  html[data-aff-date-italique="oui"] :is(.th-date, .aa-date) { font-style: italic; }
+  html[data-aff-heures-italique="oui"] :is(.th-duree, .aa-duree) { font-style: italic; }
+  html[data-aff-horaires-italique="oui"] :is(.th.th-demi, .aa-demi) { font-style: italic; }
+  /* Taille des noms (suite 67), colonne de gauche. */
+  html[data-aff-noms="petit"] { --aff-t-noms: .85; }
+  html[data-aff-noms="grand"] { --aff-t-noms: 1.15; }
+  html[data-aff-noms="tresgrand"] { --aff-t-noms: 1.3; }
+  /* Case de gauche (suite 67) : mois, puis année dessous. */
+  .coin-mois, .coin-annee { display: block; }
+  .coin-annee { color: var(--ink-faint); }
+  .coin-mois + .coin-annee { margin-top: 1px; }
+  /* Icônes G / I / tailles à côté du nom d'une ligne « Dates » (suite 67). */
+  .reglage-texte .reglage-nom { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; font-size: inherit; color: inherit; }
+  .reglage-texte .icones-style, .reglage-texte .style-tailles { display: inline-flex; align-items: center; gap: 1px; font-size: inherit; color: inherit; line-height: 1; }
+  .reglage-texte .style-tailles { margin-left: 5px; padding-left: 6px; border-left: 1px solid var(--border); }
+  .style-icone {
+    width: 22px; height: 22px; padding: 0; border: 1px solid transparent; border-radius: 6px; background: transparent;
+    display: inline-flex; align-items: center; justify-content: center; font-family: var(--police); font-size: 12.5px; font-weight: 800;
+    line-height: 1; color: var(--ink-faint); cursor: pointer;
+  }
+  .style-icone.style-italique { font-family: Georgia, 'Times New Roman', serif; font-style: italic; font-weight: 700; font-size: 14px; }
+  .style-icone.style-taille { width: 18px; font-weight: 700; }
+  .style-icone.actif { background: var(--accent-soft); color: var(--accent); border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+  .style-icone:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  @media (hover: hover) and (pointer: fine) { .style-icone:not(.actif):hover { background: var(--surface-2); color: var(--ink); } }
 
   /* Choix en pastilles (page Affichage). */
   .reglage-choix { cursor: default; flex-wrap: wrap; row-gap: 10px; }
@@ -3404,15 +3448,15 @@
      gros, durée de travail. */
   .aa-th { background: var(--surface-2); letter-spacing: .04em; overflow-wrap: anywhere; }
   .aa-jour { display: block; }
-  .aa-date { display: block; font-size: 12px; font-weight: 700; color: var(--ink); text-transform: none; letter-spacing: normal; line-height: 1.2; }
-  .aa-duree { display: block; font-size: 8.5px; font-weight: 600; text-transform: none; letter-spacing: 0; }
+  .aa-date { display: block; font-size: calc(12px * var(--aff-t-date, 1)); font-weight: 700; color: var(--ink); text-transform: none; letter-spacing: normal; line-height: 1.2; }
+  .aa-duree { display: block; font-size: calc(8.5px * var(--aff-t-heures, 1)); font-weight: 600; text-transform: none; letter-spacing: 0; }
   .aa-th.aa-today { background: var(--accent-soft); color: var(--accent); }
   .aa-th.aa-today .aa-date { color: var(--accent); }
   /* Ligne sous les jours : horaires ou M | A ; l'après-midi teinté. */
-  .aa-demi { font-size: 7.5px; letter-spacing: 0; padding: 2px 1px; line-height: 1.25; opacity: .9; font-variant-numeric: tabular-nums; }
+  .aa-demi { font-size: calc(7.5px * var(--aff-t-horaires, 1)); letter-spacing: 0; padding: 2px 1px; line-height: 1.25; opacity: .9; font-variant-numeric: tabular-nums; }
   .aa-demi.aa-aprem { background: color-mix(in srgb, var(--surface) 92%, var(--ink-faint)); }
   .aa-cell.aa-aprem { background: color-mix(in srgb, var(--surface-2) 88%, var(--ink-faint)); }
-  .aa-nom { background: var(--surface); font-weight: 700; font-size: 12px; display: flex; align-items: center; padding: 0 8px; overflow: hidden; }
+  .aa-nom { background: var(--surface); font-weight: 700; font-size: calc(12px * var(--aff-t-noms, 1)); display: flex; align-items: center; padding: 0 8px; overflow: hidden; }
   .aa-cell { background: var(--surface-2); min-height: 52px; }
   .aa-th.aa-we, .aa-cell.aa-we, .aa-demi.aa-we { background-color: var(--weekend-bg); }
   .aa-bulle { position: relative; z-index: 1; align-self: center; margin: 4px 3px; min-width: 0; }
@@ -3423,7 +3467,7 @@
   @media (max-width: 600px) {
     .apercu-affichage { --aa-noms: 58px; }
     .aa-th { font-size: 9px; }
-    .aa-nom { font-size: 11px; padding: 0 6px; }
+    .aa-nom { font-size: calc(11px * var(--aff-t-noms, 1)); padding: 0 6px; }
     .aa-carte { padding-left: 6px; padding-right: 6px; }
   }
 
