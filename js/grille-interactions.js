@@ -317,6 +317,8 @@
     scroller.scrollLeft = x;
     var racine = scroller.closest("#racine"), entete = racine ? racine.querySelector(".entete-planning-scroll") : null;
     if (entete) entete.scrollLeft = scroller.scrollLeft;
+    // Cartes et hauteurs de lignes dans la même image (suite 58).
+    suivreDefilementJourMobile(scroller);
   }
   function creerDefilementManuel(scroller) {
     var vx = 0, vy = 0, raf = null;

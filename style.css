@@ -1422,12 +1422,20 @@
      de fin...) — cf. le commentaire JS pour l'historique complet (bulle qui
      débordait sur un dernier jour en demi-journée, ou qui ne remplissait
      pas un jour entier). */
-  .scroller.snap-jour-mobile .bulle > .b-carte {
+  /* Suite 58 (round du 26.09.2026) — Lionel : « L'affichage des jalons a
+     disparu, il ne s'affiche que sur le premier jour. » Ces règles ne
+     visaient que .scroller : la bande Jalons/Notes, dans l'en-tête figé
+     (.entete-planning-scroll, hors de .scroller), gardait sa carte au
+     début de la bulle — un jalon de plusieurs jours n'était lisible que le
+     jour où il commence. Posées sur #racine.vue-jour-mobile, elles valent
+     aux deux grilles (.entete-planning-scroll est lui aussi un conteneur
+     de défilement : le collage suit son scrollLeft). */
+  .vue-jour-mobile .bulle > .b-carte {
     position: sticky; left: var(--largeur-noms); align-self: flex-start; max-width: var(--largeur-visible-bulle, calc(100vw - var(--largeur-noms) - 16px));
   }
-  .scroller.snap-jour-mobile .bulle > .b-carte .b-txt,
-  .scroller.snap-jour-mobile .bulle > .b-carte .b-statut,
-  .scroller.snap-jour-mobile .bulle > .b-carte .b-serie {
+  .vue-jour-mobile .bulle > .b-carte .b-txt,
+  .vue-jour-mobile .bulle > .b-carte .b-statut,
+  .vue-jour-mobile .bulle > .b-carte .b-serie {
     position: static; max-width: none;
   }
   /* Poignées en vue « 1 jour » — round du 25.09.2026 (suite 35). Lionel :
@@ -1476,6 +1484,9 @@
      (js/grille-rendu.js). « Réduire les animations » : ramenée à rien par
      la règle générale prefers-reduced-motion en tête de fichier. */
   .grille.hauteurs-figees { transition: grid-template-rows .22s ease-out; }
+  /* Suite 58 : pendant un glissement, la hauteur suit le doigt image par
+     image (suivreHauteursJourMobile, js/grille-rendu.js) — pas de retard. */
+  .grille.hauteurs-figees.hauteurs-suivies { transition: none; }
   .ghost { border: 1.5px dashed var(--border-strong); border-radius: 9px; opacity: .5; }
 
   .pop {

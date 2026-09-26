@@ -138,8 +138,11 @@ const journaliser = (page, duree) => page.evaluate((duree) => {
     const hVendredi = h2[h2.length - 1];
     const intermediaires = [...new Set(h2.filter((h) => h > hauteurJeudi + 0.5 && h < hVendredi - 0.5))];
     verifier(hVendredi > hauteurJeudi + 20 && intermediaires.length >= 3, 'hauteur de ligne qui glisse ' + hauteurJeudi + ' → ' + hVendredi + ' px, par ' + intermediaires.length + ' valeurs intermédiaires (avant : saut)');
+    // Suite 58 — Lionel : « il faudrait que ce soit progressif, durant le
+    // switch ». Les hauteurs suivent désormais le glissement de page lui-
+    // même : elles bougent avant l'arrivée, et plus du tout après.
     const iPremiere = h2.findIndex((h) => h > hauteurJeudi + 0.5);
-    verifier(iPremiere >= iArrivee, 'les hauteurs changent une fois le jour atteint, pas pendant le glissement');
+    verifier(iPremiere > 0 && iPremiere < iArrivee && h2.slice(iArrivee).every((h) => Math.abs(h - hVendredi) < 0.5), 'les hauteurs changent pendant le glissement, et plus une fois le jour atteint (suite 58)');
     toutesErreurs.push(...erreurs);
     await page.close();
   }

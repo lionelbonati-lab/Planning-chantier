@@ -92,7 +92,13 @@ const TELEPHONE = { viewport: { width: 390, height: 844 }, hasTouch: true, bd: B
       const th = document.querySelector('.entete-planning-figee .th.today');
       const grille = document.querySelector('.entete-planning-figee .grille');
       const w = th.getBoundingClientRect().width;
-      s.scrollLeft = Math.round(th.getBoundingClientRect().left - grille.getBoundingClientRect().left - largeurNoms() + dec * w);
+      // Suite 58 : les hauteurs suivent l'événement « scroll », que Chrome
+      // sans écran livre parfois après 2 images — on l'attend (300 ms max).
+      const defile = new Promise((ok) => { s.addEventListener('scroll', ok, { once: true }); setTimeout(ok, 300); });
+      const x = Math.round(th.getBoundingClientRect().left - grille.getBoundingClientRect().left - largeurNoms() + dec * w);
+      const bouge = Math.abs(s.scrollLeft - x) >= 1;
+      s.scrollLeft = x;
+      if (bouge) await defile;
       await new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(ok)));
       // Texte visible au travers de la case de gauche : l'élément au point
       // (60, milieu de la ligne M | A) doit être cette case elle-même.
@@ -107,7 +113,19 @@ const TELEPHONE = { viewport: { width: 390, height: 844 }, hasTouch: true, bd: B
     const jeudi = await releve(0);
     const etapes = [];
     for (const d of [-0.25, -0.5, -0.75, -1, 0.5, 1]) etapes.push([d, await releve(d)]);
-    etapes.forEach(([d, e]) => verifier(e.lignes === jeudi.lignes, 'doigt posé, décalage ' + d + ' jour : mêmes hauteurs de lignes que jeudi (' + e.lignes + ')'));
+    // Suite 58 (round du 26.09.2026) — Lionel : « quand une hauteur de
+    // bulle change, il faudrait que ce soit progressif, durant le switch ».
+    // Les lignes ne restent plus figées sur jeudi le temps du geste : elles
+    // vont de la hauteur du jeudi à celle du jour qui arrive, au prorata du
+    // chemin parcouru (à ±1,5 px près).
+    const lignesEn = (e) => Object.fromEntries(e.lignes.split(' ').map((x) => x.split('=')).map(([k, v]) => [k, +v]));
+    const hJeudi = lignesEn(jeudi), hMercredi = lignesEn(etapes.find(([d]) => d === -1)[1]), hVendredi = lignesEn(etapes.find(([d]) => d === 1)[1]);
+    etapes.forEach(([d, e]) => {
+      const h = lignesEn(e), cible = d < 0 ? hMercredi : hVendredi, f = Math.abs(d);
+      const ecarts = Object.keys(hJeudi).filter((k) => Math.abs(h[k] - (hJeudi[k] + (cible[k] - hJeudi[k]) * f)) > 1.5);
+      verifier(ecarts.length === 0, 'doigt posé, décalage ' + d + ' jour : hauteurs au prorata entre jeudi et le jour qui arrive (' + e.lignes + ')');
+    });
+    verifier(hMercredi.Mathis > hJeudi.Mathis + 20, 'doigt posé sur mercredi : la ligne de Mathis y a déjà sa hauteur du mercredi, avant même le lâcher (' + hJeudi.Mathis + ' → ' + hMercredi.Mathis + ')');
     verifier([jeudi].concat(etapes.map((e) => e[1])).every((e) => e.coinDessus), 'la case de gauche de la ligne M | A reste au-dessus des jours qui défilent');
     verifier(jeudi.debord.length === 0, 'jour posé : aucun texte de bulle coupé par la hauteur figée');
     const figees = await page.evaluate(() => [...document.querySelectorAll('.planning-racine .grille, .grille')].filter((g) => g.classList.contains('hauteurs-figees') && g.style.gridTemplateRows).length);
