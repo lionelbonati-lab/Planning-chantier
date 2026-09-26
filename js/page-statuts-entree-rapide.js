@@ -8,11 +8,15 @@
      déviation documentée dans FRONTEND-CHANGELOG.md. Pas de réordonnancement
      (comme le prototype) : un nouveau statut est ajouté en fin de liste.
      ============================================================ */
+  // Pastille = sélecteur de couleur (round du 26.09.2026, suite 54, cf.
+  // pastilleCouleur dans js/core.js) — Lionel : « statuts et chantier,
+  // modifications de la couleur se fait par appuis sur la pastille ». Le
+  // crayon ne sert plus qu'à renommer (même partage que sur Chantiers).
   function ligneFicheStatut(s) {
     return '<div class="ligne-intervenant" data-cle="' + esc2(s.cle) + '">' +
-      '<span class="gauche-chantier"><span class="swatch-chantier" style="background:' + esc2(s.couleur) + '"></span><b>' + esc(s.nom) + '</b></span>' +
+      '<span class="gauche-chantier">' + pastilleCouleur("pastille-statut", s.couleur, "Couleur") + '<b>' + esc(s.nom) + '</b></span>' +
       // Icônes (suite 53, cf. boutonIconeLigne).
-      '<span class="ligne-actions">' + boutonIconeLigne("lien-modifier", ICONS.pencil, "Modifier") +
+      '<span class="ligne-actions">' + boutonIconeLigne("lien-modifier", ICONS.pencil, "Renommer") +
       boutonIconeLigne("lien-supprimer", ICONS.trash, "Supprimer") + '</span></div>';
   }
   function renderStatuts() {
@@ -32,6 +36,20 @@
         var cle = btn.closest("[data-cle]").dataset.cle;
         var s = etat.statutsServeur.filter(function (x) { return x.cle === cle; })[0];
         supprimerStatutServeur(s);
+      });
+    });
+    zone.querySelectorAll(".pastille-statut").forEach(function (input) {
+      input.addEventListener("change", function () {
+        var cle = input.closest("[data-cle]").dataset.cle;
+        var s = etat.statutsServeur.filter(function (x) { return x.cle === cle; })[0];
+        if (!s || input.value === hexPastille(s.couleur)) return;
+        enregistrerStatutsServeur([{ cle: s.cle, nom: s.nom, couleur: input.value, ordre: s.ordre }], [], []).then(function (r) {
+          rafraichirApresStatuts(r);
+          toast("Couleur modifiée.");
+        }).catch(function (err) {
+          input.value = hexPastille(s.couleur);
+          toast("Échec de la modification : " + (err && err.message ? err.message : err));
+        });
       });
     });
     var btnAdd = zone.querySelector(".ligne-ajouter");
@@ -79,9 +97,9 @@
     var pop = document.createElement("div");
     pop.className = "pop form-pop";
     pop.innerHTML =
-      '<div class="cp-titre">Modifier</div>' +
+      // Nom seul (suite 54) : la couleur se change sur la pastille.
+      '<div class="cp-titre">Renommer — ' + esc(s.nom) + '</div>' +
       '<input type="text" class="f-nom" value="' + esc2(s.nom) + '">' +
-      '<div class="champ-couleur-chantier"><label>Couleur du badge</label><input type="color" class="f-couleur" value="' + esc2(s.couleur) + '"></div>' +
       '<div class="form-actions"><button type="button" class="f-annuler">Annuler</button><button type="button" class="f-ok">Enregistrer</button></div>';
     var px = Math.round(window.innerWidth / 2 - 110), py = Math.round(window.innerHeight / 2 - 90);
     positionnerPop(pop, px, py);
@@ -90,14 +108,15 @@
     pop.querySelector(".f-annuler").addEventListener("click", fermer);
     pop.querySelector(".f-ok").addEventListener("click", function () {
       var nom = inputNom.value.trim();
-      if (!nom) { fermer(); return; }
+      if (!nom || nom === s.nom) { fermer(); return; }
       fermer();
-      enregistrerStatutsServeur([{ cle: s.cle, nom: nom, couleur: pop.querySelector(".f-couleur").value, ordre: s.ordre }], [], []).then(function (r) {
+      enregistrerStatutsServeur([{ cle: s.cle, nom: nom, couleur: s.couleur, ordre: s.ordre }], [], []).then(function (r) {
         rafraichirApresStatuts(r);
-        toast("Modifié.");
+        toast("Statut renommé.");
       }).catch(function (err) { toast("Échec de la modification : " + (err && err.message ? err.message : err)); });
     });
     inputNom.focus();
+    inputNom.select();
   }
   function supprimerStatutServeur(s) {
     if (!s) return;

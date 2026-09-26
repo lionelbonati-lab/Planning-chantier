@@ -37,8 +37,10 @@ const accent = (page) => page.evaluate(() => getComputedStyle(document.documentE
     const cache = await page.evaluate(() => JSON.parse(localStorage.getItem('planning.couleurs') || '{}'));
     verifier(cache.principale && cache.principale.clair === '#112233', 'cache local remis à jour depuis le serveur');
 
+    // Suite 54 : les réglages de Général sont dans la fenêtre « Personnaliser ».
     await page.click('.onglet[data-page="general"]');
-    await page.waitForSelector('.rc-clair[data-groupe="principale"]');
+    await page.click('#btnPersonnaliserCouleurs');
+    await page.waitForSelector('.couleurs-modal .rc-clair[data-groupe="principale"]');
     const champ = await page.inputValue('.rc-clair[data-groupe="principale"]');
     verifier(champ === '#112233', 'page Général : le champ « principale » affiche la couleur du serveur (' + champ + ')');
 

@@ -453,6 +453,8 @@
         etat.couleursPerso = {};
         couleursPersoBrutes.forEach(function (c) { etat.couleursPerso[c.id] = { clair: c.clair || null, sombre: c.sombre || null }; });
         if (typeof appliquerCouleursPersonnalisees === "function") appliquerCouleursPersonnalisees();
+        // Liste « Thème » de Général et lignes « Couleur » (suite 54).
+        if (typeof majReglagesCouleursAffiches === "function") majReglagesCouleursAffiches();
       }
 
       etat.cache = {}; etat.cacheTs = {};
@@ -659,68 +661,18 @@
       });
   }
 
-  // "Tâches en cours" par personne (cf. WebApp.gs, compterTachesParPersonne_
-  // — point 101 de V3-spec-suite.md). Même règle de fusion que côté ancien
-  // serveur ET que côté client (construireVueDepuisCache, section "tâches"
-  // plus haut) : une même tâche reconduite sur des jours OUVRÉS consécutifs
-  // (même texte/statut/important/chantier) ne compte qu'une fois — y compris
-  // à cheval sur un week-end (vendredi -> lundi reste "consécutif") — sauf
-  // le week-end lui-même, qui ne fusionne JAMAIS (case isolée, cf. §2 du
-  // spec). "En cours" = depuis aujourd'hui inclus, jamais le passé — même
-  // borne que l'ancien "depuis la semaine courante jusqu'à la fin de la
-  // feuille". Logique de fusion factorisée en fonction pure (compterTachesParPersonne_
-  // ci-dessous) pour être testée sans réseau, cf. test_config_simple.js.
-  function estIsoWeekend_(iso) {
-    var wd = new Date(iso + "T00:00:00Z").getUTCDay();
-    return wd === 0 || wd === 6;
-  }
-  // Jour OUVRÉ suivant (saute samedi/dimanche) — sert uniquement à décider
-  // si 2 lignes `taches` consécutives en base sont des jours "voisins" pour
-  // la fusion ci-dessus ; n'a aucun rapport avec la navigation de semaines.
+  // Jour OUVRÉ suivant (saute samedi/dimanche) — sert à « À réserver »
+  // (js/a-reserver.js) pour regrouper une tâche reconduite d'un jour ouvré
+  // au suivant ; n'a aucun rapport avec la navigation de semaines.
+  // Round du 26.09.2026 (suite 54) — le compteur « N tâches en cours » des
+  // pages Personnel/Intervenants est retiré (Lionel : « Enlever le nombre de
+  // taches attribuée, cela n'a aucune valeur. ») ; avec lui
+  // compterTachesPersonnesServeur, compterTachesParPersonne_ et
+  // estIsoWeekend_, qui ne servaient qu'à lui. Seule cette fonction reste.
   function prochainJourOuvreIso_(iso) {
     var d = new Date(iso + "T00:00:00Z");
     do { d.setUTCDate(d.getUTCDate() + 1); } while (d.getUTCDay() === 0 || d.getUTCDay() === 6);
     return d.toISOString().slice(0, 10);
-  }
-  // taches = lignes brutes déjà filtrées "depuisIso <= date" (cf.
-  // compterTachesPersonnesServeur ci-dessous) ; renvoie {personne_id: nombre
-  // de tâches "visuelles"}, même forme que l'ancien apiCompterTachesPersonnes.
-  // Round du 16.09.2026 (sql/0010_taches_chantier_id.sql) : le chantier de
-  // chaque ligne se lit directement sur t.chantier_id — plus besoin de
-  // croiser avec `assignations` (paramètre disparu), qui n'est plus la
-  // source de vérité du chantier d'une tâche.
-  function compterTachesParPersonne_(taches, depuisIso) {
-    var parGroupe = {};
-    (taches || []).forEach(function (t) {
-      if (t.date < depuisIso) return;
-      var k = t.personne_id + "|" + t.demi;
-      (parGroupe[k] = parGroupe[k] || []).push(t);
-    });
-    var out = {};
-    Object.keys(parGroupe).forEach(function (k) {
-      var personneId = k.slice(0, k.indexOf("|"));
-      if (out[personneId] == null) out[personneId] = 0;
-      var lignes = parGroupe[k].slice().sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
-      var actif = null; // {jourSuivant, texte, important, statut_id, chantier} ou null
-      lignes.forEach(function (t) {
-        var weekend = estIsoWeekend_(t.date);
-        var chantier = t.chantier_id || null;
-        var suite = !weekend && actif && actif.jourSuivant === t.date && actif.texte === t.texte &&
-          !!actif.important === !!t.important && (actif.statut_id || null) === (t.statut_id || null) && actif.chantier === chantier;
-        if (!suite) out[personneId]++;
-        actif = weekend ? null : { jourSuivant: prochainJourOuvreIso_(t.date), texte: t.texte, important: !!t.important, statut_id: t.statut_id || null, chantier: chantier };
-      });
-    });
-    return out;
-  }
-  function compterTachesPersonnesServeur() {
-    var idsPersonnes = (etat.personnesActives || []).map(function (p) { return p.id; });
-    if (!idsPersonnes.length) return Promise.resolve({});
-    var depuis = etat.aujourdhui;
-    return sbClient.from("taches").select("personne_id, date, demi, texte, statut_id, important, chantier_id").in("personne_id", idsPersonnes).gte("date", depuis).then(function (res) {
-      if (res.error) throw res.error;
-      return compterTachesParPersonne_(res.data || [], depuis);
-    });
   }
 
   // ---- CHANTIERS -------------------------------------------------------

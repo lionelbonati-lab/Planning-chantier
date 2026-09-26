@@ -187,6 +187,69 @@
   ];
   window.GROUPES_COULEURS = GROUPES_COULEURS;
 
+  // ---- Thèmes (round du 26.09.2026, suite 54) -----------------------------
+  // Lionel : « maintenant que j'ai pu sélectionner et groupers mes couleurs
+  // comme je le souhaites j'aimerais que les réglages de couleurs
+  // disparaissent des réglages. Proposer des thèmes de couleurs à la place
+  // avec juste une liste déroulante. Je ne sais pas si tu peux récupérer
+  // couleurs que j'ai enregistrée. Une autre alternative qui peut me plaire
+  // serai d'ouvrir une page de réglages avec un petit aperçu. Dans tous les
+  // cas avoir toutes les couleurs dans l'onglet prend trop de place. »
+  // Les deux sont faits : Général n'a plus qu'une liste « Thème » et un
+  // bouton « Personnaliser » qui ouvre une fenêtre avec un petit aperçu du
+  // planning et tous les réglages d'avant (ouvrirPersonnaliserCouleurs_).
+  //
+  // Un thème = des valeurs pour les groupes de Général seulement (ceux sans
+  // `page`) : Jalon, Personnel et Intervenants gardent leur couleur, réglée
+  // sur leur propre page. Un groupe absent du thème revient à sa couleur
+  // d'origine (style.css). Choisir un thème réécrit donc les lignes de
+  // `couleurs_perso` de ces groupes-là, rien d'autre — même table, même
+  // partage entre appareils qu'avant, pas de nouvelle colonne : le thème
+  // affiché se déduit des couleurs enregistrées (themeActuel_), et devient
+  // « Personnalisé » dès qu'une couleur ne correspond plus à aucun thème.
+  //
+  // « Mes couleurs » : relevé dans `couleurs_perso` le 26.09.2026. Des
+  // groupes de Général, seul « Fond général, cases et coin » y était réglé
+  // (#ffffff en clair, rien en sombre) ; Personnel (#f3f4e6) et
+  // Intervenants (#e7f3e2) y étaient aussi, mais ce sont des couleurs de
+  // page, que les thèmes ne touchent pas.
+  var THEMES_COULEURS = [
+    { id: "mes-couleurs", nom: "Mes couleurs", valeurs: {
+      fond: { clair: "#ffffff", sombre: null }
+    } },
+    { id: "classique", nom: "Classique", valeurs: {} },
+    { id: "ardoise", nom: "Ardoise", valeurs: {
+      principale: { clair: "#44576d", sombre: "#a3b8cf" },
+      "onglet-fond": { clair: "#e3e8ee", sombre: "#28323d" },
+      fond: { clair: "#f8f9fb", sombre: "#121820" },
+      weekend: { clair: "#d8dde3", sombre: "#222a33" }
+    } },
+    { id: "foret", nom: "Forêt", valeurs: {
+      principale: { clair: "#2e6b3c", sombre: "#7dc58c" },
+      "onglet-fond": { clair: "#e0efe2", sombre: "#1e3324" },
+      fond: { clair: "#fbfdf9", sombre: "#0f1511" },
+      weekend: { clair: "#d2dccd", sombre: "#1f2a21" }
+    } },
+    { id: "terre-cuite", nom: "Terre cuite", valeurs: {
+      principale: { clair: "#a3462a", sombre: "#ec9474" },
+      "onglet-fond": { clair: "#f6e3da", sombre: "#3b271f" },
+      fond: { clair: "#fffcf9", sombre: "#17110e" },
+      weekend: { clair: "#e2d6ca", sombre: "#2a211c" }
+    } },
+    // Pour le plein soleil sur un chantier : texte noir sur blanc, bleu
+    // plus foncé.
+    { id: "contraste", nom: "Contraste fort", valeurs: {
+      principale: { clair: "#0a3a8c", sombre: "#8fc3ff" },
+      "onglet-fond": { clair: "#d3e2fa", sombre: "#1a2c48" },
+      fond: { clair: "#ffffff", sombre: "#000000" },
+      weekend: { clair: "#c2c5be", sombre: "#1b2027" },
+      texte: { clair: "#000000", sombre: "#ffffff" },
+      "texte-secondaire": { clair: "#2c343c", sombre: "#d3d9df" },
+      "texte-discret": { clair: "#525c66", sombre: "#a0aab4" }
+    } }
+  ];
+  window.THEMES_COULEURS = THEMES_COULEURS;
+
   // window.etat.couleursPerso : accès défensif, sans jamais lever — ce
   // script s'exécute AVANT core.js (qui déclare `etat`) dans index.html, et
   // avant que donnees-sync.js ait fini son premier aller-retour réseau. Un
@@ -287,26 +350,52 @@
       '</span>' +
     '</div>';
   }
+  // Ligne réduite des pages Jalons, Personnel et Intervenants (suite 54) —
+  // Lionel : « jalons [...] juste "couleur" pour le choix de la couleur »,
+  // « personnel [...] uniquement "Couleur" pour la couleur », « intervenant,
+  // idem ». Plus de nom ni de description : « Couleur », une pastille
+  // (.pastille-couleur, comme sur Chantiers/Statuts) et ↺. Les deux champs
+  // clair/sombre restent dans la page, mais le CSS ne montre que celui du
+  // mode affiché (.reglage-couleur-compacte, style.css) : on règle ce qu'on
+  // voit. Mêmes classes rc-clair/rc-sombre, donc même câblage.
+  function htmlLigneCouleurCompacte(groupe) {
+    return '<div class="reglage-couleurs-groupe reglage-couleur-compacte" data-groupe="' + groupe.id + '">' +
+      '<span class="reglage-texte"><b>Couleur</b></span>' +
+      '<span class="reglage-couleurs-paires">' +
+        '<input type="color" class="rc-clair pastille-couleur" data-groupe="' + groupe.id + '" title="Couleur" aria-label="Couleur (mode clair)">' +
+        '<input type="color" class="rc-sombre pastille-couleur" data-groupe="' + groupe.id + '" title="Couleur" aria-label="Couleur (mode sombre)">' +
+        '<button type="button" class="reglage-couleur-reset" data-groupe="' + groupe.id + '" title="Rétablir la couleur d’origine">↺</button>' +
+      '</span>' +
+    '</div>';
+  }
+  function htmlSelectTheme_(id) {
+    return '<select class="sel-theme-couleurs"' + (id ? ' id="' + id + '"' : '') + ' aria-label="Thème de couleurs">' +
+      THEMES_COULEURS.map(function (t) { return '<option value="' + t.id + '">' + t.nom + '</option>'; }).join("") +
+      // Visible seulement quand les couleurs ne suivent aucun thème
+      // (majSelectsTheme_) : on ne le choisit pas, on y arrive en
+      // personnalisant.
+      '<option value="perso" disabled hidden>Personnalisé</option>' +
+    '</select>';
+  }
 
-  // Round du 23.09.2026 (suite ×3) — Lionel a demandé que certains réglages
-  // (Jalon, Personnel, Intervenants) vivent sur leur propre page plutôt que
-  // sur Général, à côté de l'élément qu'ils colorent. Chaque groupe porte
-  // maintenant un `page` ("general" par défaut) ; htmlReglagesCouleurs(page)
-  // n'affiche que les groupes de CETTE page. L'entête "Couleurs" + "Tout
-  // réinitialiser" (qui agit sur TOUS les groupes, quelle que soit leur
-  // page) ne s'affiche que sur Général — les autres pages n'ont qu'une
-  // ligne, inutile de leur donner l'entête complète.
+  // Round du 23.09.2026 (suite ×3) — chaque groupe porte un `page`
+  // ("general" par défaut) ; htmlReglagesCouleurs(page) n'affiche que les
+  // groupes de CETTE page. Suite 54 : sur Général, plus aucune ligne de
+  // couleur — la liste « Thème » et le bouton « Personnaliser » ; les lignes
+  // de Général vivent dans la fenêtre ouverte par ce bouton.
   function htmlReglagesCouleurs(page) {
     page = page || "general";
-    var groupes = GROUPES_COULEURS.filter(function (g) { return (g.page || "general") === page; });
-    var html = "";
     if (page === "general") {
-      html += '<div class="reglage-couleurs-entete"><h2>Couleurs</h2>' +
-        '<button type="button" class="lien-reset-tout" id="btnResetToutesCouleurs">Tout réinitialiser</button></div>' +
-        '<p class="page-sous">Une couleur pour le mode clair, une pour le mode sombre. Les éléments listés ensemble ont été regroupés ensemble à ta demande : ils partagent la même couleur.</p>';
+      return '<div class="reglage-couleurs-entete"><h2>Couleurs</h2></div>' +
+        '<div class="reglage-couleurs-groupe reglage-theme">' +
+          '<span class="reglage-texte"><b>Thème</b></span>' +
+          '<span class="reglage-couleurs-paires">' + htmlSelectTheme_("selThemeCouleurs") +
+            '<button type="button" class="btn-personnaliser-couleurs" id="btnPersonnaliserCouleurs">' +
+              (window.ICONS && ICONS.palette ? ICONS.palette : "") + '<span>Personnaliser</span></button>' +
+          '</span>' +
+        '</div>';
     }
-    groupes.forEach(function (groupe) { html += htmlLigneCouleur(groupe); });
-    return html;
+    return GROUPES_COULEURS.filter(function (g) { return g.page === page; }).map(htmlLigneCouleurCompacte).join("");
   }
   window.htmlReglagesCouleurs = htmlReglagesCouleurs;
 
@@ -369,61 +458,202 @@
     }, 400);
   }
 
-  function initReglagesCouleurs() {
+  function groupeParId_(id) {
+    return GROUPES_COULEURS.filter(function (g) { return g.id === id; })[0] || null;
+  }
+  function groupesGeneral_() {
+    return GROUPES_COULEURS.filter(function (g) { return !g.page; });
+  }
+  function hexOuNull_(v) { return v ? String(v).toLowerCase() : null; }
+  // Thème dont les couleurs enregistrées sont exactement celles-ci (groupes
+  // de Général seulement), ou null (« Personnalisé »). Un groupe absent du
+  // thème doit être absent des réglages (ou vide) ; un thème vide dans un
+  // mode (sombre: null) veut dire « couleur d'origine » dans ce mode.
+  function themeActuel_() {
+    var r = lireReglages();
+    for (var i = 0; i < THEMES_COULEURS.length; i++) {
+      var t = THEMES_COULEURS[i];
+      var ok = groupesGeneral_().every(function (g) {
+        var a = r[g.id] || {}, b = t.valeurs[g.id] || {};
+        return hexOuNull_(a.clair) === hexOuNull_(b.clair) && hexOuNull_(a.sombre) === hexOuNull_(b.sombre);
+      });
+      if (ok) return t;
+    }
+    return null;
+  }
+  window.themeCouleursActuel = function () { var t = themeActuel_(); return t ? t.id : "perso"; };
+  function majSelectsTheme_() {
+    var t = themeActuel_();
+    document.querySelectorAll(".sel-theme-couleurs").forEach(function (sel) {
+      var perso = sel.querySelector('option[value="perso"]');
+      if (perso) perso.hidden = !!t;
+      sel.value = t ? t.id : "perso";
+    });
+  }
+  // Remet chaque champ de couleur de la page (et de la fenêtre, si ouverte)
+  // sur la couleur enregistrée, ou celle d'origine.
+  function majChampsCouleurs_() {
     var reglages = lireReglages();
-    GROUPES_COULEURS.forEach(function (groupe) {
+    document.querySelectorAll(".rc-clair, .rc-sombre").forEach(function (input) {
+      var groupe = groupeParId_(input.dataset.groupe);
+      if (!groupe) return;
       var choix = reglages[groupe.id] || {};
-      var champClair = document.querySelector('.rc-clair[data-groupe="' + groupe.id + '"]');
-      var champSombre = document.querySelector('.rc-sombre[data-groupe="' + groupe.id + '"]');
-      if (champClair) champClair.value = choix.clair || groupe.defautClair;
-      if (champSombre) champSombre.value = choix.sombre || groupe.defautSombre;
+      input.value = input.classList.contains("rc-clair") ? (choix.clair || groupe.defautClair) : (choix.sombre || groupe.defautSombre);
     });
-    // enregistrerChamp : mise à jour OPTIMISTE (cache local + application
-    // CSS immédiate, comme avant ce round) suivie d'une écriture serveur
-    // différée (planifierEcritureServeur_) en arrière-plan.
-    function enregistrerChamp(groupeId, theme, hex) {
-      var r = lireReglages();
-      if (!r[groupeId]) r[groupeId] = {};
-      r[groupeId][theme] = hex;
-      marquerCommeSourceDeVerite_(r);
-      ecrireCacheLocal_(r);
-      appliquerCouleursPersonnalisees();
-      planifierEcritureServeur_(groupeId, theme, hex);
-    }
-    document.querySelectorAll(".rc-clair").forEach(function (input) {
-      input.addEventListener("input", function () { enregistrerChamp(input.dataset.groupe, "clair", input.value); });
-    });
-    document.querySelectorAll(".rc-sombre").forEach(function (input) {
-      input.addEventListener("input", function () { enregistrerChamp(input.dataset.groupe, "sombre", input.value); });
-    });
-    document.querySelectorAll(".reglage-couleur-reset").forEach(function (bouton) {
-      bouton.addEventListener("click", function () {
-        var groupeId = bouton.dataset.groupe;
-        var groupe = GROUPES_COULEURS.filter(function (g) { return g.id === groupeId; })[0];
-        if (!groupe) return;
-        var r = lireReglages();
-        delete r[groupeId];
-        marquerCommeSourceDeVerite_(r);
-        ecrireCacheLocal_(r);
-        appliquerCouleursPersonnalisees();
-        var champClair = document.querySelector('.rc-clair[data-groupe="' + groupeId + '"]');
-        var champSombre = document.querySelector('.rc-sombre[data-groupe="' + groupeId + '"]');
-        if (champClair) champClair.value = groupe.defautClair;
-        if (champSombre) champSombre.value = groupe.defautSombre;
-        reinitialiserCouleurServeur_(groupeId).catch(notifierEchecSync_);
+  }
+  // enregistrerChamp : mise à jour OPTIMISTE (cache local + application
+  // CSS immédiate) suivie d'une écriture serveur différée
+  // (planifierEcritureServeur_) en arrière-plan.
+  function enregistrerChamp_(groupeId, theme, hex) {
+    var r = lireReglages();
+    if (!r[groupeId]) r[groupeId] = {};
+    r[groupeId][theme] = hex;
+    marquerCommeSourceDeVerite_(r);
+    ecrireCacheLocal_(r);
+    appliquerCouleursPersonnalisees();
+    majSelectsTheme_();
+    planifierEcritureServeur_(groupeId, theme, hex);
+  }
+  function reinitialiserGroupe_(groupeId) {
+    if (!groupeParId_(groupeId)) return;
+    var r = lireReglages();
+    delete r[groupeId];
+    marquerCommeSourceDeVerite_(r);
+    ecrireCacheLocal_(r);
+    appliquerCouleursPersonnalisees();
+    majChampsCouleurs_();
+    majSelectsTheme_();
+    reinitialiserCouleurServeur_(groupeId).catch(notifierEchecSync_);
+  }
+  // Câble les champs de couleur et les ↺ contenus dans `racine` (la page,
+  // ou la fenêtre « Personnaliser » à chaque ouverture) — jamais deux fois
+  // le même élément.
+  function cablerChampsCouleurs_(racine) {
+    racine.querySelectorAll(".rc-clair, .rc-sombre").forEach(function (input) {
+      input.addEventListener("input", function () {
+        enregistrerChamp_(input.dataset.groupe, input.classList.contains("rc-clair") ? "clair" : "sombre", input.value);
       });
     });
-    var btnTout = document.getElementById("btnResetToutesCouleurs");
-    if (btnTout) {
-      btnTout.addEventListener("click", function () {
-        var idsAvant = Object.keys(lireReglages());
-        if (window.etat) window.etat.couleursPerso = {};
-        ecrireCacheLocal_({});
-        appliquerCouleursPersonnalisees();
-        initReglagesCouleurs();
-        reinitialiserToutesCouleursServeur_(idsAvant).catch(notifierEchecSync_);
+    racine.querySelectorAll(".reglage-couleur-reset").forEach(function (bouton) {
+      bouton.addEventListener("click", function () { reinitialiserGroupe_(bouton.dataset.groupe); });
+    });
+  }
+  // Applique un thème : les groupes de Général prennent ses valeurs, ceux
+  // qu'il ne cite pas reviennent à leur couleur d'origine. Côté serveur,
+  // mêmes lignes `couleurs_perso` qu'un réglage à la main : les groupes du
+  // thème réécrits en entier (clair ET sombre, null compris), les autres
+  // groupes de Général supprimés.
+  function appliquerTheme_(themeId) {
+    var t = THEMES_COULEURS.filter(function (x) { return x.id === themeId; })[0];
+    if (!t) return Promise.resolve();
+    var r = lireReglages();
+    var ids = groupesGeneral_().map(function (g) { return g.id; });
+    // Une écriture encore en attente (couleur changée il y a moins de
+    // 400 ms) ne doit pas repasser par-dessus le thème.
+    ids.forEach(function (id) {
+      ["clair", "sombre"].forEach(function (m) {
+        clearTimeout(attenteEcritureServeur_[id + ":" + m]);
+        delete attenteEcritureServeur_[id + ":" + m];
       });
+    });
+    var aSupprimer = ids.filter(function (id) { return r[id] && !t.valeurs[id]; });
+    ids.forEach(function (id) { delete r[id]; });
+    var lignes = Object.keys(t.valeurs).map(function (id) {
+      r[id] = { clair: t.valeurs[id].clair || null, sombre: t.valeurs[id].sombre || null };
+      return { id: id, clair: r[id].clair, sombre: r[id].sombre };
+    });
+    marquerCommeSourceDeVerite_(r);
+    ecrireCacheLocal_(r);
+    appliquerCouleursPersonnalisees();
+    majChampsCouleurs_();
+    majSelectsTheme_();
+    return Promise.all([
+      reinitialiserToutesCouleursServeur_(aSupprimer),
+      lignes.length ? sbClient.from("couleurs_perso").upsert(lignes, { onConflict: "id" }).then(function (res) { if (res.error) throw res.error; }) : null
+    ]).catch(notifierEchecSync_);
+  }
+  // Changement de la liste « Thème » (page Général ou fenêtre). Quitter
+  // « Personnalisé » efface des couleurs qu'aucun thème ne retrouvera :
+  // on demande d'abord. `apres` : rend la main à la fenêtre (Échap).
+  function choisirTheme_(sel, apres) {
+    var id = sel.value;
+    if (themeActuel_()) { appliquerTheme_(id); return; }
+    var t = THEMES_COULEURS.filter(function (x) { return x.id === id; })[0];
+    sel.value = "perso";
+    demanderConfirmation("Remplacer tes couleurs personnalisées par le thème « " + (t ? t.nom : id) + " » ?", function () {
+      appliquerTheme_(id);
+    }, apres);
+  }
+
+  // ---- Fenêtre « Personnaliser » (suite 54) ------------------------------
+  // Petit aperçu du planning, peint avec les mêmes variables CSS que la
+  // vraie grille : il suit chaque changement en direct, sans code à lui.
+  // La couleur des tâches d'exemple est celle du premier chantier actif.
+  function htmlApercuCouleurs_() {
+    var chantier = (window.etat && etat.chantiers || []).filter(function (c) { return c.actif !== false && c.couleur; })[0];
+    var fondTache = chantier ? esc2(chantier.couleur) : "#cfe0f5";
+    var tache = function (texte, extra) { return '<i class="ac-bulle" style="background:' + fondTache + '">' + texte + (extra || "") + '</i>'; };
+    return '<div class="apercu-couleurs" aria-hidden="true">' +
+      '<div class="ac-haut"><span class="ac-onglet ac-actif">Planning</span><span class="ac-onglet">Jalons</span><span class="ac-onglet">Général</span><span class="ac-sync"></span></div>' +
+      '<div class="ac-barre"><span class="ac-outil"></span><span class="ac-outil"></span><span class="ac-bouton">Aujourd’hui</span><span class="ac-supprimer">Supprimer</span></div>' +
+      '<div class="ac-grille">' +
+        '<div class="ac-ligne ac-entete"><span class="ac-nom"></span><span>Lun</span><span>Mar</span><span>Mer</span><span class="ac-we">Sam</span></div>' +
+        '<div class="ac-ligne ac-section ac-section-perso"><span>Personnel</span></div>' +
+        '<div class="ac-ligne"><span class="ac-nom">Lionel</span><span>' + tache("Coffrage") + '</span><span class="ac-absence">Congé</span><span><i class="ac-bulle ac-jalon">Jalon</i></span><span class="ac-we"></span></div>' +
+        '<div class="ac-ligne"><span class="ac-nom">Antoine</span><span><i class="ac-bulle ac-note">Note</i></span><span class="ac-bloquee"></span><span class="ac-selection"></span><span class="ac-we"></span></div>' +
+        '<div class="ac-ligne ac-section ac-section-inter"><span>Intervenants</span></div>' +
+        '<div class="ac-ligne"><span class="ac-nom">Échafaudage</span><span class="ac-large">' + tache("Montage", ' <b class="ac-statut">confirmé</b>') + '</span><span></span><span class="ac-we"></span></div>' +
+      '</div>' +
+      '<div class="ac-legende"><span class="ac-important">! Important</span><span>Texte secondaire</span><span class="ac-discret">texte discret</span></div>' +
+    '</div>';
+  }
+  function ouvrirPersonnaliserCouleurs_() {
+    if (typeof popFermerActuel !== "undefined" && popFermerActuel) popFermerActuel();
+    var overlay = document.createElement("div");
+    overlay.className = "voile-confirm";
+    var pop = document.createElement("div");
+    pop.className = "pop confirm-pop couleurs-modal";
+    pop.innerHTML =
+      '<div class="cm-entete"><div class="cp-titre">Couleurs</div>' + htmlSelectTheme_("") + '</div>' +
+      htmlApercuCouleurs_() +
+      '<div class="cm-liste">' +
+        '<p class="page-sous">Une couleur pour le mode clair, une pour le mode sombre. Les éléments cités ensemble partagent la même couleur.</p>' +
+        groupesGeneral_().map(htmlLigneCouleur).join("") +
+      '</div>' +
+      '<div class="form-actions"><button type="button" class="f-fermer">Fermer</button></div>';
+    document.body.appendChild(overlay);
+    document.body.appendChild(pop);
+    function fermer() {
+      overlay.remove(); pop.remove();
+      if (popFermerActuel === fermer) popFermerActuel = null;
     }
+    function reprendreLaMain() { popFermerActuel = fermer; }
+    overlay.addEventListener("pointerdown", fermer);
+    pop.querySelector(".f-fermer").addEventListener("click", fermer);
+    var sel = pop.querySelector(".sel-theme-couleurs");
+    sel.addEventListener("change", function () { choisirTheme_(sel, reprendreLaMain); });
+    cablerChampsCouleurs_(pop);
+    majChampsCouleurs_();
+    majSelectsTheme_();
+    popFermerActuel = fermer;
+  }
+  window.ouvrirPersonnaliserCouleurs = ouvrirPersonnaliserCouleurs_;
+
+  // Appelée une fois, la coquille posée (js/coquille.js) : lignes
+  // « Couleur » de Jalons/Personnel/Intervenants, liste « Thème » et bouton
+  // « Personnaliser » de Général.
+  function initReglagesCouleurs() {
+    var pages = document.querySelectorAll(".reglage-couleur-compacte");
+    pages.forEach(function (ligne) { cablerChampsCouleurs_(ligne); });
+    var sel = document.getElementById("selThemeCouleurs");
+    if (sel) sel.addEventListener("change", function () { choisirTheme_(sel); });
+    var btn = document.getElementById("btnPersonnaliserCouleurs");
+    if (btn) btn.addEventListener("click", ouvrirPersonnaliserCouleurs_);
+    majChampsCouleurs_();
+    majSelectsTheme_();
   }
   window.initReglagesCouleurs = initReglagesCouleurs;
+  // Couleurs arrivées du serveur (js/donnees-sync.js) ou d'un autre
+  // appareil : la liste « Thème » et les champs suivent.
+  window.majReglagesCouleursAffiches = function () { majChampsCouleurs_(); majSelectsTheme_(); };
 })();

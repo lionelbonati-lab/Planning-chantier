@@ -406,10 +406,14 @@
   function htmlPageJalons() {
     return '<div class="page" id="page-jalons"><div class="page-scroll">' +
       '<div class="page-titre"><h1>Jalons</h1></div>' +
-      '<p class="page-sous">Étapes clés d’un chantier (livraison, coulage, réception…), sur une durée aussi longue que nécessaire — indépendant des semaines affichées dans le planning.</p>' +
+      // Descriptions raccourcies (round du 26.09.2026, suite 54) — Lionel :
+      // « jalons, modifier la description en "phases du projet". Et juste
+      // "couleur" pour le choix de la couleur. »
+      '<p class="page-sous">Phases du projet.</p>' +
       // Round du 23.09.2026 (suite) — à la demande de Lionel, le réglage de
       // couleur "Jalon" est déplacé ici (sur sa page naturelle) plutôt que
-      // sur Général. Cf. js/page-couleurs.js.
+      // sur Général. Cf. js/page-couleurs.js (ligne réduite à « Couleur »,
+      // suite 54).
       htmlReglagesCouleurs('jalons') +
       '<div class="liste-intervenants" id="listeJalons"></div>' +
       '</div></div>';
@@ -417,7 +421,9 @@
   function htmlPageGeneral() {
     return '<div class="page" id="page-general"><div class="page-scroll">' +
       '<div class="page-titre"><h1>Général</h1></div>' +
-      '<p class="page-sous">Réglages d’affichage du planning (locaux à cet appareil, non partagés — cf. FRONTEND-CHANGELOG.md).</p>' +
+      // « locaux à cet appareil » n'était plus vrai (couleurs partagées par
+      // compte depuis le 24.09.2026) : raccourci à la suite 54.
+      '<p class="page-sous">Réglages d’affichage du planning.</p>' +
       '<label class="reglage-ligne"><span class="reglage-texte"><b>Afficher les week-ends</b>' +
       '<span>Ajoute Samedi et Dimanche à la fin de chaque semaine, pour y poser une tâche ponctuelle.</span></span>' +
       '<span class="interrupteur"><input type="checkbox" id="chkWeekends"><span class="interrupteur-piste"></span></span></label>' +
@@ -425,6 +431,7 @@
       // js/page-couleurs.js (données + logique). Générée par
       // htmlReglagesCouleurs() plutôt qu'écrite ici en dur : la liste des
       // groupes de couleurs vit dans un seul fichier, pas dupliquée.
+      // Suite 54 : plus qu'une liste « Thème » et un bouton « Personnaliser ».
       htmlReglagesCouleurs() +
       // Sauvegardes (round du 25.09.2026, suite 49 — js/page-sauvegardes.js,
       // sql/0017_sauvegardes.sql). Lionel, proposition 14 : « Sauvegarde
@@ -449,7 +456,8 @@
       // Équipes (round du 25.09.2026, suite 33 — js/equipes.js) : au-dessus
       // du personnel, qu'elles regroupent dans le planning.
       '<h2 class="titre-liste">Équipes</h2>' +
-      '<p class="page-sous">Une ligne par équipe dans le planning : ses tâches valent pour tous ses membres. Les membres se choisissent semaine par semaine, en cliquant sur le nom de l’équipe dans le planning.</p>' +
+      // Suite 54 — Lionel : « personnel, description équipe plus brève ».
+      '<p class="page-sous">Membres choisis chaque semaine en touchant le nom de l’équipe dans le planning.</p>' +
       '<div class="liste-intervenants" id="listeEquipes"></div>' +
       '<h2 class="titre-liste">Personnes</h2>' +
       // Round du 23.09.2026 (suite) — réglage de couleur de la ligne de
@@ -462,7 +470,7 @@
   function htmlPageIntervenants() {
     return '<div class="page" id="page-intervenants"><div class="page-scroll">' +
       '<div class="page-titre"><h1>Intervenants</h1></div>' +
-      '<p class="page-sous">Les sous-traitants — leurs tâches ont un champ Statut, pas le personnel.</p>' +
+      '<p class="page-sous">Les sous-traitants.</p>' +
       // Round du 23.09.2026 (suite) — idem Personnel, cf. js/page-couleurs.js.
       htmlReglagesCouleurs('intervenants') +
       '<div class="liste-intervenants" id="listeIntervenants"></div>' +
@@ -471,14 +479,16 @@
   function htmlPageChantiers() {
     return '<div class="page" id="page-chantiers"><div class="page-scroll">' +
       '<div class="page-titre"><h1>Chantiers</h1></div>' +
-      '<p class="page-sous">Couleur utilisée dans la grille et les formulaires. Renommer met à jour toutes les cases déjà remplies du planning (y compris les semaines passées). Désactiver retire le chantier des listes pour une nouvelle tâche, sans toucher aux cases déjà posées (historique intact) ; le supprimer pour de bon (dans « Désactivés ») vide en plus toutes ces cases, y compris passées — irréversible.</p>' +
+      // Suite 54 — Lionel : « statuts et chantier, modifications de la
+      // couleur se fait par appuis sur la pastille. Description plus brève. »
+      '<p class="page-sous">Touche la pastille pour changer la couleur. Un chantier désactivé reste sur les cases déjà posées.</p>' +
       '<div class="liste-intervenants" id="listeChantiers"></div>' +
       '</div></div>';
   }
   function htmlPageStatuts() {
     return '<div class="page" id="page-statuts"><div class="page-scroll">' +
       '<div class="page-titre"><h1>Statuts</h1></div>' +
-      '<p class="page-sous">Statuts disponibles pour les tâches des intervenants (sous-traitants).</p>' +
+      '<p class="page-sous">Statuts des tâches des intervenants. Touche la pastille pour changer la couleur.</p>' +
       '<div class="liste-intervenants" id="listeStatuts"></div>' +
       '</div></div>';
   }

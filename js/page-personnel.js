@@ -26,7 +26,6 @@
     // AVANT de redemander la fenêtre affichée, sans quoi
     // chargerSemaineDepuisServeur filtrerait encore sur l'ancienne liste.
     oublierCache(null);
-    TACHES_PAR_PERSONNE = null; promesseTachesParPersonne = null;
     rechargerPersonnesActives_().then(function () {
       assurerFenetreChargee(function () {
         construireVueDepuisCache();
@@ -35,12 +34,6 @@
       });
     }).catch(erreurFatale);
   }
-  // texteCompteurTaches(n) : null tant que le chargement n'est pas terminé
-  // (case laissée vide plutôt qu'un "0" trompeur pendant l'attente).
-  function texteCompteurTaches(n) {
-    if (n == null) return "";
-    return n === 0 ? "Aucune tâche en cours" : (n === 1 ? "1 tâche en cours" : n + " tâches en cours");
-  }
   // opts.premier/opts.dernier : bornes du groupe ACTIF affiché (désactive
   // ↑ en tête, ↓ en fin — même logique que .cf-monter/.cf-descendre
   // d'Entrée rapide). Absents (undefined) pour une ligne désactivée, qui
@@ -48,10 +41,8 @@
   // 14.09.2026).
   function ligneFichePersonne(p, opts) {
     opts = opts || {};
-    var n = TACHES_PAR_PERSONNE ? TACHES_PAR_PERSONNE[p.id] : null;
     if (!p.actif) {
       return '<div class="ligne-intervenant ligne-desactivee" data-id="' + esc2(p.id) + '"><b>' + esc(p.nom) + '</b>' +
-        '<span class="compte"></span>' +
         '<span class="ligne-actions">' +
         // Icônes (suite 53) : cf. boutonIconeLigne, js/core.js.
         boutonIconeLigne("lien-reactiver", ICONS.restaurer, "Réactiver") +
@@ -64,7 +55,8 @@
       '<button type="button" class="cf-descendre" title="Descendre"' + (opts.dernier ? " disabled" : "") + '>↓</button>' +
       '</span>' +
       '<b>' + esc(p.nom) + '</b>' +
-      '<span class="compte">' + esc(texteCompteurTaches(n == null ? null : n)) + '</span>' +
+      // Compteur « N tâches en cours » retiré (suite 54) — Lionel : « Enlever
+      // le nombre de taches attribuée, cela n'a aucune valeur. »
       '<span class="ligne-actions">' +
       // <label>, pas <span> : le piste couvre TOUT le .interrupteur en
       // position absolute (cf. .interrupteur-piste), le checkbox lui-même
@@ -84,29 +76,6 @@
       boutonIconeLigne("lien-consultation", ICONS.lien, "Lien de consultation") +
       boutonIconeLigne("lien-modifier", ICONS.pencil, "Modifier") +
       '</span></div>';
-  }
-  // Charge compterTachesPersonnesServeur() une seule fois (mémorisée dans
-  // promesseTachesParPersonne, cf. section "CONFIG SIMPLE" plus bas), puis
-  // patche directement les badges déjà à l'écran — jamais un re-render
-  // complet depuis ce callback (renderPersonnel/renderIntervenants
-  // appellent elles-mêmes chargerCompteursTaches : un re-render en boucle
-  // depuis ici recréerait la boucle).
-  function chargerCompteursTaches() {
-    if (TACHES_PAR_PERSONNE) { appliquerCompteursTaches(); return; }
-    if (!promesseTachesParPersonne) {
-      promesseTachesParPersonne = compterTachesPersonnesServeur().then(function (r) {
-        TACHES_PAR_PERSONNE = r || {};
-        appliquerCompteursTaches();
-      }).catch(function () {
-        promesseTachesParPersonne = null; // échec : pas de compteur affiché, retenté à la prochaine ouverture de page
-      });
-    }
-  }
-  function appliquerCompteursTaches() {
-    document.querySelectorAll(".ligne-intervenant[data-id] .compte").forEach(function (el) {
-      var id = el.closest("[data-id]").dataset.id;
-      el.textContent = texteCompteurTaches(TACHES_PAR_PERSONNE[id]);
-    });
   }
   // ↑/↓ : échange l'ordre entre 2 lignes ACTIVES voisines (jamais les
   // désactivées, qui n'ont pas de flèches) — 2 updates serveur puis
@@ -173,8 +142,7 @@
       chk.addEventListener("change", function () {
         var id = idDe(chk), nom = nomDe(chk);
         chk.checked = true;
-        var n = TACHES_PAR_PERSONNE ? TACHES_PAR_PERSONNE[id] : null;
-        var titre = "Désactiver « " + nom + " »" + (n ? " qui a " + (n === 1 ? "1 tâche en cours" : n + " tâches en cours") : "") + " ?";
+        var titre = "Désactiver « " + nom + " » ?";
         demanderConfirmation(titre, function () {
           basculerActifPersonneServeur(ancreDe(id), false).then(function () {
             rafraichirApresPersonnel();
@@ -225,7 +193,6 @@
       }
       zone.innerHTML = html;
       cablerListePersonnes(zone, function () { renderListePersonnes(sousTraitant, equipe); }, actifs);
-      chargerCompteursTaches();
     }).catch(erreurFatale);
   }
   function renderPersonnel() { renderListePersonnes(false, true); renderListePersonnes(false); }

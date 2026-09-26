@@ -34,7 +34,10 @@
       '<button type="button" class="cf-monter" title="Monter"' + (opts.premier ? " disabled" : "") + '>↑</button>' +
       '<button type="button" class="cf-descendre" title="Descendre"' + (opts.dernier ? " disabled" : "") + '>↓</button>' +
       '</span>' +
-      '<span class="gauche-chantier"><span class="swatch-chantier" style="background:' + esc2(c.couleur) + '"></span><b>' + esc(c.nom) + '</b></span>' +
+      // Pastille = sélecteur de couleur (suite 54, cf. pastilleCouleur,
+      // js/core.js) — remplace le bouton palette de la suite 53 et sa
+      // fenêtre « Couleur / Annuler / Enregistrer ».
+      '<span class="gauche-chantier">' + pastilleCouleur("pastille-chantier", c.couleur, "Couleur") + '<b>' + esc(c.nom) + '</b></span>' +
       '<span class="ligne-actions">' +
       // <label>, pas <span> : le piste couvre TOUT le .interrupteur en
       // position absolute (cf. .interrupteur-piste), le checkbox lui-même
@@ -48,9 +51,8 @@
       // seulement pour le test.
       // « Actif » masqué sur téléphone (suite 53), gardé en title.
       '<label class="champ-actif" title="Actif"><span class="interrupteur"><input type="checkbox" checked><span class="interrupteur-piste"></span></span><span class="champ-actif-texte">Actif</span></label>' +
-      // Icônes (suite 53) : « Couleur » et « Renommer » sortaient de l'écran
-      // d'un téléphone (capture du 25.09.2026, « Renommer » coupé).
-      boutonIconeLigne("lien-modifier", ICONS.palette, "Couleur") +
+      // Icônes (suite 53) : « Renommer » sortait de l'écran d'un téléphone
+      // (capture du 25.09.2026, « Renommer » coupé).
       boutonIconeLigne("lien-renommer", ICONS.pencil, "Renommer") +
       '</span></div>';
   }
@@ -95,10 +97,19 @@
       var ligne = +btn.closest("[data-ligne]").dataset.ligne;
       return etat.chantiers.filter(function (x) { return x.ligne === ligne; })[0];
     }
-    zone.querySelectorAll(".lien-modifier").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        var c = chantierDeLigne(btn);
-        if (c) ouvrirCouleurChantier(c);
+    // "change" : le sélecteur du système est refermé sur une nouvelle
+    // couleur (pas "input", qui tombe en continu pendant qu'on la cherche).
+    zone.querySelectorAll(".pastille-chantier").forEach(function (input) {
+      input.addEventListener("change", function () {
+        var c = chantierDeLigne(input);
+        if (!c || input.value === hexPastille(c.couleur)) return;
+        majCouleurChantierServeur(c.ligne, input.value).then(function (r) {
+          rafraichirApresChantiers(r);
+          toast("Couleur modifiée.");
+        }).catch(function (err) {
+          input.value = hexPastille(c.couleur);
+          toast("Échec de la modification : " + (err && err.message ? err.message : err));
+        });
       });
     });
     zone.querySelectorAll(".lien-renommer").forEach(function (btn) {
@@ -228,27 +239,6 @@
       }).catch(function (err) { toast("Échec de l’ajout : " + (err && err.message ? err.message : err)); });
     });
     inputNom.focus();
-  }
-  function ouvrirCouleurChantier(c) {
-    var pop = document.createElement("div");
-    pop.className = "pop form-pop";
-    pop.innerHTML =
-      '<div class="cp-titre">' + esc(c.nom) + '</div>' +
-      '<div class="champ-couleur-chantier"><label>Couleur</label><input type="color" class="f-couleur" value="' + esc2(c.couleur) + '"></div>' +
-      '<div class="note-panneau">Le nom d’un chantier existant ne peut pas être changé ici — il sert de clé dans les cases déjà remplies du planning.</div>' +
-      '<div class="form-actions"><button type="button" class="f-annuler">Annuler</button><button type="button" class="f-ok">Enregistrer</button></div>';
-    var px = Math.round(window.innerWidth / 2 - 110), py = Math.round(window.innerHeight / 2 - 90);
-    positionnerPop(pop, px, py);
-    var fermer = fermerAuClicExterieur(pop, null, function () { pop.querySelector(".f-ok").click(); });
-    pop.querySelector(".f-annuler").addEventListener("click", fermer);
-    pop.querySelector(".f-ok").addEventListener("click", function () {
-      var couleur = pop.querySelector(".f-couleur").value;
-      fermer();
-      majCouleurChantierServeur(c.ligne, couleur).then(function (r) {
-        rafraichirApresChantiers(r);
-        toast("Modifié.");
-      }).catch(function (err) { toast("Échec de la modification : " + (err && err.message ? err.message : err)); });
-    });
   }
   function ouvrirRenommerChantier(c) {
     var pop = document.createElement("div");
