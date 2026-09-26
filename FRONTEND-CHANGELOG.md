@@ -8855,3 +8855,4 @@ Lionel, après la suite 59 : « On remarque encore des bulles dans les bordures 
   - sélection depuis le résumé des statuts.
 - Anciens tests mis à jour pour les pages déplacées (onglet Général / Mise en page → `afficherPage`, menu de la pastille) : test_couleurs_sync_compte, test_suite39, 44, 45, 46, 49, 53, 54, 56.
 - test_bordure_lundi_2semaines.js : vérifie l'espace entre semaines au bord gauche du lundi matin (plus la bordure de 3 px), jamais au milieu du lundi.
+- Suite complète : 70/70 (le seul échec du premier passage, test_bordure_lundi_2semaines, attendait encore la bordure de 3 px ; mis à jour et relancé seul, 5/5).
