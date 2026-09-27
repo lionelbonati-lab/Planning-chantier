@@ -313,12 +313,35 @@
   // 57) : le miroir de l'événement « scroll » (grille-rendu.js) n'arrive
   // qu'à l'image suivante — relevé image par image, l'en-tête ne bougeait
   // qu'une image sur deux pendant un glissement.
-  function defilerHorizontal_(scroller, x) {
-    scroller.scrollLeft = x;
+  //
+  // Pixels entiers (round du 27.09.2026, suite 72 — Lionel : « La partie
+  // en-tête avec les notes et jalons ne suit pas toujours le planning
+  // (petit décalage) »). Sur un écran de téléphone (3 pixels physiques par
+  // pixel CSS), la grille défile au tiers de pixel près, mais l'en-tête
+  // (overflow:hidden, défilé par le script) au pixel entier : entre les
+  // deux, jusqu'à un demi-pixel CSS d'écart, soit 1 à 2 pixels physiques —
+  // les traits des jours de l'en-tête ne tombaient plus sur ceux de la
+  // grille pendant le glissement. Les deux sont désormais posés sur la
+  // même position entière. La position exacte demandée reste retenue
+  // (xFin_) : un doigt qui avance d'un tiers de pixel par événement fait
+  // quand même défiler la grille (cf. xCourant_).
+  function defilerHorizontal_(scroller, x, differer) {
+    scroller._xFin = x;
+    scroller.scrollLeft = Math.round(x);
+    var xPose = scroller.scrollLeft;
     var racine = scroller.closest("#racine"), entete = racine ? racine.querySelector(".entete-planning-scroll") : null;
-    if (entete) entete.scrollLeft = scroller.scrollLeft;
-    // Cartes et hauteurs de lignes dans la même image (suite 58).
-    suivreDefilementJourMobile(scroller);
+    if (entete && entete.scrollLeft !== xPose) entete.scrollLeft = xPose;
+    // Cartes et hauteurs de lignes dans la même image (suite 58) ; doigt
+    // qui glisse : à l'image qui suit son événement (suite 72, cf.
+    // suivreDefilementJourMobile, grille-rendu.js).
+    suivreDefilementJourMobile(scroller, xPose, !!differer);
+  }
+  // Position de départ d'un pas relatif (doigt, inertie) : la position
+  // exacte demandée au pas précédent tant que la grille y est encore (même
+  // pixel entier), sinon celle de la grille (défilée entre-temps).
+  function xCourant_(scroller) {
+    var x = scroller.scrollLeft;
+    return typeof scroller._xFin === "number" && Math.round(scroller._xFin) === x ? scroller._xFin : x;
   }
   function creerDefilementManuel(scroller) {
     var vx = 0, vy = 0, raf = null;
@@ -369,7 +392,7 @@
     function tick(t, derniereFrame) {
       var dt = Math.min(48, t - derniereFrame);
       if (scroller) {
-        defilerHorizontal_(scroller, scroller.scrollLeft - vx * dt);
+        defilerHorizontal_(scroller, xCourant_(scroller) - vx * dt);
         var maxScroll = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
         if (scroller.scrollLeft <= 0 || scroller.scrollLeft >= maxScroll) vx = 0;
       }
@@ -403,7 +426,7 @@
         // vertical ne touche jamais scrollLeft, le laisser actif garde le
         // jour exactement calé.
         if (axe === "x") desactiverSnapSiBesoin_(scroller, etatSnap);
-        if (dx && scroller) defilerHorizontal_(scroller, scroller.scrollLeft - dx);
+        if (dx && scroller) defilerHorizontal_(scroller, xCourant_(scroller) - dx, true);
         if (dy && app) app.scrollTop -= dy;
         if (dt > 0) { vx = vx * 0.7 + (dx / dt) * 0.3; vy = vy * 0.7 + (dy / dt) * 0.3; }
       },

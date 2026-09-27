@@ -1215,9 +1215,12 @@
           it.addEventListener("click", function () {
             menuSemaine.classList.remove("ouvert");
             if (idx === etat.indexSemaine) return;
+            // Suite 72 : glisse vers la semaine choisie, dans son sens
+            // (glisserVersSemaine_, js/grille-rendu.js).
+            var sens = idx > etat.indexSemaine ? 1 : -1;
             etat.indexSemaine = idx;
             bullesSelectionnees = {};
-            assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); majBarreSelection(); });
+            assurerFenetreChargee(function () { glisserVersSemaine_(sens, function () { construireVueDepuisCache(); render(false); majBarreSelection(); }); });
           });
           panneauSemaine.appendChild(it);
         };
