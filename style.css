@@ -1724,6 +1724,27 @@
      js/grille-rendu.js) — la marge de 3 px ci-dessus la ferait déborder dans
      le trait entre deux noms : rognée entièrement (marquerPistesNulles_). */
   .grille.hauteurs-figees .bulle.piste-nulle { clip-path: inset(0 0 100% 0); }
+  /* Round du 27.09.2026 (suite 78) — Lionel, capture à l'appui : « Certaines
+     bulle passent encore la colonne des en-têtes. Les séparations doivent
+     être dessinée au dessus du planning car c'est des élément principaux. »
+     Pendant le glissement d'un jour à l'autre, une bulle d'un seul des 2
+     jours est tenue à sa place de son jour (suite 73, tenirBullesEntreJours_)
+     pendant que les lignes changent de hauteur : la 2e bulle de François,
+     dont la ligne rapetisse, passait sur la bande « Intervenants », là où
+     aucune étiquette ne la cache — jusque sous la colonne des noms.
+     Les séparations passent désormais par-dessus les bulles (z-index 3,
+     sous l'espace entre semaines, 5) :
+     - les bandes Personnel / Intervenants, partout ;
+     - en vue « 1 jour », le trait entre deux personnes : celui de chaque
+       étiquette (cf. suite 60 plus haut) est prolongé sur toute la largeur
+       de l'écran. Une bulle en transit passe dessous au lieu de le couvrir.
+       Prolongé par une ombre (100vw) rognée à sa hauteur de 1 px : une
+       ombre ne compte pas dans le débordement, ni l'étiquette ni le
+       défilement ne s'élargissent. */
+  .section-row { position: relative; z-index: 3; }
+  #racine.vue-jour-mobile .lbl, #racine.vue-jour-mobile .lbl-speciale { z-index: 3; }
+  #racine.vue-jour-mobile .lbl::before, #racine.vue-jour-mobile .lbl::after,
+  #racine.vue-jour-mobile .lbl-speciale::before, #racine.vue-jour-mobile .lbl-speciale::after { box-shadow: 0 0 0 100vw var(--border); clip-path: inset(0 -100vw 0 0); }
   /* Suite 57 — Lionel : « La transition entre les jours en mobile me
      dérange. » Au jour posé, les lignes glissent vers leurs nouvelles
      hauteurs au lieu d'y sauter (figerHauteursJourMobile ne change la

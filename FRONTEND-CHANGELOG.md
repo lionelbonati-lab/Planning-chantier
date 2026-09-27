@@ -9459,3 +9459,28 @@ Lionel :
 - test_suite76.js : l'aperçu Téléphone ne montre que « jeu », même week-ends allumés.
 - test_suite62.js : aperçu sur téléphone « Jeu 24 » seul, sans débordement.
 - Suite complète : 83/83.
+
+## 186. Round du 27.09.2026 (suite 78) — Téléphone : séparations par-dessus les bulles pendant le changement de jour
+- « Certaines bulle passent encore la colonne des en-têtes. »
+- « Les séparations doivent être dessinée au dessus du planning car c'est des élément principaux. »
+
+### Ce qui change
+- Pendant le glissement d'un jour à l'autre, une bulle du jour qui part ne passe plus sur la bande « Personnel » / « Intervenants », ni sous la colonne des noms à cet endroit : la bande la couvre.
+- En vue 1 jour, le trait entre deux personnes est tracé par-dessus les bulles. Une bulle en transit passe dessous au lieu de le couvrir.
+- Au repos, rien ne change à l'écran.
+
+### Fonctionnement
+- **Cause** : une bulle d'un seul des 2 jours reste à sa place de son jour pendant que les lignes changent de hauteur (suite 73, tenirBullesEntreJours_). Quand la ligne rapetisse (ici François, 2 bulles le jeudi, rien le vendredi), sa 2e bulle arrivait sur la bande « Intervenants ». Aucune étiquette ne l'y cachait : elle se voyait jusque sous la colonne des noms.
+- **CSS** (style.css) :
+  - `.section-row` : `position: relative; z-index: 3`, au-dessus des bulles (z-index 2) et sous l'espace entre semaines (z-index 5) ;
+  - en `#racine.vue-jour-mobile`, `.lbl` et `.lbl-speciale` passent à z-index 3. Leurs traits du haut et du bas (::before / ::after, suite 60) sont prolongés sur toute la largeur de l'écran par une ombre (`box-shadow: 0 0 0 100vw`) rognée à leur hauteur de 1 px (`clip-path: inset(0 -100vw 0 0)`). Une ombre ne compte pas dans le débordement : ni l'étiquette ni le défilement ne s'élargissent (un trait élargi faisait déborder l'étiquette d'équipe, test_suite33) ;
+  - sur ordinateur, les traits restent ceux de la grille.
+
+### Tests
+- test_suite78.js, 5/5, relevés au pixel sur une image de la page, doigt posé au milieu du glissement jeudi → vendredi :
+  - la bande « Intervenants » couvre la 2e bulle de François, côté jours et sous les noms ;
+  - le trait Lionel | Mathis passe par-dessus la 3e bulle de Lionel, tenue ;
+  - au repos : largeur de défilement inchangée, z-index en place ;
+  - sur ordinateur : traits non prolongés.
+- Sans le correctif, 3 vérifications échouent.
+- Suite complète : 84/84.
