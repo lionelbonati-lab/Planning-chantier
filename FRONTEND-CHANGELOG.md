@@ -9629,3 +9629,122 @@ Lionel :
   - plus de groupe « Jours voisins » ;
   - libellé « 1 semaine » dans le menu.
 - Suite complète : 87/87.
+
+## 191. Round du 27.09.2026 (suite 83) — Page de consultation : barre du bas, modifier / annuler ses absences ; cloche toujours dans la barre ; format de la case de gauche
+- « Page des consultation des ouvriers: Possibilité de modifier en plus de retirer avant consultation »
+- « Faire une barre de menu en bas. Y placer le bouton pour le formulaire de demande de congé. Cloche Notifications à droite pour voir l'état des demande de vacances. »
+- « Possibilité de modifier (nouvelle demande d'approbation) ou annuler (Notification dans console bureau) une absence validé. »
+- « Possibilité de faire une nouvelle demande ou supprimer des notifications une absence supprimée. »
+- « Commentaire "recharge la page pour voir les derniers changements." en haut à la place de " le planning est tenu par le bureau" »
+- « Les notifications sont un élément important, il doit toujours rester dans la toolbar. placer l'icône entre annuler/refaire et imprimer. "ajouter ligne" à déplacer dans le menu 3points si manque de place. »
+- « Dans setup affichage: Manque la possibilité de modifier le format de la cellule des dates de gauche (Mois, Année) »
+
+### Ce qui change
+- **Page de consultation (ouvriers)** :
+  - En-tête : « Recharge la page pour voir les derniers changements. » remplace « Consultation seule — le planning est tenu par le bureau ». Le pied de page, qui disait la même chose, est retiré.
+  - **Barre du bas** : « Demander une absence » à gauche, la cloche à droite. Le compteur rouge de la cloche compte les réponses pas encore vues (acceptée, refusée, annulée, supprimée). Il revient à zéro à l'ouverture, même après rechargement : la mémoire est sur l'appareil.
+  - Le bloc « Mes absences » en tête de page disparaît. Le formulaire et la liste s'ouvrent dans une feuille qui monte du bas.
+  - La liste s'appelle **« Mes demandes d'absence »**. Chaque demande a son état et ses gestes :
+    - **En attente** : Modifier (corrigée sur place, le bureau ne l'a pas encore traitée) / Retirer.
+    - **Acceptée**, tant qu'elle n'est pas passée : Modifier / Annuler l'absence.
+      - Modifier envoie une nouvelle demande à approuver. Elle s'affiche « Modification en attente », avec « Avant : … ». L'absence reste posée jusqu'à la réponse.
+      - Annuler l'absence demande une confirmation, puis envoie une « Annulation en attente » dans les notifications du bureau.
+    - **Refusée** ou **Supprimée** (le bureau a retiré l'absence du planning) : Nouvelle demande (formulaire pré-rempli) / Supprimer (retirée de la liste).
+    - **Annulée** : Supprimer.
+- **Bureau** : les notifications montrent en plus les modifications (« Modification : … », avec « avant : … ») et les annulations (« Annulation : … »).
+  - Accepter une modification retire les anciennes absences et pose les nouvelles.
+  - Accepter une annulation retire les absences du planning.
+  - Refuser laisse l'absence telle quelle.
+- **Barre d'outils** :
+  - La cloche Notifications est toujours dans la barre, entre Annuler/Refaire et Imprimer. Elle ne part plus dans ⋮.
+  - « Ajouter une ligne » part dans ⋮ quand la place manque (après Zoom et Masquages, avant la navigation).
+- **Page Affichage**, groupe Dates : deux lignes pour la case de gauche.
+  - **« Case de gauche : mois »** : sept. / septembre / 09 / Masqué.
+  - **« Case de gauche : année »** : 2026 / 26 / Masquée.
+  - Chacune a les icônes Gras / Italique / Taille, comme les lignes des jours. L'aperçu suit.
+
+### Fonctionnement
+- **SQL** (sql/0021_demandes_absence_modifier.sql, appliquée sur le projet) :
+  - Colonnes ajoutées à demandes_absence :
+    - `type` : nouvelle / modification / annulation ;
+    - `remplace_id` : l'absence acceptée visée ;
+    - `masquee`.
+  - Statuts ajoutés : `annulee`, `remplacee`.
+  - Fonctions ajoutées :
+    - `consultation_modifier_demande` : en attente → mise à jour sur place ; acceptée → nouvelle demande « modification » ;
+    - `consultation_annuler_absence` : demande « annulation », avec les mêmes dates ;
+    - `consultation_masquer_demande`.
+  - Garde-fous : absence à venir, une seule demande en attente par absence, 10 demandes en attente au plus, mêmes contrôles de dates que 0020 (`demande_absence_erreur_`).
+  - `consultation_planning` renvoie en plus `type`, `remplace_id`, `traitee_le` et `supprimee`. `supprimee` = absence acceptée dont aucune absence ne reste dans le planning sur ses dates.
+  - `consultation_planning` garde les absences acceptées à venir, même traitées il y a plus de 30 jours. Il laisse de côté les demandes masquées, les remplacées et les annulations acceptées.
+  - La page n'écrit toujours jamais dans `taches`.
+- **js/consultation.js** :
+  - Barre du bas `#barreBas` et feuille `#feuille` (formulaire / « Mes demandes »).
+  - Une absence acceptée qui a une demande en attente n'est montrée que par cette demande.
+  - Réponses vues : `localStorage` `consultation.vus.<jeton>`, sous la forme id:état.
+  - Les pointillés dans les jours : demandes et modifications en attente, pas les annulations.
+- **js/demandes-absence.js** :
+  - Lecture de l'absence d'origine (`q.origine`).
+  - `retirerAbsencesDemande_` retire les absences de la personne dans les demi-journées de l'ancienne demande, à partir d'aujourd'hui : le passé reste. Il prend celles au texte « Type - Motif », ou toutes les absences de ces cases si le texte a été changé.
+  - L'ancienne demande passe `remplacee` (modification acceptée) ou `annulee` (annulation acceptée).
+- **Barre d'outils** :
+  - `#groupeNotifications` passe au data-rang 15, sans rang de menu (js/coquille.js).
+  - REPLIS_ORDRE (js/grille-rendu.js) : Zoom, Masquages, Ajouter une ligne, Navigation, Imprimer.
+  - Téléphone inchangé : cloche dans la barre du bas, le reste dans ⋮.
+- **Case de gauche** :
+  - Options `coinMois` et `coinAnnee` (js/page-affichage.js), lues par `htmlCoinMoisAnnee` (js/core.js).
+  - Gras, italique et taille : `data-aff-mois-*`, `data-aff-annee-*`, `--aff-t-mois`, `--aff-t-annee` (style.css).
+  - Le mois reste retiré quand la date des jours l'écrit déjà.
+
+### Tests
+- test_suite83.js, 25/25 :
+  - consultation : en-tête, barre du bas, compteur, états et gestes, modifier en attente / acceptée, annuler, nouvelle demande, supprimer, rechargement ;
+  - bureau : accepter une modification ou une annulation, refuser ;
+  - cloche dans la barre de 1400 à 620 px ;
+  - Ajouter une ligne replié dans ⋮ ;
+  - case de gauche.
+- test_suite69.js : partie consultation passée à la barre du bas et à la feuille.
+- test_toolbar_chevauchement.js : nouvel ordre de repli et de menu.
+- test_suite47.js : cloche dans la barre à 820 px.
+- test_suite81.js : rang 15.
+
+## 192. Round du 27.09.2026 (suite 84) — Jours voisins : bulles et texte sur le vendredi d'avant et le lundi d'après ; « Jours voisins » comme vue d'ouverture
+- « Si les bulles du jours de coté sont plus long elle n'apparaissent pas complètement. Le but est que je puisse voir ce qui sera fait le vendredi avant et le lundi après. il faut traiter ces jours de coté comme le mode 1 jour du mobile. bulle et texte affichés sur le jour même si la tâche est plus longue. »
+- « setup affichage, réglage à l'ouverture, manque le mode jours voisins »
+
+### Ce qui change
+- **Vue « Jours voisins »** : le vendredi d'avant et le lundi d'après ont chacun leur bulle, à la largeur du jour, avec son texte au début, même quand la tâche est plus longue.
+  - Une tâche commencée plus tôt dans la semaine d'avant (ex. du mercredi au vendredi) : bulle et texte sur le vendredi. Avant, on n'en voyait que la fin du texte.
+  - Une tâche à cheval sur le vendredi d'avant et la semaine (ou sur la semaine et le lundi d'après) : une bulle de chaque côté de la colonne des noms, chacune avec son texte. Avant, un des deux bouts restait vide.
+  - Pareil pour les jalons et les notes de l'en-tête.
+  - Clic, glisser, sélection et poignées ne changent pas : c'est toujours la même tâche.
+- **Page Affichage, « À l'ouverture »** (ordinateur, tablette) : **1 semaine / Jours voisins / 2 semaines**, dans l'ordre du bouton de vue.
+  - Le bouton de vue de la barre change la vue du moment seulement, pour les trois modes. « Jours voisins » était jusqu'ici retenu à chaque clic, sans passer par ce réglage.
+  - Un compte qui avait laissé les jours voisins allumés ouvre toujours en jours voisins : ce choix est repris comme vue d'ouverture.
+- Page Affichage : les icônes Gras / Italique / Taille du mois et de l'année de la case de gauche se cachent quand la ligne est masquée, comme celles des jours.
+
+### Fonctionnement
+- **js/grille-rendu.js**, `ajusterBullesJoursVoisins_` (dans `construireGrille`, après le calage du défilement) :
+  - Les en-têtes de jours donnent trois morceaux visibles : semaine d'avant, semaine affichée, semaine d'après, coupés au bord de l'écran.
+  - Une bulle qui sort de son morceau reçoit la classe `.bulle-morceaux` et une carte par morceau visible. La carte d'origine sert à la semaine, ou à la seule part visible. Pour les jours voisins, ce sont des copies `.b-carte-voisin` (aria-hidden), placées par `order`, `margin-left` et `width`.
+  - La bulle (item de grille) garde sa colonne et ses écouteurs. Un clic sur une copie remonte à elle.
+  - `reajusterBullesJourMobile` (aperçu d'une poignée) recoupe les cartes en vue « Jours voisins ».
+- **style.css** :
+  - `.bulle-morceaux` : cartes côte à côte, même hauteur (flex en ligne, `align-items: stretch`).
+  - En vue « Jours voisins », le texte des bulles n'est plus collant (`position: static`) : le défilement y est tenu, et collé au bord des noms, le texte d'une carte du vendredi partait au bout de la carte.
+- **js/core.js** : `vueBords`, état de la session comme `deuxSemaines`, remplace l'option enregistrée `bords` dans `vueBordsActive`.
+- **js/grille-rendu.js** : `modeVueCourant` et `basculerModeVue` lisent et posent `vueBords`. Le bouton n'écrit plus rien.
+- **js/page-affichage.js** :
+  - L'option `bords` (et `barre` avec elle) disparaît. `vueOrdi` gagne `bords` (« Jours voisins »).
+  - `appliquerAffichageAuChargement` pose `deuxSemaines` et `vueBords` d'après `vueOrdi`.
+  - `lireJeu_` : un ancien `bords: "oui"` sans `vueOrdi` se lit comme `vueOrdi: "bords"`, puis disparaît au prochain enregistrement.
+  - « Tout rétablir » n'a plus de réglage de barre à garder.
+
+### Tests
+- test_suite84.js, 18/18 :
+  - ouverture en jours voisins, bouton sans enregistrement, choix de la page ;
+  - ancien réglage `bords` repris, 1 semaine par défaut ;
+  - cartes et texte des jours voisins : tâche commencée plus tôt, à cheval des deux côtés, finie plus tard, jalon ;
+  - clic sur la copie, hauteurs égales, aperçu d'une poignée, cartes normales en 1 et 2 semaines.
+- test_suite62.js : 21 réglages (mois et année de la case de gauche, suite 83).
+- test_suite74.js, test_suite79.js, test_suite82.js : l'état `vueBords` au lieu de l'option `bords` ; le clic n'enregistre plus rien.

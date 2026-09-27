@@ -885,6 +885,9 @@
   .da-qui { font-weight: 800; }
   .da-quoi { font-weight: 700; }
   .da-quand { flex-basis: 100%; color: var(--ink-muted); font-size: 12.5px; }
+  /* Suite 83 : modification / annulation d'une absence déjà acceptée. */
+  .da-modification .da-quoi { color: var(--accent); }
+  .da-annulation .da-quoi { color: var(--danger); }
   .da-boutons { display: flex; align-items: center; gap: 6px; margin-left: auto; }
   .ar-quand { font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; }
   .ar-qui { font-size: 12px; font-weight: 700; color: var(--ink-muted); text-align: right; }
@@ -1082,6 +1085,14 @@
   /* « Pas de samedi-dimanche dans les semaines adjacentes » : colonnes de
      0 px (cf. gabaritB), leur contenu masqué. */
   #racine.vue-bords .we-voisin { display: none; }
+  /* Bulles des jours voisins (suite 84, ajusterBullesJoursVoisins_ dans
+     js/grille-rendu.js) : une carte par morceau visible (vendredi d'avant,
+     semaine, lundi d'après), côte à côte, même hauteur, texte au début de
+     chacune. Défilement tenu dans cette vue : le texte n'a pas à coller au
+     bord des noms (sticky), il resterait au bout d'une carte du vendredi. */
+  #racine.vue-bords .bulle .b-carte > :is(.b-txt, .b-statut, .b-serie) { position: static; max-width: none; }
+  #racine.vue-bords .bulle.bulle-morceaux { flex-direction: row; align-items: stretch; }
+  #racine.vue-bords .bulle.bulle-morceaux > .b-carte { flex: none; box-sizing: border-box; min-width: 0; }
   /* Round du 27.09.2026 (suite 72) — Lionel : « J'aimerai un effet
      similaire sur ordinateur lors du passage d'une semaine à l'autre. »
      Glissement de semaine (glisserVersSemaine_, js/grille-rendu.js, API View
@@ -3557,6 +3568,12 @@
   .coin-mois, .coin-annee { display: block; }
   .coin-annee { color: var(--ink-faint); }
   .coin-mois + .coin-annee { margin-top: 1px; }
+  /* Suite 83 : gras / italique / taille du mois et de l'année (page
+     Affichage, « Case de gauche »), comme les lignes des jours. */
+  .coin-mois { font-size: calc(1em * var(--aff-t-mois, 1)); }
+  .coin-annee { font-size: calc(1em * var(--aff-t-annee, 1)); }
+  html[data-aff-mois-gras="non"] .coin-mois, html[data-aff-annee-gras="non"] .coin-annee { font-weight: 400; }
+  html[data-aff-mois-italique="oui"] .coin-mois, html[data-aff-annee-italique="oui"] .coin-annee { font-style: italic; }
   /* Icônes G / I / tailles à côté du nom d'une ligne « Dates » (suite 67). */
   .reglage-texte .reglage-nom { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; font-size: inherit; color: inherit; }
   .reglage-texte .icones-style, .reglage-texte .style-tailles { display: inline-flex; align-items: center; gap: 1px; font-size: inherit; color: inherit; line-height: 1; }

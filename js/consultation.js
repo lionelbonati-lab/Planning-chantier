@@ -3,8 +3,8 @@
    CONSULTATION EN LECTURE SEULE — round du 25.09.2026 (suite 51)
    ------------------------------------------------------------
    Page consultation.html?j=<jeton> (cf. son en-tête). Proposition 10 de
-   Lionel : « un lien en lecture seule à donner aux ouvriers ou aux
-   sous-traitants pour qu'ils voient leur planning sur leur téléphone ».
+   Lionel : « un lien en lecture seule à donner aux ouvriers ou aux
+   sous-traitants pour qu'ils voient leur planning sur leur téléphone ».
 
    Un seul appel : POST /rest/v1/rpc/consultation_planning avec la clé
    publique (anon) — pas de supabase-js, pas de connexion. La fonction
@@ -17,26 +17,34 @@
    chaque tâche le texte, le chantier (sa couleur en fond), le statut,
    l'équipe quand la tâche vient d'elle. Fériés en bandeau, horaires du
    jour dans le titre (la dernière période qui contient la date l'emporte,
-   même règle que l'appli). ‹ › changent de semaine, « Auj. » revient à
+   même règle que l'appli). ‹ › changent de semaine, « Auj. » revient à
    celle d'aujourd'hui ; un glissement horizontal fait de même.
 
-   DEMANDES D'ABSENCE — round du 27.09.2026 (suite 69). Lionel : « Le lien
+   DEMANDES D'ABSENCE — round du 27.09.2026 (suite 69). Lionel : « Le lien
    de consultation des ouvriers doit pouvoir ajouter une absence que je
-   doit valider dans mon planning. » Bloc « Mes absences » en tête de page
+   doit valider dans mon planning. » Bloc « Mes absences » en tête de page
    (personnel seulement : ni intervenant ni équipe, peut_demander) :
-   « Demander une absence » ouvre un petit formulaire — type (entrées
+   « Demander une absence » ouvre un petit formulaire — type (entrées
    rapides d'absence de l'appli, sinon Congé / Vacances / Maladie), du …
    (matin / après-midi) au … (matin / après-midi), motif (suite 80 ; avant
-   « remarque ») —, envoyé par
+   « remarque ») —, envoyé par
    consultation_demander_absence (sql/0020). Rien n'est écrit dans le
    planning : la demande attend l'accord du bureau (js/demandes-absence.js
-   côté appli). La liste montre les demandes en attente (« Retirer »
+   côté appli). La liste montre les demandes en attente (« Retirer »
    possible) et celles traitées depuis moins de 30 jours (acceptée /
    refusée) ; une demande en attente apparaît aussi, en pointillés, dans
    les demi-journées qu'elle couvre.
+
+   Round du 27.09.2026 (suite 83) : le bloc « Mes absences » laisse la
+   place à une barre du bas (« Demander une absence » + cloche « Mes
+   demandes ») et à deux feuilles qui montent du bas ; modifier / retirer
+   une demande en attente, modifier / annuler une absence acceptée,
+   nouvelle demande / supprimer une demande refusée ou une absence
+   supprimée (détail plus bas, sql/0021). « Recharge la page pour voir les
+   derniers changements. » passe dans l'en-tête.
    ============================================================ */
 (function () {
-  // Même projet et même clé publique que js/core.js (clé « anon », faite
+  // Même projet et même clé publique que js/core.js (clé « anon », faite
   // pour être dans une page web : elle ne donne accès qu'à ce que les
   // règles de la base autorisent — ici, la seule fonction de consultation).
   var SUPABASE_URL = "https://mvqvznohgtpulpgalvxl.supabase.co";
@@ -118,10 +126,34 @@
   }
 
   // ---- Demandes d'absence (suite 69, cf. en-tête) ----------------------
-  var formulaireOuvert = false, envoiEnCours = false;
-  var LIBELLE_STATUT = { en_attente: "En attente", acceptee: "Acceptée", refusee: "Refusée" };
+  // Suite 83 — Lionel : « Faire une barre de menu en bas. Y placer le
+  // bouton pour le formulaire de demande de congé. Cloche Notifications à
+  // droite pour voir l'état des demande de vacances. » Le bloc « Mes
+  // absences » en tête de page devient :
+  //   - la barre du bas (#barreBas) : « Demander une absence » + la cloche,
+  //     dont le compteur = demandes traitées que l'ouvrier n'a pas encore
+  //     vues (acceptée, refusée, annulée, supprimée — mémoire de l'appareil) ;
+  //   - deux feuilles qui montent du bas (#feuille) : le formulaire, et
+  //     « Mes demandes » (la liste, avec les gestes de chaque demande).
+  // Et les gestes demandés :
+  //   « Possibilité de modifier en plus de retirer avant consultation » →
+  //     demande en attente : Modifier (corrigée sur place) / Retirer ;
+  //   « modifier (nouvelle demande d'approbation) ou annuler (Notification
+  //     dans console bureau) une absence validé » → absence acceptée à venir :
+  //     Modifier (demande « modification », l'absence reste posée jusqu'à la
+  //     réponse) / Annuler l'absence (demande « annulation », dans les
+  //     notifications du bureau) ;
+  //   « faire une nouvelle demande ou supprimer des notifications une
+  //     absence supprimée » → refusée, annulée, ou absence retirée du
+  //     planning par le bureau : Nouvelle demande (formulaire pré-rempli) /
+  //     Supprimer (masquée de la liste).
+  // Serveur : sql/0020 et sql/0021_demandes_absence_modifier.sql.
+  var envoiEnCours = false;
+  var feuilleOuverte = null;          // null, "formulaire" ou "demandes"
+  var CLE_VUS = "consultation.vus." + jeton;
+  var vus = (function () { try { return JSON.parse(localStorage.getItem(CLE_VUS) || "[]") || []; } catch (e) { return []; } })();
   function jourCourt(iso) { return JOURS[(dateDe(iso).getDay() + 6) % 7].slice(0, 3).toLowerCase() + ". " + jourMois(iso); }
-  // « Congé - Motif », comme la bulle posée dans le planning à
+  // « Congé - Motif », comme la bulle posée dans le planning à
   // l'acceptation (suite 80, cf. texteDemandeAbsence dans l'appli).
   function texteDemande(q) {
     var motif = (q.remarque || "").trim();
@@ -141,43 +173,65 @@
     if (iso === q.fin && q.demi_fin === "matin" && demi === "aprem") return false;
     return true;
   }
-  function htmlDemandes() {
-    var d = donnees;
-    if (!d.peut_demander) return "";
-    var liste = d.demandes || [];
-    var motifs = (d.motifs && d.motifs.length ? d.motifs : ["Congé", "Vacances", "Maladie"]);
-    var debutDefaut = d.lundi > d.aujourdhui ? d.lundi : d.aujourdhui;
-    var html = '<section class="absences" id="blocAbsences"><div class="absences-titre"><span>Mes absences</span>' +
-      (formulaireOuvert ? "" : '<button type="button" class="btn-demander" id="btnDemanderAbsence">Demander une absence</button>') + "</div>";
-    if (formulaireOuvert) {
-      var choixDemi = function (id, val) {
-        return '<select id="' + id + '"><option value="matin"' + (val === "matin" ? " selected" : "") + ">Matin</option>" +
-          '<option value="aprem"' + (val === "aprem" ? " selected" : "") + ">Après-midi</option></select>";
-      };
-      html += '<form class="form-absence" id="formAbsence" novalidate>' +
-        // Suite 80 — Lionel : « Motif à la place de remarque. » Le choix
-        // Congé / Vacances… devient le « Type » ; le texte libre, le
-        // « Motif » (id et colonne `remarque` inchangés). Bulle posée à
-        // l'acceptation : « Congé - Motif » (texteDemandeAbsence, appli).
-        '<label>Type<select id="faMotif">' + motifs.map(function (m) { return "<option>" + esc(m) + "</option>"; }).join("") + "</select></label>" +
-        '<div class="fa-ligne"><label>Du<input type="date" id="faDebut" required min="' + d.aujourdhui + '" value="' + debutDefaut + '"></label>' + choixDemi("faDemiDebut", "matin") + "</div>" +
-        '<div class="fa-ligne"><label>Au<input type="date" id="faFin" required min="' + d.aujourdhui + '" value="' + debutDefaut + '"></label>' + choixDemi("faDemiFin", "aprem") + "</div>" +
-        '<label>Motif <small>(facultatif)</small><textarea id="faRemarque" rows="2" maxlength="300" placeholder="Ex. : rendez-vous médical"></textarea></label>' +
-        '<p class="fa-erreur" id="faErreur" hidden></p>' +
-        '<div class="fa-actions"><button type="button" class="btn-secondaire" id="faAnnuler">Annuler</button>' +
-        '<button type="submit" class="btn-demander" id="faEnvoyer">Envoyer la demande</button></div>' +
-        '<p class="fa-aide">Le bureau doit la valider : elle n’apparaît dans le planning qu’une fois acceptée.</p></form>';
+  function typeDe(q) { return q.type || "nouvelle"; }
+  function demandeParId(id) { return (donnees.demandes || []).filter(function (x) { return x.id === id; })[0] || null; }
+  function changementEnAttente(q) {
+    return (donnees.demandes || []).some(function (x) { return x.statut === "en_attente" && x.remplace_id === q.id; });
+  }
+  // État affiché : clé (classe, mémoire des demandes vues) et libellé.
+  function etatDemande(q) {
+    var t = typeDe(q);
+    if (q.statut === "en_attente") return { cle: "en_attente", libelle: t === "modification" ? "Modification en attente" : t === "annulation" ? "Annulation en attente" : "En attente" };
+    if (q.statut === "acceptee") return q.supprimee ? { cle: "supprimee", libelle: "Supprimée" } : { cle: "acceptee", libelle: "Acceptée" };
+    if (q.statut === "refusee") return { cle: "refusee", libelle: t === "modification" ? "Modification refusée" : t === "annulation" ? "Annulation refusée" : "Refusée" };
+    if (q.statut === "annulee") return { cle: "annulee", libelle: "Annulée" };
+    return { cle: q.statut, libelle: q.statut };
+  }
+  // Une absence acceptée dont une modification ou une annulation attend le
+  // bureau n'est montrée qu'une fois : par la demande en attente.
+  function demandesVisibles() {
+    return (donnees.demandes || []).filter(function (q) { return !(q.statut === "acceptee" && changementEnAttente(q)); });
+  }
+  function cleVue(q) { return q.id + ":" + etatDemande(q).cle; }
+  function nonVues() {
+    return demandesVisibles().filter(function (q) { return q.statut !== "en_attente" && vus.indexOf(cleVue(q)) < 0; });
+  }
+  function marquerVues() {
+    vus = demandesVisibles().filter(function (q) { return q.statut !== "en_attente"; }).map(cleVue);
+    try { localStorage.setItem(CLE_VUS, JSON.stringify(vus)); } catch (e) { /* mémoire indisponible : gardée pour cette visite */ }
+  }
+  function gestesDemande(q) {
+    var e = etatDemande(q).cle, t = typeDe(q), g = [];
+    if (q.statut === "en_attente") {
+      if (t !== "annulation") g.push(["modifier", "Modifier"]);
+      g.push(["retirer", "Retirer", 1]);
+    } else if (e === "acceptee") {
+      if (q.fin >= donnees.aujourdhui) { g.push(["modifier", "Modifier"]); g.push(["annuler", "Annuler l’absence", 1]); }
+    } else {
+      if (e !== "annulee" && t !== "annulation") g.push(["nouvelle", "Nouvelle demande"]);
+      g.push(["masquer", "Supprimer", 1]);
     }
-    if (liste.length) {
-      html += '<ul class="demandes">' + liste.map(function (q) {
-        return '<li class="demande-' + esc(q.statut) + '"><div><b>' + esc(texteDemande(q)) + "</b> — " + esc(libelleDemande(q)) + "</div>" +
-          '<span class="etat">' + esc(LIBELLE_STATUT[q.statut] || q.statut) + "</span>" +
-          (q.statut === "en_attente" ? '<button type="button" class="btn-retirer" data-id="' + esc(q.id) + '">Retirer</button>' : "") + "</li>";
-      }).join("") + "</ul>";
-    } else if (!formulaireOuvert) {
-      html += '<p class="absences-vide">Aucune demande en cours.</p>';
-    }
-    return html + "</section>";
+    return g;
+  }
+  function htmlListeDemandes(aSignaler) {
+    var liste = demandesVisibles();
+    if (!liste.length) return '<p class="demandes-vide">Aucune demande d’absence.</p>';
+    return '<ul class="demandes">' + liste.map(function (q) {
+      var e = etatDemande(q), t = typeDe(q), orig = q.remplace_id ? demandeParId(q.remplace_id) : null, note = "";
+      if (t === "modification" && q.statut !== "acceptee" && orig) {
+        note = "Avant : " + (texteDemande(orig) !== texteDemande(q) ? texteDemande(orig) + " — " : "") + libelleDemande(orig);
+      } else if (t === "annulation") {
+        note = q.statut === "en_attente" ? "Le bureau est prévenu : il retire l’absence du planning." : "L’absence reste dans le planning.";
+      } else if (e.cle === "supprimee") {
+        note = "Retirée du planning par le bureau.";
+      }
+      return '<li class="demande-' + esc(e.cle) + (aSignaler.indexOf(q) >= 0 ? " non-vu" : "") + '" data-id="' + esc(q.id) + '">' +
+        '<div class="dq-texte"><b>' + esc(texteDemande(q)) + "</b><span>" + esc(libelleDemande(q)) + "</span>" + (note ? "<small>" + esc(note) + "</small>" : "") + "</div>" +
+        '<span class="etat">' + esc(e.libelle) + "</span>" +
+        '<div class="dq-actions">' + gestesDemande(q).map(function (g) {
+          return '<button type="button" class="btn-action' + (g[2] ? " danger" : "") + '" data-action="' + g[0] + '">' + esc(g[1]) + "</button>";
+        }).join("") + "</div></li>";
+    }).join("") + "</ul>";
   }
   function appelRpc(nom, corps) {
     return fetch(SUPABASE_URL + "/rest/v1/rpc/" + nom, {
@@ -189,53 +243,147 @@
       return rep.json();
     });
   }
-  function cablerDemandes() {
-    var btn = document.getElementById("btnDemanderAbsence");
-    if (btn) btn.addEventListener("click", function () { formulaireOuvert = true; afficher(); var m = document.getElementById("faMotif"); if (m) m.focus(); });
-    var form = document.getElementById("formAbsence");
-    if (form) {
-      var debut = document.getElementById("faDebut"), fin = document.getElementById("faFin");
-      debut.addEventListener("change", function () { if (fin.value < debut.value) fin.value = debut.value; });
-      var masquerErreur = function () { document.getElementById("faErreur").hidden = true; };
-      form.addEventListener("input", masquerErreur);
-      form.addEventListener("change", masquerErreur);
-      document.getElementById("faAnnuler").addEventListener("click", function () { formulaireOuvert = false; afficher(); });
-      form.addEventListener("submit", function (e) {
-        e.preventDefault();
-        if (envoiEnCours) return;
-        var erreur = document.getElementById("faErreur");
-        var montrer = function (t) { erreur.textContent = t; erreur.hidden = false; };
-        var corps = {
-          p_jeton: jeton, p_debut: debut.value, p_fin: fin.value,
-          p_demi_debut: document.getElementById("faDemiDebut").value, p_demi_fin: document.getElementById("faDemiFin").value,
-          p_motif: document.getElementById("faMotif").value, p_remarque: document.getElementById("faRemarque").value
-        };
-        if (!corps.p_debut || !corps.p_fin) return montrer("Choisis les dates.");
-        if (corps.p_fin < corps.p_debut) return montrer("La fin est avant le début.");
-        if (corps.p_debut === corps.p_fin && corps.p_demi_debut === "aprem" && corps.p_demi_fin === "matin") return montrer("Le même jour : de l’après-midi au matin, ce n’est pas possible.");
-        envoiEnCours = true;
-        document.getElementById("faEnvoyer").disabled = true;
-        appelRpc("consultation_demander_absence", corps).then(function (r) {
-          envoiEnCours = false;
-          if (!r || !r.ok) { document.getElementById("faEnvoyer").disabled = false; montrer((r && r.erreur) || "Demande refusée par le serveur."); return; }
-          formulaireOuvert = false;
-          return charger(donnees.lundi);
-        }).catch(function () {
-          envoiEnCours = false;
-          document.getElementById("faEnvoyer").disabled = false;
-          montrer("Envoi impossible : vérifie ta connexion internet.");
-        });
-      });
-    }
-    document.querySelectorAll("#blocAbsences .btn-retirer").forEach(function (b) {
-      b.addEventListener("click", function () {
-        if (!window.confirm("Retirer cette demande d’absence ?")) return;
-        b.disabled = true;
-        appelRpc("consultation_annuler_demande", { p_jeton: jeton, p_id: +b.dataset.id }).then(function () { return charger(donnees.lundi); })
-          .catch(function () { b.disabled = false; window.alert("Impossible de retirer la demande : vérifie ta connexion internet."); });
+
+  // ---- Feuilles (formulaire, « Mes demandes ») --------------------------
+  function ouvrirFeuille(nom, titre, html) {
+    feuilleOuverte = nom;
+    document.getElementById("feuilleTitre").textContent = titre;
+    document.getElementById("feuilleCorps").innerHTML = html;
+    document.getElementById("feuille").hidden = false;
+    document.getElementById("feuilleFond").hidden = false;
+    document.body.classList.add("feuille-ouverte");
+  }
+  function fermerFeuille() {
+    feuilleOuverte = null;
+    document.getElementById("feuille").hidden = true;
+    document.getElementById("feuilleFond").hidden = true;
+    document.body.classList.remove("feuille-ouverte");
+  }
+  function majBarreBas() {
+    var d = donnees, barre = document.getElementById("barreBas");
+    barre.hidden = !d.peut_demander;
+    document.body.classList.toggle("avec-barre-bas", !!d.peut_demander);
+    var n = d.peut_demander ? nonVues().length : 0, badge = document.getElementById("compteNotifications");
+    badge.textContent = n;
+    badge.hidden = !n;
+    var titre = "Mes demandes d’absence" + (n ? " — " + n + " réponse" + (n > 1 ? "s" : "") + " à voir" : "");
+    var cloche = document.getElementById("btnNotifications");
+    cloche.title = titre;
+    cloche.setAttribute("aria-label", titre);
+  }
+
+  function ouvrirDemandes() {
+    var aSignaler = nonVues();
+    ouvrirFeuille("demandes", "Mes demandes d’absence", "");
+    dessinerDemandes(aSignaler);
+    marquerVues();
+    majBarreBas();
+  }
+  function dessinerDemandes(aSignaler) {
+    var corps = document.getElementById("feuilleCorps");
+    corps.innerHTML = htmlListeDemandes(aSignaler || []);
+    corps.querySelectorAll(".demandes li").forEach(function (li) {
+      var q = demandeParId(+li.dataset.id);
+      li.querySelectorAll("[data-action]").forEach(function (b) {
+        b.addEventListener("click", function () { gesteDemande(q, b.dataset.action, b); });
       });
     });
   }
+  function gesteDemande(q, geste, bouton) {
+    if (!q) return;
+    if (geste === "modifier") return ouvrirFormulaire(q, "modifier");
+    if (geste === "nouvelle") return ouvrirFormulaire(q, "refaire");
+    var appel = {
+      retirer: ["Retirer cette demande d’absence ?", "consultation_annuler_demande", "Impossible de retirer la demande"],
+      annuler: ["Annuler cette absence ? Le bureau est prévenu et la retire du planning.", "consultation_annuler_absence", "Impossible d’annuler l’absence"],
+      masquer: [null, "consultation_masquer_demande", "Impossible de supprimer la demande"]
+    }[geste];
+    if (!appel || (appel[0] && !window.confirm(appel[0]))) return;
+    bouton.disabled = true;
+    appelRpc(appel[1], { p_jeton: jeton, p_id: q.id }).then(function (r) {
+      if (r && r.ok === false) { bouton.disabled = false; window.alert(r.erreur || appel[2] + "."); return; }
+      return charger(donnees.lundi);
+    }).catch(function () { bouton.disabled = false; window.alert(appel[2] + " : vérifie ta connexion internet."); });
+  }
+
+  // mode : "nouvelle" (barre du bas), "modifier" (demande en attente ou
+  // absence acceptée) ou "refaire" (nouvelle demande pré-remplie depuis une
+  // demande refusée ou une absence supprimée). q : la demande visée.
+  function ouvrirFormulaire(q, mode) {
+    var d = donnees, retour = feuilleOuverte === "demandes";
+    var motifs = (d.motifs && d.motifs.length ? d.motifs : ["Congé", "Vacances", "Maladie"]).slice();
+    if (q && motifs.indexOf(q.motif) < 0) motifs.push(q.motif);
+    var debutDefaut = d.lundi > d.aujourdhui ? d.lundi : d.aujourdhui;
+    var v = q ? { motif: q.motif, debut: q.debut < d.aujourdhui ? d.aujourdhui : q.debut, demiDebut: q.demi_debut, demiFin: q.demi_fin, remarque: q.remarque || "" }
+      : { motif: motifs[0], debut: debutDefaut, demiDebut: "matin", demiFin: "aprem", remarque: "" };
+    v.fin = q ? (q.fin < v.debut ? v.debut : q.fin) : debutDefaut;
+    var accepteeModifiee = mode === "modifier" && q.statut === "acceptee";
+    var titre = mode === "modifier" ? (accepteeModifiee ? "Modifier l’absence" : "Modifier la demande") : mode === "refaire" ? "Nouvelle demande" : "Demander une absence";
+    var envoyer = mode === "modifier" ? (accepteeModifiee ? "Envoyer la modification" : "Enregistrer") : "Envoyer la demande";
+    var choixDemi = function (id, val) {
+      return '<select id="' + id + '"><option value="matin"' + (val === "matin" ? " selected" : "") + ">Matin</option>" +
+        '<option value="aprem"' + (val === "aprem" ? " selected" : "") + ">Après-midi</option></select>";
+    };
+    var html = '<form class="form-absence" id="formAbsence" novalidate>' +
+      (accepteeModifiee ? '<p class="fa-origine">Absence acceptée : ' + esc(texteDemande(q)) + " — " + esc(libelleDemande(q)) + "</p>" : "") +
+      // Suite 80 — Lionel : « Motif à la place de remarque. » Le choix
+      // Congé / Vacances… devient le « Type » ; le texte libre, le
+      // « Motif » (id et colonne `remarque` inchangés). Bulle posée à
+      // l'acceptation : « Congé - Motif » (texteDemandeAbsence, appli).
+      '<label>Type<select id="faMotif">' + motifs.map(function (m) { return "<option" + (m === v.motif ? " selected" : "") + ">" + esc(m) + "</option>"; }).join("") + "</select></label>" +
+      '<div class="fa-ligne"><label>Du<input type="date" id="faDebut" required min="' + d.aujourdhui + '" value="' + v.debut + '"></label>' + choixDemi("faDemiDebut", v.demiDebut) + "</div>" +
+      '<div class="fa-ligne"><label>Au<input type="date" id="faFin" required min="' + d.aujourdhui + '" value="' + v.fin + '"></label>' + choixDemi("faDemiFin", v.demiFin) + "</div>" +
+      '<label>Motif <small>(facultatif)</small><textarea id="faRemarque" rows="2" maxlength="300" placeholder="Ex. : rendez-vous médical">' + esc(v.remarque) + "</textarea></label>" +
+      '<p class="fa-erreur" id="faErreur" hidden></p>' +
+      '<div class="fa-actions"><button type="button" class="btn-secondaire" id="faAnnuler">Annuler</button>' +
+      '<button type="submit" class="btn-demander" id="faEnvoyer">' + esc(envoyer) + "</button></div>" +
+      '<p class="fa-aide">' + (accepteeModifiee ? "Le bureau doit valider la modification : en attendant, l’absence acceptée reste dans le planning."
+        : mode === "modifier" ? "Le bureau n’a pas encore répondu : la demande est corrigée telle quelle."
+        : "Le bureau doit la valider : elle n’apparaît dans le planning qu’une fois acceptée.") + "</p></form>";
+    ouvrirFeuille("formulaire", titre, html);
+    var form = document.getElementById("formAbsence");
+    var debut = document.getElementById("faDebut"), fin = document.getElementById("faFin");
+    debut.addEventListener("change", function () { if (fin.value < debut.value) fin.value = debut.value; });
+    var masquerErreur = function () { document.getElementById("faErreur").hidden = true; };
+    form.addEventListener("input", masquerErreur);
+    form.addEventListener("change", masquerErreur);
+    var quitter = function () { if (retour) ouvrirDemandes(); else fermerFeuille(); };
+    document.getElementById("faAnnuler").addEventListener("click", quitter);
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      if (envoiEnCours) return;
+      var erreur = document.getElementById("faErreur");
+      var montrer = function (t) { erreur.textContent = t; erreur.hidden = false; };
+      var corps = {
+        p_jeton: jeton, p_debut: debut.value, p_fin: fin.value,
+        p_demi_debut: document.getElementById("faDemiDebut").value, p_demi_fin: document.getElementById("faDemiFin").value,
+        p_motif: document.getElementById("faMotif").value, p_remarque: document.getElementById("faRemarque").value
+      };
+      if (!corps.p_debut || !corps.p_fin) return montrer("Choisis les dates.");
+      if (corps.p_fin < corps.p_debut) return montrer("La fin est avant le début.");
+      if (corps.p_debut === corps.p_fin && corps.p_demi_debut === "aprem" && corps.p_demi_fin === "matin") return montrer("Le même jour : de l’après-midi au matin, ce n’est pas possible.");
+      if (mode === "modifier") corps.p_id = q.id;
+      envoiEnCours = true;
+      document.getElementById("faEnvoyer").disabled = true;
+      appelRpc(mode === "modifier" ? "consultation_modifier_demande" : "consultation_demander_absence", corps).then(function (r) {
+        envoiEnCours = false;
+        if (!r || !r.ok) { document.getElementById("faEnvoyer").disabled = false; montrer((r && r.erreur) || "Demande refusée par le serveur."); return; }
+        return charger(donnees.lundi).then(quitter);
+      }).catch(function () {
+        envoiEnCours = false;
+        document.getElementById("faEnvoyer").disabled = false;
+        montrer("Envoi impossible : vérifie ta connexion internet.");
+      });
+    });
+    var m = document.getElementById("faMotif");
+    if (m) m.focus();
+  }
+
+  document.getElementById("btnDemanderAbsence").addEventListener("click", function () { ouvrirFormulaire(null, "nouvelle"); });
+  document.getElementById("btnNotifications").addEventListener("click", ouvrirDemandes);
+  document.getElementById("feuilleFermer").addEventListener("click", fermerFeuille);
+  document.getElementById("feuilleFond").addEventListener("click", fermerFeuille);
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && feuilleOuverte) fermerFeuille(); });
 
   function afficher() {
     var d = donnees;
@@ -249,8 +397,10 @@
     var lundiAujourdhui = plusJours(d.aujourdhui, -((dateDe(d.aujourdhui).getDay() + 6) % 7));
     document.getElementById("btnAujourdhui").disabled = d.lundi === lundiAujourdhui;
 
-    var html = htmlDemandes();
-    var enAttente = (d.demandes || []).filter(function (q) { return q.statut === "en_attente"; });
+    var html = "";
+    // Suite 83 : une annulation en attente ne change rien à l'écran —
+    // l'absence reste posée tant que le bureau ne l'a pas retirée.
+    var enAttente = (d.demandes || []).filter(function (q) { return q.statut === "en_attente" && typeDe(q) !== "annulation"; });
     for (var i = 0; i < 7; i++) {
       var iso = plusJours(d.lundi, i);
       var taches = (d.taches || []).filter(function (t) { return t.date === iso; });
@@ -268,22 +418,16 @@
         if (feries.length && !liste.length) return;
         html += '<div class="demi demi-' + dm[0] + '"><div class="demi-nom">' + dm[1] + "</div>" +
           '<div class="taches">' + (liste.length || demandes.length ? liste.map(htmlTache).join("") + demandes.map(function (q) {
-            return '<div class="tache demande"><div class="texte">' + esc(texteDemande(q)) + '</div><div class="details"><span>Demande d’absence en attente</span></div></div>';
+            return '<div class="tache demande"><div class="texte">' + esc(texteDemande(q)) + '</div><div class="details"><span>' + (typeDe(q) === "modification" ? "Modification en attente" : "Demande d’absence en attente") + "</span></div></div>";
           }).join("") : '<span class="vide">—</span>') + "</div></div>";
       });
       html += "</section>";
     }
-    html += '<p class="pied">Planning tenu à jour par le bureau : recharge la page pour voir les derniers changements.</p>';
-    // Formulaire ouvert pendant un changement de semaine : ce qui est déjà
-    // saisi est gardé.
-    var saisie = {};
-    ["faMotif", "faDebut", "faDemiDebut", "faFin", "faDemiFin", "faRemarque"].forEach(function (id) {
-      var c = document.getElementById(id);
-      if (c) saisie[id] = c.value;
-    });
+    // Suite 83 : « recharge la page… » est passé en haut, à la place de
+    // « le planning est tenu par le bureau » (pied retiré).
     document.getElementById("contenu").innerHTML = html;
-    Object.keys(saisie).forEach(function (id) { var c = document.getElementById(id); if (c) c.value = saisie[id]; });
-    cablerDemandes();
+    majBarreBas();
+    if (feuilleOuverte === "demandes") dessinerDemandes([]);
     var carteAuj = document.querySelector(".jour.aujourdhui");
     if (carteAuj && !afficher.dejaDefile) { afficher.dejaDefile = true; carteAuj.scrollIntoView({ block: "center" }); }
   }
@@ -302,7 +446,7 @@
   var depart = null;
   document.addEventListener("touchstart", function (e) { depart = e.touches.length === 1 ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : null; }, { passive: true });
   document.addEventListener("touchend", function (e) {
-    if (!depart || !e.changedTouches.length) return;
+    if (!depart || !e.changedTouches.length || feuilleOuverte) return;
     var dx = e.changedTouches[0].clientX - depart.x, dy = e.changedTouches[0].clientY - depart.y;
     depart = null;
     if (Math.abs(dx) >= 60 && Math.abs(dx) > 2 * Math.abs(dy)) changerSemaine(dx < 0 ? 1 : -1);

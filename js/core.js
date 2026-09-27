@@ -557,8 +557,9 @@
   // construireGrille, js/grille-rendu.js). Au tout début ou à la toute fin
   // des semaines du planning (pas de voisine d'un côté) : vue normale.
   // Suite 82 : un seul mode de vue à la fois — en 2 semaines, pas de bords.
+  // Suite 84 : l'état vueBords (session), plus l'option « bords ».
   function vueBordsActive() {
-    if (deuxSemaines || typeof optionAffichage !== "function" || optionAffichage("bords") !== "oui" || modeJourMobileActif()) return false;
+    if (deuxSemaines || !vueBords || modeJourMobileActif()) return false;
     if (typeof window.matchMedia === "function" && window.matchMedia("(max-width: 600px)").matches) return false;
     var i = etat.indexSemaine, k = deuxSemaines ? 2 : 1;
     return !!(etat.semaines[i - 1] && etat.semaines[i + k]);
@@ -700,6 +701,7 @@
     }
     return { jour: data.dates[gi % 5], mois: data.mois[gi % 5] };
   }
+  var MOIS_COMPLETS_ = ["", "janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
   var MOIS_ABBR = ["", "jan.", "fév.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
   // §89 (round du 17.09.2026, suite×4) — Lionel : « Il manquerait encore
   // l'affichage du mois quelle part, je pense à la case vide à gauche des
@@ -754,8 +756,19 @@
     // septembre » : année seule à gauche — la règle déjà suivie par
     // l'impression (mois « Dans la case : 21.09 », js/impression.js).
     var moisDansJours = fd === "chiffres" || fd === "abrege" || fd === "complet";
-    return (moisDansJours ? "" : '<span class="coin-mois">' + esc(mois.join(" – ")) + '</span>') +
-      '<span class="coin-annee">' + esc(annees.join(" – ")) + '</span>';
+    // Suite 83 — Lionel : « Manque la possibilité de modifier le format de
+    // la cellule des dates de gauche (Mois, Année) ». Page Affichage,
+    // « Case de gauche » : mois « sept. » (défaut), « septembre », « 09 »
+    // ou masqué ; année « 2026 » (défaut), « 26 » ou masquée.
+    var fm = typeof optionAffichage === "function" ? optionAffichage("coinMois", profil) : "abrege";
+    var fa = typeof optionAffichage === "function" ? optionAffichage("coinAnnee", profil) : "complete";
+    var libMois = mois.map(function (m) {
+      var n = MOIS_ABBR.indexOf(m);
+      return fm === "complet" ? MOIS_COMPLETS_[n] : fm === "chiffres" ? ("0" + n).slice(-2) : m;
+    });
+    var libAnnees = annees.map(function (a) { return fa === "courte" ? a.slice(2) : a; });
+    return (moisDansJours || fm === "masque" ? "" : '<span class="coin-mois">' + esc(libMois.join(" – ")) + '</span>') +
+      (fa === "masquee" ? "" : '<span class="coin-annee">' + esc(libAnnees.join(" – ")) + '</span>');
   }
   function htmlCoinPlanning(n) { return htmlCoinMoisAnnee(isosAffichesCoin_(n)); }
 
@@ -844,6 +857,13 @@
 
   var TACHES = [], JALONS = [], NOTES = [];
   var deuxSemaines = false;
+  // Round du 27.09.2026 (suite 84) — Lionel : « setup affichage, réglage à
+  // l'ouverture, manque le mode jours voisins ». Jours voisins aux bords :
+  // comme deuxSemaines, un état de la session (bouton de vue #btnModeVue),
+  // la vue d'ouverture venant du réglage vueOrdi (« 1 semaine », « Jours
+  // voisins », « 2 semaines » — appliquerAffichageAuChargement,
+  // js/page-affichage.js). Plus d'option « bords » enregistrée à part.
+  var vueBords = false;
   var afficherWeekends = false;
   // Round du 23.09.2026 (suite 4) — Lionel : « sur la vue mobile ne soit
   // afficher que 1 jours. Un bouton permettrait d'afficher la vue 1 semaine

@@ -104,7 +104,9 @@ function mesurer() {
   //    fonctions »), puis Masquages, Navigation, Imprimer. Suite 47 :
   //    « À réserver » après Masquages, avant la navigation.
   // Suite 79 : « Jours voisins aux bords » juste avant la navigation.
-  const ORDRE_REPLI = ['groupeZoom', 'controlesAffichage', 'groupeNotifications', 'groupeNavSemaine', 'groupeImprimer'];
+  // Suite 83 : Notifications ne se replie plus (toujours dans la barre) ;
+  // « Ajouter une ligne » se replie à sa place.
+  const ORDRE_REPLI = ['groupeZoom', 'controlesAffichage', 'groupeAjoutLigne', 'groupeNavSemaine', 'groupeImprimer'];
   const TOUJOURS_BARRE = ['groupeAnnulerRefaire', 'groupeChantier', 'groupeAujourdhui', 'groupeAjoutElement'];
   let largeursOk = 0, nbLargeurs = 0, replis = [], ordreRespecte = true, toujoursLa = true;
   for (let w = 1400; w >= 320; w -= 10) {
@@ -146,7 +148,8 @@ function mesurer() {
   await largeur(700);
   e = await etatBarre();
   // Suite 79 : « Jours voisins aux bords » juste après la navigation.
-  verifier(JSON.stringify(e.menu) === JSON.stringify(['groupeNotifications', 'groupeZoom', 'groupeNavSemaine', 'controlesAffichage']), 'ordre du menu à 700px (« À réserver » juste après Imprimer, suite 47) : ' + e.menu);
+  // Suite 83 : « Ajouter une ligne » entre la navigation et les masquages.
+  verifier(JSON.stringify(e.menu) === JSON.stringify(['groupeZoom', 'groupeNavSemaine', 'groupeAjoutLigne', 'controlesAffichage']), 'ordre du menu à 700px (« Ajouter une ligne » replié, suite 83) : ' + e.menu);
   await page.click('#btnPlusOutils');
   await page.waitForTimeout(100);
   const lignes = await page.evaluate(() => {

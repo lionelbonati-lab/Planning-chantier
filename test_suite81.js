@@ -43,7 +43,7 @@ const compte = (sel) => (page) => page.evaluate((s) => { const b = document.quer
       return { visible: btn.getBoundingClientRect().width > 0 && !btn.closest('#toolbarSecondaire'), ancien: !!document.getElementById('btnAReserver'),
         bandeau: !!document.getElementById('bandeauDemandes'), rang: g.dataset.rang, titre: btn.title, cloche: !!btn.querySelector('svg path[d^="M5 14.5"]') };
     });
-    verifier(b.visible && !b.ancien && !b.bandeau && b.rang === '25' && b.cloche, 'cloche « Notifications » dans la barre à la place de « À réserver », plus de bandeau (' + JSON.stringify(b) + ')');
+    verifier(b.visible && !b.ancien && !b.bandeau && b.rang === '15' && b.cloche, 'cloche « Notifications » dans la barre à la place de « À réserver », plus de bandeau (' + JSON.stringify(b) + ')');
     verifier(await compte('#btnNotifications')(page) === '3' && b.titre === 'Notifications — 1 demande d’absence, 2 tâches « à réserver »',
       'compteur 3 = 1 demande + 2 à réserver (' + b.titre + ')');
 

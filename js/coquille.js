@@ -323,7 +323,9 @@
       // Toujours dans la barre (jamais repliés, Lionel : « mode compact,
       // sur la barre, annuler/refaire | Chantier | Insertions », plus
       // "Aujourd'hui" qu'il veut « Toujours sur la barre ») : Annuler/Refaire,
-      // Chantier, Aujourd'hui, Ajouter une ligne + "+". Ordre de repli :
+      // Chantier, Aujourd'hui, Ajouter une ligne + "+". Suite 83 :
+      // Notifications toujours dans la barre ; « Ajouter une ligne » se
+      // replie désormais quand la place manque. Ordre de repli :
       // Zoom d'abord (round du 24.09.2026, suite 10 — Lionel : « c'est la
       // moins utilisé des fonctions »), puis Masquages, Navigation
       // (+ 2 semaines), Imprimer — cf. REPLIS_ORDRE, js/grille-rendu.js.
@@ -334,14 +336,6 @@
           '<button type="button" class="toolbar-btn" id="btnDefaire" title="Annuler (Ctrl+Z)" aria-label="Annuler">' + ICONS.undo + '</button>' +
           '<button type="button" class="toolbar-btn" id="btnRefaire" title="Refaire (Ctrl+Y)" aria-label="Refaire">' + ICONS.redo + '</button>' +
         '</div>' +
-        '<div class="toolbar-groupe sep-avant" id="groupeImprimer" data-rang="20" data-rang-menu="10">' +
-          '<button type="button" class="toolbar-btn" id="btnImprimerTitre" title="Imprimer — aperçu et export PDF de la semaine affichée">' + ICONS.print + '<span class="toolbar-btn-label">Imprimer</span></button>' +
-        '</div>' +
-        // Chantier par défaut (§91 : toujours visible). .nom-chantier/.caret
-        // restent dans le HTML même sur téléphone (construireSelectChantier
-        // les cible à chaque rendu), seul leur affichage y change
-        // (style-mobile.css). Habillage "pilule" comme Zoom/Sem. N et largeur
-        // fixe de 25 caractères, cf. .select-chantier-btn dans style.css.
         // Résumé « À réserver » (round du 25.09.2026, suite 47 — Lionel :
         // « Un résumé facilement accessible des statuts à réserver ») :
         // icône + compteur dans la barre ; replié dans « ⋮ » (avec son
@@ -351,9 +345,23 @@
         // celui de statut. On y placera les demandes de congés et les
         // statuts à réserver. » Même place, même repli ; cloche, compteur
         // de tout ce qui attend. Cf. js/notifications.js.
-        '<div class="toolbar-groupe sep-avant" id="groupeNotifications" data-rang="25" data-rang-menu="15" hidden>' +
+        // Round du 27.09.2026 (suite 83) — Lionel : « Les notifications sont
+        // un élément important, il doit toujours rester dans la toolbar.
+        // placer l'icône entre annuler/refaire et imprimer. "ajouter ligne"
+        // à déplacer dans le menu 3points si manque de place. » Rang 15,
+        // plus jamais replié (retiré de REPLIS_ORDRE, où « Ajouter une
+        // ligne » prend sa place).
+        '<div class="toolbar-groupe sep-avant" id="groupeNotifications" data-rang="15" hidden>' +
           '<button type="button" class="toolbar-btn" id="btnNotifications" title="Notifications" aria-label="Notifications">' + ICONS.cloche + '<span class="toolbar-btn-label">Notifications</span><span class="compte-notifications" hidden></span></button>' +
         '</div>' +
+        '<div class="toolbar-groupe sep-avant" id="groupeImprimer" data-rang="20" data-rang-menu="10">' +
+          '<button type="button" class="toolbar-btn" id="btnImprimerTitre" title="Imprimer — aperçu et export PDF de la semaine affichée">' + ICONS.print + '<span class="toolbar-btn-label">Imprimer</span></button>' +
+        '</div>' +
+        // Chantier par défaut (§91 : toujours visible). .nom-chantier/.caret
+        // restent dans le HTML même sur téléphone (construireSelectChantier
+        // les cible à chaque rendu), seul leur affichage y change
+        // (style-mobile.css). Habillage "pilule" comme Zoom/Sem. N et largeur
+        // fixe de 25 caractères, cf. .select-chantier-btn dans style.css.
         '<div class="toolbar-groupe sep-avant" id="groupeChantier" data-rang="30">' +
           '<div class="select-chantier" id="selectChantier">' +
             '<button type="button" class="select-chantier-btn" id="btnSelectChantier"><span class="swatch"></span><span class="nom-chantier">Chantier</span><span class="caret">▾</span></button>' +

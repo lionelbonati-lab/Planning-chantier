@@ -204,13 +204,19 @@ const poids = (page, sel) => page.evaluate((s) => { const n = document.querySele
       await page.goto('file://' + path.join(__dirname, 'consultation.html') + '?j=' + JETON);
       await page.waitForTimeout(400);
       if (st) {
-        verifier(!(await page.$('#blocAbsences')), 'consultation d\'un intervenant : pas de demande d\'absence');
+        // Suite 83 : barre du bas (demande + cloche) absente pour un intervenant.
+        verifier(await page.evaluate(() => document.getElementById('barreBas').hidden && !document.body.classList.contains('avec-barre-bas')), 'consultation d\'un intervenant : pas de demande d\'absence (pas de barre du bas)');
         toutesErreurs.push(...erreurs);
         await page.close();
         continue;
       }
-      const bloc = await page.evaluate(() => ({ bouton: !!document.getElementById('btnDemanderAbsence'), liste: [...document.querySelectorAll('.demandes li')].map((l) => l.innerText.replace(/\s+/g, ' ')) }));
-      verifier(bloc.bouton && bloc.liste.length === 1 && /Vacances.*Acceptée/i.test(bloc.liste[0]), 'consultation : « Mes absences », bouton + demande acceptée (' + JSON.stringify(bloc) + ')');
+      // Suite 83 : « Mes absences » → barre du bas + feuille « Mes demandes ».
+      const liste = () => page.evaluate(() => [...document.querySelectorAll('#feuille .demandes li')].map((l) => l.innerText.replace(/\s+/g, ' ')));
+      const bouton = await page.evaluate(() => document.getElementById('btnDemanderAbsence').getBoundingClientRect().width > 0);
+      await page.click('#btnNotifications'); await page.waitForTimeout(150);
+      const bloc = { bouton, liste: await liste() };
+      verifier(bloc.bouton && bloc.liste.length === 1 && /Vacances.*Acceptée/i.test(bloc.liste[0]), 'consultation : « Demander une absence » dans la barre du bas, demande acceptée dans la cloche (' + JSON.stringify(bloc) + ')');
+      await page.click('#feuilleFermer'); await page.waitForTimeout(100);
       await page.click('#btnDemanderAbsence'); await page.waitForTimeout(150);
       await page.selectOption('#faMotif', 'Congé');
       await page.fill('#faDebut', '2026-09-28'); await page.dispatchEvent('#faDebut', 'change');
@@ -229,15 +235,19 @@ const poids = (page, sel) => page.evaluate((s) => { const n = document.querySele
       const e = etat.envois[0] || {};
       verifier(e.p_jeton === JETON && e.p_debut === '2026-09-28' && e.p_fin === '2026-09-29' && e.p_demi_debut === 'matin' && e.p_demi_fin === 'matin' && e.p_motif === 'Congé' && e.p_remarque === 'Déménagement',
         'envoi : jeton, dates, demi-journées, motif, remarque (' + JSON.stringify(e) + ')');
-      const apres = await page.evaluate(() => ({ form: !!document.getElementById('formAbsence'), liste: [...document.querySelectorAll('.demandes li')].map((l) => l.innerText.replace(/\s+/g, ' ')) }));
-      verifier(!apres.form && apres.liste.some((t) => /Congé - Déménagement — du lun\. 28 sept\. au mar\. 29 sept\. matin.*En attente.*Retirer/i.test(t)), 'après l\'envoi : demande « En attente » listée (' + JSON.stringify(apres) + ')');
+      const form = await page.evaluate(() => !!document.getElementById('formAbsence') && !document.getElementById('feuille').hidden);
+      await page.click('#btnNotifications'); await page.waitForTimeout(150);
+      const apres = { form, liste: await liste() };
+      verifier(!apres.form && apres.liste.some((t) => /Congé - Déménagement du lun\. 28 sept\. au mar\. 29 sept\. matin.*En attente.*Retirer/i.test(t)), 'après l\'envoi : demande « En attente » listée (' + JSON.stringify(apres) + ')');
+      await page.click('#feuilleFermer'); await page.waitForTimeout(100);
       await page.click('#btnSuivante'); await page.waitForTimeout(400);
       const cartes = await page.evaluate(() => [...document.querySelectorAll('.tache.demande')].map((t) => t.closest('.jour').dataset.date + '/' + (t.closest('.demi').classList.contains('demi-matin') ? 'matin' : 'aprem')).join(','));
       verifier(cartes === '2026-09-28/matin,2026-09-28/aprem,2026-09-29/matin', 'semaine suivante : demande en pointillés dans les demi-journées demandées (' + cartes + ')');
       const texteCarte = await page.evaluate(() => document.querySelector('.tache.demande .texte').textContent);
       verifier(texteCarte === 'Congé - Déménagement', 'demande en pointillés : « Congé - Motif » (' + texteCarte + ')');
-      await page.click('.demandes .btn-retirer'); await page.waitForTimeout(400);
-      verifier(etat.demandes.length === 1 && await page.evaluate(() => !document.querySelector('.tache.demande') && !document.querySelector('.btn-retirer')), '« Retirer » : demande en attente supprimée');
+      await page.click('#btnNotifications'); await page.waitForTimeout(150);
+      await page.click('#feuille .demandes [data-action="retirer"]'); await page.waitForTimeout(400);
+      verifier(etat.demandes.length === 1 && await page.evaluate(() => !document.querySelector('.tache.demande') && !document.querySelector('[data-action="retirer"]')), '« Retirer » : demande en attente supprimée');
       toutesErreurs.push(...erreurs);
       await page.close();
     }

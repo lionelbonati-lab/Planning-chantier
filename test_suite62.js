@@ -78,9 +78,9 @@ const style = (page, sel, prop) => page.evaluate(([s, p]) => { const e = documen
       jours: [...document.querySelectorAll('#apercuAffichage .aa-th')].map((n) => n.querySelector('.aa-jour').textContent + ' ' + n.querySelector('.aa-date').textContent).join(','),
       seps: [...document.querySelectorAll('#apercuAffichage .sep-semaines')].filter((s) => !s.hidden).length
     }));
-    verifier(page0.options === 'weekends,auj,zebre,teinte,separation,cadre,noms,jourSemaine,formatDate,heures,ligneDemi,texte,lignes,hauteur,coins,statut,police,vueOrdi,vueTel',
-      'page Affichage : les 19 réglages (bords : suite 74, dans la barre d\'outils depuis la suite 79) (' + page0.options + ')');
-    verifier(page0.actifs === 'teinte=aprem,noms=normal,jourSemaine=abrege,formatDate=numero,ligneDemi=horaires,texte=normal,lignes=2,hauteur=normale,statut=badge,police=archivo,vueOrdi=1,vueTel=jour' && page0.inter === 'separation,cadre,coins' && !page0.we && page0.statut && page0.reset,
+    verifier(page0.options === 'weekends,auj,zebre,teinte,separation,cadre,noms,jourSemaine,formatDate,heures,ligneDemi,coinMois,coinAnnee,texte,lignes,hauteur,coins,statut,police,vueOrdi,vueTel',
+      'page Affichage : les 21 réglages (suite 83 : mois et année de la case de gauche) (bords : suite 74, dans la barre d\'outils depuis la suite 79) (' + page0.options + ')');
+    verifier(page0.actifs === 'teinte=aprem,noms=normal,jourSemaine=abrege,formatDate=numero,ligneDemi=horaires,coinMois=abrege,coinAnnee=complete,texte=normal,lignes=2,hauteur=normale,statut=badge,police=archivo,vueOrdi=1,vueTel=jour' && page0.inter === 'separation,cadre,coins' && !page0.we && page0.statut && page0.reset,
       'valeurs d\'origine affichées, « Tout rétablir » caché (' + page0.actifs + ')');
     verifier(page0.noms === 'Lionel,Mathis,Antoine' && page0.jours === 'Jeu 24,Ven 25,Lun 28,Mar 29' && page0.seps === 2,
       'aperçu : 3 personnes, Jeu Ven | Lun Mar, espace entre les semaines (' + JSON.stringify(page0) + ')');

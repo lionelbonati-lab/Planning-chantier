@@ -31,7 +31,7 @@ const vue = (page) => page.evaluate(() => {
   const b = document.getElementById('btnModeVue');
   return { mode: b.dataset.mode, libelle: b.querySelector('.toolbar-btn-label').textContent, titre: b.title,
     icone: (() => { const t = document.createElement('span'); t.innerHTML = ICONS[{ semaine: 'uneSemaine', bords: 'joursBords', deux: 'deuxSemaines' }[b.dataset.mode]]; return b.querySelector('.mode-vue-icone').innerHTML === t.innerHTML; })(),
-    bords: document.getElementById('racine').classList.contains('vue-bords'), deux: deuxSemaines, opt: optionAffichage('bords'), jours: nbJoursAffiches() };
+    bords: document.getElementById('racine').classList.contains('vue-bords'), deux: deuxSemaines, opt: vueBords ? 'oui' : 'non', jours: nbJoursAffiches() }; // suite 84 : vueBords
 });
 
 (async () => {
