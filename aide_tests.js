@@ -211,8 +211,10 @@ async function ouvrirPlanning(browser, options) {
     window.__TABLES_EN_ECHEC = d.echecs;
     try { Object.keys(d.ls).forEach(function (k) { localStorage.setItem(k, d.ls[k]); }); } catch (e) {}
   }, { bd: bd, ls: options.localStorage || {}, echecs: options.tablesEnEchec || [] });
-  await page.goto('file://' + path.join(__dirname, 'index.html'));
-  await page.waitForSelector('#legendeBarre');
+  // Suite 88 : options.query = « ?raccourci=… » (raccourcis de l'icône, manifest.json).
+  await page.goto('file://' + path.join(__dirname, 'index.html') + (options.query || ''));
+  // (raccourci « Mes notes » : page Notes affichée, barre du planning masquée)
+  await page.waitForSelector('#legendeBarre', { state: options.query ? 'attached' : 'visible' });
   await page.waitForTimeout(300);
   return { page, erreurs };
 }

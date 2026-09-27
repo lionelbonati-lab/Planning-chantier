@@ -489,6 +489,9 @@
       // sans bloquer davantage l'écran de chargement.
       chargerFormulairesRapides();
       prechargerHorsLigne();
+      // Suite 88 : ouverte par un raccourci de l'icône (« Nouvelle note »,
+      // « Mes notes », manifest.json) → fiche ou page demandée.
+      if (typeof lancerRaccourciAppli === "function") lancerRaccourciAppli();
     }).catch(erreurFatale);
   }
 

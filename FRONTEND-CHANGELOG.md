@@ -9859,3 +9859,25 @@ Lionel :
   - consultation : blocs du bureau (regroupement, week-end, cloche) ; « Sauf : … » ; « Quoi » à l'annulation et à la modification ; « Toute la série » et le retour à celle-ci ; formulaire d'un bloc du bureau ; annulation d'un bloc ; demande en attente sur un bloc.
 - test_suite86.js adapté : « Annuler la série » devient « Annuler… », qui ouvre la feuille « Quoi » (toute la série par défaut).
 - Suite complète : 92/92.
+
+## 196. Round du 27.09.2026 (suite 88) — Raccourcis de l'icône : « Nouvelle note », « Mes notes »
+- « J'aimerai des boutons d'accès rapide pour enregistrer des notes rapidement. » (capture : appui long sur l'icône d'une appli installée, « Nouvelle tâche » / « Mes tâches »)
+
+### Ce qui change
+- **Appui long sur l'icône de l'appli installée** (Android) : deux raccourcis, qu'on peut aussi poser seuls sur l'écran d'accueil.
+  - « Nouvelle note » ouvre la fiche Note sur aujourd'hui, avec le clavier sur le texte. Il suffit d'écrire puis « Enregistrer » : la note est dans le planning.
+  - « Mes notes » ouvre la page Notes.
+- Icônes jaunes, à la couleur des notes : une feuille avec « + » ou avec des lignes.
+
+### Fonctionnement
+- **manifest.json** : `shortcuts`, avec les adresses `index.html?raccourci=nouvelle-note` et `index.html?raccourci=notes` et les icônes `icons/raccourci-*.png` (96×96).
+- **js/page-notes.js** : `lancerRaccourciAppli` lit `raccourci` une fois, après le premier affichage du planning (fin de `demarrer`, js/donnees-sync.js), puis le retire de l'adresse (`history.replaceState`). Recharger la page ne rouvre donc pas la fiche.
+  - « Nouvelle note » ouvre la fiche existante (`ouvrirFormulaireNote`).
+  - « Mes notes » ouvre la page (`afficherPage("notes")`).
+- Hors ligne : l'adresse avec `?raccourci=` est servie par la copie de l'appli (le service worker ignore la partie `?…`).
+- Android relit le manifeste de l'appli installée de lui-même, au plus tard dans la journée qui suit une ouverture. Sinon, désinstaller puis réinstaller l'appli fait apparaître les raccourcis tout de suite.
+
+### Tests
+- test_suite88.js, 9/9 : manifeste et icônes ; « Nouvelle note » (fiche, date du jour, texte prêt, note enregistrée et visible, adresse nettoyée, rien de rouvert au rechargement) ; « Mes notes » ; ouverture normale.
+- aide_tests.js : `ouvrirPlanning(…, { query })`.
+- Suite complète : 93/93.

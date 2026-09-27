@@ -12,5 +12,11 @@
   "icons": [
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
     { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Nouvelle note", "short_name": "Nouvelle note", "description": "Écrire une note dans le planning", "url": "index.html?raccourci=nouvelle-note",
+      "icons": [{ "src": "icons/raccourci-nouvelle-note.png", "sizes": "96x96", "type": "image/png" }] },
+    { "name": "Mes notes", "short_name": "Mes notes", "description": "Voir toutes les notes", "url": "index.html?raccourci=notes",
+      "icons": [{ "src": "icons/raccourci-notes.png", "sizes": "96x96", "type": "image/png" }] }
   ]
 }
