@@ -949,6 +949,23 @@
   // reconstruit. Onglet Planning masqué : fait à son retour (coquille.js,
   // RENDU_PAR_PAGE.planning) — renvoie true si une reconstruction est lancée.
   var modeJourMobileRendu = null, labsRendusDernier = null;
+  // Rendu fait planning masqué (round du 27.09.2026, suite 69 — Lionel :
+  // « En mode mobile, on ne retourne pas sur le même jour sur le planning
+  // après une modification dans l'affichage »). Un réglage de la page
+  // Affichage (ou Couleurs…) redessine le planning pendant qu'il est caché :
+  // rien n'y a de taille, donc ni le défilement (jour de la vue « 1 jour »,
+  // position en vue semaine) ni les hauteurs mesurées ne tiennent.
+  // grilleRendueMasquee_ le note ; au retour sur l'onglet Planning
+  // (rendreSiRenduMasque, coquille.js), un nouveau rendu recale tout — le
+  // jour mémorisé (jourMobileIso), sinon le dernier défilement vu à l'écran
+  // (dernierScrollVisible_), pas celui, faux, de la grille redevenue visible.
+  var grilleRendueMasquee_ = false, retourApresMasque_ = false, dernierScrollVisible_ = 0;
+  function rendreSiRenduMasque() {
+    if (!grilleRendueMasquee_) return false;
+    retourApresMasque_ = true;
+    render(false);
+    return true;
+  }
   // reajusterBullesJourMobile() (suite 35) : recalcule, à l'image suivante,
   // la largeur visible des cartes de bulles en vue « 1 jour » (cf.
   // ajusterLargeurBullesJourMobile dans construireGrille, qui la
@@ -1046,6 +1063,11 @@
     var LN = largeurNoms();
     var scrollerPrecedent = racineEl.querySelector(".scroller");
     var scrollLeftPrecedent = scrollerPrecedent ? scrollerPrecedent.scrollLeft : 0;
+    // Ancienne grille à l'écran et à sa vraie place ? (cf. grilleRendueMasquee_)
+    var grillePrecedenteFiable = !!(scrollerPrecedent && scrollerPrecedent.getClientRects().length && !retourApresMasque_);
+    retourApresMasque_ = false;
+    if (grillePrecedenteFiable) dernierScrollVisible_ = scrollLeftPrecedent;
+    else if (scrollerPrecedent) scrollLeftPrecedent = dernierScrollVisible_;
     // Vue "1 jour" (round du 24.09.2026, suite 6) : le rendu se cale sur
     // jourMobileIso, tenu à jour à chaque ARRÊT du défilement — mais un
     // défilement fait PENDANT un glisser de bulle (défilement automatique au
@@ -1056,7 +1078,11 @@
     // de cible imposée (Aujourd'hui, bascule de vue), et jour toujours dans
     // la semaine affichée (sinon, c'est ‹ › ou la pilule qui viennent d'en
     // changer — jourMobileCourant se charge alors du bon jour).
-    if (scrollerPrecedent && modeJourMobileRendu && modeJourMobileActif() && !cibleApresRendu && labsRendusDernier === fenetreLabGs().join(",")) {
+    // Grille cachée (suite 69, cf. grilleRendueMasquee_) : toutes ses cases
+    // y mesurent 0 px, le « jour visible » relevé était le 1er de la fenêtre
+    // (le lundi) et remplaçait le jour affiché. Pas de relevé sans grille
+    // fiable à l'écran : jourMobileIso reste celui d'avant.
+    if (grillePrecedenteFiable && modeJourMobileRendu && modeJourMobileActif() && !cibleApresRendu && labsRendusDernier === fenetreLabGs().join(",")) {
       var bordNomsPrec = scrollerPrecedent.getBoundingClientRect().left + LN, thVisible = null, ecartVisible = Infinity;
       racineEl.querySelectorAll(".entete-planning-figee .th[data-gi]").forEach(function (th) {
         var e = Math.abs(th.getBoundingClientRect().left + th.clientLeft - bordNomsPrec);
@@ -2276,6 +2302,7 @@
       cibleScrollLeft = scrollLeftPrecedent;
     }
     scroller.scrollLeft = cibleScrollLeft;
+    grilleRendueMasquee_ = !scroller.getClientRects().length;
     // enteteScroll doit refléter le même défilement horizontal dès ce même
     // rendu (sans attendre l'événement "scroll" ci-dessus, asynchrone dans
     // certains navigateurs) — sans quoi l'en-tête figé afficherait un bref

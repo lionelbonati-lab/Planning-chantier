@@ -89,6 +89,22 @@ const poids = (page, sel) => page.evaluate((s) => { const n = document.querySele
       return { classe: document.getElementById('racine').classList.contains('sans-trait-semaines'), bord: f ? getComputedStyle(f).borderLeftWidth : '0px' };
     });
     verifier(bord.classe && bord.bord === '0px', 'téléphone, vue 1 jour : aucun trait épais entre les semaines (' + JSON.stringify(bord) + ')');
+    // « En mode mobile, on ne retourne pas sur le même jour sur le planning
+    // après une modification dans l'affichage »
+    const jourVisible = () => page.evaluate(() => {
+      const sc = document.querySelector('#racine .scroller'), b = sc.getBoundingClientRect().left + largeurNoms();
+      let best = null, e = 1e9;
+      document.querySelectorAll('#racine .entete-planning-figee .th[data-gi]').forEach((th) => { const d = Math.abs(th.getBoundingClientRect().left - b); if (d < e) { e = d; best = th; } });
+      return isoDeGi(+best.dataset.gi) + '/' + jourMobileIso;
+    });
+    await page.evaluate(() => allerAuJour('2026-09-22')); await page.waitForTimeout(500);
+    const avant = await jourVisible();
+    await page.evaluate(() => afficherPage('affichage')); await page.waitForTimeout(250);
+    for (const id of ['cadre', 'zebre', 'weekends']) { await page.click('#page-affichage .reglage-ligne[data-option="' + id + '"] .interrupteur'); await page.waitForTimeout(250); }
+    await page.evaluate(() => afficherPage('couleurs')); await page.waitForTimeout(250);
+    await page.evaluate(() => afficherPage('planning')); await page.waitForTimeout(500);
+    const apres = await jourVisible();
+    verifier(avant === '2026-09-22/2026-09-22' && apres === avant, 'téléphone : après des réglages d\'affichage, retour au planning sur le même jour (' + avant + ' → ' + apres + ')');
     toutesErreurs.push(...erreurs);
     await page.context().close();
   }

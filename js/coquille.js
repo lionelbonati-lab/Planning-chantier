@@ -829,7 +829,9 @@
       // activée/désactivée et la fenêtre chargée a changé — reconstruction
       // complète dans ce cas (verifierModeFenetre, grille-rendu.js), sinon
       // simple remesure comme avant.
-      planning: function () { if (!verifierModeFenetre()) ajusterEnteteFixe(); }
+      // rendreSiRenduMasque (suite 69, js/grille-rendu.js) : planning
+      // redessiné pendant qu'il était caché → recalé sur le jour affiché.
+      planning: function () { if (!verifierModeFenetre() && !rendreSiRenduMasque()) ajusterEnteteFixe(); }
     };
     ongletsBtns.forEach(function (btn) {
       btn.addEventListener("click", function () { afficherPage(btn.dataset.page); });
