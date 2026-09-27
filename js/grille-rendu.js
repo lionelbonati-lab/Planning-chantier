@@ -1642,6 +1642,103 @@
     // après l'image (mesurerVoisins_), une fois le glissement des hauteurs
     // de la suite 57 fini s'il y en a un. Au rendu (forcer), le jour
     // affiché est mesuré tout de suite, ses voisins de la même façon.
+    //
+    // Pistes du jour seul (round du 27.09.2026, suite 73 — Lionel : « Je
+    // remarque que certaine bulle montent et descendent dans leur case lors
+    // du switch alors que c'est inutile. Entre lundi 05 et mardi 06 octobre
+    // dans mon cas. Induit par une absence du vendredi car en mettant
+    // l'absence du vendredi 09 sous la tâche qui dure la semaine, ce
+    // phénomène ne se passe plus. »). Les pistes (assignerPistesCompact)
+    // valent pour toute la fenêtre : Maçonnerie (mardi → vendredi) passe
+    // sous le congé du vendredi, donc en 2e piste, y compris le mardi où elle
+    // est seule. La 1re piste, vide ce jour-là, gardait pourtant sa part de
+    // la hauteur de la ligne (l'étiquette, qui couvre toutes les pistes de
+    // la personne, la répartit entre elles) : Maçonnerie arrivait plus bas
+    // que Décoffrage du lundi, puis remontait. À la mesure d'un jour, les
+    // pistes d'une ligne vides CE jour-là sont donc réduites à 0 (la 1re
+    // gardée si toutes le sont) : la ligne a la même hauteur, mais ses
+    // bulles sont en haut, comme si le jour était affiché seul. Le vendredi,
+    // Maçonnerie reste bien sous le congé (ordre choisi dans la case).
+    function occupeesDuJour_(g, vues) {
+      var o = {};
+      vues.forEach(function (b) { if (b.parentNode === g) o[parseInt(b.style.gridRow, 10) - 1] = true; });
+      return o;
+    }
+    function gabaritPistesDuJour_(g, occupees) {
+      var t = [];
+      [].forEach.call(g.children, function (l) {
+        if (!l.classList.contains("lbl")) return;
+        var m = /^(\d+)\s*\/\s*span\s+(\d+)/.exec(l.style.gridRow);
+        if (!m || +m[2] < 2) return;
+        var d = +m[1] - 1, k = +m[2], une = false;
+        for (var i = d; i < d + k; i++) if (occupees[i]) une = true;
+        for (var j = d; j < d + k; j++) t[j] = occupees[j] || (!une && j === d) ? "auto" : "0px";
+      });
+      for (var i2 = 0; i2 < t.length; i2++) if (!t[i2]) t[i2] = "auto";
+      return t.join(" ");
+    }
+    // Pendant le glissement (même round) : les lignes passent de la hauteur
+    // d'un jour à celle de l'autre (suivreHauteursJourMobile), et avec
+    // elles le haut de chaque piste. Une bulle affichée sur les 2 jours suit
+    // (elle doit changer de place : Maçonnerie qui passe sous le congé en
+    // allant au vendredi). Une bulle d'UN seul des 2 jours, elle, n'a
+    // aucune raison de bouger : elle est tenue (propriété CSS `translate`)
+    // à sa place et à sa hauteur de son jour — Décoffrage qui sort, en haut,
+    // Maçonnerie qui entre, en haut aussi. Rien n'est relu du DOM : pistes
+    // et bulles de chaque jour notées à sa mesure (hauteursParRepere[x] et
+    // .vues).
+    var bullesTenues_ = [];
+    function lacherBullesTenues_() {
+      bullesTenues_.forEach(function (b) { b.style.translate = ""; b.style.maxHeight = ""; });
+      bullesTenues_ = [];
+    }
+    // Bulle d'un autre jour sur une piste ramenée à 0 au jour posé : sa
+    // marge de découpe (3 px sous la piste pour l'ombre, suite 59, cf.
+    // style.css) la laissait voir dans le trait de 1 px entre deux noms.
+    // .piste-nulle : entièrement rognée, jusqu'à ce qu'un glissement la
+    // tienne à sa place de son jour (tenirBullesEntreJours_).
+    function marquerPistesNulles_(e) {
+      [grilleEntete, grilleCorps].forEach(function (g, i) {
+        var h = e && e[i] && e[i] !== "none" ? e[i].split(" ").map(parseFloat) : null;
+        [].forEach.call(g.children, function (b) {
+          if (!b.classList.contains("bulle")) return;
+          var nulle = !!h && !(e.vues && e.vues.has(b)) && h[parseInt(b.style.gridRow, 10) - 1] === 0;
+          if (b.classList.contains("piste-nulle") !== nulle) b.classList.toggle("piste-nulle", nulle);
+        });
+      });
+    }
+    function tenirBullesEntreJours_(ea, eb, f) {
+      var tenues = [];
+      if (ea.vues && eb.vues) [grilleEntete, grilleCorps].forEach(function (g, i) {
+        var pa = ea[i], pb = eb[i];
+        if (!pa || !pb || pa === "none" || pb === "none") return;
+        var ha = pa.split(" ").map(parseFloat), hb = pb.split(" ").map(parseFloat);
+        if (ha.length !== hb.length) return;
+        var ca = [0], cb = [0];
+        for (var k = 0; k < ha.length; k++) { ca.push(ca[k] + ha[k]); cb.push(cb[k] + hb[k]); }
+        var tenir = function (b, dy, h) {
+          if (b.parentNode !== g) return;
+          if (b.classList.contains("piste-nulle")) b.classList.remove("piste-nulle");
+          var v = Math.abs(dy) < 0.05 ? "" : "0 " + (Math.round(dy * 100) / 100) + "px";
+          if (b.style.translate !== v) b.style.translate = v;
+          var mh = Math.max(0, h - 3) + "px";
+          if (b.style.maxHeight !== mh) b.style.maxHeight = mh;
+          tenues.push(b);
+        };
+        ea.vues.forEach(function (b) {
+          if (eb.vues.has(b)) return;
+          var t = parseInt(b.style.gridRow, 10) - 1;
+          if (t >= 0 && t < ha.length) tenir(b, -(cb[t] - ca[t]) * f, ha[t]);
+        });
+        eb.vues.forEach(function (b) {
+          if (ea.vues.has(b)) return;
+          var t = parseInt(b.style.gridRow, 10) - 1;
+          if (t >= 0 && t < hb.length) tenir(b, (cb[t] - ca[t]) * (1 - f), hb[t]);
+        });
+      });
+      bullesTenues_.forEach(function (b) { if (tenues.indexOf(b) < 0) { b.style.translate = ""; b.style.maxHeight = ""; } });
+      bullesTenues_ = tenues;
+    }
     function figerHauteursJourMobile(forcer) {
       if (!enModeJourMobile) return false;
       // Largeurs (donc texte) recalculées à chaque fixation, même au même
@@ -1653,6 +1750,7 @@
       if (!forcer && cle === cleHauteursJour) return false;
       cleHauteursJour = cle;
       clearTimeout(minuteurVoisins_); minuteurVoisins_ = null;
+      lacherBullesTenues_(); // jour posé : chaque bulle à sa place de grille (suite 73)
       var grilles = [grilleEntete, grilleCorps];
       // Hauteurs à l'écran avant la mesure (celles d'un glissement encore
       // en cours comprises) : point de départ du glissement.
@@ -1667,7 +1765,7 @@
       var xPose = iPose >= 0 ? reperes[iPose].x : null;
       var pistes = !forcer && xPose !== null && hauteursParRepere[xPose] ? hauteursParRepere[xPose] : null;
       if (!pistes) {
-        var horsJour = [];
+        var horsJour = [], vues = new Set();
         grilles.forEach(function (g) {
           g.classList.remove("hauteurs-figees", "hauteurs-suivies");
           g.style.gridTemplateRows = "";
@@ -1676,13 +1774,17 @@
           g.querySelectorAll(".bulle").forEach(function (b) {
             var carte = b.querySelector(".b-carte");
             if (carte && (carte.style.display === "none" || b.classList.contains("jour-voisin") || parseFloat(carte.style.width) * zoom < 30)) { b.style.display = "none"; horsJour.push(b); }
+            else vues.add(b);
           });
         });
+        // Pistes vides ce jour-là à 0 (suite 73, cf. gabaritPistesDuJour_).
+        grilles.forEach(function (g) { g.style.gridTemplateRows = gabaritPistesDuJour_(g, occupeesDuJour_(g, vues)); });
         // Lecture groupée : une seule mise en page. getComputedStyle rend
         // les pistes RÉSOLUES (« 41px 55px 30px… »), dans le repère de la
         // grille elle-même — zoom compris, puisqu'on les lui rend telles
         // quelles.
         pistes = grilles.map(function (g) { return getComputedStyle(g).gridTemplateRows; });
+        pistes.vues = vues;
         horsJour.forEach(function (b) { b.style.display = ""; });
         if (forcer) hauteursParRepere = {};
       }
@@ -1712,6 +1814,7 @@
         g.classList.add("hauteurs-figees");
       });
       if (glisse) finHauteursQuiGlissent = performance.now() + DUREE_HAUTEURS_QUI_GLISSENT;
+      marquerPistesNulles_(pistes);
       planifierMesureVoisins_();
       // Remesure en plein geste (polices chargées après le premier
       // affichage, cf. document.fonts.ready plus bas) : la grille n'est pas
@@ -1765,14 +1868,19 @@
         g.style.gridTemplateRows = "";
       });
       voisins.forEach(function (v) {
+        var vues = new Set();
         toutes.forEach(function (t) {
           var l = Math.min(t.r.right, v.d) - Math.max(t.r.left, v.g);
           if (l < 30) { t.b.style.display = "none"; return; }
           t.b.style.display = "";
           t.carte.style.display = "";
           t.carte.style.width = t.carte.style.maxWidth = (l / zoom) + "px";
+          vues.add(t.b);
         });
-        hauteursParRepere[v.x] = grilles.map(function (g) { return getComputedStyle(g).gridTemplateRows; });
+        grilles.forEach(function (g) { g.style.gridTemplateRows = gabaritPistesDuJour_(g, occupeesDuJour_(g, vues)); });
+        var p = grilles.map(function (g) { return getComputedStyle(g).gridTemplateRows; });
+        p.vues = vues;
+        hauteursParRepere[v.x] = p;
       });
       toutes.forEach(function (t) {
         t.b.style.display = t.garde[0];
@@ -1802,6 +1910,8 @@
           if (p && p !== "none") g.style.gridTemplateRows = p;
           g.classList.remove("hauteurs-suivies");
         });
+        lacherBullesTenues_();
+        marquerPistesNulles_(hauteursParRepere[repereHauteursPose]);
         return;
       }
       var xs = Object.keys(hauteursParRepere).map(Number).sort(function (a, b) { return a - b; });
@@ -1823,6 +1933,7 @@
         if (!g.classList.contains("hauteurs-suivies")) { g.classList.add("hauteurs-suivies"); void getComputedStyle(g).transitionDuration; }
         if (g.style.gridTemplateRows !== val) g.style.gridTemplateRows = val;
       });
+      tenirBullesEntreJours_(hauteursParRepere[a], hauteursParRepere[b], f);
     }
     // rAF-throttlé : "scroll" peut se déclencher plusieurs fois par frame
     // pendant un glissé — recalculer pour toutes les bulles à chaque

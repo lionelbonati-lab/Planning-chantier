@@ -9286,3 +9286,37 @@ Lionel :
   - « réduire les animations » et vue 1 jour du téléphone : pas de glissement de semaine.
 - test_suite57.js : la vérification « arrivée en douceur » accepte 2 images de suite sur le même pixel en fin de courbe, conséquence des positions entières.
 - Suite complète : 79/79 avant l'ajout de test_suite72.
+
+## 181. Round du 27.09.2026 (suite 73) — Téléphone : les bulles ne montent et ne descendent plus pour rien au changement de jour
+
+Lionel :
+- « Je remarque que certaine bulle montent et descendent dans leur case lors du switch alors que c'est inutile. Entre lundi 05 et mardi 06 octobre dans mon cas. Induit par une absence du vendredi car en mettant l'absence du vendredi 09 sous la tâche qui dure la semaine, ce phénomène ne se passe plus. »
+
+### Ce qui change
+- **Vue 1 jour du téléphone** : une bulle seule dans sa case ce jour-là est en haut de la case.
+  - Avant, dans son cas, Maçonnerie (mardi → vendredi) restait 12 px plus bas du mardi au jeudi, sous la place du congé du vendredi.
+  - Entre lundi et mardi, elle arrivait 29 px plus bas que Décoffrage, puis remontait en fin de glissement.
+- **Pendant le glissement d'un jour à l'autre** : une bulle qui n'est que sur un des 2 jours ne bouge plus verticalement, ni celle qui sort, ni celle qui entre.
+- Une bulle présente sur les 2 jours change encore de place quand il le faut : Maçonnerie passe sous le congé en allant du jeudi au vendredi, l'ordre choisi dans la case étant gardé.
+- Hauteur des lignes inchangée, vue semaine inchangée : sur ordinateur, une bulle de plusieurs jours reste sur une seule piste.
+
+### Fonctionnement
+- **Cause** : les pistes (assignerPistesCompact) valent pour toute la fenêtre de 2 semaines.
+  - Maçonnerie passe sous le congé du vendredi, donc en 2e piste, y compris le mardi.
+  - La 1re piste, vide ce jour-là, gardait sa part de la hauteur de l'étiquette : l'étiquette couvre toutes les pistes de la personne et le navigateur la répartit entre elles.
+- **Mesure d'un jour** (figerHauteursJourMobile, mesurerVoisins_, js/grille-rendu.js) :
+  - gabaritPistesDuJour_ pose le temps de la mesure `0px` sur les pistes d'une ligne vides ce jour-là, et `auto` ailleurs (la 1re piste gardée si toutes sont vides) ;
+  - les bulles vues ce jour-là sont notées avec ses hauteurs (`hauteursParRepere[x].vues`).
+- **Pendant le glissement** (tenirBullesEntreJours_, appelée par suivreHauteursJourMobile) :
+  - une bulle d'un seul des 2 jours est tenue à la place et à la hauteur de sa piste de son jour, par les propriétés CSS `translate` et `max-height` ;
+  - le calcul se fait à partir des hauteurs déjà mesurées, sans relire le DOM ;
+  - tout est relâché au jour posé.
+- **Bulle d'un autre jour sur une piste ramenée à 0** : classe `.piste-nulle`, entièrement rognée. Sans elle, sa marge de découpe de 3 px (suite 59) la faisait voir dans le trait entre deux noms.
+
+### Tests
+- test_suite73.js (nouveau), 5/5, sur la ligne de Lionel reprise telle quelle :
+  - mardi posé : Maçonnerie en haut, comme Décoffrage le lundi ;
+  - image par image, lundi → mardi puis retour : aucune bulle à l'écran ne bouge verticalement ;
+  - jeudi → vendredi : Maçonnerie passe sous le congé ;
+  - rien d'un autre jour sous la colonne des noms.
+- Sans le correctif, 3 de ces 5 vérifications échouent (12 px, puis 29 et 26,6 px de mouvement).
