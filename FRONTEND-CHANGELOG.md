@@ -9748,3 +9748,23 @@ Lionel :
   - clic sur la copie, hauteurs égales, aperçu d'une poignée, cartes normales en 1 et 2 semaines.
 - test_suite62.js : 21 réglages (mois et année de la case de gauche, suite 83).
 - test_suite74.js, test_suite79.js, test_suite82.js : l'état `vueBords` au lieu de l'option `bords` ; le clic n'enregistre plus rien.
+
+## 193. Round du 27.09.2026 (suite 85) — Téléphone : rotation bloquée
+- « Bloquer la rotation d'écran mobile. »
+
+### Ce qui change
+- **Téléphone tenu en largeur** : la page est couverte par « Tourne ton téléphone — L’appli s’utilise en hauteur sur téléphone. » Revenu en hauteur, le planning réapparaît tel qu'il était, rien n'est rechargé.
+- Là où le téléphone l'accepte (Android, appli installée ou plein écran), l'écran est en plus verrouillé en hauteur : il ne tourne plus du tout.
+- Même chose sur la page de consultation des ouvriers.
+- Tablettes et ordinateurs : rien ne change, ils tournent librement.
+
+### Fonctionnement
+- **js/rotation.js** (nouveau), chargé par index.html et consultation.html :
+  - Téléphone = écran tactile dont le petit côté (screen.*) fait au plus 540 px. Les tablettes en ont au moins 600.
+  - Essai de `screen.orientation.lock("portrait")`, sans message quand il est refusé (Safari, onglet ordinaire).
+  - En largeur = fenêtre plus large que haute ET écran tourné (`screen.orientation.type`, sinon `window.orientation`). Le clavier qui rétrécit la fenêtre en hauteur ne déclenche rien.
+  - Classe `paysage-telephone` sur `<html>` et écran `#tournerTelephone`. Le style est posé par le script, pour servir aux deux pages.
+- Le manifeste garde `"orientation": "any"` : il vaut pour tous les appareils, tablettes comprises.
+
+### Tests
+- test_suite85.js, 10/10 : en hauteur, en largeur, retour en hauteur (vue « 1 jour » gardée), ouvert en largeur, tablette et ordinateur jamais, page de consultation, manifeste.
