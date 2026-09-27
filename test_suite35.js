@@ -135,7 +135,12 @@ const revenirJeudi = (page) => page.evaluate(() => {
     await doigt(page, p, { x: 300, y: p.y }, 0);
     verifier(await tache(page, 'Gabarits') === '2026-09-24 - d1 -', 'poignée droite étirée sur l\'après-midi : jeudi entier (' + await tache(page, 'Gabarits') + ')');
     p = await poignee(page, 'Gabarits', 'd');
-    await doigt(page, p, { x: 386, y: p.y }, 1000);
+    // 700 ms (1000 jusqu'à la suite 73) : la poignée part déjà dans la zone
+    // du bord droit, le décompte du saut commence au 1er mouvement. 300 ms
+    // de mouvement + 1000 tenus = 1300 ms, à 50 ms du 2e saut (450 + 900) :
+    // la CI, plus lente, le franchissait (étirée sur lundi). 1000 ms : le
+    // 1er saut est fini (450 + 350), le 2e loin.
+    await doigt(page, p, { x: 386, y: p.y }, 700);
     verifier(/^2026-09-24 - d2 /.test(await tache(page, 'Gabarits')), 'poignée droite maintenue contre le bord : étirée sur vendredi (' + await tache(page, 'Gabarits') + ')');
     await revenirJeudi(page);
     await page.waitForTimeout(600);
