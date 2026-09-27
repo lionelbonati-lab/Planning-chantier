@@ -163,6 +163,15 @@
   function profilAppareil_() {
     return typeof window.matchMedia === "function" && window.matchMedia("(max-width: 600px)").matches ? "tel" : "ordi";
   }
+  // Jeu montré par la page Affichage (round du 27.09.2026, suite 76) —
+  // Lionel : « toggle au-dessus de l'aperçu afin de pouvoir switcher entre
+  // le mode desktop et mobile. L'aperçu doit refléter le mode desktop ou
+  // mobile. quand nous ouvrirons les setups d'affichage, la vue par défaut
+  // est celle où l'on est. » null : celui de cet appareil (à chaque
+  // ouverture de la page, cf. ouvrirPageAffichage). Le planning, lui,
+  // suit toujours le jeu de l'appareil.
+  var profilEdite_ = null;
+  function profilPage_() { return profilEdite_ || profilAppareil_(); }
   function lireJeu_(cle, cleLocale) {
     var r = window.etat && etat.reglages, m = null;
     if (r) m = r[cle];
@@ -184,8 +193,8 @@
     var o = optionAffichageParId_(id), v = valeurAffichage_(o, modifsAffichage_(profil)[id]);
     return o && valeurPermise_(o, v) ? v : (o ? o.defaut : null);
   }
-  function affichageModifie_() {
-    return OPTIONS_AFFICHAGE.some(function (o) { return optionAffichage(o.id) !== o.defaut; });
+  function affichageModifie_(profil) {
+    return OPTIONS_AFFICHAGE.some(function (o) { return optionAffichage(o.id, profil) !== o.defaut; });
   }
   var minuteursAffichage_ = {};
   function ecrireJeu_(cle, cleLocale, m) {
@@ -223,12 +232,13 @@
   }
   // « Reprendre ceux de l'ordinateur / du téléphone » : copie l'autre jeu
   // (hors réglages communs) dans celui de cet appareil.
+  // Suite 76 : « cet appareil » = le jeu montré par la page.
   function reprendreAutreJeuAffichage() {
-    var ici = profilAppareil_(), autre = ici === "ordi" ? "tel" : "ordi";
+    var ici = profilPage_(), autre = ici === "ordi" ? "tel" : "ordi";
     var m = JSON.parse(JSON.stringify(modifsAffichage_(autre))), actuel = modifsAffichage_(ici);
     OPTIONS_AFFICHAGE.forEach(function (o) { if (o.commun) { if (actuel[o.id] === undefined) delete m[o.id]; else m[o.id] = actuel[o.id]; } });
     enregistrerModifsAffichage_(m, ici);
-    appliquerEffetOption_("weekends");
+    if (ici === profilAppareil_()) appliquerEffetOption_("weekends");
     majPageAffichage();
     toast(autre === "ordi" ? "Réglages de l’ordinateur repris." : "Réglages du téléphone repris.");
   }
@@ -236,11 +246,14 @@
   // ---- Application -----------------------------------------------------
   // Attributs de style sur <html> : seulement ceux qui diffèrent de
   // l'origine (aucun attribut = le planning d'avant cette suite).
-  function appliquerStyleAffichage_() {
+  // profil (suite 76) : jeu appliqué — celui montré par la page Affichage
+  // tant qu'elle est ouverte (l'aperçu lit ces attributs), sinon celui de
+  // l'appareil.
+  function appliquerStyleAffichage_(profil) {
     var html = document.documentElement;
     OPTIONS_AFFICHAGE.forEach(function (o) {
       if (!o.css) return;
-      var v = optionAffichage(o.id), attr = "data-aff-" + (o.attr || o.id);
+      var v = optionAffichage(o.id, profil), attr = "data-aff-" + (o.attr || o.id);
       if (v === o.defaut) html.removeAttribute(attr);
       else html.setAttribute(attr, v);
       // Taille d'une ligne d'en-tête (suite 67) : multiplicateur lu par le CSS.
@@ -250,7 +263,7 @@
       }
     });
     // Police (suite 64) : la famille passe par --police (style.css).
-    var police = optionAffichage("police");
+    var police = optionAffichage("police", profil);
     if (police === "archivo") html.style.removeProperty("--police");
     else { html.style.setProperty("--police", FAMILLES_POLICES_[police]); chargerPolices_([police]); }
   }
@@ -260,10 +273,11 @@
   var NOMS_JOURS_AFF_ = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
   var MOIS_AFF_ = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
   var MOIS_ABR_AFF_ = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
-  function enteteJourAffichage(iso, numero) {
+  // profil : cf. htmlCoinMoisAnnee (suite 76).
+  function enteteJourAffichage(iso, numero, profil) {
     var an = +iso.slice(0, 4), mo = +iso.slice(5, 7), jr = +iso.slice(8, 10);
     var complet = NOMS_JOURS_AFF_[new Date(Date.UTC(an, mo - 1, jr)).getUTCDay()];
-    var fj = optionAffichage("jourSemaine"), fd = optionAffichage("formatDate");
+    var fj = optionAffichage("jourSemaine", profil), fd = optionAffichage("formatDate", profil);
     var nom = fj === "complet" ? complet : fj === "initiale" ? complet.charAt(0) : fj === "masque" ? "" : complet.slice(0, 3);
     // Week-end (suite 67 — Lionel : « Date sur week-end ne peut pas excéder
     // 24 sept par manque de place ») : sa colonne est étroite, « 26
@@ -296,13 +310,17 @@
   // style est déjà le bon au premier affichage, sans attendre le serveur.
   appliquerStyleAffichage_();
 
-  function changerOptionAffichage(id, valeur) {
+  // profil (suite 76) : jeu modifié — celui de l'appareil par défaut (touche
+  // W, tests), celui montré par la page pour ses propres réglages. L'autre
+  // jeu ne change pas le planning de cet appareil : seulement l'aperçu.
+  function changerOptionAffichage(id, valeur, profil) {
     var o = optionAffichageParId_(id);
     if (!o || !valeurPermise_(o, valeur)) return;
-    var m = JSON.parse(JSON.stringify(modifsAffichage_()));
+    profil = profil || profilAppareil_();
+    var m = JSON.parse(JSON.stringify(modifsAffichage_(profil)));
     m[id] = valeur;
-    enregistrerModifsAffichage_(m, profilAppareil_());
-    appliquerEffetOption_(id);
+    enregistrerModifsAffichage_(m, profil);
+    if (profil === profilAppareil_()) appliquerEffetOption_(id);
     majPageAffichage();
   }
   function appliquerEffetOption_(id) {
@@ -327,6 +345,9 @@
     assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); majBarreSelection(); });
   }
   function retablirAffichage() {
+    // Suite 76 : le jeu montré par la page ; l'autre ne touche pas au
+    // planning de cet appareil.
+    if (profilPage_() !== profilAppareil_()) { enregistrerModifsAffichage_({}, profilPage_()); majPageAffichage(); return; }
     var avant = {};
     OPTIONS_AFFICHAGE.forEach(function (o) { avant[o.id] = optionAffichage(o.id); });
     enregistrerModifsAffichage_({}, profilAppareil_());
@@ -374,13 +395,23 @@
         return '<button type="button" role="radio" class="choix-pastille" data-option="' + o.id + '" data-valeur="' + c[0] + '" aria-checked="false"' + style + '>' + esc(c[1]) + '</button>';
       }).join("") + '</span></div>';
   }
+  var ICONE_ORDI_ = '<svg width="15" height="15" viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="2.5" y="3.5" width="15" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M7 17h6M10 13.5V17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+  var ICONE_TEL_ = '<svg width="15" height="15" viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="5.5" y="2" width="9" height="16" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M9 15h2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
   function htmlContenuPageAffichage() {
     var groupes = [];
     OPTIONS_AFFICHAGE.forEach(function (o) { if (groupes.indexOf(o.groupe) < 0) groupes.push(o.groupe); });
     return '<div class="page-titre"><h1>Affichage</h1><button type="button" class="lien-reset-tout" id="btnAffichageDefaut" hidden>Tout rétablir</button></div>' +
       '<p class="page-sous"><span id="affichageJeu"></span> L’aperçu montre le résultat. <button type="button" class="lien-reset-tout" id="btnAffichageReprendre"></button></p>' +
       '<div class="affichage-mise">' +
-        '<div class="affichage-apercu-bloc"><div id="apercuAffichage"></div></div>' +
+        // Bascule Ordinateur / Téléphone (suite 76) : quel jeu la page montre,
+        // et l'aperçu qui va avec.
+        '<div class="affichage-apercu-bloc">' +
+          '<div class="bascule-appareil" role="radiogroup" aria-label="Réglages de">' +
+            '<button type="button" role="radio" class="bascule-profil" data-profil="ordi" aria-checked="false">' + ICONE_ORDI_ + 'Ordinateur</button>' +
+            '<button type="button" role="radio" class="bascule-profil" data-profil="tel" aria-checked="false">' + ICONE_TEL_ + 'Téléphone</button>' +
+          '</div>' +
+          '<div id="apercuAffichage"></div>' +
+        '</div>' +
         '<div class="affichage-options">' +
           groupes.map(function (g) {
             return '<h2 class="titre-liste">' + esc(g) + '</h2>' +
@@ -397,9 +428,12 @@
   // Suite 64 : comme le planning, 2 colonnes par jour ouvré (matin,
   // après-midi) et la ligne sous les jours ; en-têtes écrits par
   // enteteJourAffichage, horaires d'exemple (7 h–12 h, 13 h–16 h 45).
-  function htmlApercuAffichage_() {
-    var we = optionAffichage("weekends") === "oui", espace = optionAffichage("separation") === "espace";
-    var ligneDemi = optionAffichage("ligneDemi"), heures = optionAffichage("heures") === "oui";
+  // Suite 76 : aperçu du jeu `profil` — « tel » : étroit, comme un
+  // téléphone (sans le mardi, colonne des noms réduite, .aa-tel).
+  function htmlApercuAffichage_(profil) {
+    var opt = function (id) { return optionAffichage(id, profil); };
+    var we = opt("weekends") === "oui", espace = opt("separation") === "espace";
+    var ligneDemi = opt("ligneDemi"), heures = opt("heures") === "oui";
     var chantiers = (window.etat && etat.chantiers || []).filter(function (c) { return c.actif !== false && c.couleur; });
     var teintes = ["#f6c6b3", "#b9d3f0", "#f8e1b0"].map(function (d, i) { return chantiers[i] ? chantiers[i].couleur : d; });
     var cleStatut = typeof STATUTS_ORDRE !== "undefined" && STATUTS_ORDRE.filter(function (k) { return STATUTS[k]; })[0];
@@ -409,7 +443,7 @@
     // Jours : [clé, date iso, type]. La séparation de semaine est posée
     // par-dessus (placerSepApercu_), comme dans le vrai planning.
     // Téléphone : sans le mardi, pour garder des colonnes lisibles.
-    var etroit = typeof window.matchMedia === "function" && window.matchMedia("(max-width: 600px)").matches;
+    var etroit = profil === "tel";
     var jours = [["jeu", "2026-09-24", "jour"], ["ven", "2026-09-25", "jour"]];
     if (we) jours.push(["sam", "2026-09-26", "we"], ["dim", "2026-09-27", "we"]);
     jours.push(["lun", "2026-09-28", "jour"]);
@@ -430,9 +464,9 @@
       return (j[2] === "we" ? " aa-we" : "") + (j[0] === "lun" ? " aa-lun" : "");
     }
     var h = [], row = 1;
-    h.push('<span class="aa-coin" style="grid-row:1;grid-column:1">' + htmlCoinMoisAnnee(jours.map(function (j) { return j[1]; })) + '</span>');
+    h.push('<span class="aa-coin" style="grid-row:1;grid-column:1">' + htmlCoinMoisAnnee(jours.map(function (j) { return j[1]; }), profil) + '</span>');
     jours.forEach(function (j) {
-      var e = enteteJourAffichage(j[1]);
+      var e = enteteJourAffichage(j[1], undefined, profil);
       var duree = heures && j[2] !== "we" ? '<span class="aa-duree">' + (j[0] === "ven" ? "8.25" : "8.75") + ' h</span>' : "";
       h.push('<span class="aa-th' + (j[0] === "jeu" ? " aa-today" : "") + classesJour(j) + '" style="grid-row:1;grid-column:' + colDe(j[0]) + ' / ' + colA(j[0]) + '">' +
         (e.nom ? '<span class="aa-jour">' + esc(e.nom) + '</span>' : '') + '<b class="aa-date">' + (j[2] === "we" ? htmlDateWeekEnd(e.date) : esc(e.date)) + '</b>' + duree + '</span>');
@@ -470,7 +504,7 @@
     h.push(bulle(1, "lun", "mar", "Décoffrage balcons", teintes[1]));
     h.push(bulle(2, "ven", "ven", "Armature dalle supérieure", teintes[0], true));
     if (!etroit) h.push(bulle(2, "mar", "mar", "Ouvertures murs", teintes[2]));
-    return '<div class="apercu-affichage" aria-hidden="true"><div class="aa-cadre">' +
+    return '<div class="apercu-affichage' + (etroit ? " aa-tel" : "") + '" aria-hidden="true"><div class="aa-cadre">' +
       '<div class="aa-grille" style="grid-template-columns:' + pistes.join(" ") + '">' + h.join("") + '</div></div>' +
       (espace ? '<div class="sep-semaines sep-haut aa-sep" hidden><span class="sep-coin sep-coin-g"></span><span class="sep-coin sep-coin-d"></span></div>' +
         '<div class="sep-semaines sep-bas aa-sep" hidden><span class="sep-coin sep-coin-g"></span><span class="sep-coin sep-coin-d"></span></div>' : '') +
@@ -499,8 +533,24 @@
     if (!page) return;
     // Pastilles « Police » : chaque police, seulement une fois la page ouverte.
     if (page.classList.contains("actif")) chargerPolices_(Object.keys(POLICES_GOOGLE_));
+    // Jeu montré (suite 76) : ses réglages, son style (l'aperçu lit les
+    // attributs data-aff-* de <html>), sa bascule. Page cachée (rendu
+    // depuis ailleurs) : style de l'appareil.
+    var profil = page.classList.contains("actif") ? profilPage_() : profilAppareil_();
+    appliquerStyleAffichage_(profil);
+    page.querySelectorAll(".bascule-profil").forEach(function (b) {
+      var actif = b.dataset.profil === profil;
+      b.classList.toggle("actif", actif);
+      b.setAttribute("aria-checked", actif ? "true" : "false");
+    });
+    // Vue à l'ouverture : seule celle du jeu montré.
+    var lignesVue = { vueOrdi: "ordi", vueTel: "tel", bords: "ordi" };
+    Object.keys(lignesVue).forEach(function (id) {
+      var l = page.querySelector('.reglage-ligne[data-option="' + id + '"]');
+      if (l) l.hidden = lignesVue[id] !== profil;
+    });
     OPTIONS_AFFICHAGE.forEach(function (o) {
-      var v = optionAffichage(o.id);
+      var v = optionAffichage(o.id, profil);
       if (o.sousLigne) {
         page.querySelectorAll('.style-icone[data-option="' + o.id + '"]').forEach(function (sb) {
           var actif = o.interrupteur ? v === "oui" : sb.dataset.valeur === v;
@@ -524,12 +574,12 @@
     // Icônes de style d'une ligne masquée : sans objet, cachées.
     var masquees = { jourSemaine: "masque", heures: "non", ligneDemi: "masquee" };
     page.querySelectorAll(".icones-style").forEach(function (b) {
-      b.hidden = masquees[b.dataset.pour] === optionAffichage(b.dataset.pour);
+      b.hidden = masquees[b.dataset.pour] === optionAffichage(b.dataset.pour, profil);
     });
     var btn = document.getElementById("btnAffichageDefaut");
-    if (btn) btn.hidden = !affichageModifie_();
-    // Jeu de réglages de cet appareil (suite 67).
-    var tel = profilAppareil_() === "tel", jeu = document.getElementById("affichageJeu"), rep = document.getElementById("btnAffichageReprendre");
+    if (btn) btn.hidden = !affichageModifie_(profil);
+    // Jeu de réglages montré (suite 67, suite 76).
+    var tel = profil === "tel", jeu = document.getElementById("affichageJeu"), rep = document.getElementById("btnAffichageReprendre");
     if (jeu) jeu.textContent = tel
       ? "Réglages des téléphones du compte (ordinateurs et tablettes ont les leurs)" + (telAReglagesPropres_() ? "." : " — pour l’instant ceux de l’ordinateur.")
       : "Réglages des ordinateurs et tablettes du compte (les téléphones ont les leurs).";
@@ -539,10 +589,20 @@
     }
     var ap = document.getElementById("apercuAffichage");
     if (!ap) return;
-    ap.innerHTML = htmlApercuAffichage_();
+    ap.innerHTML = htmlApercuAffichage_(profil);
     placerSepApercu_();
     // Replacé quand la page devient visible ou change de largeur.
     if (!roApercu_ && window.ResizeObserver) { roApercu_ = new ResizeObserver(placerSepApercu_); roApercu_.observe(ap); }
+  }
+
+  // Ouverture de la page (afficherPage, js/coquille.js) : « la vue par
+  // défaut est celle où l'on est » (suite 76). Sortie : le style revient au
+  // jeu de l'appareil (celui de l'autre a pu être posé pour l'aperçu).
+  function ouvrirPageAffichage() { profilEdite_ = null; majPageAffichage(); }
+  function quitterPageAffichage() {
+    if (!profilEdite_) return;
+    profilEdite_ = null;
+    appliquerStyleAffichage_();
   }
 
   // Câblage, une fois la page posée par construireCoquille (js/coquille.js).
@@ -552,18 +612,20 @@
     page.addEventListener("change", function (e) {
       var chk = e.target.closest('input[type="checkbox"][data-option]');
       var o = chk && optionAffichageParId_(chk.dataset.option);
-      if (o) changerOptionAffichage(o.id, valeursInterrupteur_(o)[chk.checked ? 0 : 1]);
+      if (o) changerOptionAffichage(o.id, valeursInterrupteur_(o)[chk.checked ? 0 : 1], profilPage_());
     });
     page.addEventListener("click", function (e) {
+      var bp = e.target.closest(".bascule-profil");
+      if (bp) { profilEdite_ = bp.dataset.profil; majPageAffichage(); return; }
       var b = e.target.closest(".choix-pastille");
-      if (b) { changerOptionAffichage(b.dataset.option, b.dataset.valeur); return; }
+      if (b) { changerOptionAffichage(b.dataset.option, b.dataset.valeur, profilPage_()); return; }
       // Icônes de style (suite 67) : dans le <label> d'un interrupteur
       // (« Heures de travail »), preventDefault évite de basculer aussi
       // l'interrupteur de la ligne.
       var sb = e.target.closest(".style-icone");
       if (sb) {
         e.preventDefault();
-        changerOptionAffichage(sb.dataset.option, sb.dataset.valeur || (optionAffichage(sb.dataset.option) === "oui" ? "non" : "oui"));
+        changerOptionAffichage(sb.dataset.option, sb.dataset.valeur || (optionAffichage(sb.dataset.option, profilPage_()) === "oui" ? "non" : "oui"), profilPage_());
         return;
       }
       if (e.target.closest("#btnAffichageDefaut")) retablirAffichage();
@@ -577,7 +639,7 @@
       var i = freres.indexOf(b) + (e.key === "ArrowRight" ? 1 : -1);
       if (i < 0 || i >= freres.length) return;
       e.preventDefault(); e.stopPropagation();
-      changerOptionAffichage(freres[i].dataset.option, freres[i].dataset.valeur);
+      changerOptionAffichage(freres[i].dataset.option, freres[i].dataset.valeur, profilPage_());
       freres[i].focus();
     });
     // Passage téléphone <-> écran large (rotation) : colonnes de l'aperçu.

@@ -3615,12 +3615,26 @@
   .aa-txt { font-size: 12px; font-weight: 600; line-height: 1.25; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
   .aa-statut { align-self: flex-start; display: inline-flex; align-items: center; gap: 4px; font-family: var(--police-mono); font-size: 8.5px; font-weight: 600; text-transform: uppercase; padding: 1px 6px 1px 5px; border-radius: 999px; background: var(--status-confirme-bg); color: var(--ink); }
   .aa-statut i { width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
-  @media (max-width: 600px) {
-    .apercu-affichage { --aa-noms: 58px; }
-    .aa-th { font-size: 9px; }
-    .aa-nom { font-size: calc(11px * var(--aff-t-noms, 1)); padding: 0 6px; }
-    .aa-carte { padding-left: 6px; padding-right: 6px; }
+  /* Aperçu « Téléphone » (round du 27.09.2026, suite 76 — bascule
+     Ordinateur / Téléphone au-dessus de l'aperçu, Lionel : « L'aperçu doit
+     refléter le mode desktop ou mobile ») : la largeur d'un téléphone, et
+     les réglages étroits d'avant (ceux du @media ≤ 600 px), quel que soit
+     l'appareil qui l'affiche. « Ordinateur » sur un téléphone : l'aperçu
+     large, qui défile de côté. */
+  .apercu-affichage.aa-tel { --aa-noms: 58px; max-width: 360px; margin: 0 auto; }
+  .aa-tel .aa-th { font-size: 9px; }
+  .aa-tel .aa-nom { font-size: calc(11px * var(--aff-t-noms, 1)); padding: 0 6px; }
+  .aa-tel .aa-carte { padding-left: 6px; padding-right: 6px; }
+  #apercuAffichage { overflow-x: auto; }
+  .apercu-affichage:not(.aa-tel) { min-width: 520px; }
+  .bascule-appareil { display: flex; width: max-content; margin: 0 auto 8px; padding: 3px; gap: 2px; border-radius: 10px; background: var(--case-fixe-bg, var(--surface)); border: 1px solid var(--border); }
+  .bascule-profil {
+    display: inline-flex; align-items: center; gap: 6px;
+    font: inherit; font-size: 12.5px; font-weight: 600; color: var(--ink-muted); background: none; border: none;
+    padding: 6px 12px; border-radius: 7px; cursor: pointer; white-space: nowrap; transition: background .12s, color .12s;
   }
+  .bascule-profil.actif { background: var(--accent); color: var(--accent-ink); }
+  @media (hover: hover) and (pointer: fine) { .bascule-profil:not(.actif):hover { background: var(--accent-soft); color: var(--accent); } }
 
   /* ─── Barres de défilement discrètes (round du 26.09.2026, suite 65) ───
      Lionel : « Fait en sorte que toutes les barres de défilement soient des
