@@ -92,8 +92,8 @@
     { id: "separation", groupe: "Planning", nom: "Espace entre 2 semaines", aide: "Comme 2 fenêtres côte à côte. Éteint : un simple trait, comme entre 2 jours.", interrupteur: ["espace", "rien"], defaut: "espace", alias: { trait: "rien" }, css: true },
     // Suite 74 (cf. vueBordsActive, js/core.js). Suite 79 — Lionel :
     // « L'option jour voisins au bord doit être placé dans la toolbar avec
-    // le mode 2 semaines. » `barre` : réglée par #btnJoursBords
-    // (basculerJoursBords), plus de ligne sur la page ; hors de « Tout
+    // le mode 2 semaines. » `barre` : réglée par le bouton de vue
+    // (#btnModeVue, basculerModeVue — suite 82), plus de ligne sur la page ; hors de « Tout
     // rétablir ». `commun` : un seul réglage, dans le jeu de l'ordinateur
     // (les téléphones ne l'ont pas), gardé quand un jeu reprend l'autre.
     { id: "bords", groupe: "Planning", nom: "Jours voisins aux bords", aide: "Ordinateur, tablette : le vendredi d’avant à gauche et le lundi d’après à droite, coupés par le bord de l’écran. Les noms restent entre les deux.", interrupteur: true, defaut: "non", barre: true, commun: true },
@@ -207,10 +207,6 @@
     var m = {};
     OPTIONS_AFFICHAGE.forEach(function (o) { if (o.barre && optionAffichage(o.id, "ordi") !== o.defaut) m[o.id] = optionAffichage(o.id, "ordi"); });
     return m;
-  }
-  // #btnJoursBords (suite 79, cf. js/coquille.js).
-  function basculerJoursBords() {
-    changerOptionAffichage("bords", optionAffichage("bords", "ordi") === "oui" ? "non" : "oui", "ordi");
   }
   var minuteursAffichage_ = {};
   function ecrireJeu_(cle, cleLocale, m) {
@@ -583,7 +579,7 @@
     // aussi car la vue est bord à bord. » Ordinateur, jours voisins aux
     // bords allumés : planning de bord à bord, sans coin (suite 75).
     var ligneCadre = page.querySelector('.reglage-ligne[data-option="cadre"]');
-    if (ligneCadre) ligneCadre.hidden = profil === "ordi" && optionAffichage("bords", "ordi") === "oui";
+    if (ligneCadre) ligneCadre.hidden = profil === "ordi" && optionAffichage("bords", "ordi") === "oui" && !deuxSemaines; // suite 82 : 2 semaines = pas de bords
     OPTIONS_AFFICHAGE.forEach(function (o) {
       var v = optionAffichage(o.id, profil);
       if (o.sousLigne) {

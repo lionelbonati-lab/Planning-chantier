@@ -145,8 +145,10 @@
     { id: "choisirDate", groupe: "Naviguer", nom: "Choisir une date", defaut: ["D"], planning: true, faire: ouvrirCalendrierBarre_ },
 
     // Téléphone : « 1 jour / 1 semaine » ; ailleurs « 1 / 2 semaines ».
-    { id: "changerVue", groupe: "Afficher", nom: "1 ou 2 semaines (téléphone : 1 jour ou 1 semaine)", defaut: ["V"], planning: true,
-      faire: function () { if (modeJourMobileActif() || (window.matchMedia && window.matchMedia("(max-width: 600px)").matches)) basculerVueJourMobile(); else basculerDeuxSemaines(); } },
+    // Suite 82 : même tour que le bouton de vue (1 semaine > jours voisins
+    // > 2 semaines).
+    { id: "changerVue", groupe: "Afficher", nom: "Mode de vue : 1 semaine, jours voisins, 2 semaines (téléphone : 1 jour ou 1 semaine)", defaut: ["V"], planning: true,
+      faire: function () { if (modeJourMobileActif() || (window.matchMedia && window.matchMedia("(max-width: 600px)").matches)) basculerVueJourMobile(); else basculerModeVue(); } },
     { id: "weekends", groupe: "Afficher", nom: "Afficher ou masquer les week-ends", defaut: ["W"], planning: true,
       faire: function () { changerOptionAffichage("weekends", afficherWeekends ? "non" : "oui"); } },
     { id: "zoomPlus", groupe: "Afficher", nom: "Zoom avant", defaut: ["+"], planning: true, faire: function () { cliquer_("zoomPlus"); } },

@@ -412,21 +412,17 @@
             '</div>' +
             '<button type="button" class="toolbar-btn" id="btnSemaineSuiv" title="Semaine suivante" aria-label="Semaine suivante">' + ICONS.chevronDroite + '</button>' +
           '</div>' +
-          '<button type="button" class="toolbar-btn" id="btnDeuxSemaines" title="Afficher 2 semaines à la fois" aria-label="Afficher 2 semaines à la fois">' + ICONS.deuxSemaines + '<span class="toolbar-btn-label">Afficher 2 semaines</span><span class="toolbar-btn-coche">✓</span></button>' +
+          // Round du 27.09.2026 (suite 82) — Lionel : « Regrouper les
+          // boutons mode de vue en 1 seul bouton afin qu'un seul mode ne
+          // soit actif à la fois. Comportement du clic sur le bouton 1
+          // semaine > jours voisin > 2 semaines > 1 semaine. » Remplace
+          // « Afficher 2 semaines » et « Jours voisins aux bords » (suite
+          // 79) : icône et libellé du mode affiché, un clic passe au suivant
+          // (basculerModeVue, js/grille-rendu.js ; majSemaineAffichage).
+          '<button type="button" class="toolbar-btn" id="btnModeVue" title="Vue : 1 semaine" aria-label="Vue : 1 semaine">' + '<span class="mode-vue-icone">' + ICONS.uneSemaine + '</span>' + '<span class="toolbar-btn-label">1 semaine</span></button>' +
           '<div class="ligne-vue-mobile">' +
             '<button type="button" class="toolbar-btn" id="btnVueJourMobile" title="Afficher la semaine complète" aria-label="Afficher la semaine complète" aria-pressed="false">' + ICONS.semaineMobile + '</button>' +
           '</div>' +
-        '</div>' +
-        // Round du 27.09.2026 (suite 79) — Lionel : « L'option jour voisins
-        // au bord doit être placé dans la toolbar avec le mode 2 semaines.
-        // Disparaît en mode mobile. » Même bouton à 2 états que
-        // #btnDeuxSemaines (cf. basculerJoursBords, page-affichage.js),
-        // collé derrière lui (rang 55, sans séparateur). Groupe à part : il
-        // part dans « ⋮ » (juste après la navigation, rang 35) avant elle —
-        // à 820 px, « ‹ Sem. N › » reste dans la barre (suite 47). Masqué
-        // sur téléphone (style-mobile.css).
-        '<div class="toolbar-groupe" id="groupeJoursBords" data-rang="55" data-rang-menu="35">' +
-          '<button type="button" class="toolbar-btn" id="btnJoursBords" title="Jours voisins aux bords" aria-label="Jours voisins aux bords" aria-pressed="false">' + ICONS.joursBords + '<span class="toolbar-btn-label">Jours voisins aux bords</span><span class="toolbar-btn-coche">✓</span></button>' +
         '</div>' +
         '<div class="toolbar-groupe sep-avant" id="groupeZoom" data-rang="60" data-rang-menu="20">' +
           '<div class="zoom-ctrl" id="zoomCtrl">' +
@@ -1120,9 +1116,9 @@
     var btnSemainePrec = document.getElementById("btnSemainePrec");
     var btnSemaineSuiv = document.getElementById("btnSemaineSuiv");
     var btnAujourdhuiBarre = document.getElementById("btnAujourdhui");
-    var btnDeuxSemainesBarre = document.getElementById("btnDeuxSemaines");
+    var btnModeVueBarre = document.getElementById("btnModeVue");
     // Round du 23.09.2026 (suite 4) — #btnVueJourMobile, pendant mobile de
-    // btnDeuxSemainesBarre (cf. #groupeVueJourMobile plus haut et
+    // btnModeVueBarre (cf. #groupeVueJourMobile plus haut et
     // basculerVueJourMobile, js/grille-rendu.js).
     var btnVueJourMobileBarre = document.getElementById("btnVueJourMobile");
     if (btnSemainePrec) btnSemainePrec.addEventListener("click", function () { naviguerSemaine(-1); });
@@ -1140,9 +1136,7 @@
     document.getElementById("selStatut").addEventListener("click", basculerMenuStatutSelection);
     document.getElementById("selSupprimer").addEventListener("click", supprimerSelection);
     document.getElementById("selFermer").addEventListener("click", function () { quitterModeSelection(); render(false); });
-    if (btnDeuxSemainesBarre) btnDeuxSemainesBarre.addEventListener("click", basculerDeuxSemaines);
-    var btnJoursBordsBarre = document.getElementById("btnJoursBords");
-    if (btnJoursBordsBarre) btnJoursBordsBarre.addEventListener("click", basculerJoursBords);
+    if (btnModeVueBarre) btnModeVueBarre.addEventListener("click", basculerModeVue);
     if (btnVueJourMobileBarre) btnVueJourMobileBarre.addEventListener("click", basculerVueJourMobile);
     // Icône calendrier de la barre (round du 24.09.2026, suite 15 ;
     // partout depuis la suite 16 ; plus de double dans le menu ⋮ du
