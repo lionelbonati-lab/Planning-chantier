@@ -9549,3 +9549,43 @@ Lionel :
   - liste du bureau et absences posées en « Congé - mariage » ;
   - liste « Mes absences » et case en attente en « Congé - Déménagement ».
 - Suite complète : 85/85.
+
+## 189. Round du 27.09.2026 (suite 81) — Bouton « Notifications » à la place de « À réserver »
+- « J'aimerai un bouton notifications à la place de celui de statut. »
+- « On y placera les demandes de congés et les statuts à réserver. On peut retirer les statuts réserver et confirmer de cette section. »
+
+### Ce qui change
+- **Barre d'outils** : une cloche « Notifications » à la place du signet « À réserver », à la même place.
+  - Pastille rouge : nombre de demandes d'absence en attente + nombre de tâches à réserver.
+  - Survol : « Notifications — 1 demande d'absence, 2 tâches « à réserver » ».
+  - Même repli dans ⋮ qu'avant, avec son libellé ; point rouge sur ⋮ quand quelque chose attend.
+  - Téléphone : dans la barre du bas, comme avant « À réserver ».
+- **Fenêtre « Notifications »**, en deux sections avec leur nombre :
+  - « Demandes d'absence » : qui, « Congé - Motif », quand ; Voir / Refuser / Accepter ;
+  - « À réserver » : quand, qui, quoi, chantier ; un clic amène le planning sur le jour et sélectionne la tâche.
+  - Plus de pastilles « Réservé » / « Confirmé ».
+- **Bandeau « N demandes d'absence à valider »** au-dessus du planning : retiré, la cloche le remplace. Les demi-journées demandées restent hachurées.
+- Le bouton s'affiche dès qu'il existe un statut ou une demande en attente.
+
+### Fonctionnement
+- Nouveau fichier js/notifications.js :
+  - `majBoutonNotifications` : compteur, survol, visibilité ;
+  - `ouvrirNotifications` : la fenêtre ;
+  - `cablerNotifications` : les deux boutons.
+- js/a-reserver.js ne fait plus que lire et regrouper les tâches « à réserver » (`majAReserver`, `dernierResumeAReserver`, filtré sur ce statut). La ligne et le saut vers la tâche sont dans `htmlLigneAReserver_` et `allerATacheAReserver_`.
+- js/demandes-absence.js :
+  - la liste est dans `htmlDemandesAbsence_` et `cablerListeDemandes_`, appelées par la fenêtre des notifications ;
+  - chaque relecture ou traitement met la cloche à jour.
+- Identifiants : `#groupeNotifications` (rang 25, REPLIS_ORDRE), `#btnNotifications`, `#btnNotificationsNavBas`, `.compte-notifications`, `.pop-notifications`. Icône `ICONS.cloche`.
+
+### Tests
+- test_suite81.js, 13/13 :
+  - cloche à la place de « À réserver », plus de bandeau ;
+  - compteur 3 = 1 demande + 2 à réserver ;
+  - fenêtre en deux sections, sans pastilles ;
+  - Accepter depuis la fenêtre ;
+  - clic sur une tâche à réserver ;
+  - téléphone : barre du bas ;
+  - sans statut : bouton seulement s'il y a une demande.
+- test_suite47, 50, 53, 61, 69 et test_toolbar_chevauchement : nouveaux identifiants, compteur rouge, plus de pastilles de statut, cloche à la place du bandeau.
+- Suite complète : 86/86.

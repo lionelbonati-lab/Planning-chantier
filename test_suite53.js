@@ -113,29 +113,29 @@ function mesurerLignes(page) {
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 390, height: 820 }, hasTouch: true, bd: BD });
     await page.waitForTimeout(1800);
     const m = await page.evaluate(() => {
-      const bas = document.getElementById('btnAReserverNavBas'), r = bas.getBoundingClientRect(), badge = bas.querySelector('.compte-a-reserver');
+      const bas = document.getElementById('btnNotificationsNavBas'), r = bas.getBoundingClientRect(), badge = bas.querySelector('.compte-notifications');
       const nav = document.getElementById('navBas').getBoundingClientRect();
       return { visible: r.width > 0 && r.top >= nav.top && r.bottom <= nav.bottom, compte: badge.hidden ? '' : badge.textContent, fond: getComputedStyle(badge).backgroundColor,
-        titre: bas.title, barreOutils: document.getElementById('groupeAReserver').getBoundingClientRect().width,
-        menu: !!document.querySelector('#toolbarSecondaire #groupeAReserver') };
+        titre: bas.title, barreOutils: document.getElementById('groupeNotifications').getBoundingClientRect().width,
+        menu: !!document.querySelector('#toolbarSecondaire #groupeNotifications') };
     });
-    verifier(m.visible && m.compte === '2' && m.fond === 'rgb(249, 200, 200)' && m.titre === 'À réserver — 2 tâches à partir d’aujourd’hui',
-      '390 px : « À réserver » dans la barre du bas, compteur 2 à la couleur du statut (' + JSON.stringify(m) + ')');
+    verifier(m.visible && m.compte === '2' && m.fond === 'rgb(179, 55, 47)' && m.titre === 'Notifications — 2 tâches «\u00a0à réserver\u00a0»',
+      '390 px : « Notifications » (ex-« À réserver », suite 81) dans la barre du bas, compteur 2 en rouge (' + JSON.stringify(m) + ')');
     verifier(m.barreOutils === 0 && !m.menu, '390 px : plus dans la barre d\'outils du planning ni dans « ⋮ »');
     if (CAPTURES) await page.screenshot({ path: CAPTURES + '/s53-a-reserver-bas.png' });
     // Depuis une autre page : ouvert, puis clic sur une ligne → planning, ce jour.
     await allerPage(page, 'chantiers');
     await page.waitForTimeout(300);
-    verifier(await page.$eval('#btnAReserverNavBas', (b) => b.getBoundingClientRect().width > 0), '390 px : visible aussi sur l\'onglet Chantiers');
-    await page.click('#btnAReserverNavBas');
-    await page.waitForSelector('.pop-a-reserver .ar-ligne');
+    verifier(await page.$eval('#btnNotificationsNavBas', (b) => b.getBoundingClientRect().width > 0), '390 px : visible aussi sur l\'onglet Chantiers');
+    await page.click('#btnNotificationsNavBas');
+    await page.waitForSelector('.pop-notifications .ar-ligne');
     if (CAPTURES) await page.screenshot({ path: CAPTURES + '/s53-a-reserver-resume.png' });
-    const lignes = await page.$$eval('.pop-a-reserver .ar-ligne', (ls) => ls.map((l) => l.textContent));
+    const lignes = await page.$$eval('.pop-notifications .ar-ligne', (ls) => ls.map((l) => l.textContent));
     verifier(lignes.length === 2 && /Tableau électrique/.test(lignes[1]), '390 px : le résumé s\'ouvre depuis la barre du bas (' + lignes.join(' ‖ ') + ')');
-    await page.click('.pop-a-reserver .ar-ligne >> nth=1');
+    await page.click('.pop-notifications .ar-ligne >> nth=1');
     await page.waitForTimeout(700);
     const apres = await page.evaluate(() => ({ planning: document.getElementById('page-planning').classList.contains('actif'), nom: document.getElementById('switcherNom').textContent,
-      semaine: etat.semaines[etat.indexSemaine].debut, jour: typeof jourMobileIso !== 'undefined' ? jourMobileIso : null, pop: !!document.querySelector('.pop-a-reserver') }));
+      semaine: etat.semaines[etat.indexSemaine].debut, jour: typeof jourMobileIso !== 'undefined' ? jourMobileIso : null, pop: !!document.querySelector('.pop-notifications') }));
     verifier(apres.planning && apres.nom === 'Planning' && apres.semaine === '2026-10-05' && apres.jour === '2026-10-06' && !apres.pop,
       '390 px : clic sur une ligne depuis Chantiers — retour au planning, sur ce jour (' + JSON.stringify(apres) + ')');
     toutesErreurs.push(...erreurs);
@@ -145,8 +145,8 @@ function mesurerLignes(page) {
   {
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 1400, height: 900 }, bd: BD });
     await page.waitForTimeout(1800);
-    const m = await page.evaluate(() => ({ barre: document.getElementById('btnAReserver').getBoundingClientRect().width > 0, bas: document.getElementById('btnAReserverNavBas').getBoundingClientRect().width }));
-    verifier(m.barre && m.bas === 0, '1400 px : « À réserver » reste dans la barre d\'outils, pas de barre du bas (' + JSON.stringify(m) + ')');
+    const m = await page.evaluate(() => ({ barre: document.getElementById('btnNotifications').getBoundingClientRect().width > 0, bas: document.getElementById('btnNotificationsNavBas').getBoundingClientRect().width }));
+    verifier(m.barre && m.bas === 0, '1400 px : « Notifications » reste dans la barre d\'outils, pas de barre du bas (' + JSON.stringify(m) + ')');
     toutesErreurs.push(...erreurs);
     await page.close();
   }

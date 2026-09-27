@@ -10,10 +10,12 @@
      demandes_absence (sql/0020), JAMAIS directement dans `taches`. Ici,
      dans le planning :
        - un bandeau au-dessus de la grille, visible seulement s'il y a des
-         demandes en attente : « 2 demandes d'absence à valider » ;
+         demandes en attente (suite 81 : remplacé par la section « Demandes
+         d'absence » des notifications, js/notifications.js — la cloche
+         les compte) ;
        - les demi-journées demandées sont hachurées (pointillés) sur la
          ligne de la personne, avec la demande en info-bulle ;
-       - un clic sur le bandeau ouvre la liste : qui, quoi (« Congé -
+       - la liste (dans les notifications depuis la suite 81) : qui, quoi (« Congé -
          motif », suite 80), quand ; « Voir » amène le planning sur le premier jour,
          « Refuser » la classe refusée, « Accepter » pose les absences
          (une par demi-journée ouvrée, fériés sautés, au bout de chaque
@@ -43,12 +45,12 @@
       .then(function (res) {
         lectureDemandesEnCours_ = null;
         // Table absente (migration pas encore passée) ou serveur injoignable :
-        // pas de bandeau, rien de cassé.
+        // rien dans les notifications, rien de cassé.
         if (res.error) return demandesAbsence;
         demandesAbsence = (res.data || []).slice().sort(function (a, b) {
           return a.date_debut < b.date_debut ? -1 : a.date_debut > b.date_debut ? 1 : a.id - b.id;
         });
-        majBandeauDemandes();
+        majBoutonNotifications();
         marquerCellulesDemandes();
         return demandesAbsence;
       }, function () { lectureDemandesEnCours_ = null; return demandesAbsence; });
@@ -90,15 +92,6 @@
     return slotsPlageTacheIso(q.date_debut, q.date_fin, q.demi_debut, q.demi_fin).filter(function (s) { return !feriesParIso[s.date]; });
   }
 
-  function majBandeauDemandes() {
-    var b = document.getElementById("bandeauDemandes");
-    if (!b) return;
-    var n = demandesAbsence.length;
-    b.hidden = !n;
-    if (!n) return;
-    b.querySelector(".bd-texte").textContent = n + " demande" + (n > 1 ? "s" : "") + " d’absence à valider";
-  }
-
   function marquerCellulesDemandes() {
     var racine = document.getElementById("racine");
     if (!racine) return;
@@ -121,54 +114,41 @@
     });
   }
 
-  function ouvrirDemandesAbsence() {
-    if (popFermerActuel) popFermerActuel();
-    var pop = document.createElement("div");
-    pop.className = "pop form-pop pop-demandes-absence";
-    pop.innerHTML = '<div class="cp-titre">Demandes d’absence</div><div class="da-contenu"><p class="da-vide">Chargement…</p></div>' +
-      '<div class="form-actions"><button type="button" class="f-annuler">Fermer</button></div>';
-    var bandeau = document.getElementById("bandeauDemandes");
-    var r = bandeau && bandeau.getBoundingClientRect().width ? bandeau.getBoundingClientRect() : { left: window.innerWidth / 2 - 220, bottom: 80 };
-    positionnerPop(pop, Math.round(r.left), Math.round(r.bottom + 6));
-    var fermer = fermerAuClicExterieur(pop, null, null);
-    pop.querySelector(".f-annuler").addEventListener("click", fermer);
-    var contenu = pop.querySelector(".da-contenu");
-
-    function dessiner() {
-      if (!demandesAbsence.length) {
-        contenu.innerHTML = '<p class="da-vide">Aucune demande en attente.</p>';
-        return;
-      }
-      contenu.innerHTML = '<p class="da-aide">Envoyées depuis les liens de consultation. « Accepter » pose l’absence dans le planning.</p>' +
-        '<ul class="da-liste">' + demandesAbsence.map(function (q) {
-          return '<li data-id="' + esc2(q.id) + '"><div class="da-infos">' +
-            '<span class="da-qui">' + esc(nomPersonneDemande_(q)) + "</span>" +
-            '<span class="da-quoi">' + esc(texteDemandeAbsence(q)) + "</span>" +
-            '<span class="da-quand">' + esc(libelleDemandeAbsence(q)) + "</span></div>" +
-            '<div class="da-boutons">' +
-            '<button type="button" class="lien-modifier da-voir">Voir</button>' +
-            '<button type="button" class="lien-supprimer da-refuser">Refuser</button>' +
-            '<button type="button" class="btn-enregistrer da-accepter">Accepter</button>' +
-            "</div></li>";
-        }).join("") + "</ul>";
-      contenu.querySelectorAll(".da-liste li").forEach(function (li) {
-        var q = demandesAbsence.filter(function (x) { return String(x.id) === li.dataset.id; })[0];
-        if (!q) return;
-        li.querySelector(".da-voir").addEventListener("click", function () {
-          fermer();
-          var pagePlanning = document.getElementById("page-planning");
-          if (pagePlanning && !pagePlanning.classList.contains("actif")) {
-            var onglet = document.querySelector('.onglet[data-page="planning"]');
-            if (onglet) onglet.click();
-          }
-          allerAuJour(slotsDemandeAbsence_(q).length ? slotsDemandeAbsence_(q)[0].date : q.date_debut);
-        });
-        li.querySelector(".da-refuser").addEventListener("click", function () { traiterDemandeAbsence(q, false, dessiner); });
-        li.querySelector(".da-accepter").addEventListener("click", function () { traiterDemandeAbsence(q, true, dessiner); });
+  // Liste des demandes, dans la section « Demandes d'absence » des
+  // notifications (suite 81 ; avant, fenêtre ouverte par le bandeau) :
+  // qui, quoi, quand ; Voir / Refuser / Accepter.
+  function htmlDemandesAbsence_() {
+    if (!demandesAbsence.length) return '<p class="notif-vide">Aucune demande en attente.</p>';
+    return '<ul class="da-liste">' + demandesAbsence.map(function (q) {
+      return '<li data-id="' + esc2(q.id) + '"><div class="da-infos">' +
+        '<span class="da-qui">' + esc(nomPersonneDemande_(q)) + "</span>" +
+        '<span class="da-quoi">' + esc(texteDemandeAbsence(q)) + "</span>" +
+        '<span class="da-quand">' + esc(libelleDemandeAbsence(q)) + "</span></div>" +
+        '<div class="da-boutons">' +
+        '<button type="button" class="lien-modifier da-voir">Voir</button>' +
+        '<button type="button" class="lien-supprimer da-refuser">Refuser</button>' +
+        '<button type="button" class="btn-enregistrer da-accepter">Accepter</button>' +
+        "</div></li>";
+    }).join("") + "</ul>";
+  }
+  // fermer : ferme la fenêtre (« Voir ») ; redessiner : après Accepter /
+  // Refuser, la demande quitte la liste.
+  function cablerListeDemandes_(conteneur, fermer, redessiner) {
+    conteneur.querySelectorAll(".da-liste li").forEach(function (li) {
+      var q = demandesAbsence.filter(function (x) { return String(x.id) === li.dataset.id; })[0];
+      if (!q) return;
+      li.querySelector(".da-voir").addEventListener("click", function () {
+        fermer();
+        var pagePlanning = document.getElementById("page-planning");
+        if (pagePlanning && !pagePlanning.classList.contains("actif")) {
+          var onglet = document.querySelector('.onglet[data-page="planning"]');
+          if (onglet) onglet.click();
+        }
+        allerAuJour(slotsDemandeAbsence_(q).length ? slotsDemandeAbsence_(q)[0].date : q.date_debut);
       });
-    }
-    dessiner();
-    chargerDemandesAbsence(true).then(function () { if (pop.isConnected) dessiner(); });
+      li.querySelector(".da-refuser").addEventListener("click", function () { traiterDemandeAbsence(q, false, redessiner); });
+      li.querySelector(".da-accepter").addEventListener("click", function () { traiterDemandeAbsence(q, true, redessiner); });
+    });
   }
 
   // Accepter : absences posées PUIS demande classée (si l'écriture des
@@ -191,7 +171,7 @@
       traitementDemandeEnCours_ = false;
       occupe(false);
       demandesAbsence = demandesAbsence.filter(function (x) { return x.id !== q.id; });
-      majBandeauDemandes();
+      majBoutonNotifications();
       marquerCellulesDemandes();
       var qui = nomPersonneDemande_(q);
       if (accepter) {
@@ -212,8 +192,6 @@
   }
 
   function cablerDemandesAbsence() {
-    var b = document.getElementById("bandeauDemandes");
-    if (b) b.addEventListener("click", ouvrirDemandesAbsence);
     setInterval(function () { if (!document.hidden) chargerDemandesAbsence(true); }, 120000);
     document.addEventListener("visibilitychange", function () { if (!document.hidden) chargerDemandesAbsence(false); });
   }

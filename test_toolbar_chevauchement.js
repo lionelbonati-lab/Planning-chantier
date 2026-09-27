@@ -104,7 +104,7 @@ function mesurer() {
   //    fonctions »), puis Masquages, Navigation, Imprimer. Suite 47 :
   //    « À réserver » après Masquages, avant la navigation.
   // Suite 79 : « Jours voisins aux bords » juste avant la navigation.
-  const ORDRE_REPLI = ['groupeZoom', 'controlesAffichage', 'groupeAReserver', 'groupeJoursBords', 'groupeNavSemaine', 'groupeImprimer'];
+  const ORDRE_REPLI = ['groupeZoom', 'controlesAffichage', 'groupeNotifications', 'groupeJoursBords', 'groupeNavSemaine', 'groupeImprimer'];
   const TOUJOURS_BARRE = ['groupeAnnulerRefaire', 'groupeChantier', 'groupeAujourdhui', 'groupeAjoutElement'];
   let largeursOk = 0, nbLargeurs = 0, replis = [], ordreRespecte = true, toujoursLa = true;
   for (let w = 1400; w >= 320; w -= 10) {
@@ -146,7 +146,7 @@ function mesurer() {
   await largeur(700);
   e = await etatBarre();
   // Suite 79 : « Jours voisins aux bords » juste après la navigation.
-  verifier(JSON.stringify(e.menu) === JSON.stringify(['groupeAReserver', 'groupeZoom', 'groupeNavSemaine', 'groupeJoursBords', 'controlesAffichage']), 'ordre du menu à 700px (« À réserver » juste après Imprimer, suite 47) : ' + e.menu);
+  verifier(JSON.stringify(e.menu) === JSON.stringify(['groupeNotifications', 'groupeZoom', 'groupeNavSemaine', 'groupeJoursBords', 'controlesAffichage']), 'ordre du menu à 700px (« À réserver » juste après Imprimer, suite 47) : ' + e.menu);
   await page.click('#btnPlusOutils');
   await page.waitForTimeout(100);
   const lignes = await page.evaluate(() => {

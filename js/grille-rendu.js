@@ -226,10 +226,11 @@
   // il reste dans la barre tant qu'il y tient (tout le reste est dans
   // « ⋮ ») — replié sinon (suite 50, cf. ajusterDebordementToolbar).
   // Suite 79 : « Jours voisins aux bords » replié juste avant la navigation.
-  var REPLIS_ORDRE = ["groupeZoom", "controlesAffichage", "groupeAReserver", "groupeJoursBords", "groupeNavSemaine", "groupeImprimer"];
+  // Suite 81 : « À réserver » devient « Notifications » (même place).
+  var REPLIS_ORDRE = ["groupeZoom", "controlesAffichage", "groupeNotifications", "groupeJoursBords", "groupeNavSemaine", "groupeImprimer"];
   // Jours voisins aux bords (suite 79) : masqué sur téléphone, laissé dans
   // la barre sans largeur (comme « À réserver »).
-  var REPLIS_TELEPHONE = REPLIS_ORDRE.filter(function (id) { return id !== "groupeAReserver" && id !== "groupeJoursBords"; }).concat(["groupeAjoutLigne"]);
+  var REPLIS_TELEPHONE = REPLIS_ORDRE.filter(function (id) { return id !== "groupeNotifications" && id !== "groupeJoursBords"; }).concat(["groupeAjoutLigne"]);
   // Insère `el` dans `conteneur` avant le premier enfant de rang supérieur
   // (data-rang ou data-rang-menu selon `cle`) — garde le DOM dans l'ordre
   // visuel, dont dépendent les séparateurs (.sep-avant, cf. style.css).
@@ -274,7 +275,7 @@
       // « À réserver » : sur téléphone, plus dans cette barre du tout, mais
       // dans la barre du bas (round du 25.09.2026, suite 53 — Lionel : « A
       // réservé pourrait être placer sur la barre du bas en mode mobile »,
-      // #btnAReserverNavBas) ; #groupeAReserver y est masqué en CSS
+      // #btnNotificationsNavBas depuis la suite 81) ; #groupeNotifications y est masqué en CSS
       // (style-mobile.css), il reste ici dans la barre, sans largeur. Il
       // était auparavant replié dans « ⋮ » quand la barre débordait (suite
       // 50, « Sur téléphone la toolbar déborde »).
@@ -3058,7 +3059,7 @@
   function render(sync) {
     construireGrille();
     if (sync !== false) synchroniser();
-    planifierMajAReserver(); // compteur « À réserver » (suite 47, js/a-reserver.js)
+    planifierMajAReserver(); // tâches « À réserver » (suite 47, js/a-reserver.js), comptées dans « Notifications » (suite 81)
     apresRenduDemandes(); // demandes d'absence des liens de consultation (suite 69, js/demandes-absence.js)
   }
 

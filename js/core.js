@@ -226,6 +226,9 @@
     clock: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7.5" stroke="currentColor" stroke-width="1.5"/><path d="M10 5.5V10l3 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     // Résumé « À réserver » (suite 47) : un signet (réserver = marquer).
     reserver: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M6 2.5h8a1 1 0 0 1 1 1v14l-5-3.3-5 3.3v-14a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>',
+    // Notifications (round du 27.09.2026, suite 81) : une cloche, à la
+    // place du signet « À réserver » dans la barre.
+    cloche: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M5 14.5V9a5 5 0 0 1 10 0v5.5l1.3 1.5H3.7L5 14.5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8.2 16.5a1.9 1.9 0 0 0 3.6 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M10 2.3V4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
     star: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M10 2.5l2.2 4.6 5 .7-3.6 3.6.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.6 5-.7L10 2.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>',
     bolt: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M11 2 4 11.5h5L8.5 18 16 8h-5.5L11 2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"/></svg>',
     // §85 (round du 17.09.2026) — Lionel, mockup mockup-sous-menu-outils.html

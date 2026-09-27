@@ -32,7 +32,7 @@ function mesurer(page) {
     const plusLoin = Math.max(...enfants.map((c) => c.getBoundingClientRect().right));
     const cadre = document.querySelector('#page-planning .grille-cadre').getBoundingClientRect();
     const entete = document.querySelector('#page-planning .entete-planning-scroll').getBoundingClientRect();
-    const ar = document.getElementById('groupeAReserver');
+    const ar = document.getElementById('groupeNotifications');
     const plus = document.getElementById('btnPlusOutils');
     const cellule = document.querySelector('.entete-planning-figee .th.today');
     return {
@@ -41,7 +41,7 @@ function mesurer(page) {
       cadre: [Math.round(cadre.left), Math.round(cadre.right)], entete: [Math.round(entete.left), Math.round(entete.right)],
       bordureCadre: getComputedStyle(document.querySelector('#page-planning .grille-cadre')).borderLeftWidth,
       aReserverDansBarre: !!ar.closest('#legendeBarre') && !ar.closest('#toolbarSecondaire') && !ar.hidden && ar.getBoundingClientRect().width > 0,
-      aReserverEnBas: (() => { const n = document.getElementById('btnAReserverNavBas'); return !!n && n.getBoundingClientRect().width > 0; })(),
+      aReserverEnBas: (() => { const n = document.getElementById('btnNotificationsNavBas'); return !!n && n.getBoundingClientRect().width > 0; })(),
       aReserverDansMenu: !!ar.closest('#toolbarSecondaire'),
       pastilleMenu: getComputedStyle(plus, '::after').content !== 'none' && getComputedStyle(plus, '::after').display !== 'none',
       finJour: cellule ? Math.round(cellule.getBoundingClientRect().right) : null,
@@ -57,7 +57,7 @@ function mesurer(page) {
 
   // --- 1. Téléphones : pleine largeur, rien ne dépasse de la barre ---
   // Suite 53 : sur téléphone, « À réserver » a quitté cette barre pour la
-  // barre du bas (#btnAReserverNavBas), à toutes les largeurs.
+  // barre du bas (#btnNotificationsNavBas), à toutes les largeurs.
   for (const largeur of [320, 360, 390, 412]) {
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: largeur, height: 760 }, hasTouch: true, bd: BD });
     await page.waitForTimeout(1800);
@@ -71,9 +71,9 @@ function mesurer(page) {
       largeur + ' px : « À réserver » dans la barre du bas, ni dans la barre d\'outils ni dans « ⋮ » (' + JSON.stringify(m) + ')');
     verifier(m.finJour === largeur, largeur + ' px : le jour affiché va jusqu\'au bord droit (' + m.finJour + ')');
     if (largeur === 320) {
-      await page.click('#btnAReserverNavBas');
+      await page.click('#btnNotificationsNavBas');
       await page.waitForTimeout(300);
-      verifier(await page.$('.pop-a-reserver') !== null, largeur + ' px : « À réserver » s\'ouvre depuis la barre du bas');
+      verifier(await page.$('.pop-notifications') !== null, largeur + ' px : « À réserver » s\'ouvre depuis la barre du bas');
     }
     toutesErreurs.push(...erreurs);
     await page.close();
@@ -84,7 +84,7 @@ function mesurer(page) {
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 360, height: 760 }, hasTouch: true, bd: BD12 });
     await page.waitForTimeout(1800);
     const m = await mesurer(page);
-    const compte = await page.$eval('#btnAReserverNavBas .compte-a-reserver', (e) => e.textContent);
+    const compte = await page.$eval('#btnNotificationsNavBas .compte-notifications', (e) => e.textContent);
     const bas = await page.evaluate(() => { const n = document.getElementById('navBas'); return n.scrollWidth <= n.clientWidth + 1; });
     verifier(compte === '12' && !m.deborde && bas, '360 px, compteur 12 (barre du bas) : rien ne dépasse (' + JSON.stringify({ compte, ecart: m.ecart, bas }) + ')');
     // Texte agrandi (réglage d'accessibilité du téléphone) : rien ne dépasse.

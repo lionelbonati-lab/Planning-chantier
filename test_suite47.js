@@ -5,7 +5,8 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 // accessible des statuts à réserver serait bien aussi. Regrouper les
 // onglets fériés et horaires. Nom d'onglet horaires, placer le calendrier
 // en haut de page et les horaires en bas de page. »
-// Résumé : js/a-reserver.js (#btnAReserver) ; onglet : htmlPageHoraires
+// Résumé : js/a-reserver.js, dans les notifications depuis la suite 81
+// (#btnNotifications, js/notifications.js) ; onglet : htmlPageHoraires
 // (js/coquille.js), page-feries.js, page-horaires.js.
 //
 // Lancer : node test_suite47.js
@@ -34,68 +35,65 @@ const BD = {
   const { verifier, bilan } = verificateur();
   const toutesErreurs = [];
 
-  // --- 1. Résumé « À réserver » ---
+  // --- 1. Résumé « À réserver » (section des notifications, suite 81) ---
   for (const largeur of [1400, 360]) {
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: largeur, height: 820 }, hasTouch: largeur < 600, bd: BD });
     await page.waitForTimeout(1800);
-    // Téléphone : dans la barre du bas depuis la suite 53 (#btnAReserverNavBas).
-    const selBtn = largeur < 600 ? '#btnAReserverNavBas' : '#btnAReserver';
+    // Téléphone : dans la barre du bas depuis la suite 53.
+    const selBtn = largeur < 600 ? '#btnNotificationsNavBas' : '#btnNotifications';
     const b = await page.evaluate((sel) => {
-      const btn = document.querySelector(sel), r = btn.getBoundingClientRect(), badge = btn.querySelector('.compte-a-reserver');
-      const place = sel === '#btnAReserver' ? !!btn.closest('#legendeBarre') && !btn.closest('#toolbarSecondaire') : !!btn.closest('#navBas');
+      const btn = document.querySelector(sel), r = btn.getBoundingClientRect(), badge = btn.querySelector('.compte-notifications');
+      const place = sel === '#btnNotifications' ? !!btn.closest('#legendeBarre') && !btn.closest('#toolbarSecondaire') : !!btn.closest('#navBas');
       return { visible: r.width > 0 && place, compte: badge.hidden ? '' : badge.textContent,
         fond: getComputedStyle(badge).backgroundColor, titre: btn.title, deborde: document.documentElement.scrollWidth > window.innerWidth + 1 };
     }, selBtn);
-    verifier(b.visible && b.compte === '3' && b.fond === 'rgb(249, 200, 200)' && b.titre === 'À réserver — 3 tâches à partir d’aujourd’hui' && !b.deborde,
-      largeur + ' px : bouton dans la barre' + (largeur < 600 ? ' du bas' : '') + ', compteur 3 à la couleur du statut (' + JSON.stringify(b) + ')');
+    verifier(b.visible && b.compte === '3' && b.fond === 'rgb(179, 55, 47)' && b.titre === 'Notifications — 3 tâches «\u00a0à réserver\u00a0»' && !b.deborde,
+      largeur + ' px : bouton « Notifications » dans la barre' + (largeur < 600 ? ' du bas' : '') + ', compteur 3 en rouge (' + JSON.stringify(b) + ')');
     if (CAPTURES) await page.screenshot({ path: CAPTURES + '/s47-barre-' + largeur + '.png' });
 
     await page.click(selBtn);
     await page.waitForTimeout(300);
     const l = await page.evaluate(() => ({
-      chips: [...document.querySelectorAll('.pop-a-reserver .ar-statuts .chip')].map((c) => c.textContent.trim() + (c.classList.contains('actif') ? '*' : '')).join(' | '),
-      lignes: [...document.querySelectorAll('.pop-a-reserver .ar-ligne')].map((li) => [...li.children].map((c) => c.textContent).join(' / ')),
-      dansEcran: (() => { const r = document.querySelector('.pop-a-reserver').getBoundingClientRect(); return r.left >= 0 && r.right <= window.innerWidth && r.top >= 0 && r.bottom <= window.innerHeight; })()
+      chips: document.querySelectorAll('.pop-notifications .chip').length,
+      titre: document.querySelector('.pop-notifications .notif-a-reserver .notif-titre').textContent,
+      lignes: [...document.querySelectorAll('.pop-notifications .ar-ligne')].map((li) => [...li.children].map((c) => c.textContent).join(' / ')),
+      dansEcran: (() => { const r = document.querySelector('.pop-notifications').getBoundingClientRect(); return r.left >= 0 && r.right <= window.innerWidth && r.top >= 0 && r.bottom <= window.innerHeight; })()
     }));
     if (CAPTURES) await page.screenshot({ path: CAPTURES + '/s47-resume-' + largeur + '.png' });
-    verifier(l.chips === 'À réserver 3* | Réservé 1 | Confirmé 0', largeur + ' px : pastilles par statut avec leurs nombres (' + l.chips + ')');
+    // Suite 81 : « On peut retirer les statuts réserver et confirmer de
+    // cette section. » Plus de pastilles : la liste « À réserver » seule.
+    verifier(l.chips === 0 && l.titre === 'À réserver3', largeur + ' px : section « À réserver » (3), sans pastilles réservé / confirmé (' + JSON.stringify([l.chips, l.titre]) + ')');
     verifier(l.lignes.join(' ‖ ') === 'Lun. 28 sept., matin / Béton/Armature / Pompe à béton / 26150 - Villa Bine ‖ ' +
       'Jeu. 1 oct. → Lun. 5 oct. / Echafaudage / Montage échafaudage / 26182 - Terrain de Padel ‖ ' +
       'Lun. 16 nov., après-midi / Mathis / Location nacelle / 26182 - Terrain de Padel',
       largeur + ' px : 3 lignes triées par date, plage sur le week-end regroupée, passée exclue (' + l.lignes.join(' ‖ ') + ')');
     verifier(l.dansEcran, largeur + ' px : liste entièrement à l\'écran');
 
-    await page.click('.pop-a-reserver .ar-statuts .chip[data-statut="reserve"]');
-    const reserve = await page.$$eval('.pop-a-reserver .ar-ligne', (ls) => ls.map((l) => l.textContent));
-    verifier(reserve.length === 1 && /Ven\. 25 sept\., matin.*Livraison armature/.test(reserve[0]), largeur + ' px : pastille « Réservé » — sa liste (' + reserve.join() + ')');
-    await page.click('.pop-a-reserver .ar-statuts .chip[data-statut="confirme"]');
-    verifier(await page.$eval('.pop-a-reserver .ar-vide', (e) => e.textContent) === 'Aucune tâche « Confirmé » à partir d’aujourd’hui.', largeur + ' px : statut vide — message');
-    await page.click('.pop-a-reserver .ar-statuts .chip[data-statut="areserver"]');
-    await page.click('.pop-a-reserver .ar-ligne >> nth=1');
+    await page.click('.pop-notifications .ar-ligne >> nth=1');
     await page.waitForTimeout(600);
-    const apres = await page.evaluate(() => ({ ouvert: !!document.querySelector('.pop-a-reserver'), semaine: etat.semaines[etat.indexSemaine].debut, jour: typeof jourMobileIso !== 'undefined' ? jourMobileIso : null }));
+    const apres = await page.evaluate(() => ({ ouvert: !!document.querySelector('.pop-notifications'), semaine: etat.semaines[etat.indexSemaine].debut, jour: typeof jourMobileIso !== 'undefined' ? jourMobileIso : null }));
     verifier(!apres.ouvert && apres.semaine === '2026-09-28' && (largeur > 600 || apres.jour === '2026-10-01'),
       largeur + ' px : clic sur une ligne — liste fermée, planning sur ce jour (' + JSON.stringify(apres) + ')');
     toutesErreurs.push(...erreurs);
     await page.close();
   }
 
-  // Tablette (820 px) : « À réserver » replié dans « ⋮ » après Zoom et
+  // Tablette (820 px) : « Notifications » (ex-« À réserver ») replié dans « ⋮ » après Zoom et
   // Masquages — la navigation des semaines reste dans la barre ; pastille
   // sur « ⋮ », résumé ouvert depuis le menu.
   {
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 820, height: 1000 }, bd: BD });
     await page.waitForTimeout(1800);
     const t = await page.evaluate(() => ({
-      replie: !!document.querySelector('#toolbarSecondaire #groupeAReserver'), nav: !!document.querySelector('#legendeBarre > #groupeNavSemaine'),
+      replie: !!document.querySelector('#toolbarSecondaire #groupeNotifications'), nav: !!document.querySelector('#legendeBarre > #groupeNavSemaine'),
       point: getComputedStyle(document.getElementById('btnPlusOutils'), '::after').backgroundColor
     }));
-    verifier(t.replie && t.nav && t.point === 'rgb(249, 200, 200)', '820 px : replié dans « ⋮ », navigation gardée dans la barre, pastille sur « ⋮ » (' + JSON.stringify(t) + ')');
+    verifier(t.replie && t.nav && t.point === 'rgb(179, 55, 47)', '820 px : replié dans « ⋮ », navigation gardée dans la barre, pastille sur « ⋮ » (' + JSON.stringify(t) + ')');
     await page.click('#btnPlusOutils');
-    const ligne = await page.$eval('#btnAReserver', (b) => b.innerText.replace(/\s+/g, ' ').trim());
-    await page.click('#btnAReserver');
+    const ligne = await page.$eval('#btnNotifications', (b) => b.innerText.replace(/\s+/g, ' ').trim());
+    await page.click('#btnNotifications');
     await page.waitForTimeout(300);
-    verifier(ligne === 'À réserver 3' && await page.$$eval('.pop-a-reserver .ar-ligne', (l) => l.length) === 3, '820 px : ligne « À réserver 3 » du menu, résumé ouvert (' + ligne + ')');
+    verifier(ligne === 'Notifications 3' && await page.$$eval('.pop-notifications .ar-ligne', (l) => l.length) === 3, '820 px : ligne « Notifications 3 » du menu, notifications ouvertes (' + ligne + ')');
     toutesErreurs.push(...erreurs);
     await page.close();
   }

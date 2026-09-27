@@ -504,17 +504,18 @@ async function imagePng(page) {
       statuts: [{ id: 1, cle: 'areserver', nom: 'à réserver', couleur: '#f9c8c8', ordre: 1 }, { id: 2, cle: 'reserve', nom: 'réservé', couleur: '#eec79b', ordre: 2 }],
       taches: [T(1, 20, '2026-10-01', 'matin', 'Montage échafaudage', 1, 1), T(2, 20, '2026-10-01', 'aprem', 'Montage échafaudage', 1, 1), T(3, 20, '2026-10-02', 'matin', 'Montage échafaudage', 1, 1),
         T(4, 20, '2026-10-01', 'matin', 'Montage échafaudage', 1, null), // même texte, sans statut : pas elle
-        T(5, 2, '2026-09-25', 'matin', 'Livraison armature', 1, 2)]
+        T(5, 2, '2026-09-25', 'matin', 'Livraison armature', 1, 1)]
     };
     for (const [largeur, hauteur, tactile] of [[1400, 620, false], [390, 700, true]]) {
       const lieu = largeur + ' px';
       const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: largeur, height: hauteur }, hasTouch: tactile, bd: BD7 });
       await page.waitForTimeout(1800);
-      const bouton = tactile ? '#btnAReserverNavBas' : '#btnAReserver';
-      const choisir = async (statut, n) => {
+      const bouton = tactile ? '#btnNotificationsNavBas' : '#btnNotifications';
+      // Suite 81 : plus de pastilles par statut, la liste « À réserver »
+      // seule (triée par date : Livraison armature, puis Montage).
+      const choisir = async (n) => {
         await page.click(bouton); await page.waitForTimeout(300);
-        await page.click('.pop-a-reserver .ar-statuts .chip[data-statut="' + statut + '"]');
-        await page.click('.pop-a-reserver .ar-ligne >> nth=' + n);
+        await page.click('.pop-notifications .ar-ligne >> nth=' + n);
         await page.waitForTimeout(700);
       };
       const etatSel = () => page.evaluate(() => {
@@ -526,7 +527,7 @@ async function imagePng(page) {
           clignote: dom && dom.classList.contains('bulle-retrouvee'), visible: !!r && r.top >= haut - 1 && r.top < bas && r.left < innerWidth && r.right > 0,
           semaine: etat.semaines[etat.indexSemaine].debut };
       });
-      await choisir('areserver', 0);
+      await choisir(1);
       const a = await etatSel();
       verifier(a.n === 1 && a.texte === 'Montage échafaudage' && a.statut === 'areserver' && String(a.personne) === '20' && a.classe && a.clignote && a.visible && a.semaine === '2026-09-28',
         lieu + ' : autre semaine — planning sur sa semaine, la tâche seule sélectionnée, à l\'écran, qui clignote (' + JSON.stringify(a) + ')');
@@ -538,7 +539,7 @@ async function imagePng(page) {
       }
       await page.evaluate(() => allerAujourdhui());
       await page.waitForTimeout(500);
-      await choisir('reserve', 0);
+      await choisir(0);
       const b = await etatSel();
       verifier(b.n === 1 && b.texte === 'Livraison armature' && b.classe && b.visible, lieu + ' : semaine déjà affichée — la tâche est sélectionnée aussi (' + JSON.stringify(b) + ')');
       await page.waitForTimeout(1400);

@@ -173,16 +173,16 @@
     /* « À réserver » dans la barre du bas (round du 25.09.2026, suite 53 —
        Lionel : « A réservé pourrait être placer sur la barre du bas en mode
        mobile. ») : même taille que l'avatar, compteur en pastille dans le
-       coin (règle .compte-a-reserver de style.css). Plus dans la barre
-       d'outils du planning sur téléphone. */
-    .nav-bas-a-reserver {
+       coin (règle .compte-notifications de style.css). Plus dans la barre
+       d'outils du planning sur téléphone. Suite 81 : devenu « Notifications ». */
+    .nav-bas-notifications {
       position: relative; flex-shrink: 0; width: 44px; height: 38px; border-radius: 10px;
       display: grid; place-items: center; padding: 0; cursor: pointer;
       border: 1px solid var(--border); background: var(--surface-2); color: var(--ink);
     }
-    .nav-bas-a-reserver[hidden] { display: none; }
-    .nav-bas-a-reserver svg { width: 19px; height: 19px; }
-    #groupeAReserver { display: none !important; }
+    .nav-bas-notifications[hidden] { display: none; }
+    .nav-bas-notifications svg { width: 19px; height: 19px; }
+    #groupeNotifications { display: none !important; }
     /* Listes des onglets (suite 53) : icônes à la place des textes (cf.
        .btn-icone-ligne, style.css), « Actif » sans son libellé (title),
        lignes un peu moins rembourrées. */
