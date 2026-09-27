@@ -2480,8 +2480,14 @@
      de la frontière (en-tête du lundi), à chaque rendu, défilement
      horizontal et changement de taille ; cachés quand la frontière passe
      sous la colonne des noms ou hors de l'écran. Vue « 1 jour » du
-     téléphone : pas concernée (un jour à la fois) ; depuis la suite 69,
-     sans trait épais non plus (classe sans-trait-semaines). */
+     téléphone : depuis la suite 69, sans trait épais (classe
+     sans-trait-semaines) ; depuis la suite 71, avec la bande elle aussi —
+     round du 27.09.2026, Lionel : « L'espace entre semaines n'est pas
+     visible lorsqu'on change de semaine ». Le téléphone ne voit la
+     frontière qu'en glissant du vendredi au lundi (ou du dimanche) : la
+     bande apparaît pendant le geste et disparaît d'elle-même une fois le
+     jour posé, le lundi calé contre la colonne des noms ou le vendredi
+     contre le bord droit (même règle « cachée hors de l'écran »). */
   var sepSemaines_ = null;
   function poserSepSemaines_(jourMobile, enteteFigee, enteteScroll, grilleEntete, cadre, scroller) {
     if (sepSemaines_ && sepSemaines_.ro) sepSemaines_.ro.disconnect();
@@ -2491,7 +2497,7 @@
     // d'espace, et le trait de .sem-frontiere est retiré en CSS
     // (html[data-aff-separation="rien"]).
     var trait = typeof optionAffichage === "function" && optionAffichage("separation") === "rien";
-    var ths = (jourMobile || trait) ? [] : [].slice.call(grilleEntete.querySelectorAll(".th.sem-frontiere:not(.th-demi)"));
+    var ths = trait ? [] : [].slice.call(grilleEntete.querySelectorAll(".th.sem-frontiere:not(.th-demi)"));
     racineEl.classList.toggle("avec-sep-semaines", ths.length > 0);
     // Vue « 1 jour » du téléphone : plus de trait épais non plus — round du
     // 26.09.2026 (suite 69), Lionel : « Sur mobile la grosse bordure est

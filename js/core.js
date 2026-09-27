@@ -687,9 +687,10 @@
   // de gauche » et « Si le mois apparait dans les case du jour l'enlever de
   // la case de gauche. » La case porte désormais le ou les mois sur une
   // ligne et l'année (ou « 2026 – 2027 ») dessous ; quand la date des jours
-  // écrit déjà le mois (page Affichage, Date « 24 sept. » ou « 24
-  // septembre »), l'année seule. Dates relues en ISO et triées : les
-  // week-ends (ajoutés après les jours ouvrés) restent dans l'ordre.
+  // écrit déjà le mois (page Affichage, Date « 24.09 », « 24 sept. » ou
+  // « 24 septembre » — « 24.09 » depuis la suite 71), l'année seule.
+  // Dates relues en ISO et triées : les week-ends (ajoutés après les jours
+  // ouvrés) restent dans l'ordre.
   function isosAffichesCoin_(n) {
     var isos = [];
     function ajouter(gi) { if (libelleJourGi(gi).mois) isos.push(isoDeGi(gi)); }
@@ -709,7 +710,12 @@
     });
     if (!annees.length) return "";
     var fd = typeof optionAffichage === "function" ? optionAffichage("formatDate") : "numero";
-    var moisDansJours = fd === "abrege" || fd === "complet";
+    // Suite 71 (round du 27.09.2026) — Lionel : « Lorsque le numéro de mois
+    // est dans la case jour, l'enlever de la colonne gauche. » « 24.09 »
+    // écrit lui aussi le mois (en chiffres), comme « 24 sept. » et « 24
+    // septembre » : année seule à gauche — la règle déjà suivie par
+    // l'impression (mois « Dans la case : 21.09 », js/impression.js).
+    var moisDansJours = fd === "chiffres" || fd === "abrege" || fd === "complet";
     return (moisDansJours ? "" : '<span class="coin-mois">' + esc(mois.join(" – ")) + '</span>') +
       '<span class="coin-annee">' + esc(annees.join(" – ")) + '</span>';
   }

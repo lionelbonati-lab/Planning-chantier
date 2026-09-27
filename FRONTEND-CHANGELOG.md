@@ -9204,3 +9204,30 @@ Lionel :
   - sur ordinateur, la semaine du 28 affiche toujours « sept. – oct. 2026 ».
 - Sans le correctif, 7 de ces vérifications échouent.
 - Suite complète : 78/78.
+
+## 179. Round du 27.09.2026 (suite 71) — Mois en chiffres retiré de la case de gauche ; espace entre semaines sur téléphone
+
+Lionel :
+- « Lorsque le numéro de mois est dans la case jour, l'enlever de la colonne gauche. »
+- « L'espace entre semaines n'est pas visible lorsqu'on change de semaine »
+
+### Ce qui change
+- **Case de gauche** : avec la date « 24.09 » (page Affichage), elle ne montre plus que l'année. Le mois est déjà écrit dans chaque case jour, comme avec « 24 sept. » et « 24 septembre ». L'aperçu de la page Affichage suit, ainsi que le téléphone.
+- **Espace entre semaines, téléphone** : en vue « 1 jour », il n'y avait qu'un trait fin entre le vendredi et le lundi. On ne voit cette frontière qu'en glissant d'une semaine à l'autre. Pendant ce glissement apparaît désormais le même espace arrondi que sur ordinateur, comme 2 fenêtres côte à côte. Il sort de l'écran de lui-même une fois le jour posé.
+- « Entre 2 semaines : Rien » reste respecté sur téléphone.
+
+### Fonctionnement
+- htmlCoinMoisAnnee (js/core.js) : `moisDansJours` inclut maintenant le format `chiffres`. C'est la règle que suit déjà l'impression (mois « Dans la case : 21.09 »).
+- poserSepSemaines_ (js/grille-rendu.js) : la vue « 1 jour » n'est plus exclue. La bande est déjà replacée à chaque défilement et cachée hors de l'écran : lundi calé contre la colonne des noms, ou vendredi contre le bord droit. La classe `sans-trait-semaines` (suite 69) reste en place.
+
+### Tests
+- test_suite71.js (nouveau), 10/10 :
+  - date « 24.09 » : l'année seule à gauche, dans le planning et l'aperçu, sur ordinateur et téléphone ;
+  - date « 24 » : le mois revient ;
+  - téléphone : pas d'espace à l'écran vendredi posé ;
+  - pendant le glissement : un espace de 8 px sur la frontière, dans l'en-tête et la grille, sans trait épais ;
+  - lundi posé : l'espace est sorti de l'écran ;
+  - « Rien » : pas d'espace.
+- Sans les correctifs, 4 de ces vérifications échouent.
+- test_suite61.js : en vue 1 jour du téléphone, la bande existe et reste cachée tant que le jour est posé. Avant cette suite, le test vérifiait qu'il n'y avait aucune bande.
+- Suite complète : 79/79 (test_suite61 relancé après sa mise à jour, 99/99).
