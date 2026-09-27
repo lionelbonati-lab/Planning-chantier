@@ -63,6 +63,7 @@ returns text language plpgsql stable set search_path = public as $$
 declare
   aujourdhui date := (now() at time zone 'Europe/Zurich')::date;
   v_pas interval;
+  v_jours integer;
 begin
   if p_frequence is null then return null; end if;
   if p_frequence not in ('semaine', 'mois') or p_intervalle is null or p_intervalle not between 1 and 12 then
@@ -73,7 +74,10 @@ begin
     return '« Jusqu’au » trop tôt : il faut au moins deux absences.';
   end if;
   if p_serie_fin > aujourdhui + 365 then return 'Répétition possible jusqu’à dans un an.'; end if;
-  if p_fin - p_debut >= case when p_frequence = 'semaine' then 7 else 28 end * p_intervalle then
+  -- (pas de CASE dans la condition d'un IF plpgsql : son THEN est pris
+  -- pour celui du IF)
+  v_jours := case when p_frequence = 'semaine' then 7 else 28 end * p_intervalle;
+  if p_fin - p_debut >= v_jours then
     return 'Chaque absence doit finir avant la suivante.';
   end if;
   return null;

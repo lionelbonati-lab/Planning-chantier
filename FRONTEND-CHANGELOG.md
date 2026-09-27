@@ -9790,7 +9790,7 @@ Lionel :
   - Une modification ou une annulation acceptée retire toutes les absences à venir de la série, même celles déplacées entre-temps. Le passé reste.
 
 ### Fonctionnement
-- **sql/0022_demandes_absence_series.sql** (nouvelle migration, pas encore appliquée sur le projet) :
+- **sql/0022_demandes_absence_series.sql** (nouvelle migration, appliquée sur le projet) :
   - Colonnes `serie_frequence` (« semaine » / « mois »), `serie_intervalle` (1 à 12), `serie_fin` (dernier début possible) et `serie_id` (série posée à l'acceptation).
   - `consultation_demander_absence` et `consultation_modifier_demande` prennent 3 paramètres de plus, avec des valeurs par défaut.
   - Garde-fous : au moins 2 absences, jusqu'à dans un an, chaque absence finit avant la suivante.
