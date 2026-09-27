@@ -9178,3 +9178,29 @@ Lionel :
 - test_suite61.js : en vue 1 jour du téléphone, la frontière de semaine n'a plus de bordure.
 - Suite complète : 76/77 ; test_suite35 (étirement de la poignée contre le bord, sensible au minutage quand tout tourne en parallèle) repasse seul, 2 fois sur 2.
 - test_suite42.js : la mesure « Montage va jusqu'au bord droit pendant le geste » attend désormais l'événement « scroll » puis 2 images (au lieu d'un délai fixe de 30 ms) — l'appli ajuste les cartes à l'image qui suit ce défilement, et la CI de la PR #63 avait mesuré une image trop tôt (280/360). 8 fois sur 8 sous charge parallèle.
+
+## 178. Round du 27.09.2026 (suite 70) — Téléphone : le mois de la case en haut à gauche est celui du jour affiché
+
+Lionel :
+- « En mode mobile, le mois affiché dans la case en haut à gauche ne peut pas être septembre-octobre car il n'affiche qu'un jour. »
+
+### Ce qui change
+- En vue « 1 jour » du téléphone, la case en haut à gauche ne liste plus les mois de toute la grille chargée (2 semaines, d'où « sept. – oct. » ou « déc. – jan. 2026 – 2027 »). Elle porte le mois et l'année **du jour à l'écran**.
+- Pendant un glissement, elle suit le jour qui occupe l'écran : « oct. » dès que le jeudi 1er en prend plus de la moitié, « sept. » si l'on revient.
+- Ordinateur et tablette : inchangé, la case liste les mois de la fenêtre affichée.
+
+### Fonctionnement
+- construireGrille (js/grille-rendu.js) : en vue 1 jour, la case est remplie avec `htmlCoinMoisAnnee([jourMobileCourant()])` au lieu de `htmlCoinPlanning(n)`.
+- `majCoinJourMobile_`, appelée une fois par image depuis l'écouteur « scroll » (`planifierMajCoinJourMobile_`), retient le jour dont le bord gauche est le plus proche du bord de l'écran. C'est la même règle que l'arrêt du défilement (defilementArrete), donc la case bascule à mi-chemin, là où l'aimantation posera le jour. Le contenu n'est réécrit qu'au changement de mois. Rien n'est fait tant que la grille est masquée.
+- Si la date des jours contient déjà le mois (format « 24 sept. »), la case n'affiche que l'année, comme avant.
+
+### Tests
+- test_suite70.js (nouveau), 10/10 :
+  - la grille du téléphone couvre septembre et octobre ;
+  - la case affiche « sept. 2026 » à l'ouverture et au mercredi 30 ;
+  - pendant le glissement, elle passe à « oct. » puis revient à « sept. » ;
+  - jour posé sur le 1er : « oct. 2026 » ;
+  - 31 décembre : « déc. 2026 » ; 4 janvier : « jan. 2027 » ;
+  - sur ordinateur, la semaine du 28 affiche toujours « sept. – oct. 2026 ».
+- Sans le correctif, 7 de ces vérifications échouent.
+- Suite complète : 78/78.
