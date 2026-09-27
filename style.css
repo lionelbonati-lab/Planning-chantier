@@ -889,7 +889,6 @@
   .da-qui { font-weight: 800; }
   .da-quoi { font-weight: 700; }
   .da-quand { flex-basis: 100%; color: var(--ink-muted); font-size: 12.5px; }
-  .da-remarque { flex-basis: 100%; color: var(--ink-muted); font-size: 12.5px; font-style: italic; }
   .da-boutons { display: flex; align-items: center; gap: 6px; margin-left: auto; }
   .ar-quand { font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; }
   .ar-qui { font-size: 12px; font-weight: 700; color: var(--ink-muted); text-align: right; }

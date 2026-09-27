@@ -156,12 +156,13 @@ const poids = (page, sel) => page.evaluate((s) => { const n = document.querySele
       'bandeau « 2 demandes » + demi-journées demandées hachurées sur la ligne de Mathis (' + JSON.stringify(vu) + ')');
     await page.click('#bandeauDemandes'); await page.waitForTimeout(250);
     const liste = await page.evaluate(() => [...document.querySelectorAll('.da-liste li')].map((l) => l.querySelector('.da-qui').textContent + ' · ' + l.querySelector('.da-quoi').textContent + ' · ' + l.querySelector('.da-quand').textContent));
-    verifier(liste.join(' / ') === 'Mathis · Congé · du mer. 23 sept. après-midi au jeu. 24 sept. / Lionel · Maladie · le lun. 5 oct. matin', 'liste : qui, quoi, quand (' + liste.join(' / ') + ')');
+    verifier(liste.join(' / ') === 'Mathis · Congé - mariage · du mer. 23 sept. après-midi au jeu. 24 sept. / Lionel · Maladie · le lun. 5 oct. matin', 'liste : qui, quoi (« Congé - Motif », suite 80), quand (' + liste.join(' / ') + ')');
     await page.click('.da-liste li[data-id="5"] .da-accepter'); await page.waitForTimeout(1200);
     const acc = await page.evaluate(() => ({ abs: __BD.taches.filter((t) => t.est_absence).map((t) => t.personne_id + ' ' + t.date + ' ' + t.demi + ' ' + t.texte).join(','),
-      dem: __BD.demandes_absence.map((d) => d.id + ':' + d.statut + ':' + !!d.traitee_le).join(','), bulle: TACHES.some((t) => t.type === 'absence' && t.texte === 'Congé'),
+      dem: __BD.demandes_absence.map((d) => d.id + ':' + d.statut + ':' + !!d.traitee_le).join(','), bulle: TACHES.some((t) => t.type === 'absence' && t.texte === 'Congé - mariage'),
       bandeau: document.querySelector('#bandeauDemandes .bd-texte').textContent, cases: document.querySelectorAll('.cell.demande-absence').length }));
-    verifier(acc.abs === '2 2026-09-23 aprem Congé,2 2026-09-24 matin Congé,2 2026-09-24 aprem Congé' && acc.dem === '5:acceptee:true,6:en_attente:false' &&
+    // Suite 80 : bulle « Congé - Motif » (le motif écrit par l'ouvrier).
+    verifier(acc.abs === '2 2026-09-23 aprem Congé - mariage,2 2026-09-24 matin Congé - mariage,2 2026-09-24 aprem Congé - mariage' && acc.dem === '5:acceptee:true,6:en_attente:false' &&
       acc.bulle && acc.bandeau === '1 demande d’absence à valider' && acc.cases === 0,
       'Accepter : absence posée (3 demi-journées), demande acceptée, hachures retirées (' + JSON.stringify(acc) + ')');
     await page.click('.da-liste li[data-id="6"] .da-refuser'); await page.waitForTimeout(500);
@@ -216,16 +217,22 @@ const poids = (page, sel) => page.evaluate((s) => { const n = document.querySele
       await page.fill('#faFin', '2026-09-29');
       await page.selectOption('#faDemiFin', 'matin');
       await page.fill('#faRemarque', 'Déménagement');
+      // Suite 80 — « Motif à la place de remarque » : le choix Congé /
+      // Vacances… s'appelle « Type », le texte libre « Motif ».
+      const libelles = await page.evaluate(() => ['faMotif', 'faRemarque'].map((id) => document.getElementById(id).closest('label').firstChild.textContent.trim()).join(' | '));
+      verifier(libelles === 'Type | Motif', 'formulaire : « Type » puis « Motif » (' + libelles + ')');
       if (process.env.CAPTURE_DIR) await page.screenshot({ path: process.env.CAPTURE_DIR + '/s69-demande.png', fullPage: true });
       await page.click('#faEnvoyer'); await page.waitForTimeout(500);
       const e = etat.envois[0] || {};
       verifier(e.p_jeton === JETON && e.p_debut === '2026-09-28' && e.p_fin === '2026-09-29' && e.p_demi_debut === 'matin' && e.p_demi_fin === 'matin' && e.p_motif === 'Congé' && e.p_remarque === 'Déménagement',
         'envoi : jeton, dates, demi-journées, motif, remarque (' + JSON.stringify(e) + ')');
       const apres = await page.evaluate(() => ({ form: !!document.getElementById('formAbsence'), liste: [...document.querySelectorAll('.demandes li')].map((l) => l.innerText.replace(/\s+/g, ' ')) }));
-      verifier(!apres.form && apres.liste.some((t) => /Congé — du lun\. 28 sept\. au mar\. 29 sept\. matin.*En attente.*Retirer/i.test(t)), 'après l\'envoi : demande « En attente » listée (' + JSON.stringify(apres) + ')');
+      verifier(!apres.form && apres.liste.some((t) => /Congé - Déménagement — du lun\. 28 sept\. au mar\. 29 sept\. matin.*En attente.*Retirer/i.test(t)), 'après l\'envoi : demande « En attente » listée (' + JSON.stringify(apres) + ')');
       await page.click('#btnSuivante'); await page.waitForTimeout(400);
       const cartes = await page.evaluate(() => [...document.querySelectorAll('.tache.demande')].map((t) => t.closest('.jour').dataset.date + '/' + (t.closest('.demi').classList.contains('demi-matin') ? 'matin' : 'aprem')).join(','));
       verifier(cartes === '2026-09-28/matin,2026-09-28/aprem,2026-09-29/matin', 'semaine suivante : demande en pointillés dans les demi-journées demandées (' + cartes + ')');
+      const texteCarte = await page.evaluate(() => document.querySelector('.tache.demande .texte').textContent);
+      verifier(texteCarte === 'Congé - Déménagement', 'demande en pointillés : « Congé - Motif » (' + texteCarte + ')');
       await page.click('.demandes .btn-retirer'); await page.waitForTimeout(400);
       verifier(etat.demandes.length === 1 && await page.evaluate(() => !document.querySelector('.tache.demande') && !document.querySelector('.btn-retirer')), '« Retirer » : demande en attente supprimée');
       toutesErreurs.push(...erreurs);

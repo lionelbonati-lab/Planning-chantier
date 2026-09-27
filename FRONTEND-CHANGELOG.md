@@ -9525,3 +9525,27 @@ Lionel :
 - test_toolbar_chevauchement.js : le nouveau groupe dans l'ordre de repli, dans la barre et dans le menu.
 - test_suite78.js : son code de sortie suit le bilan (il sortait toujours à 0).
 - Suite complète : 85/85.
+
+## 188. Round du 27.09.2026 (suite 80) — Demande d'absence : « Motif » à la place de « Remarque », bulle « Congé - Motif »
+- « La remarque de la demande de congé doit se mettre dans la bulle: "Congé - Motif". Motif à la place de remarque. »
+
+### Ce qui change
+- **Formulaire de la page de consultation** (« Demander une absence ») :
+  - la liste Congé / Vacances / Maladie… s'appelle « Type » ;
+  - le champ libre s'appelle « Motif (facultatif) » au lieu de « Remarque ».
+- **Bulle posée à l'acceptation** : « Congé - Motif » (ex. « Congé - mariage »). Sans motif écrit : « Congé » seul, comme avant.
+- **Même texte partout** :
+  - bureau : liste des demandes à valider (le motif n'est plus une ligne « « … » » à part), info-bulle des cases hachurées, message d'acceptation ;
+  - page de l'ouvrier : liste « Mes absences » et case « Demande d'absence en attente » du jour.
+
+### Fonctionnement
+- `texteDemandeAbsence(q)` (js/demandes-absence.js) et `texteDemande(q)` (js/consultation.js) : `type + " - " + motif`, ou le type seul si le motif est vide.
+- Base inchangée : la colonne `motif` garde le type, `remarque` le motif écrit. Les ids du formulaire (faMotif, faRemarque) aussi.
+- Retirés : `.da-remarque` (style.css), `.demande-remarque` (consultation.html).
+
+### Tests
+- test_suite69.js, 31/31 :
+  - libellés du formulaire « Type | Motif » ;
+  - liste du bureau et absences posées en « Congé - mariage » ;
+  - liste « Mes absences » et case en attente en « Congé - Déménagement ».
+- Suite complète : 85/85.
