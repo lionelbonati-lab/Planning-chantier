@@ -9814,3 +9814,48 @@ Lionel :
   - occurrences au mois ;
   - relecture sans la migration ;
   - page de consultation : Répéter / Jusqu’au, contrôles, envoi avec ou sans règle, liste, pointillés, série commencée, serveur pas à jour.
+
+## 195. Round du 27.09.2026 (suite 87) — Congés : hachures à la couleur des bulles ; une seule absence d'une série ; absences du bureau dans la liste de l'ouvrier
+- « Previsualisations des congés dans le planning de la même couleur que les bulles congés. »
+- « Un ouvrier doit pouvoir modifier une serie ou juste un des éléments. »
+- « Les congés placés par le bureau doivent aussi apparaître dans la liste des congés de l'ouvrier. »
+
+### Ce qui change
+- **Planning du bureau** : les hachures d'une demande en attente prennent la couleur des bulles d'absence (`--absence-bg`), avec un fin cadre de la même teinte.
+- **Série acceptée, côté ouvrier** : « Modifier » et « Annuler… » demandent « Quoi ».
+  - Choix : « Toute la série (les absences à venir) », ou « Seulement : lun. 19 oct. matin » pour chaque absence à venir.
+  - Une seule absence : ses dates sont reprises et « Répéter » est masqué. Le bureau ne touche qu'à celle-là.
+  - La série note ses absences à part : « Sauf : lun. 5 oct. (annulée). En attente du bureau : lun. 12 oct. (modification). »
+  - Toute la série n'est pas proposée tant qu'une de ses absences attend le bureau.
+- **Absences posées par le bureau** (sans demande) : elles apparaissent dans « Mes demandes », marquées « Posée par le bureau ».
+  - Les demi-journées qui se suivent avec le même texte forment un bloc. Le week-end est sauté.
+  - « Modifier » ouvre le formulaire pré-rempli : type et motif relus du texte (« Vacances - mariage »). Un texte inconnu est gardé comme type.
+  - « Annuler l’absence » envoie une demande d'annulation.
+  - Ces absences ne comptent pas dans la cloche.
+  - Une demande en attente sur un bloc le remplace dans la liste, avec « Avant : … (posée par le bureau) ».
+- **Notifications du bureau** : la demande dit ce qu'elle vise, par exemple « le mar. 13 oct. matin — avant : le lun. 12 oct. matin (une absence de la série « Congé », chaque semaine) » ou « (posée par le bureau) ».
+
+### Fonctionnement
+- **sql/0023_demandes_absence_cible.sql** (nouvelle migration, appliquée sur le projet) :
+  - Colonnes `cible_debut`, `cible_fin`, `cible_demi_debut`, `cible_demi_fin` et `cible_texte` : la partie du planning visée.
+  - `demande_absence_est_occurrence_` : même calcul que la page et le bureau.
+  - `consultation_modifier_demande` et `consultation_annuler_absence` prennent `p_cible_debut`, une absence de la série. Refus si elle est passée ou déjà visée.
+  - Nouvelle `consultation_changer_absence_bureau` (modification ou annulation d'un bloc du bureau) : le texte visé est relu dans `taches`, et une demande en attente qui chevauche le bloc est refusée.
+  - `consultation_planning` renvoie les `cible_*` et la liste `absences` de la personne (d'aujourd'hui à dans un an). Une annulation acceptée d'une seule absence reste lue, pour « Sauf : … ».
+- **js/demandes-absence.js** : `cibleDemande_` donne la partie visée.
+  - Accepter retire seulement cette partie (texte de la cible préféré).
+  - La modification d'une absence de série est reposée dans la même série (`serie_id` de la série, pas de nouvelle ligne `series`).
+  - La demande d'origine reste acceptée.
+- **js/consultation.js** :
+  - Nouvelles fonctions : `enfantsCible`, `occurrencesLibres`, `serieEntiereLibre`, `blocsBureau` et `analyserTexte`.
+  - Feuille « Annuler une absence » (`ouvrirAnnulationSerie`) et liste « Quoi » dans le formulaire (`#faPortee`).
+  - Mode « bureau » du formulaire, qui envoie la modification à `consultation_changer_absence_bureau`.
+- **consultation.html** : `.fa-ligne[hidden]` masqué ; pastille « Posée par le bureau » en gris.
+
+### Tests
+- test_suite87.js, 20/20 :
+  - couleur des hachures ;
+  - bureau : annuler ou modifier une absence d'une série ; modifier ou annuler un bloc du bureau ; libellés des notifications ;
+  - consultation : blocs du bureau (regroupement, week-end, cloche) ; « Sauf : … » ; « Quoi » à l'annulation et à la modification ; « Toute la série » et le retour à celle-ci ; formulaire d'un bloc du bureau ; annulation d'un bloc ; demande en attente sur un bloc.
+- test_suite86.js adapté : « Annuler la série » devient « Annuler… », qui ouvre la feuille « Quoi » (toute la série par défaut).
+- Suite complète : 92/92.

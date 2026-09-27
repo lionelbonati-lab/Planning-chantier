@@ -51,6 +51,19 @@
    chaque occurrence en attente ; une série se modifie / s'annule d'un
    bloc tant que sa dernière absence n'est pas passée (modifier une série
    commencée repart de sa prochaine absence).
+
+   Round du 27.09.2026 (suite 87) — Lionel : « Un ouvrier doit pouvoir
+   modifier une serie ou juste un des éléments. Les congés placés par le
+   bureau doivent aussi apparaître dans la liste des congés de
+   l'ouvrier. » (sql/0023)
+     - série acceptée : Modifier / Annuler demandent « Quoi » — toute la
+       série, ou une de ses absences à venir (demande avec cible_debut ;
+       le bureau ne touche qu'à celle-là) ; la série note ses absences à
+       part (« Sauf : lun. 5 oct. (annulée) ») ;
+     - absences posées directement par le bureau (sans demande) : listées
+       dans « Mes demandes » (« Posée par le bureau », demi-journées qui se
+       suivent regroupées), modifiables / annulables comme une absence
+       acceptée (consultation_changer_absence_bureau).
    ============================================================ */
 (function () {
   // Même projet et même clé publique que js/core.js (clé « anon », faite
@@ -165,6 +178,7 @@
   // « Congé - Motif », comme la bulle posée dans le planning à
   // l'acceptation (suite 80, cf. texteDemandeAbsence dans l'appli).
   function texteDemande(q) {
+    if (q.bureau) return q.texte || "Absence";
     var motif = (q.remarque || "").trim();
     return motif ? q.motif + " - " + motif : q.motif;
   }
@@ -217,10 +231,70 @@
   function typeDe(q) { return q.type || "nouvelle"; }
   function demandeParId(id) { return (donnees.demandes || []).filter(function (x) { return x.id === id; })[0] || null; }
   function changementEnAttente(q) {
-    return (donnees.demandes || []).some(function (x) { return x.statut === "en_attente" && x.remplace_id === q.id; });
+    return (donnees.demandes || []).some(function (x) { return x.statut === "en_attente" && x.remplace_id === q.id && !x.cible_debut; });
+  }
+  // ---- Suite 87 : une seule absence d'une série, absences du bureau ----
+  // Demandes qui visent une seule absence de la série q (en attente ou
+  // acceptées : cette absence n'est plus proposée).
+  function enfantsCible(q) {
+    return (donnees.demandes || []).filter(function (x) {
+      return x.remplace_id === q.id && x.cible_debut && (x.statut === "en_attente" || x.statut === "acceptee");
+    });
+  }
+  function ouvre(o) {
+    for (var iso = o.debut; iso <= o.fin; iso = plusJours(iso, 1)) if (dateDe(iso).getDay() % 6) return true;
+    return false;
+  }
+  // Absences à venir de la série que l'ouvrier peut encore viser une à
+  // une : ni passées, ni déjà visées, pas tout en week-end (rien de posé).
+  function occurrencesLibres(q) {
+    var prises = enfantsCible(q).map(function (x) { return x.cible_debut; });
+    return occurrences(q).filter(function (o) { return o.fin >= donnees.aujourdhui && prises.indexOf(o.debut) < 0 && ouvre(o); });
+  }
+  // Toute la série : pas pendant qu'une de ses absences attend le bureau
+  // (le serveur refuserait).
+  function serieEntiereLibre(q) {
+    return !enfantsCible(q).some(function (x) { return x.statut === "en_attente"; });
+  }
+  function libellePlage(debut, fin, demiDebut, demiFin) {
+    return libelleDemande({ debut: debut, fin: fin, demi_debut: demiDebut || "matin", demi_fin: demiFin || "aprem" });
+  }
+  function jourOuvreSuivant(iso) {
+    var n = plusJours(iso, 1);
+    while (dateDe(n).getDay() % 6 === 0) n = plusJours(n, 1);
+    return n;
+  }
+  // Absences posées par le bureau sans demande (donnees.absences, de
+  // aujourd'hui à dans un an) : demi-journées qui se suivent (week-end
+  // sauté) avec le même texte → un bloc. Écartées : celles d'une demande
+  // acceptée (déjà listée) et celles visées par une demande en attente
+  // (listée à sa place, « Avant : … »).
+  function blocsBureau() {
+    var d = donnees, dem = d.demandes || [];
+    var acceptees = dem.filter(function (q) { return q.statut === "acceptee" && typeDe(q) !== "annulation"; });
+    var visees = dem.filter(function (q) { return q.statut === "en_attente" && !q.remplace_id && q.cible_debut; }).map(function (q) {
+      return { debut: q.cible_debut, fin: q.cible_fin || q.cible_debut, demi_debut: q.cible_demi_debut || "matin", demi_fin: q.cible_demi_fin || "aprem" };
+    });
+    var vus = {}, blocs = [], b = null;
+    (d.absences || []).forEach(function (a) {
+      var cle = a.date + ":" + a.demi;
+      if (vus[cle]) return;
+      vus[cle] = true;
+      if (acceptees.some(function (q) { return demandeCouvre(q, a.date, a.demi); })) return;
+      if (visees.some(function (q) { return demandeCouvre(q, a.date, a.demi); })) return;
+      var texte = a.texte || "Absence";
+      var suite = b && b.texte === texte && !!b.serie === !!a.serie && (a.demi === "aprem" ? b.fin === a.date && b.demi_fin === "matin"
+        : b.demi_fin === "aprem" && jourOuvreSuivant(b.fin) === a.date) && dateDe(a.date) - dateDe(b.debut) < 60 * 864e5;
+      if (suite) { b.fin = a.date; b.demi_fin = a.demi; return; }
+      b = { bureau: true, id: "b" + a.date + a.demi, debut: a.date, fin: a.date, demi_debut: a.demi, demi_fin: a.demi,
+        texte: texte, serie: !!a.serie, statut: "acceptee", type: "nouvelle" };
+      blocs.push(b);
+    });
+    return blocs;
   }
   // État affiché : clé (classe, mémoire des demandes vues) et libellé.
   function etatDemande(q) {
+    if (q.bureau) return { cle: "bureau", libelle: "Posée par le bureau" };
     var t = typeDe(q);
     if (q.statut === "en_attente") return { cle: "en_attente", libelle: t === "modification" ? "Modification en attente" : t === "annulation" ? "Annulation en attente" : "En attente" };
     if (q.statut === "acceptee") return q.supprimee ? { cle: "supprimee", libelle: "Supprimée" } : { cle: "acceptee", libelle: "Acceptée" };
@@ -230,15 +304,21 @@
   }
   // Une absence acceptée dont une modification ou une annulation attend le
   // bureau n'est montrée qu'une fois : par la demande en attente.
+  // Suite 87 : + les absences posées par le bureau ; l'annulation acceptée
+  // d'une seule absence n'est plus montrée (l'absence a disparu, la série
+  // la note « Sauf : … »).
   function demandesVisibles() {
-    return (donnees.demandes || []).filter(function (q) { return !(q.statut === "acceptee" && changementEnAttente(q)); });
+    return (donnees.demandes || []).filter(function (q) {
+      if (q.statut === "acceptee" && changementEnAttente(q)) return false;
+      return !(typeDe(q) === "annulation" && q.statut === "acceptee" && q.cible_debut);
+    }).concat(blocsBureau()).sort(function (a, b) { return a.debut < b.debut ? -1 : a.debut > b.debut ? 1 : 0; });
   }
   function cleVue(q) { return q.id + ":" + etatDemande(q).cle; }
   function nonVues() {
-    return demandesVisibles().filter(function (q) { return q.statut !== "en_attente" && vus.indexOf(cleVue(q)) < 0; });
+    return demandesVisibles().filter(function (q) { return !q.bureau && q.statut !== "en_attente" && vus.indexOf(cleVue(q)) < 0; });
   }
   function marquerVues() {
-    vus = demandesVisibles().filter(function (q) { return q.statut !== "en_attente"; }).map(cleVue);
+    vus = demandesVisibles().filter(function (q) { return !q.bureau && q.statut !== "en_attente"; }).map(cleVue);
     try { localStorage.setItem(CLE_VUS, JSON.stringify(vus)); } catch (e) { /* mémoire indisponible : gardée pour cette visite */ }
   }
   function gestesDemande(q) {
@@ -246,8 +326,13 @@
     if (q.statut === "en_attente") {
       if (t !== "annulation") g.push(["modifier", "Modifier"]);
       g.push(["retirer", "Retirer", 1]);
+    } else if (e === "bureau") {
+      if (q.fin >= donnees.aujourdhui) { g.push(["modifier", "Modifier"]); g.push(["annuler", "Annuler l’absence", 1]); }
     } else if (e === "acceptee") {
-      if (finDerniere(q) >= donnees.aujourdhui) { g.push(["modifier", "Modifier"]); g.push(["annuler", estSerie(q) ? "Annuler la série" : "Annuler l’absence", 1]); }
+      // Suite 87 : série → « Annuler… » demande quoi (toute la série ou une
+      // de ses absences).
+      var libres = estSerie(q) ? occurrencesLibres(q).length > 0 || serieEntiereLibre(q) : true;
+      if (finDerniere(q) >= donnees.aujourdhui && libres) { g.push(["modifier", "Modifier"]); g.push(["annuler", estSerie(q) ? "Annuler…" : "Annuler l’absence", 1]); }
     } else {
       if (e !== "annulee" && t !== "annulation") g.push(["nouvelle", "Nouvelle demande"]);
       g.push(["masquer", "Supprimer", 1]);
@@ -259,12 +344,37 @@
     if (!liste.length) return '<p class="demandes-vide">Aucune demande d’absence.</p>';
     return '<ul class="demandes">' + liste.map(function (q) {
       var e = etatDemande(q), t = typeDe(q), orig = q.remplace_id ? demandeParId(q.remplace_id) : null, note = "";
-      if (t === "modification" && q.statut !== "acceptee" && orig) {
+      // Suite 87 : demande qui vise une seule absence (d'une série, ou
+      // posée par le bureau).
+      var provenance = q.cible_debut ? (q.remplace_id ? " (une absence de la série)" : " (posée par le bureau)") : "";
+      if (t === "modification" && q.statut !== "acceptee" && q.cible_debut) {
+        var avant = q.cible_texte || (orig ? texteDemande(orig) : "");
+        note = "Avant : " + (avant && avant !== texteDemande(q) ? avant + " — " : "") +
+          libellePlage(q.cible_debut, q.cible_fin, q.cible_demi_debut, q.cible_demi_fin) + provenance;
+      } else if (t === "modification" && q.statut !== "acceptee" && orig) {
         note = "Avant : " + (texteDemande(orig) !== texteDemande(q) ? texteDemande(orig) + " — " : "") + libelleDemande(orig);
+      } else if (t === "modification" && q.cible_debut) {
+        note = q.remplace_id ? "Remplace l’absence du " + jourCourt(q.cible_debut) + " de la série." : "Remplace une absence posée par le bureau.";
       } else if (t === "annulation") {
-        note = q.statut === "en_attente" ? "Le bureau est prévenu : il retire l’absence du planning." : "L’absence reste dans le planning.";
+        note = (q.statut === "en_attente" ? "Le bureau est prévenu : il retire l’absence du planning." : "L’absence reste dans le planning.") +
+          (q.cible_debut ? " Seulement celle-ci" + provenance + "." : "");
       } else if (e.cle === "supprimee") {
         note = "Retirée du planning par le bureau.";
+      } else if (q.bureau && q.serie) {
+        note = "Absence répétée par le bureau : seule celle-ci change.";
+      }
+      if (estSerie(q) && q.statut === "acceptee") {
+        var enfants = enfantsCible(q).slice().sort(function (a, b) { return a.cible_debut < b.cible_debut ? -1 : 1; });
+        var sauf = enfants.filter(function (x) { return x.statut === "acceptee"; }).map(function (x) {
+          return jourCourt(x.cible_debut) + (typeDe(x) === "annulation" ? " (annulée)" : " (modifiée)");
+        });
+        var attente = enfants.filter(function (x) { return x.statut === "en_attente"; }).map(function (x) {
+          return jourCourt(x.cible_debut) + (typeDe(x) === "annulation" ? " (annulation)" : " (modification)");
+        });
+        var parts = [];
+        if (sauf.length) parts.push("Sauf : " + sauf.join(", ") + ".");
+        if (attente.length) parts.push("En attente du bureau : " + attente.join(", ") + ".");
+        if (parts.length) note = (note ? note + " " : "") + parts.join(" ");
       }
       return '<li class="demande-' + esc(e.cle) + (aSignaler.indexOf(q) >= 0 ? " non-vu" : "") + '" data-id="' + esc(q.id) + '">' +
         '<div class="dq-texte"><b>' + esc(texteDemande(q)) + "</b><span>" + esc(libelleDemande(q)) + "</span>" + (note ? "<small>" + esc(note) + "</small>" : "") + "</div>" +
@@ -322,9 +432,10 @@
   }
   function dessinerDemandes(aSignaler) {
     var corps = document.getElementById("feuilleCorps");
+    var liste = demandesVisibles();
     corps.innerHTML = htmlListeDemandes(aSignaler || []);
     corps.querySelectorAll(".demandes li").forEach(function (li) {
-      var q = demandeParId(+li.dataset.id);
+      var q = liste.filter(function (x) { return String(x.id) === li.dataset.id; })[0] || null;
       li.querySelectorAll("[data-action]").forEach(function (b) {
         b.addEventListener("click", function () { gesteDemande(q, b.dataset.action, b); });
       });
@@ -332,12 +443,21 @@
   }
   function gesteDemande(q, geste, bouton) {
     if (!q) return;
-    if (geste === "modifier") return ouvrirFormulaire(q, "modifier");
+    if (geste === "modifier") return ouvrirFormulaire(q, q.bureau ? "bureau" : "modifier");
     if (geste === "nouvelle") return ouvrirFormulaire(q, "refaire");
+    if (geste === "annuler" && estSerie(q)) return ouvrirAnnulationSerie(q);
+    if (geste === "annuler" && q.bureau) {
+      if (!window.confirm("Annuler cette absence ? Le bureau est prévenu et la retire du planning.")) return;
+      bouton.disabled = true;
+      return appelRpc("consultation_changer_absence_bureau", { p_jeton: jeton, p_action: "annulation",
+        p_cible_debut: q.debut, p_cible_fin: q.fin, p_cible_demi_debut: q.demi_debut, p_cible_demi_fin: q.demi_fin }).then(function (r) {
+        if (!r || r.ok === false) { bouton.disabled = false; window.alert((r && r.erreur) || "Impossible d’annuler l’absence."); return; }
+        return charger(donnees.lundi);
+      }).catch(function () { bouton.disabled = false; window.alert("Impossible d’annuler l’absence : vérifie ta connexion internet."); });
+    }
     var appel = {
       retirer: ["Retirer cette demande d’absence ?", "consultation_annuler_demande", "Impossible de retirer la demande"],
-      annuler: [estSerie(q) ? "Annuler toute la série (les absences à venir) ? Le bureau est prévenu et la retire du planning."
-        : "Annuler cette absence ? Le bureau est prévenu et la retire du planning.", "consultation_annuler_absence", "Impossible d’annuler l’absence"],
+      annuler: ["Annuler cette absence ? Le bureau est prévenu et la retire du planning.", "consultation_annuler_absence", "Impossible d’annuler l’absence"],
       masquer: [null, "consultation_masquer_demande", "Impossible de supprimer la demande"]
     }[geste];
     if (!appel || (appel[0] && !window.confirm(appel[0]))) return;
@@ -348,12 +468,69 @@
     }).catch(function () { bouton.disabled = false; window.alert(appel[2] + " : vérifie ta connexion internet."); });
   }
 
+  // Suite 87 : « Quoi » — options de la liste « Quoi » d'une série
+  // acceptée : toute la série (si possible) puis chaque absence libre.
+  function optionsPortee(q) {
+    var o = serieEntiereLibre(q) ? [["", "Toute la série (les absences à venir)"]] : [];
+    return o.concat(occurrencesLibres(q).map(function (x) { return [x.debut, "Seulement : " + libellePlage(x.debut, x.fin, q.demi_debut, q.demi_fin)]; }));
+  }
+  function htmlPortee(q) {
+    return '<label>Quoi<select id="faPortee">' + optionsPortee(q).map(function (c) {
+      return '<option value="' + c[0] + '">' + esc(c[1]) + "</option>";
+    }).join("") + "</select></label>";
+  }
+  function ouvrirAnnulationSerie(q) {
+    var retour = feuilleOuverte === "demandes";
+    ouvrirFeuille("formulaire", "Annuler une absence", '<form class="form-absence" id="formAnnulation" novalidate>' +
+      '<p class="fa-origine">Série acceptée : ' + esc(texteDemande(q)) + " — " + esc(libelleDemande(q)) + "</p>" + htmlPortee(q) +
+      '<p class="fa-erreur" id="faErreur" hidden></p>' +
+      '<div class="fa-actions"><button type="button" class="btn-secondaire" id="faAnnuler">Retour</button>' +
+      '<button type="submit" class="btn-demander" id="faEnvoyer"></button></div>' +
+      '<p class="fa-aide">Le bureau est prévenu : il retire du planning ce que tu annules.</p></form>');
+    var portee = document.getElementById("faPortee"), envoyer = document.getElementById("faEnvoyer");
+    var maj = function () { envoyer.textContent = portee.value ? "Annuler cette absence" : "Annuler la série"; document.getElementById("faErreur").hidden = true; };
+    portee.addEventListener("change", maj);
+    maj();
+    var quitter = function () { if (retour) ouvrirDemandes(); else fermerFeuille(); };
+    document.getElementById("faAnnuler").addEventListener("click", quitter);
+    document.getElementById("formAnnulation").addEventListener("submit", function (e) {
+      e.preventDefault();
+      if (envoiEnCours) return;
+      var erreur = document.getElementById("faErreur");
+      var corps = { p_jeton: jeton, p_id: q.id };
+      if (portee.value) corps.p_cible_debut = portee.value;
+      envoiEnCours = true;
+      envoyer.disabled = true;
+      appelRpc("consultation_annuler_absence", corps).then(function (r) {
+        envoiEnCours = false;
+        if (!r || !r.ok) { envoyer.disabled = false; erreur.textContent = (r && r.erreur) || "Annulation refusée par le serveur."; erreur.hidden = false; return; }
+        return charger(donnees.lundi).then(quitter);
+      }).catch(function () {
+        envoiEnCours = false;
+        envoyer.disabled = false;
+        erreur.textContent = "Envoi impossible : vérifie ta connexion internet.";
+        erreur.hidden = false;
+      });
+    });
+    portee.focus();
+  }
+
+  // Suite 87 : texte d'une absence du bureau (« Congé - Motif ») → type
+  // et motif du formulaire ; texte inconnu → proposé tel quel comme type.
+  function analyserTexte(texte, motifs) {
+    var t = String(texte || "Absence"), i = t.indexOf(" - ");
+    if (i > 0 && motifs.indexOf(t.slice(0, i)) >= 0) return { motif: t.slice(0, i), remarque: t.slice(i + 3) };
+    return { motif: t, remarque: "" };
+  }
+
   // mode : "nouvelle" (barre du bas), "modifier" (demande en attente ou
   // absence acceptée) ou "refaire" (nouvelle demande pré-remplie depuis une
   // demande refusée ou une absence supprimée). q : la demande visée.
   function ouvrirFormulaire(q, mode) {
     var d = donnees, retour = feuilleOuverte === "demandes";
     var motifs = (d.motifs && d.motifs.length ? d.motifs : ["Congé", "Vacances", "Maladie"]).slice();
+    var bloc = mode === "bureau" ? q : null;
+    if (bloc) { var lu = analyserTexte(bloc.texte, motifs); q = Object.assign({}, bloc, { motif: lu.motif, remarque: lu.remarque }); }
     if (q && motifs.indexOf(q.motif) < 0) motifs.push(q.motif);
     var debutDefaut = d.lundi > d.aujourdhui ? d.lundi : d.aujourdhui;
     var v = q ? { motif: q.motif, debut: q.debut < d.aujourdhui ? d.aujourdhui : q.debut, demiDebut: q.demi_debut, demiFin: q.demi_fin, remarque: q.remarque || "" }
@@ -372,15 +549,18 @@
     if (v.repeter && !CHOIX_REPETER.some(function (c) { return c[0] === v.repeter; })) {
       CHOIX_REPETER.push([v.repeter, libelleRepetition(q.serie_frequence, q.serie_intervalle).replace(/^./, function (c) { return c.toUpperCase(); })]);
     }
-    var accepteeModifiee = mode === "modifier" && q.statut === "acceptee";
-    var titre = mode === "modifier" ? (accepteeModifiee ? "Modifier l’absence" : "Modifier la demande") : mode === "refaire" ? "Nouvelle demande" : "Demander une absence";
-    var envoyer = mode === "modifier" ? (accepteeModifiee ? "Envoyer la modification" : "Enregistrer") : "Envoyer la demande";
+    var accepteeModifiee = (mode === "modifier" && q.statut === "acceptee") || !!bloc;
+    // Suite 87 : série acceptée → « Quoi » (toute la série ou une absence).
+    var avecPortee = mode === "modifier" && accepteeModifiee && estSerie(q);
+    var titre = bloc ? "Modifier l’absence" : mode === "modifier" ? (accepteeModifiee ? "Modifier l’absence" : "Modifier la demande") : mode === "refaire" ? "Nouvelle demande" : "Demander une absence";
+    var envoyer = bloc ? "Envoyer la modification" : mode === "modifier" ? (accepteeModifiee ? "Envoyer la modification" : "Enregistrer") : "Envoyer la demande";
     var choixDemi = function (id, val) {
       return '<select id="' + id + '"><option value="matin"' + (val === "matin" ? " selected" : "") + ">Matin</option>" +
         '<option value="aprem"' + (val === "aprem" ? " selected" : "") + ">Après-midi</option></select>";
     };
     var html = '<form class="form-absence" id="formAbsence" novalidate>' +
-      (accepteeModifiee ? '<p class="fa-origine">Absence acceptée : ' + esc(texteDemande(q)) + " — " + esc(libelleDemande(q)) + "</p>" : "") +
+      (accepteeModifiee ? '<p class="fa-origine">' + (bloc ? "Absence posée par le bureau : " : estSerie(q) ? "Série acceptée : " : "Absence acceptée : ") +
+        esc(texteDemande(q)) + " — " + esc(libelleDemande(bloc ? bloc : q)) + "</p>" : "") + (avecPortee ? htmlPortee(q) : "") +
       // Suite 80 — Lionel : « Motif à la place de remarque. » Le choix
       // Congé / Vacances… devient le « Type » ; le texte libre, le
       // « Motif » (id et colonne `remarque` inchangés). Bulle posée à
@@ -418,8 +598,25 @@
       }
     };
     repeter.addEventListener("change", majJusquau);
+    // Une seule absence de la série : ses dates, sans répétition (le
+    // bureau ne change que celle-là) ; retour à « Toute la série » : les
+    // valeurs de départ.
+    var portee = document.getElementById("faPortee");
+    var majPortee = function () {
+      if (!portee) return;
+      var o = portee.value ? occurrencesLibres(q).filter(function (x) { return x.debut === portee.value; })[0] : null;
+      debut.value = o ? o.debut : v.debut;
+      fin.value = o ? o.fin : v.fin;
+      document.getElementById("faDemiDebut").value = v.demiDebut;
+      document.getElementById("faDemiFin").value = v.demiFin;
+      repeter.value = o ? "" : v.repeter;
+      jusquau.value = o ? "" : v.jusquau;
+      form.querySelector(".fa-serie").hidden = !!o;
+      majJusquau();
+    };
+    if (portee) portee.addEventListener("change", majPortee);
     debut.addEventListener("change", function () { if (fin.value < debut.value) fin.value = debut.value; majJusquau(); });
-    majJusquau();
+    if (portee) majPortee(); else majJusquau();
     var masquerErreur = function () { document.getElementById("faErreur").hidden = true; };
     form.addEventListener("input", masquerErreur);
     form.addEventListener("change", masquerErreur);
@@ -448,9 +645,17 @@
         corps.p_serie_frequence = r[0]; corps.p_serie_intervalle = n; corps.p_serie_fin = jusquau.value;
       }
       if (mode === "modifier") corps.p_id = q.id;
+      if (portee && portee.value) corps.p_cible_debut = portee.value;
+      var fonction = mode === "modifier" ? "consultation_modifier_demande" : "consultation_demander_absence";
+      if (bloc) {
+        fonction = "consultation_changer_absence_bureau";
+        corps.p_action = "modification";
+        corps.p_cible_debut = bloc.debut; corps.p_cible_fin = bloc.fin;
+        corps.p_cible_demi_debut = bloc.demi_debut; corps.p_cible_demi_fin = bloc.demi_fin;
+      }
       envoiEnCours = true;
       document.getElementById("faEnvoyer").disabled = true;
-      appelRpc(mode === "modifier" ? "consultation_modifier_demande" : "consultation_demander_absence", corps).then(function (r) {
+      appelRpc(fonction, corps).then(function (r) {
         envoiEnCours = false;
         if (!r || !r.ok) { document.getElementById("faEnvoyer").disabled = false; montrer((r && r.erreur) || "Demande refusée par le serveur."); return; }
         return charger(donnees.lundi).then(quitter);

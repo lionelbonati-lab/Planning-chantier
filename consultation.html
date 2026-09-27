@@ -132,6 +132,8 @@
   /* Suite 86 : « Répéter » prend la place, « Jusqu’au » masqué sans répétition. */
   .fa-serie label select { width: 100%; }
   .form-absence label[hidden] { display: none; }
+  /* Suite 87 : une seule absence d’une série choisie → ligne « Répéter » masquée. */
+  .form-absence .fa-ligne[hidden] { display: none; }
   .fa-actions { display: flex; justify-content: flex-end; gap: 8px; }
   .fa-erreur { margin: 0; color: var(--danger); font-weight: 700; font-size: 13.5px; }
   .fa-aide { margin: 0; color: var(--ink-faint); font-size: 12px; }
@@ -148,6 +150,8 @@
   .demande-acceptee .etat { color: #1e7a3c; border-color: currentColor; }
   .demande-refusee .etat, .demande-supprimee .etat, .demande-annulee .etat { color: var(--danger); border-color: currentColor; }
   .demande-en_attente .etat { color: var(--accent); border-color: currentColor; }
+  /* Suite 87 : absence posée par le bureau (sans demande). */
+  .demande-bureau .etat { color: var(--ink-muted); border-color: currentColor; }
   .demandes-vide { margin: 4px 0; color: var(--ink-faint); font-size: 13.5px; text-align: center; }
   .tache.demande { background: transparent; color: var(--ink); border: 1.5px dashed var(--ink-faint); border-left-width: 1.5px; }
   .chargement main { opacity: .55; transition: opacity .15s; }

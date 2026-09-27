@@ -201,10 +201,13 @@ const JETON = '0123456789abcdef0123456789abcdef';
     const liste = await page.evaluate(() => [...document.querySelectorAll('.demandes li')].map((l) => l.dataset.id + ' · ' + l.querySelector('.dq-texte span').textContent + ' · ' +
       [...l.querySelectorAll('.dq-actions button')].map((b) => b.textContent).join('/')));
     if (CAPTURES) await page.screenshot({ path: CAPTURES + '/s86-consultation-liste.png' });
-    verifier(liste.join(' | ') === '1 · lun. 14 sept. matin, chaque semaine jusqu’au lun. 26 oct. · Modifier/Annuler la série | 2 · ven. 25 sept. après-midi, toutes les 2 semaines jusqu’au ven. 6 nov. · Modifier/Retirer',
-      'liste : règle de répétition, série commencée encore modifiable / « Annuler la série » (' + liste.join(' | ') + ')');
+    verifier(liste.join(' | ') === '1 · lun. 14 sept. matin, chaque semaine jusqu’au lun. 26 oct. · Modifier/Annuler… | 2 · ven. 25 sept. après-midi, toutes les 2 semaines jusqu’au ven. 6 nov. · Modifier/Retirer',
+      'liste : règle de répétition, série commencée encore modifiable / « Annuler… » (' + liste.join(' | ') + ')');
+    // Suite 87 : « Annuler… » demande quoi (toute la série par défaut).
     await page.click('.demandes li[data-id="1"] [data-action="annuler"]'); await page.waitForTimeout(200);
-    verifier(/Annuler toute la série/.test(dialogues[dialogues.length - 1] || ''), 'Annuler la série : confirmation « toute la série » (' + dialogues[dialogues.length - 1] + ')');
+    const ann = await page.evaluate(() => ({ quoi: faPortee.value, choix: faPortee.options[0].textContent, bouton: faEnvoyer.textContent }));
+    verifier(ann.quoi === '' && /Toute la série/.test(ann.choix) && ann.bouton === 'Annuler la série', 'Annuler… : « Toute la série » proposé d’abord (' + JSON.stringify(ann) + ')');
+    await page.click('#faAnnuler'); await page.waitForTimeout(200);
 
     // Modifier une série commencée : repart de la prochaine absence.
     await page.click('.demandes li[data-id="1"] [data-action="modifier"]'); await page.waitForTimeout(300);
