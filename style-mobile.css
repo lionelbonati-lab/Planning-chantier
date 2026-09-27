@@ -263,6 +263,10 @@
        (#groupeNavSemaine) au lieu de 2 groupes voisins — sélecteur d'id,
        qui l'emporte sur `.toolbar-secondaire .toolbar-btn` de style.css. */
     #btnDeuxSemaines { display: none; }
+    /* Suite 79 — « Jours voisins aux bords », à côté de lui dans la barre :
+       « Disparaît en mode mobile » (vue sans objet sur téléphone, cf.
+       vueBordsActive). */
+    #groupeJoursBords { display: none; }
     /* Round du 24.09.2026 (suite 15) — Lionel : « Dans le menu 3 point sur
        mobile, en mode un jour, la navigation par semaine doit être
        remplacée par la date du jour aller sélectionner une autre date dans

@@ -103,7 +103,8 @@ function mesurer() {
   //    premier (suite 10 — Lionel : « c'est la moins utilisé des
   //    fonctions »), puis Masquages, Navigation, Imprimer. Suite 47 :
   //    « À réserver » après Masquages, avant la navigation.
-  const ORDRE_REPLI = ['groupeZoom', 'controlesAffichage', 'groupeAReserver', 'groupeNavSemaine', 'groupeImprimer'];
+  // Suite 79 : « Jours voisins aux bords » juste avant la navigation.
+  const ORDRE_REPLI = ['groupeZoom', 'controlesAffichage', 'groupeAReserver', 'groupeJoursBords', 'groupeNavSemaine', 'groupeImprimer'];
   const TOUJOURS_BARRE = ['groupeAnnulerRefaire', 'groupeChantier', 'groupeAujourdhui', 'groupeAjoutElement'];
   let largeursOk = 0, nbLargeurs = 0, replis = [], ordreRespecte = true, toujoursLa = true;
   for (let w = 1400; w >= 320; w -= 10) {
@@ -128,7 +129,7 @@ function mesurer() {
   //    Chantier | navigation semaines | Zoom | Insertions | Masquages ».
   await largeur(1400);
   let e = await etatBarre();
-  verifier(JSON.stringify(e.barre) === JSON.stringify(['groupeAnnulerRefaire', 'groupeImprimer', 'groupeChantier', 'groupeAujourdhui', 'groupeNavSemaine', 'groupeZoom', 'groupeAjoutLigne', 'groupeAjoutElement', 'controlesAffichage']) && e.menu.length === 0,
+  verifier(JSON.stringify(e.barre) === JSON.stringify(['groupeAnnulerRefaire', 'groupeImprimer', 'groupeChantier', 'groupeAujourdhui', 'groupeNavSemaine', 'groupeJoursBords', 'groupeZoom', 'groupeAjoutLigne', 'groupeAjoutElement', 'controlesAffichage']) && e.menu.length === 0,
     'barre complète dans l\'ordre demandé, menu vide : ' + e.barre);
   verifier(await page.evaluate(() => getComputedStyle(document.getElementById('btnPlusOutils')).display === 'none'), '"⋮" masqué quand rien n\'est replié');
 
@@ -144,7 +145,8 @@ function mesurer() {
   //    sur une ligne ; 4 masquages sur une ligne ; ‹ utilisable depuis le menu.
   await largeur(700);
   e = await etatBarre();
-  verifier(JSON.stringify(e.menu) === JSON.stringify(['groupeAReserver', 'groupeZoom', 'groupeNavSemaine', 'controlesAffichage']), 'ordre du menu à 700px (« À réserver » juste après Imprimer, suite 47) : ' + e.menu);
+  // Suite 79 : « Jours voisins aux bords » juste après la navigation.
+  verifier(JSON.stringify(e.menu) === JSON.stringify(['groupeAReserver', 'groupeZoom', 'groupeNavSemaine', 'groupeJoursBords', 'controlesAffichage']), 'ordre du menu à 700px (« À réserver » juste après Imprimer, suite 47) : ' + e.menu);
   await page.click('#btnPlusOutils');
   await page.waitForTimeout(100);
   const lignes = await page.evaluate(() => {

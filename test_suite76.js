@@ -9,8 +9,9 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //     desktop, ou si on est sur mobile, ce sera mobile. »
 // Vérifie :
 //   1. ordinateur : la page s'ouvre sur « Ordinateur » (aperçu large, avec
-//      le mardi ; lignes « Jours voisins aux bords » et « Ordinateur,
-//      tablette » visibles, « Téléphone » cachée) ;
+//      le mardi ; lignes « Coins du planning arrondis » et « Ordinateur,
+//      tablette » visibles, « Téléphone » cachée — « Jours voisins aux
+//      bords » est dans la barre d'outils depuis la suite 79) ;
 //   2. « Téléphone » : aperçu de la largeur d'un téléphone, sans le mardi ;
 //      réglages du téléphone (texte, lignes propres au téléphone) ;
 //   3. un réglage changé en mode Téléphone va dans le jeu du téléphone :
@@ -26,11 +27,12 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 const etatPage = (page) => page.evaluate(() => {
   const p = document.getElementById('page-affichage'), ap = p.querySelector('.apercu-affichage');
   const vis = (id) => { const l = p.querySelector('.reglage-ligne[data-option="' + id + '"]'); return !!l && !l.hidden && l.getBoundingClientRect().height > 0; };
+  // Suite 79 : plus de ligne « bords » (barre d'outils) ; « cadre » à sa place.
   return {
     actif: [...p.querySelectorAll('.bascule-profil.actif')].map((b) => b.dataset.profil).join(','),
     tel: ap.classList.contains('aa-tel'), largeur: Math.round(ap.getBoundingClientRect().width),
     jours: [...ap.querySelectorAll('.aa-th')].map((t) => t.textContent.trim().slice(0, 3).toLowerCase()),
-    bords: vis('bords'), vueOrdi: vis('vueOrdi'), vueTel: vis('vueTel'),
+    cadre: vis('cadre'), vueOrdi: vis('vueOrdi'), vueTel: vis('vueTel'),
     jeu: document.getElementById('affichageJeu').textContent,
     texte: document.documentElement.getAttribute('data-aff-texte'),
     txtApercu: getComputedStyle(ap.querySelector('.aa-txt')).fontSize,
@@ -48,13 +50,13 @@ const etatPage = (page) => page.evaluate(() => {
     await page.evaluate(() => afficherPage('affichage')); await page.waitForTimeout(300);
     // --- 1. Ordinateur par défaut ---
     let e = await etatPage(page);
-    verifier(e.actif === 'ordi' && !e.tel && e.jours.includes('mar') && e.bords && e.vueOrdi && !e.vueTel && /ordinateurs/.test(e.jeu),
+    verifier(e.actif === 'ordi' && !e.tel && e.jours.includes('mar') && e.cadre && e.vueOrdi && !e.vueTel && /ordinateurs/.test(e.jeu),
       'ordinateur : la page s\'ouvre sur « Ordinateur », aperçu large avec le mardi (' + JSON.stringify(e) + ')');
     // --- 2. Téléphone ---
     await page.click('.bascule-profil[data-profil="tel"]'); await page.waitForTimeout(200);
     e = await etatPage(page);
     // Suite 77 : un seul jour, comme le planning du téléphone.
-    verifier(e.actif === 'tel' && e.tel && e.largeur <= 360 && e.jours.join() === 'jeu' && !e.bords && !e.vueOrdi && e.vueTel && /téléphones/.test(e.jeu),
+    verifier(e.actif === 'tel' && e.tel && e.largeur <= 360 && e.jours.join() === 'jeu' && e.cadre && !e.vueOrdi && e.vueTel && /téléphones/.test(e.jeu),
       '« Téléphone » : aperçu de la largeur d\'un téléphone, un seul jour, réglages du téléphone (' + JSON.stringify(e) + ')');
     // --- 3. Réglage du téléphone ---
     const txtAvant = e.txtApercu;
@@ -89,7 +91,7 @@ const etatPage = (page) => page.evaluate(() => {
     verifier(e.actif === 'tel' && e.tel && !e.jours.includes('mar') && !e.defile, 'téléphone : la page s\'ouvre sur « Téléphone » (' + JSON.stringify(e) + ')');
     await page.tap('.bascule-profil[data-profil="ordi"]'); await page.waitForTimeout(200);
     e = await etatPage(page);
-    verifier(e.actif === 'ordi' && !e.tel && e.jours.includes('mar') && e.defile && e.bords, '« Ordinateur » sur téléphone : aperçu large, qui défile de côté (' + JSON.stringify(e) + ')');
+    verifier(e.actif === 'ordi' && !e.tel && e.jours.includes('mar') && e.defile && e.cadre, '« Ordinateur » sur téléphone : aperçu large, qui défile de côté (' + JSON.stringify(e) + ')');
     toutesErreurs.push(...erreurs);
     await page.context().close();
   }

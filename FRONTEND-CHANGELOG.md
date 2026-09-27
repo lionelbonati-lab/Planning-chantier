@@ -9484,3 +9484,44 @@ Lionel :
   - sur ordinateur : traits non prolongés.
 - Sans le correctif, 3 vérifications échouent.
 - Suite complète : 84/84.
+
+## 187. Round du 27.09.2026 (suite 79) — « Jours voisins aux bords » dans la barre d'outils
+- « L'option jour voisins au bord doit être placé dans la toolbar avec le mode 2 semaines. Disparaît en mode mobile. »
+- « Coin arrondi planning ne doit pas apparaître aussi car la vue est bord à bord. »
+
+### Ce qui change
+- **Barre d'outils** : un bouton « Jours voisins aux bords » juste après « Afficher 2 semaines », même comportement.
+  - Il est teinté et entouré quand la vue est allumée.
+  - Dans le menu ⋮, il a son libellé et sa coche.
+  - Il n'apparaît pas sur téléphone.
+- **Page Affichage** :
+  - la ligne « Jours voisins aux bords » disparaît ;
+  - « Coins du planning arrondis » est cachée en mode Ordinateur tant que la vue bord à bord est allumée. Le planning n'a alors pas de coin. En mode Téléphone, elle reste.
+- **« Tout rétablir »** ne touche plus à la vue bord à bord, comme pour « Afficher 2 semaines ».
+
+### Fonctionnement
+- **Bouton** : `#btnJoursBords` (js/coquille.js, icône `ICONS.joursBords`).
+  - Il est seul dans son groupe `#groupeJoursBords` (rang 55), collé derrière `#groupeNavSemaine` sans séparateur.
+  - Quand la barre déborde, il part dans ⋮ juste avant la navigation (REPLIS_ORDRE, js/grille-rendu.js) et s'y range juste après elle (rang de menu 35). À 820 px, « ‹ Sem. N › » reste ainsi dans la barre (suite 47). Dans un même groupe que la navigation, les deux partaient ensemble.
+  - `basculerJoursBords` (js/page-affichage.js) appelle `changerOptionAffichage("bords", …, "ordi")` : même enregistrement (compte et appareil) et même rechargement de la fenêtre qu'avant.
+  - État du bouton (`actif`, `aria-pressed`) posé par majSemaineAffichage, comme #btnDeuxSemaines.
+  - Téléphone : `#groupeJoursBords { display: none }` (style-mobile.css). Il reste dans la barre, sans largeur, et n'est pas replié dans ⋮ (REPLIS_TELEPHONE).
+- **Option `bords`** :
+  - `barre: true` : pas de ligne sur la page ; ignorée par affichageModifie_ ; gardée par retablirAffichage (reglagesBarreAffichage_) ;
+  - `commun: true` : un seul réglage, dans le jeu de l'ordinateur. Il est gardé quand un jeu reprend l'autre ou qu'on rétablit celui du téléphone.
+
+### Tests
+- test_suite79.js, 11/11 :
+  - bouton après « Afficher 2 semaines », éteint ;
+  - plus de ligne sur la page ;
+  - un clic : vue bord à bord, enregistré sur le compte et l'appareil ;
+  - ligne des coins cachée en mode Ordinateur, visible en mode Téléphone ;
+  - « Tout rétablir » garde la vue ;
+  - ouverture avec le réglage du compte : bouton actif ;
+  - 2e clic : vue normale, ligne des coins revenue ;
+  - fenêtre de 700 px : dans le menu ⋮, juste après la navigation, avec son libellé ;
+  - téléphone : absent.
+- test_suite74.js : le bouton de la barre remplace la ligne de la page. test_suite62.js : 19 réglages sur la page. test_suite76.js : « Coins du planning arrondis » à la place de la ligne retirée.
+- test_toolbar_chevauchement.js : le nouveau groupe dans l'ordre de repli, dans la barre et dans le menu.
+- test_suite78.js : son code de sortie suit le bilan (il sortait toujours à 0).
+- Suite complète : 85/85.
