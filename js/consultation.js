@@ -24,9 +24,10 @@
    de consultation des ouvriers doit pouvoir ajouter une absence que je
    doit valider dans mon planning. » Bloc « Mes absences » en tête de page
    (personnel seulement : ni intervenant ni équipe, peut_demander) :
-   « Demander une absence » ouvre un petit formulaire — motif (entrées
+   « Demander une absence » ouvre un petit formulaire — type (entrées
    rapides d'absence de l'appli, sinon Congé / Vacances / Maladie), du …
-   (matin / après-midi) au … (matin / après-midi), remarque —, envoyé par
+   (matin / après-midi) au … (matin / après-midi), motif (suite 80 ; avant
+   « remarque ») —, envoyé par
    consultation_demander_absence (sql/0020). Rien n'est écrit dans le
    planning : la demande attend l'accord du bureau (js/demandes-absence.js
    côté appli). La liste montre les demandes en attente (« Retirer »
@@ -120,6 +121,12 @@
   var formulaireOuvert = false, envoiEnCours = false;
   var LIBELLE_STATUT = { en_attente: "En attente", acceptee: "Acceptée", refusee: "Refusée" };
   function jourCourt(iso) { return JOURS[(dateDe(iso).getDay() + 6) % 7].slice(0, 3).toLowerCase() + ". " + jourMois(iso); }
+  // « Congé - Motif », comme la bulle posée dans le planning à
+  // l'acceptation (suite 80, cf. texteDemandeAbsence dans l'appli).
+  function texteDemande(q) {
+    var motif = (q.remarque || "").trim();
+    return motif ? q.motif + " - " + motif : q.motif;
+  }
   function libelleDemande(q) {
     var dm = function (demi) { return demi === "aprem" ? "après-midi" : "matin"; };
     if (q.debut === q.fin) {
@@ -148,10 +155,14 @@
           '<option value="aprem"' + (val === "aprem" ? " selected" : "") + ">Après-midi</option></select>";
       };
       html += '<form class="form-absence" id="formAbsence" novalidate>' +
-        '<label>Motif<select id="faMotif">' + motifs.map(function (m) { return "<option>" + esc(m) + "</option>"; }).join("") + "</select></label>" +
+        // Suite 80 — Lionel : « Motif à la place de remarque. » Le choix
+        // Congé / Vacances… devient le « Type » ; le texte libre, le
+        // « Motif » (id et colonne `remarque` inchangés). Bulle posée à
+        // l'acceptation : « Congé - Motif » (texteDemandeAbsence, appli).
+        '<label>Type<select id="faMotif">' + motifs.map(function (m) { return "<option>" + esc(m) + "</option>"; }).join("") + "</select></label>" +
         '<div class="fa-ligne"><label>Du<input type="date" id="faDebut" required min="' + d.aujourdhui + '" value="' + debutDefaut + '"></label>' + choixDemi("faDemiDebut", "matin") + "</div>" +
         '<div class="fa-ligne"><label>Au<input type="date" id="faFin" required min="' + d.aujourdhui + '" value="' + debutDefaut + '"></label>' + choixDemi("faDemiFin", "aprem") + "</div>" +
-        '<label>Remarque <small>(facultatif)</small><textarea id="faRemarque" rows="2" maxlength="300" placeholder="Ex. : rendez-vous médical"></textarea></label>' +
+        '<label>Motif <small>(facultatif)</small><textarea id="faRemarque" rows="2" maxlength="300" placeholder="Ex. : rendez-vous médical"></textarea></label>' +
         '<p class="fa-erreur" id="faErreur" hidden></p>' +
         '<div class="fa-actions"><button type="button" class="btn-secondaire" id="faAnnuler">Annuler</button>' +
         '<button type="submit" class="btn-demander" id="faEnvoyer">Envoyer la demande</button></div>' +
@@ -159,8 +170,7 @@
     }
     if (liste.length) {
       html += '<ul class="demandes">' + liste.map(function (q) {
-        return '<li class="demande-' + esc(q.statut) + '"><div><b>' + esc(q.motif) + "</b> — " + esc(libelleDemande(q)) +
-          (q.remarque ? '<div class="demande-remarque">' + esc(q.remarque) + "</div>" : "") + "</div>" +
+        return '<li class="demande-' + esc(q.statut) + '"><div><b>' + esc(texteDemande(q)) + "</b> — " + esc(libelleDemande(q)) + "</div>" +
           '<span class="etat">' + esc(LIBELLE_STATUT[q.statut] || q.statut) + "</span>" +
           (q.statut === "en_attente" ? '<button type="button" class="btn-retirer" data-id="' + esc(q.id) + '">Retirer</button>' : "") + "</li>";
       }).join("") + "</ul>";
@@ -258,7 +268,7 @@
         if (feries.length && !liste.length) return;
         html += '<div class="demi demi-' + dm[0] + '"><div class="demi-nom">' + dm[1] + "</div>" +
           '<div class="taches">' + (liste.length || demandes.length ? liste.map(htmlTache).join("") + demandes.map(function (q) {
-            return '<div class="tache demande"><div class="texte">' + esc(q.motif) + '</div><div class="details"><span>Demande d’absence en attente</span></div></div>';
+            return '<div class="tache demande"><div class="texte">' + esc(texteDemande(q)) + '</div><div class="details"><span>Demande d’absence en attente</span></div></div>';
           }).join("") : '<span class="vide">—</span>') + "</div></div>";
       });
       html += "</section>";

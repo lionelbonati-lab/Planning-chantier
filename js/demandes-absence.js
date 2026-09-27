@@ -13,8 +13,8 @@
          demandes en attente : « 2 demandes d'absence à valider » ;
        - les demi-journées demandées sont hachurées (pointillés) sur la
          ligne de la personne, avec la demande en info-bulle ;
-       - un clic sur le bandeau ouvre la liste : qui, quoi, quand, la
-         remarque ; « Voir » amène le planning sur le premier jour,
+       - un clic sur le bandeau ouvre la liste : qui, quoi (« Congé -
+         motif », suite 80), quand ; « Voir » amène le planning sur le premier jour,
          « Refuser » la classe refusée, « Accepter » pose les absences
          (une par demi-journée ouvrée, fériés sautés, au bout de chaque
          case — même écriture en vraies dates que la fiche,
@@ -62,6 +62,16 @@
     chargerDemandesAbsence(false);
   }
 
+  // Round du 27.09.2026 (suite 80) — Lionel : « La remarque de la demande
+  // de congé doit se mettre dans la bulle: "Congé - Motif". Motif à la
+  // place de remarque. » Texte de l'absence posée à l'acceptation, et de
+  // la demande partout où le bureau la voit (liste, info-bulle, message) :
+  // le type choisi (colonne `motif` : Congé, Vacances…) puis le motif écrit
+  // par l'ouvrier (colonne `remarque`, inchangée en base).
+  function texteDemandeAbsence(q) {
+    var type = q.motif || "Absence", motif = (q.remarque || "").trim();
+    return motif ? type + " - " + motif : type;
+  }
   function nomPersonneDemande_(q) {
     var p = personneParAncre(q.personne_id);
     return p ? p.nom : "?";
@@ -99,7 +109,7 @@
     demandesAbsence.forEach(function (q) {
       var p = personneParAncre(q.personne_id);
       if (!p) return;
-      var titre = "Demande d’absence de " + p.nom + " : " + q.motif + " — " + libelleDemandeAbsence(q) + " (à valider)";
+      var titre = "Demande d’absence de " + p.nom + " : " + texteDemandeAbsence(q) + " — " + libelleDemandeAbsence(q) + " (à valider)";
       slotsDemandeAbsence_(q).forEach(function (s) {
         var gi = giDepuisIso(s.date);
         if (gi == null) return;
@@ -133,9 +143,8 @@
         '<ul class="da-liste">' + demandesAbsence.map(function (q) {
           return '<li data-id="' + esc2(q.id) + '"><div class="da-infos">' +
             '<span class="da-qui">' + esc(nomPersonneDemande_(q)) + "</span>" +
-            '<span class="da-quoi">' + esc(q.motif) + "</span>" +
-            '<span class="da-quand">' + esc(libelleDemandeAbsence(q)) + "</span>" +
-            (q.remarque ? '<span class="da-remarque">« ' + esc(q.remarque) + " »</span>" : "") + "</div>" +
+            '<span class="da-quoi">' + esc(texteDemandeAbsence(q)) + "</span>" +
+            '<span class="da-quand">' + esc(libelleDemandeAbsence(q)) + "</span></div>" +
             '<div class="da-boutons">' +
             '<button type="button" class="lien-modifier da-voir">Voir</button>' +
             '<button type="button" class="lien-supprimer da-refuser">Refuser</button>' +
@@ -171,7 +180,7 @@
     var slots = accepter ? slotsDemandeAbsence_(q) : [];
     var chaine = accepter && slots.length
       ? attendreFinSynchro_().then(function () {
-          return enregistrerTacheEnDatesServeur(q.personne_id, [], slots, { texte: q.motif || "Absence", absence: true, important: false, chantier: null, statut: null });
+          return enregistrerTacheEnDatesServeur(q.personne_id, [], slots, { texte: texteDemandeAbsence(q), absence: true, important: false, chantier: null, statut: null });
         })
       : Promise.resolve();
     chaine.then(function () {
@@ -188,7 +197,7 @@
       if (accepter) {
         pileUndo = []; pileRedo = [];
         if (typeof majBoutonsUndo === "function") majBoutonsUndo();
-        toast(("Absence de " + qui + " acceptée : " + (q.motif || "Absence") + " " + libelleDemandeAbsence(q) + ".").replace(/\.\.$/, "."));
+        toast(("Absence de " + qui + " acceptée : " + texteDemandeAbsence(q) + " " + libelleDemandeAbsence(q) + ".").replace(/\.\.$/, "."));
         apresEcritureSerie();
       } else {
         toast("Demande de " + qui + " refusée.");
