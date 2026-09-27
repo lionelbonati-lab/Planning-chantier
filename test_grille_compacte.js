@@ -47,7 +47,7 @@ const NOMS = ['colsParJour', 'colonneGrille', 'colonneDemi', 'spanColonnes',
   'demiSlotsDepuisBornes', 'bornesDepuisDemiSlots', 'bordsDeplacementNoteMultiJours',
   'demisOccupeesTache'];
 
-const sandbox = { modeCompact: true, afficherWeekends: false, Object: Object, Math: Math };
+const sandbox = { modeCompact: true, afficherWeekends: false, vueBordsRendue_: false, Object: Object, Math: Math };
 vm.createContext(sandbox);
 vm.runInContext(NOMS.map(extraireFonction).join('\n'), sandbox);
 

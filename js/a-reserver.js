@@ -246,7 +246,8 @@
     if (app && r.top < haut) app.scrollTop -= haut - r.top;
     else if (app && r.bottom > bas) app.scrollTop += Math.min(r.bottom - bas, r.top - haut);
     var scroller = dom.closest(".scroller");
-    if (!scroller || modeJourMobileActif()) return;
+    // Jours voisins aux bords (suite 74) : défilement tenu, rien à amener.
+    if (!scroller || modeJourMobileActif() || scroller.classList.contains("vue-bords")) return;
     var rs = scroller.getBoundingClientRect(), gauche = rs.left + largeurNoms() * ((niveauZoomPlanning / 100) || 1) + 8;
     if (r.left < gauche) scroller.scrollLeft -= gauche - r.left;
     else if (r.right > rs.right - 8) scroller.scrollLeft += Math.min(r.right - rs.right + 8, r.left - gauche);

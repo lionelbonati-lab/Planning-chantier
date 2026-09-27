@@ -535,7 +535,32 @@
     debutFenetreMobile = Math.max(0, Math.min(max, (jour && jourSemaineIso_(jour) < 2) ? idx - 1 : idx));
     return debutFenetreMobile;
   }
+  // Jours voisins aux bords (round du 27.09.2026, suite 74). Lionel : « On
+  // pourrait envisager une vue ou l'on voit le vendredi de la semaine avant
+  // à gauche de l'écran et le lundi de la semaine suivante à droite, coller
+  // au bord de l'écran comme si la suite était cachée en dehors de l'écran.
+  // On retrouverai le petit espace entre les semaine. Les nom seraient
+  // affiché que sur la partie centrale. » Option de la page Affichage
+  // (« bords », éteinte à l'origine), ordinateur et tablette seulement
+  // (jamais sur téléphone, en vue « 1 jour » comme « 1 semaine »). La
+  // fenêtre chargée prend alors aussi la semaine d'avant et celle d'après
+  // (1re et dernière de fenetreLabGs) : la grille les porte en entier, le
+  // défilement est calé pour n'en laisser voir qu'un bord (cf.
+  // construireGrille, js/grille-rendu.js). Au tout début ou à la toute fin
+  // des semaines du planning (pas de voisine d'un côté) : vue normale.
+  function vueBordsActive() {
+    if (typeof optionAffichage !== "function" || optionAffichage("bords") !== "oui" || modeJourMobileActif()) return false;
+    if (typeof window.matchMedia === "function" && window.matchMedia("(max-width: 600px)").matches) return false;
+    var i = etat.indexSemaine, k = deuxSemaines ? 2 : 1;
+    return !!(etat.semaines[i - 1] && etat.semaines[i + k]);
+  }
   function fenetreLabGs() {
+    if (vueBordsActive()) {
+      var i = etat.indexSemaine, lg = [etat.semaines[i - 1].labG, etat.semaines[i].labG];
+      if (deuxSemaines) lg.push(etat.semaines[i + 1].labG);
+      lg.push(etat.semaines[i + (deuxSemaines ? 2 : 1)].labG);
+      return lg;
+    }
     if (modeJourMobileActif()) {
       var d = debutFenetreJourMobile_();
       var lgs = [etat.semaines[d].labG];
@@ -691,13 +716,15 @@
   // « 24 septembre » — « 24.09 » depuis la suite 71), l'année seule.
   // Dates relues en ISO et triées : les week-ends (ajoutés après les jours
   // ouvrés) restent dans l'ordre.
+  // Jours voisins aux bords (suite 74) : la case ne compte que la partie
+  // centrale, pas les 2 semaines dont on ne voit qu'un bord.
   function isosAffichesCoin_(n) {
-    var isos = [];
+    var isos = [], b = vueBordsActive() ? 1 : 0;
     function ajouter(gi) { if (libelleJourGi(gi).mois) isos.push(isoDeGi(gi)); }
-    for (var gi = 0; gi < n; gi++) ajouter(gi);
+    for (var gi = 5 * b; gi < n - 5 * b; gi++) ajouter(gi);
     if (afficherWeekends) {
       var nbSem = n / 5;
-      for (var s = 0; s < nbSem; s++) { ajouter(giWeekend(s, 0)); ajouter(giWeekend(s, 1)); }
+      for (var s = b; s < nbSem - b; s++) { ajouter(giWeekend(s, 0)); ajouter(giWeekend(s, 1)); }
     }
     return isos;
   }

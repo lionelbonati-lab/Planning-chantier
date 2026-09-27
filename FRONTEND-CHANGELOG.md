@@ -9320,3 +9320,57 @@ Lionel :
   - jeudi → vendredi : Maçonnerie passe sous le congé ;
   - rien d'un autre jour sous la colonne des noms.
 - Sans le correctif, 3 de ces 5 vérifications échouent (12 px, puis 29 et 26,6 px de mouvement).
+
+## 182. Round du 27.09.2026 (suite 74) — Ordinateur : le vendredi d'avant et le lundi d'après aux bords de l'écran (option)
+- « On pourrait envisager une vue ou l'on voit le vendredi de la semaine avant à gauche de l'écran et le lundi de la semaine suivante à droite, coller au bord de l'écran comme si la suite était cachée en dehors de l'écran. On retrouverai le petit espace entre les semaine. Les nom seraient affiché que sur la partie centrale. »
+- Ses choix : la colonne des noms « entre le vendredi et la semaine », et une option « désactivée par défaut ».
+
+### Ce qui change
+- **Page Affichage, groupe Planning** : nouvel interrupteur « Jours voisins aux bords », éteint à l'origine. Il vaut pour l'ordinateur et la tablette, jamais sur téléphone.
+- **Allumé**, de gauche à droite à l'écran :
+  - un bord du vendredi d'avant, coupé par le bord de l'écran ;
+  - l'espace entre semaines ;
+  - la colonne des noms ;
+  - lundi → vendredi ;
+  - l'espace ;
+  - un bord du lundi d'après, aussi large que celui du vendredi.
+- **Largeur des bords** : 40 % d'un jour, entre 24 et 120 px (87 px sur un écran de 1400 px). Le jour et la date y sont collés du côté visible.
+- **Dans les bords**, les bulles se voient et se glissent comme ailleurs. Une bulle déposée dans le bord gauche va le vendredi d'avant.
+- **En 2 semaines** : les bords entourent les 2 semaines. Week-ends affichés : le bord gauche montre le dimanche (et le samedi).
+- **La case du mois** ne compte que la partie centrale.
+- **Changement de semaine** (‹ ›, molette, Sem. N) : tout glisse, et le jeudi et le vendredi passent sous les noms.
+  - L'ancienne semaine glisse jusqu'à ce que son vendredi arrive dans le bord gauche.
+  - La nouvelle suit son lundi, venu du bord droit.
+  - Rien ne saute au départ ni à l'arrivée. En chemin, la place des noms s'ouvre entre les deux et vient se caler sous eux.
+- La grille ne défile plus de côté dans cette vue : la molette et le trackpad changent de semaine.
+
+### Fonctionnement
+- **Fenêtre chargée** (fenetreLabGs, js/core.js) : avec vueBordsActive(), la semaine d'avant et celle d'après sont chargées en plus.
+  - Au tout début ou à la toute fin des semaines du planning, sans voisine d'un côté : vue normale.
+  - Le coin (isosAffichesCoin_) saute ces 2 semaines.
+- **Grille** (construireGrille, js/grille-rendu.js) :
+  - une colonne vide, de la largeur des noms + 3 px, est ajoutée entre la semaine d'avant et la 1re affichée en entier (colonneGrille, vueBordsRendue_) ;
+  - les colonnes ont une largeur fixe, calculée pour la largeur réelle du .scroller (zoom compris) ;
+  - le défilement est calé pour que le 1er lundi arrive juste après les noms. Il est ensuite tenu (écouteur « scroll », `overflow-x: hidden`).
+- **Colonne des noms** : `--noms-gauche` (posé sur #racine) remplace le `left: 0` des cases collantes (noms, coin, libellés Personnel / Intervenants) et s'ajoute au collage du texte des bulles.
+- **Bande entre semaines** (poserSepSemaines_) : celle de gauche est posée avant la colonne vide, contre le vendredi. Elle reste visible jusqu'au bord de l'écran.
+- **Glissement** (glisserVersSemaine_, classe `vt-bords`) : chaque photo a son pas (`--vt-sortie`, `--vt-entree`) et un masque qui garde ses parties utiles, sans la colonne vide.
+  - Les bandeaux Personnel / Intervenants glissent avec la grille ; seul leur libellé reste fixe.
+- **Fenêtre redimensionnée** : la grille est reconstruite une fois le redimensionnement fini, jamais pendant un glisser de bulle.
+- **Résumé « À réserver »** : il ne fait plus défiler la grille dans cette vue.
+
+### Tests
+- test_suite74.js (nouveau), 16/16 :
+  - éteinte à l'origine ;
+  - disposition au pixel (bords égaux, bandes, noms, lundi contre les noms) ;
+  - rien sous les noms ;
+  - défilement tenu ;
+  - molette : glissement aux 2 pas, même disposition à l'arrivée, retour ;
+  - bulle déposée dans le bord gauche ;
+  - fenêtre rétrécie à 1000 px ;
+  - 2 semaines ;
+  - téléphone ;
+  - option éteinte.
+- test_suite35.js : la poignée tenue contre le bord droit est tenue 700 ms au lieu de 1000. Elle part déjà dans la zone du bord : 1300 ms tombaient à 50 ms du 2e saut de jour, franchi une fois sur la CI (fusionné avec la suite 73).
+- test_suite62.js : la liste attendue des réglages de la page Affichage compte « bords » (20 réglages). test_grille_compacte.js : `vueBordsRendue_` (éteint) dans le bac à sable de colonneGrille.
+- Suite complète : 82/82.

@@ -446,13 +446,21 @@
   // et colonneDemi() ci-dessous ajoute le décalage de l'après-midi. Reste
   // valide pour un gi "virtuel" juste après la fin d'une semaine — c'est la
   // borne exclusive dont spanColonnes() a besoin (cf. son commentaire).
+  //
+  // Jours voisins aux bords (round du 27.09.2026, suite 74, cf.
+  // vueBordsActive, js/core.js) : une colonne vide de plus entre la semaine
+  // d'avant (1re de la fenêtre) et la 1re semaine affichée en entier —
+  // la place de la colonne des noms, qui s'y pose (collée à gauche à
+  // --noms-gauche au lieu de 0, cf. style.css), entre le vendredi d'avant
+  // et le lundi. vueBordsRendue_ : fixé à chaque rendu (construireGrille).
+  var vueBordsRendue_ = false;
   function colonneGrille(gi) {
     var cpj = colsParJour();
     if (estGiWeekend(gi)) {
       var s = semaineDuGiWeekend(gi), j = jourWeekendIdx(gi);
-      return 2 + s * (5 * cpj + 2) + 5 * cpj + j;
+      return 2 + s * (5 * cpj + 2) + 5 * cpj + j + (vueBordsRendue_ && s >= 1 ? 1 : 0);
     }
-    return 2 + gi * cpj + (afficherWeekends ? Math.floor(gi / 5) * 2 : 0);
+    return 2 + gi * cpj + (afficherWeekends ? Math.floor(gi / 5) * 2 : 0) + (vueBordsRendue_ && gi >= 5 ? 1 : 0);
   }
   // Colonne CSS d'une DEMI-JOURNÉE précise : les deux demis d'un jour sont
   // côte à côte (matin à gauche). Le week-end n'a qu'une seule case par
@@ -814,6 +822,36 @@
     html.style.setProperty("--vt-noms", noms + "px");
     html.style.setProperty("--vt-pas", Math.max(0, Math.min(r.width, window.innerWidth - r.left) - noms) + "px");
     html.style.setProperty("--vt-dir", dir > 0 ? "1" : "-1");
+    // Jours voisins aux bords (round du 27.09.2026, suite 74) — Lionel a
+    // choisi que la colonne des noms reste « entre le vendredi et la
+    // semaine » : au changement de semaine, tout glisse et le jeudi et le
+    // vendredi passent sous les noms. Les 2 photos ne glissent pas du même
+    // pas. L'ancienne (vers la semaine suivante) : jusqu'à ce que son
+    // vendredi arrive dans le bord gauche, là où la nouvelle l'affiche
+    // (pas xS − xG, du bord du vendredi d'avant à la bande de droite) ; on
+    // n'en garde que le bord de gauche et la semaine (pas son lundi
+    // d'après, ni la colonne vide sous les noms). La nouvelle : son lundi
+    // part d'où était le lundi d'après (pas xS − xL), on n'en garde que la
+    // partie à partir de ce lundi. Au départ comme à l'arrivée, rien ne
+    // saute ; en chemin, la place des noms s'ouvre entre les deux (fond de
+    // la page) et arrive sous eux. Vers la semaine précédente : l'inverse.
+    // Vue normale d'un côté seulement (bout du planning) : glissement
+    // habituel.
+    var bords = racineEl.classList.contains("vue-bords") && vueBordsActive();
+    html.classList.toggle("vt-bords", bords);
+    if (bords) {
+      var z = (niveauZoomPlanning / 100) || 1, ths = racineEl.querySelectorAll(".entete-planning-figee .th[data-gi]:not(.th-demi):not(.th-weekend)");
+      var thL = racineEl.querySelector('.entete-planning-figee .th[data-gi="5"]'), thS = ths[ths.length - 5];
+      var xL = thL.getBoundingClientRect().left - r.left, xS = thS.getBoundingClientRect().left - r.left, xG = xL - (noms + 4) * z;
+      var px = function (v) { return Math.round(v * 10) / 10 + "px"; };
+      var masqueComplet = "linear-gradient(to right, #000 " + px(xG + 3) + ", transparent " + px(xG + 3) + ", transparent " + px(xL) + ", #000 " + px(xL) + ", #000 " + px(xS + 3) + ", transparent " + px(xS + 3) + ")";
+      var masqueDroite = "linear-gradient(to right, transparent " + px(xL) + ", #000 " + px(xL) + ")";
+      html.style.setProperty("--vt-noms", "0px");
+      html.style.setProperty("--vt-masque-ancien", dir > 0 ? masqueComplet : masqueDroite);
+      html.style.setProperty("--vt-masque-nouveau", dir > 0 ? masqueDroite : masqueComplet);
+      html.style.setProperty("--vt-sortie", px(dir > 0 ? -(xS - xG) : xS - xL));
+      html.style.setProperty("--vt-entree", px(dir > 0 ? xS - xL : -(xS - xG)));
+    }
     html.classList.add("vt-semaine");
     nommerColonneNoms_(true);
     var t = document.startViewTransition(function () { maj(); nommerColonneNoms_(true); });
@@ -826,7 +864,7 @@
       if (transitionSemaine_ !== t) return;
       transitionSemaine_ = null;
       nommerColonneNoms_(false);
-      html.classList.remove("vt-semaine");
+      html.classList.remove("vt-semaine", "vt-bords");
     }, function () {});
   }
   // Bouton "Aujourd'hui" (retour de Lionel, 02.09.2026 : "il manque un
@@ -1038,6 +1076,22 @@
   // que pour la taille où elles ont été mesurées.
   var generationTaille_ = 0;
   window.addEventListener("resize", function () { generationTaille_++; });
+  // Jours voisins aux bords (suite 74) : colonnes en px calculées pour la
+  // largeur du .scroller — refaites quand elle change (ou quand la vue
+  // s'allume/s'éteint en passant sous 600 px), une fois le redimensionnement
+  // fini. Jamais pendant un glisser de bulle.
+  var minuteurBordsTaille_ = null;
+  window.addEventListener("resize", function () {
+    clearTimeout(minuteurBordsTaille_);
+    minuteurBordsTaille_ = setTimeout(function redimBords() {
+      var page = document.getElementById("page-planning"), sc = racineEl && racineEl.querySelector(".scroller");
+      if (!sc || !page || !page.classList.contains("actif") || modeJourMobileActif()) return;
+      if (!vueBordsRendue_ && !vueBordsActive()) return;
+      if (document.body.classList.contains("en-glissement") || syncEnCours) { minuteurBordsTaille_ = setTimeout(redimBords, 400); return; }
+      if (vueBordsRendue_ === vueBordsActive() && sc.dataset.largeurBords === String(sc.clientWidth)) return;
+      assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); majBarreSelection(); });
+    }, 150);
+  });
   function verifierModeFenetre() {
     var page = document.getElementById("page-planning");
     if (!page || !page.classList.contains("actif") || modeJourMobileRendu === null) return false;
@@ -1224,6 +1278,9 @@
     // par personne (cf. commentaire de colonneDemi()).
     var enModeJourMobile = modeJourMobileActif();
     modeJourMobileRendu = enModeJourMobile;
+    vueBordsRendue_ = vueBordsActive();
+    racineEl.classList.toggle("vue-bords", vueBordsRendue_);
+    scroller.classList.toggle("vue-bords", vueBordsRendue_);
     var labsRendus = labsRendusDernier = fenetreLabGs().join(",");
     // Round du 23.09.2026 (suite ×10) — cf. le commentaire de
     // .scroller.snap-jour-mobile dans style.css : le scroll-snap "1 jour"
@@ -1312,6 +1369,49 @@
     scroller.appendChild(grilleCorps);
     cadre.appendChild(scroller);
     racineEl.appendChild(cadre);
+    // Jours voisins aux bords (suite 74) — Lionel : « le vendredi de la
+    // semaine avant à gauche de l'écran et le lundi de la semaine suivante
+    // à droite, coller au bord de l'écran comme si la suite était cachée
+    // en dehors de l'écran. On retrouverai le petit espace entre les
+    // semaine. Les nom seraient affiché que sur la partie centrale. » De
+    // gauche à droite, à l'écran : un bord du vendredi d'avant (P), la
+    // bande entre semaines (.sep-semaines, 8 px à cheval sur la frontière),
+    // la colonne des noms, les jours de la (des) semaine(s) affichée(s), la
+    // bande, un bord du lundi d'après, aussi large que celui du vendredi.
+    // Les 3 (ou 4) semaines sont dans la grille en entier, en colonnes de
+    // largeur fixe calculées pour la largeur réelle du .scroller :
+    // le défilement horizontal, calé plus bas (cibleScrollLeft) et tenu
+    // (écouteur "scroll"), cache le reste. Bord : 40 % d'un jour, entre 24
+    // et 120 px.
+    var geoBords = null;
+    if (vueBordsRendue_) {
+      var zB = (niveauZoomPlanning / 100) || 1, cpjB = colsParJour(), nbC = nbSemainesAffichees - 2;
+      var W = (scroller.clientWidth || (racineEl.clientWidth - 2) || 1200) / zB;
+      // Une semaine : 5 jours de cpj colonnes (+ 1 px d'écart chacune), et
+      // ses 2 colonnes de week-end de 46 px (+ 1).
+      var weB = afficherWeekends ? 2 * 47 : 0;
+      var jourB = (W - LN - 4 - nbC * weB) / (5 * nbC + 0.8);
+      var P = Math.round(Math.max(24, Math.min(120, 0.4 * jourB)));
+      var colB = Math.max(20, ((W - 2 * P - LN - 4) / nbC - weB) / (5 * cpjB) - 1);
+      // Colonne vide : la bande couvre ses 3 premiers px (+ 4 du vendredi),
+      // les noms le reste, jusqu'au trait de 1 px avant le lundi.
+      var espaceB = LN + 3;
+      var gabaritB = LN + "px", nbColsB = 1;
+      for (var sB = 0; sB < nbSemainesAffichees; sB++) {
+        if (sB === 1) { gabaritB += " " + espaceB + "px"; nbColsB++; }
+        gabaritB += " repeat(" + (5 * cpjB) + ", " + colB + "px)"; nbColsB += 5 * cpjB;
+        if (afficherWeekends) { gabaritB += " repeat(2, 46px)"; nbColsB += 2; }
+      }
+      var totalB = LN + espaceB + nbSemainesAffichees * (5 * cpjB * colB + (afficherWeekends ? 92 : 0)) + (nbColsB - 1);
+      grilleEntete.style.gridTemplateColumns = grilleCorps.style.gridTemplateColumns = gabaritB;
+      grilleEntete.style.minWidth = grilleCorps.style.minWidth = totalB + "px";
+      geoBords = { P: P, largeur: W, zoom: zB };
+      scroller.dataset.largeurBords = String(scroller.clientWidth);
+      racineEl.style.setProperty("--noms-gauche", (P + 4) + "px");
+      document.documentElement.style.setProperty("--largeur-visible-bulle", (W - 2 * P - LN - 20) + "px");
+    } else {
+      racineEl.style.removeProperty("--noms-gauche");
+    }
     // ajusterLargeurBullesJourMobile() — round du 24.09.2026. Lionel,
     // capture d'écran à l'appui : « les bulles doivent s'adapter aux
     // cellules où elles sont attribuées. La tâche décoffrage balcon est
@@ -2164,7 +2264,9 @@
       if (!dx) return;
       var maxScrollW = scroller.scrollWidth - scroller.clientWidth;
       var auDebut = scroller.scrollLeft <= 1, aLaFin = scroller.scrollLeft >= maxScrollW - 1;
-      if (dx < 0 ? !auDebut : !aLaFin) { accumulMolette = 0; return; }
+      // Jours voisins aux bords (suite 74) : défilement tenu, toujours « en
+      // butée » des deux côtés — le geste change de semaine.
+      if (!vueBordsRendue_ && (dx < 0 ? !auDebut : !aLaFin)) { accumulMolette = 0; return; }
       e.preventDefault();
       accumulMolette += dx;
       clearTimeout(resetAccumulMolette);
@@ -2240,7 +2342,12 @@
       // FRONTEND-CHANGELOG.md §5).
       th.className = "th" + (gi > 0 && gi % 5 === 0 ? " sem-frontiere" : "")
         + (gi > 0 && gi % 5 !== 0 ? " jour-frontiere" : "")
-        + (estAuj ? " today" : "");
+        + (estAuj ? " today" : "")
+        // Jours voisins aux bords (suite 74) : jour et date collés du côté
+        // visible (le vendredi d'avant n'en montre que la fin, le lundi
+        // d'après que le début).
+        + (vueBordsRendue_ && gi === 4 && !afficherWeekends ? " th-bord-avant" : "")
+        + (vueBordsRendue_ && gi === n - 5 ? " th-bord-apres" : "");
       th.dataset.gi = gi;
       var infoJour = libelleJourGi(gi);
       // Nom du jour et date selon la page Affichage (suite 64, groupe
@@ -2267,7 +2374,7 @@
         [0, 1].forEach(function (j) {
           var giWE = giWeekend(semIdxTh, j);
           var thWE = document.createElement("div");
-          thWE.className = "th th-weekend";
+          thWE.className = "th th-weekend" + (vueBordsRendue_ && giWE === giWeekend(0, 1) ? " th-bord-avant" : "");
           thWE.dataset.gi = giWE;
           var infoWE = libelleJourGi(giWE), enteteWE = enteteJourAffichage(isoDeGi(giWE), infoWE.jour);
           thWE.innerHTML = nomJourHTML_(enteteWE.nom) + '<span class="th-date">' + htmlDateWeekEnd(enteteWE.date) + "</span>";
@@ -2473,11 +2580,14 @@
       // js/page-couleurs.js) : "personnel" ou "intervenants", exactement
       // les 2 valeurs passées à ligneSection() plus bas.
       lg.className = "section-row section-row-" + cle;
-      lg.dataset.vt = "section-" + cle; // bandeau fixe pendant le glissement de semaine (suite 72)
       lg.innerHTML =
         '<div class="section-row-sticky">' +
         '<span class="section-label">' + esc(texte) + '</span>' +
         '</div>';
+      // Bandeau fixe pendant le glissement de semaine (suite 72). Jours
+      // voisins aux bords (suite 74) : les bandes entre semaines le coupent,
+      // il glisse avec la grille ; seul son libellé reste fixe.
+      (vueBordsRendue_ ? lg.firstChild : lg).dataset.vt = "section-" + cle;
       poserPleineLargeur(lg, row);
       row++;
     }
@@ -2625,7 +2735,21 @@
       var rGrilleEntete = grilleEntete.getBoundingClientRect(), rTh = th.getBoundingClientRect();
       return Math.max(0, Math.round((rTh.left - rGrilleEntete.left) - LN));
     }
-    if (enModeJourMobile) {
+    if (geoBords) {
+      // Jours voisins aux bords (suite 74) : toujours le 1er lundi affiché
+      // en entier juste après la colonne des noms (bord du vendredi, bande,
+      // noms), quel que soit le motif du rendu.
+      cibleApresRendu = null;
+      var thLundiB = grilleEntete.querySelector('.th[data-gi="5"]');
+      cibleScrollLeft = thLundiB ? Math.max(0, Math.round(thLundiB.getBoundingClientRect().left - grilleEntete.getBoundingClientRect().left - (geoBords.P + 5 + LN) * geoBords.zoom)) : 0;
+      geoBords.cible = cibleScrollLeft;
+      // Tenu : rien d'autre ne fait défiler cette vue (molette, glisser au
+      // bord de l'écran, bulle amenée en vue…) — on change de semaine.
+      scroller.addEventListener("scroll", function () {
+        if (Math.abs(scroller.scrollLeft - geoBords.cible) >= 1) scroller.scrollLeft = geoBords.cible;
+        if (enteteScroll.scrollLeft !== scroller.scrollLeft) enteteScroll.scrollLeft = scroller.scrollLeft;
+      }, { passive: true });
+    } else if (enModeJourMobile) {
       // Round du 24.09.2026 (suite 6) — vue "1 jour" : TOUJOURS calé sur le
       // jour affiché (jourMobileCourant, core.js), quel que soit le motif du
       // rendu — après un recentrage de la fenêtre (même jour, nouvelle
@@ -2834,9 +2958,17 @@
       ou.appendChild(m);
       return m;
     }
+    // Jours voisins aux bords (suite 74) : la frontière entre la semaine
+    // d'avant et la 1re affichée en entier est avant la colonne vide des
+    // noms (cf. colonneGrille), pas contre le lundi — `avant` = largeur de
+    // cette colonne et de son trait. Plus de colonne des noms à gauche de
+    // l'écran : bande visible jusqu'au bord.
+    var LNs = largeurNoms();
     sepSemaines_ = {
-      enteteFigee: enteteFigee, enteteScroll: enteteScroll, cadre: cadre, scroller: scroller,
-      paires: ths.map(function (th) { return { th: th, entete: morceau(enteteFigee, "haut"), corps: morceau(racineEl, "bas") }; })
+      enteteFigee: enteteFigee, enteteScroll: enteteScroll, cadre: cadre, scroller: scroller, bords: vueBordsRendue_,
+      paires: ths.map(function (th) {
+        return { th: th, avant: vueBordsRendue_ && th.dataset.gi === "5" ? LNs + 4 : 0, entete: morceau(enteteFigee, "haut"), corps: morceau(racineEl, "bas") };
+      })
     };
     if (window.ResizeObserver) {
       sepSemaines_.ro = new ResizeObserver(function () { placerSepSemaines_(); });
@@ -2863,9 +2995,9 @@
       var x0 = s.scroller.scrollLeft;
       m = s.mesure = {
         taille: generationTaille_, rr: rr.left, rf: rf.left, haut: rc.top - rr.top, hauteur: rc.height,
-        gauche: rs.left + largeurNoms() * z, droite: rs.right, hautEntete: s.enteteScroll.offsetTop,
+        gauche: rs.left + (s.bords ? 0 : largeurNoms() * z), droite: rs.right, hautEntete: s.enteteScroll.offsetTop,
         // Bord gauche du lundi, dans le repère du contenu défilé.
-        xs: s.paires.map(function (p) { return p.th.getBoundingClientRect().left + x0; })
+        xs: s.paires.map(function (p) { return p.th.getBoundingClientRect().left - p.avant * z + x0; })
       };
       if (xConnu == null) xConnu = x0;
     }
