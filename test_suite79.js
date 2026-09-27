@@ -20,7 +20,10 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //   7. téléphone : bouton absent de la barre et du menu ⋮.
 //
 // Suite 82 : le bouton est devenu #btnModeVue (1 semaine > jours voisins >
-// 2 semaines) ; « allumé » = mode « Jours voisins ».
+// 2 semaines) ; « allumé » = mode « Jours voisins ».
+// Suite 84 : « Jours voisins » est un état de la session (vueBords), comme
+// « 2 semaines » : le clic n'enregistre plus rien ; un ancien réglage
+// « bords » du compte ouvre en jours voisins (repris comme vueOrdi).
 //
 // Lancer : node test_suite79.js
 
@@ -31,7 +34,7 @@ const etat = (page) => page.evaluate(() => {
     // Suite 82 : dans le groupe de la navigation, à la place de « Afficher 2 semaines ».
     apres2s: !!b && b.parentElement.id === 'groupeNavSemaine' && !document.getElementById('btnJoursBords') && !document.getElementById('btnDeuxSemaines'),
     visible: !!b && b.getBoundingClientRect().width > 0, actif: !!b && b.dataset.mode === 'bords', pressed: b && (b.dataset.mode === 'bords' ? 'true' : 'false'),
-    vue: !!document.querySelector('#racine.vue-bords'), opt: optionAffichage('bords'),
+    vue: !!document.querySelector('#racine.vue-bords'), opt: vueBords ? 'oui' : 'non',
     local: JSON.parse(localStorage.getItem('planning.affichage') || '{}').bords || null,
     compte: ((window.__BD.reglages || []).find((x) => x.cle === 'affichage') || { valeur: {} }).valeur.bords || null,
     ligneBords: ligne('bords'), ligneCadre: ligne('cadre')
@@ -55,8 +58,8 @@ const etat = (page) => page.evaluate(() => {
     // --- 2. Allumé ---
     await page.click('#btnModeVue'); await page.waitForTimeout(900);
     e = await etat(page);
-    verifier(e.actif && e.pressed === 'true' && e.vue && e.opt === 'oui' && e.local === 'oui' && e.compte === 'oui',
-      'un clic : vue bord à bord, bouton actif, enregistré sur le compte et l\'appareil (' + JSON.stringify(e) + ')');
+    verifier(e.actif && e.pressed === 'true' && e.vue && e.opt === 'oui' && e.local === null && e.compte === null,
+      'un clic : vue bord à bord, bouton actif, rien d\'enregistré (suite 84 : vue de la session) (' + JSON.stringify(e) + ')');
     await page.evaluate(() => afficherPage('affichage')); await page.waitForTimeout(200);
     e = await etat(page);
     verifier(e.ligneCadre === 'cachee', 'page Affichage, mode Ordinateur : « Coins du planning arrondis » caché (' + JSON.stringify(e) + ')');
@@ -76,7 +79,7 @@ const etat = (page) => page.evaluate(() => {
       const o = await ouvrirPlanning(browser, { viewport: { width: 1400, height: 800 }, bd: { reglages: [{ cle: 'affichage', valeur: { bords: 'oui' } }] } });
       await o.page.waitForTimeout(600);
       const r = await etat(o.page);
-      verifier(r.actif && r.pressed === 'true' && r.vue, 'ouverture, réglage du compte allumé : bouton actif, vue bord à bord (' + JSON.stringify(r) + ')');
+      verifier(r.actif && r.pressed === 'true' && r.vue, 'ouverture, ancien réglage « bords » du compte : bouton actif, vue bord à bord (' + JSON.stringify(r) + ')');
       toutesErreurs.push(...o.erreurs);
       await o.page.context().close();
     }

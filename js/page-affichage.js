@@ -90,32 +90,39 @@
     { id: "zebre", groupe: "Planning", nom: "Lignes alternées", aide: "Une personne sur deux légèrement teintée, pour suivre une ligne d’un bout à l’autre.", interrupteur: true, defaut: "non", css: true },
     { id: "teinte", groupe: "Planning", nom: "Colonnes teintées", aide: "La demi-journée légèrement grisée, pour distinguer le matin de l’après-midi.", choix: [["aucune", "Aucune"], ["matin", "Matin"], ["aprem", "Après-midi"]], defaut: "aprem", css: true },
     { id: "separation", groupe: "Planning", nom: "Espace entre 2 semaines", aide: "Comme 2 fenêtres côte à côte. Éteint : un simple trait, comme entre 2 jours.", interrupteur: ["espace", "rien"], defaut: "espace", alias: { trait: "rien" }, css: true },
-    // Suite 74 (cf. vueBordsActive, js/core.js). Suite 79 — Lionel :
-    // « L'option jour voisins au bord doit être placé dans la toolbar avec
-    // le mode 2 semaines. » `barre` : réglée par le bouton de vue
-    // (#btnModeVue, basculerModeVue — suite 82), plus de ligne sur la page ; hors de « Tout
-    // rétablir ». `commun` : un seul réglage, dans le jeu de l'ordinateur
-    // (les téléphones ne l'ont pas), gardé quand un jeu reprend l'autre.
-    { id: "bords", groupe: "Planning", nom: "Jours voisins aux bords", aide: "Ordinateur, tablette : le vendredi d’avant à gauche et le lundi d’après à droite, coupés par le bord de l’écran. Les noms restent entre les deux.", interrupteur: true, defaut: "non", barre: true, commun: true },
+    // Suite 74, 79, 82 : « Jours voisins aux bords » était ici une option
+    // enregistrée (`bords`), réglée par le bouton de vue. Suite 84 : un
+    // état de la session (vueBords, js/core.js) ; l'ouverture en jours
+    // voisins se choisit dans « À l'ouverture » (vueOrdi) — cf. lireJeu_
+    // pour un ancien « bords » enregistré.
     { id: "cadre", groupe: "Planning", nom: "Coins du planning arrondis", aide: "Éteint : coins carrés.", interrupteur: ["arrondis", "carres"], defaut: "arrondis", css: true },
     { id: "noms", groupe: "Planning", nom: "Taille des noms", aide: "La colonne de gauche : personnes, Jalons, Notes.", choix: [["petit", "Petite"], ["normal", "Normale"], ["grand", "Grande"], ["tresgrand", "Très grande"]], defaut: "normal", css: true },
     { id: "jourSemaine", groupe: "Dates", nom: "Jour de la semaine", choix: [["abrege", "Jeu"], ["complet", "Jeudi"], ["initiale", "J"], ["masque", "Masqué"]], defaut: "abrege" },
     { id: "formatDate", groupe: "Dates", nom: "Date", choix: [["numero", "24"], ["chiffres", "24.09"], ["abrege", "24 sept."], ["complet", "24 septembre"]], defaut: "numero" },
     { id: "heures", groupe: "Dates", nom: "Heures de travail", aide: "La durée du jour (8.75 h) sous la date, d’après la page Horaires.", interrupteur: true, defaut: "oui" },
     { id: "ligneDemi", groupe: "Dates", nom: "Ligne sous les jours", aide: "Les horaires du matin et de l’après-midi, ou simplement M | A.", choix: [["horaires", "Horaires"], ["ma", "M | A"], ["masquee", "Masquée"]], defaut: "horaires" },
+    // Round du 27.09.2026 (suite 83) — Lionel : « Manque la possibilité de
+    // modifier le format de la cellule des dates de gauche (Mois, Année) ».
+    // La case coin (htmlCoinMoisAnnee, js/core.js) : format du mois et de
+    // l'année, et comme les autres lignes, gras / italique / taille.
+    { id: "coinMois", groupe: "Dates", nom: "Case de gauche : mois", aide: "Retiré quand la date des jours écrit déjà le mois.", choix: [["abrege", "sept."], ["complet", "septembre"], ["chiffres", "09"], ["masque", "Masqué"]], defaut: "abrege" },
+    { id: "coinAnnee", groupe: "Dates", nom: "Case de gauche : année", choix: [["complete", "2026"], ["courte", "26"], ["masquee", "Masquée"]], defaut: "complete" },
     { id: "texte", groupe: "Bulles", nom: "Taille du texte", choix: [["petit", "Petit"], ["normal", "Normal"], ["grand", "Grand"], ["tresgrand", "Très grand"]], defaut: "normal", css: true },
     { id: "lignes", groupe: "Bulles", nom: "Lignes de texte", aide: "Au-delà, le texte est coupé par « … ».", choix: [["1", "1"], ["2", "2"], ["3", "3"]], defaut: "2", css: true },
     { id: "hauteur", groupe: "Bulles", nom: "Hauteur des lignes", aide: "Serrée : plus de personnes à l’écran. Aérée : plus lisible.", choix: [["serree", "Serrée"], ["normale", "Normale"], ["aeree", "Aérée"]], defaut: "normale", css: true },
     { id: "coins", groupe: "Bulles", nom: "Coins des bulles arrondis", aide: "Éteint : coins droits.", interrupteur: ["arrondis", "droits"], defaut: "arrondis", css: true },
     { id: "statut", groupe: "Bulles", nom: "Statut", aide: "Badge : « Confirmé », « Réservé »… sous le texte. Pastille : un point de sa couleur dans le coin (le nom au survol).", choix: [["non", "Non"], ["pastille", "Pastille"], ["badge", "Badge"]], defaut: "badge", alias: { oui: "badge" }, css: true },
     { id: "police", groupe: "Police", nom: "Police de l’appli", aide: "Pour tout le document : planning, pages, fenêtres.", choix: [["archivo", "Archivo"], ["inter", "Inter"], ["roboto", "Roboto"], ["nunito", "Nunito"], ["sourcesans", "Source Sans"], ["systeme", "Système"]], defaut: "archivo", css: true },
-    { id: "vueOrdi", groupe: "À l’ouverture", nom: "Ordinateur, tablette", choix: [["1", "1 semaine"], ["2", "2 semaines"]], defaut: "1", commun: true },
+    // Suite 84 — Lionel : « setup affichage, réglage à l'ouverture, manque
+    // le mode jours voisins ». Les 3 modes du bouton de vue, dans son ordre.
+    { id: "vueOrdi", groupe: "À l’ouverture", nom: "Ordinateur, tablette", choix: [["1", "1 semaine"], ["bords", "Jours voisins"], ["2", "2 semaines"]], defaut: "1", commun: true },
     { id: "vueTel", groupe: "À l’ouverture", nom: "Téléphone", choix: [["jour", "1 jour"], ["semaine", "1 semaine"]], defaut: "jour", commun: true }
   ];
   // Gras / italique / taille par ligne d'en-tête (suite 67) : [ligne
   // parente, nom court de l'attribut]. Affichés en icônes à côté du nom
   // de leur ligne (htmlIconesStyle_), pas comme des lignes à part.
-  var LIGNES_ENTETE_ = [["jourSemaine", "jour"], ["formatDate", "date"], ["heures", "heures"], ["ligneDemi", "horaires"]];
+  // Suite 83 : + mois et année de la case de gauche.
+  var LIGNES_ENTETE_ = [["jourSemaine", "jour"], ["formatDate", "date"], ["heures", "heures"], ["ligneDemi", "horaires"], ["coinMois", "mois"], ["coinAnnee", "annee"]];
   var TAILLES_ENTETE_ = [["petite", "Petite"], ["normale", "Normale"], ["grande", "Grande"], ["tresgrande", "Très grande"]];
   var ECHELLES_TAILLE_ = { petite: .85, normale: 1, grande: 1.2, tresgrande: 1.4 };
   LIGNES_ENTETE_.forEach(function (l) {
@@ -181,7 +188,18 @@
     var r = window.etat && etat.reglages, m = null;
     if (r) m = r[cle];
     else { try { m = JSON.parse(localStorage.getItem(cleLocale) || "null"); } catch (e) { m = null; } }
-    return m && typeof m === "object" ? m : null;
+    if (!m || typeof m !== "object") return null;
+    // Suite 84 : ancien « bords » (jours voisins enregistrés par le bouton
+    // de vue, suites 74 à 83) -> ouverture en jours voisins, sauf vue
+    // d'ouverture déjà choisie. Oublié au prochain enregistrement (option
+    // inconnue, cf. enregistrerModifsAffichage_), vueOrdi reprenant le
+    // relais.
+    if (m.bords !== undefined) {
+      m = JSON.parse(JSON.stringify(m));
+      if (m.bords === "oui" && m.vueOrdi === undefined) m.vueOrdi = "bords";
+      delete m.bords;
+    }
+    return m;
   }
   function telAReglagesPropres_() { return !!lireJeu_(CLE_AFFICHAGE_TEL, CLE_AFFICHAGE_TEL_LOCAL); }
   function modifsAffichage_(profil) {
@@ -199,14 +217,7 @@
     return o && valeurPermise_(o, v) ? v : (o ? o.defaut : null);
   }
   function affichageModifie_(profil) {
-    return OPTIONS_AFFICHAGE.some(function (o) { return !o.barre && optionAffichage(o.id, profil) !== o.defaut; });
-  }
-  // Réglages de la barre d'outils (suite 79) : ce que « Tout rétablir »
-  // garde.
-  function reglagesBarreAffichage_() {
-    var m = {};
-    OPTIONS_AFFICHAGE.forEach(function (o) { if (o.barre && optionAffichage(o.id, "ordi") !== o.defaut) m[o.id] = optionAffichage(o.id, "ordi"); });
-    return m;
+    return OPTIONS_AFFICHAGE.some(function (o) { return optionAffichage(o.id, profil) !== o.defaut; });
   }
   var minuteursAffichage_ = {};
   function ecrireJeu_(cle, cleLocale, m) {
@@ -315,7 +326,8 @@
     appliquerStyleAffichage_();
     afficherWeekends = optionAffichage("weekends") === "oui";
     var telephone = typeof window.matchMedia === "function" && window.matchMedia("(max-width: 600px)").matches;
-    if (!telephone) deuxSemaines = optionAffichage("vueOrdi") === "2";
+    // Suite 84 : « Jours voisins » aussi (vueBords, js/core.js).
+    if (!telephone) { deuxSemaines = optionAffichage("vueOrdi") === "2"; vueBords = optionAffichage("vueOrdi") === "bords"; }
     vueJourMobile = optionAffichage("vueTel") !== "semaine";
   }
   // Tout de suite au chargement de ce fichier (copie de l'appareil) : le
@@ -347,29 +359,22 @@
     // change la grille (séparateurs, hauteurs mesurées en vue « 1 jour ») :
     // nouveau rendu, s'il y a déjà un planning.
     if (id === "vueOrdi" || id === "vueTel") return;
-    // Jours voisins aux bords (suite 74) : la fenêtre chargée change (une
-    // semaine de plus de chaque côté, ou de moins).
-    if (id === "bords") { rechargerFenetreAffichage_(); return; }
     if (typeof racineEl !== "undefined" && racineEl && typeof render === "function") render(false);
-  }
-  function rechargerFenetreAffichage_() {
-    if (typeof racineEl === "undefined" || !racineEl || typeof assurerFenetreChargee !== "function") return;
-    assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); majBarreSelection(); });
   }
   function retablirAffichage() {
     // Suite 76 : le jeu montré par la page ; l'autre ne touche pas au
     // planning de cet appareil.
     // Suite 79 : les réglages de la barre d'outils (jours voisins aux bords)
-    // restent tels quels.
-    if (profilPage_() !== profilAppareil_()) { enregistrerModifsAffichage_(reglagesBarreAffichage_(), profilPage_()); majPageAffichage(); return; }
+    // restaient tels quels ; suite 84 : ce n'est plus un réglage (vueBords).
+    if (profilPage_() !== profilAppareil_()) { enregistrerModifsAffichage_({}, profilPage_()); majPageAffichage(); return; }
     var avant = {};
     OPTIONS_AFFICHAGE.forEach(function (o) { avant[o.id] = optionAffichage(o.id); });
-    enregistrerModifsAffichage_(reglagesBarreAffichage_(), profilAppareil_());
+    enregistrerModifsAffichage_({}, profilAppareil_());
     afficherWeekends = false;
     var chk = document.getElementById("chkWeekends");
     if (chk) chk.checked = false;
     appliquerStyleAffichage_();
-    if (Object.keys(avant).some(function (id) { return id !== "vueOrdi" && id !== "vueTel" && !optionAffichageParId_(id).barre && avant[id] !== optionAffichageParId_(id).defaut; }) &&
+    if (Object.keys(avant).some(function (id) { return id !== "vueOrdi" && id !== "vueTel" && avant[id] !== optionAffichageParId_(id).defaut; }) &&
       typeof racineEl !== "undefined" && racineEl) render(false);
     majPageAffichage();
   }
@@ -428,7 +433,7 @@
         '<div class="affichage-options">' +
           groupes.map(function (g) {
             return '<h2 class="titre-liste">' + esc(g) + '</h2>' +
-              OPTIONS_AFFICHAGE.filter(function (o) { return o.groupe === g && !o.sousLigne && !o.barre; }).map(htmlLigneOption_).join("");
+              OPTIONS_AFFICHAGE.filter(function (o) { return o.groupe === g && !o.sousLigne; }).map(htmlLigneOption_).join("");
           }).join("") +
           '<p class="page-sous affichage-note">« À l’ouverture » : pris en compte à la prochaine ouverture de l’appli.</p>' +
         '</div>' +
@@ -579,7 +584,7 @@
     // aussi car la vue est bord à bord. » Ordinateur, jours voisins aux
     // bords allumés : planning de bord à bord, sans coin (suite 75).
     var ligneCadre = page.querySelector('.reglage-ligne[data-option="cadre"]');
-    if (ligneCadre) ligneCadre.hidden = profil === "ordi" && optionAffichage("bords", "ordi") === "oui" && !deuxSemaines; // suite 82 : 2 semaines = pas de bords
+    if (ligneCadre) ligneCadre.hidden = profil === "ordi" && vueBords && !deuxSemaines; // suite 82 : 2 semaines = pas de bords ; suite 84 : vueBords
     OPTIONS_AFFICHAGE.forEach(function (o) {
       var v = optionAffichage(o.id, profil);
       if (o.sousLigne) {
@@ -603,7 +608,8 @@
       });
     });
     // Icônes de style d'une ligne masquée : sans objet, cachées.
-    var masquees = { jourSemaine: "masque", heures: "non", ligneDemi: "masquee" };
+    // Suite 84 : + mois et année de la case de gauche (suite 83).
+    var masquees = { jourSemaine: "masque", heures: "non", ligneDemi: "masquee", coinMois: "masque", coinAnnee: "masquee" };
     page.querySelectorAll(".icones-style").forEach(function (b) {
       b.hidden = masquees[b.dataset.pour] === optionAffichage(b.dataset.pour, profil);
     });

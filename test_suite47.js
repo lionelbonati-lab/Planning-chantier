@@ -81,19 +81,21 @@ const BD = {
   // Tablette (820 px) : « Notifications » (ex-« À réserver ») replié dans « ⋮ » après Zoom et
   // Masquages — la navigation des semaines reste dans la barre ; pastille
   // sur « ⋮ », résumé ouvert depuis le menu.
+  // Suite 83 — Lionel : « Les notifications sont un élément important, il
+  // doit toujours rester dans la toolbar. » Plus de repli : la cloche reste
+  // dans la barre, avec son compteur, entre Annuler/Refaire et Imprimer.
   {
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 820, height: 1000 }, bd: BD });
     await page.waitForTimeout(1800);
     const t = await page.evaluate(() => ({
-      replie: !!document.querySelector('#toolbarSecondaire #groupeNotifications'), nav: !!document.querySelector('#legendeBarre > #groupeNavSemaine'),
-      point: getComputedStyle(document.getElementById('btnPlusOutils'), '::after').backgroundColor
+      barre: !!document.querySelector('#legendeBarre > #groupeNotifications') && document.getElementById('btnNotifications').getBoundingClientRect().width > 0,
+      apres: document.getElementById('groupeNotifications').previousElementSibling.id, nav: !!document.querySelector('#legendeBarre > #groupeNavSemaine'),
+      compte: document.querySelector('#btnNotifications .compte-notifications').textContent
     }));
-    verifier(t.replie && t.nav && t.point === 'rgb(179, 55, 47)', '820 px : replié dans « ⋮ », navigation gardée dans la barre, pastille sur « ⋮ » (' + JSON.stringify(t) + ')');
-    await page.click('#btnPlusOutils');
-    const ligne = await page.$eval('#btnNotifications', (b) => b.innerText.replace(/\s+/g, ' ').trim());
+    verifier(t.barre && t.apres === 'groupeAnnulerRefaire' && t.nav && t.compte === '3', '820 px : cloche dans la barre après Annuler/Refaire, compteur 3, navigation gardée (' + JSON.stringify(t) + ')');
     await page.click('#btnNotifications');
     await page.waitForTimeout(300);
-    verifier(ligne === 'Notifications 3' && await page.$$eval('.pop-notifications .ar-ligne', (l) => l.length) === 3, '820 px : ligne « Notifications 3 » du menu, notifications ouvertes (' + ligne + ')');
+    verifier(await page.$$eval('.pop-notifications .ar-ligne', (l) => l.length) === 3, '820 px : notifications ouvertes depuis la barre (3 tâches)');
     toutesErreurs.push(...erreurs);
     await page.close();
   }

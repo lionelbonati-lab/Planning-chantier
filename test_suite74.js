@@ -87,7 +87,7 @@ const interrupteur = async (page) => {
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 1400, height: 700 }, bd: { personnes: PERS, taches: TACHES } });
     await page.waitForTimeout(400);
     // --- 1. Éteinte à l'origine ---
-    let d = await page.evaluate(() => ({ opt: optionAffichage('bords'), labs: fenetreLabGs().length, bords: !!document.querySelector('.vue-bords') }));
+    let d = await page.evaluate(() => ({ opt: vueBords ? 'oui' : 'non', labs: fenetreLabGs().length, bords: !!document.querySelector('.vue-bords') }));
     verifier(d.opt === 'non' && d.labs === 1 && !d.bords, 'éteinte à l\'origine : 1 semaine chargée, vue normale (' + JSON.stringify(d) + ')');
 
     // --- 2. Allumée ---
@@ -187,7 +187,7 @@ const interrupteur = async (page) => {
     // semaines » au clic suivant, sans bords.
     await page.click('#btnModeVue');
     await page.waitForTimeout(900);
-    const deux = await page.evaluate(() => ({ labs: fenetreLabGs().length, bords: document.querySelector('#racine').classList.contains('vue-bords'), deux: deuxSemaines, opt: optionAffichage('bords'), n: nbJoursAffiches() }));
+    const deux = await page.evaluate(() => ({ labs: fenetreLabGs().length, bords: document.querySelector('#racine').classList.contains('vue-bords'), deux: deuxSemaines, opt: vueBords ? 'oui' : 'non', n: nbJoursAffiches() }));
     verifier(deux.labs === 2 && !deux.bords && deux.deux && deux.opt === 'non' && deux.n === 10,
       '2 semaines : les 2 semaines seules, sans bords (' + JSON.stringify(deux) + ')');
     await page.click('#btnModeVue'); await page.waitForTimeout(700); // 1 semaine
@@ -244,10 +244,11 @@ const interrupteur = async (page) => {
   {
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 390, height: 800 }, hasTouch: true, bd: { personnes: PERS, taches: TACHES } });
     await page.waitForTimeout(400);
-    await page.evaluate(() => changerOptionAffichage('bords', 'oui'));
+    // Suite 84 : plus d'option « bords », l'état de la session vueBords.
+    await page.evaluate(() => { vueBords = true; assurerFenetreChargee(() => { construireVueDepuisCache(); render(false); }); });
     await page.waitForTimeout(500);
     const d = await page.evaluate(() => ({ labs: fenetreLabGs().length, bords: !!document.querySelector('.vue-bords'), jour: modeJourMobileActif() }));
-    verifier(d.labs === 2 && !d.bords && d.jour, 'téléphone, option allumée : vue « 1 jour » normale (' + JSON.stringify(d) + ')');
+    verifier(d.labs === 2 && !d.bords && d.jour, 'téléphone, jours voisins allumés : vue « 1 jour » normale (' + JSON.stringify(d) + ')');
     toutesErreurs.push(...erreurs);
     await page.context().close();
   }

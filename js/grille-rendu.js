@@ -228,10 +228,15 @@
   // Suite 79 : « Jours voisins aux bords » replié juste avant la navigation.
   // Suite 81 : « À réserver » devient « Notifications » (même place).
   // Suite 82 : « Jours voisins » rejoint le bouton de vue (#btnModeVue).
-  var REPLIS_ORDRE = ["groupeZoom", "controlesAffichage", "groupeNotifications", "groupeNavSemaine", "groupeImprimer"];
-  // Jours voisins aux bords (suite 79) : masqué sur téléphone, laissé dans
-  // la barre sans largeur (comme « À réserver »).
-  var REPLIS_TELEPHONE = REPLIS_ORDRE.filter(function (id) { return id !== "groupeNotifications"; }).concat(["groupeAjoutLigne"]);
+  // Suite 83 — Lionel : « Les notifications sont un élément important, il
+  // doit toujours rester dans la toolbar. […] "ajouter ligne" à déplacer
+  // dans le menu 3points si manque de place. » La cloche quitte l'ordre de
+  // repli (toujours dans la barre, entre Annuler/Refaire et Imprimer) ;
+  // « Ajouter une ligne » y entre à sa place.
+  var REPLIS_ORDRE = ["groupeZoom", "controlesAffichage", "groupeAjoutLigne", "groupeNavSemaine", "groupeImprimer"];
+  // Téléphone : tout ce qui se replie va dans « ⋮ » ; la cloche est dans la
+  // barre du bas (#btnNotificationsNavBas), masquée dans celle-ci.
+  var REPLIS_TELEPHONE = REPLIS_ORDRE;
   // Insère `el` dans `conteneur` avant le premier enfant de rang supérieur
   // (data-rang ou data-rang-menu selon `cle`) — garde le DOM dans l'ordre
   // visuel, dont dépendent les séparateurs (.sep-avant, cf. style.css).
@@ -955,27 +960,29 @@
   // de vue en 1 seul bouton afin qu'un seul mode ne soit actif à la fois.
   // Comportement du clic sur le bouton 1 semaine > jours voisin > 2
   // semaines > 1 semaine. » #btnModeVue (ordinateur, tablette) : 3 modes,
-  // un seul à la fois. « Jours voisins » reste l'option enregistrée `bords`
-  // (compte et appareil, suite 74) ; « 2 semaines » reste deuxSemaines (vue
-  // d'ouverture : réglage vueOrdi). En 2 semaines, pas de bords
+  // un seul à la fois. « Jours voisins » : vueBords (suite 84, avant
+  // l'option enregistrée `bords`) ; « 2 semaines » : deuxSemaines. Vue
+  // d'ouverture : réglage vueOrdi. En 2 semaines, pas de bords
   // (vueBordsActive).
   var MODES_VUE = {
     semaine: { nom: "1 semaine", icone: "uneSemaine", suivant: "bords" },
     bords: { nom: "Jours voisins", icone: "joursBords", suivant: "deux" },
     deux: { nom: "2 semaines", icone: "deuxSemaines", suivant: "semaine" }
   };
+  // Suite 84 : « Jours voisins » n'est plus l'option enregistrée `bords`
+  // mais l'état vueBords (js/core.js), comme deuxSemaines : le bouton
+  // change la vue de la session, le réglage vueOrdi celle de l'ouverture.
   function modeVueCourant() {
     if (deuxSemaines) return "deux";
-    return typeof optionAffichage === "function" && optionAffichage("bords", "ordi") === "oui" ? "bords" : "semaine";
+    return vueBords ? "bords" : "semaine";
   }
   function basculerModeVue() {
     var suivant = MODES_VUE[modeVueCourant()].suivant;
     deuxSemaines = suivant === "deux";
-    var bords = suivant === "bords" ? "oui" : "non";
-    // Changer `bords` recharge la fenêtre (appliquerEffetOption_) ; sinon
-    // (déjà bon), c'est fait ici.
-    if (optionAffichage("bords", "ordi") !== bords) changerOptionAffichage("bords", bords, "ordi");
-    else assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); majBarreSelection(); });
+    vueBords = suivant === "bords";
+    assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); majBarreSelection(); });
+    // Page Affichage ouverte : la ligne « Coins du planning » suit la vue.
+    if (typeof majPageAffichage === "function") majPageAffichage();
   }
   // Round du 23.09.2026 (suite 4) — pendant mobile de basculerDeuxSemaines()
   // ci-dessus, pour le bouton "1 semaine" qui remplace "Afficher 2 semaines"
@@ -1566,6 +1573,74 @@
     // (grille modifiée entre-temps) est mesurée comme avant.
     var poseJour = -1, poseScroll = 0, largeursPosees = new WeakMap();
     var geoGlisse_ = null, positionsBulles_ = new WeakMap();
+    // Bulles des jours voisins (round du 27.09.2026, suite 84) — Lionel :
+    // « Si les bulles du jours de coté sont plus long elle n'apparaissent
+    // pas complètement. Le but est que je puisse voir ce qui sera fait le
+    // vendredi avant et le lundi après. il faut traiter ces jours de coté
+    // comme le mode 1 jour du mobile. bulle et texte affichés sur le jour
+    // même si la tâche est plus longue. » En vue « Jours voisins », l'écran
+    // montre 3 morceaux de la grille : le vendredi d'avant (A), la semaine
+    // (C, après la colonne des noms), le lundi d'après (B). Une bulle qui
+    // déborde d'un morceau (commencée plus tôt dans la semaine d'avant,
+    // finie plus tard dans celle d'après, ou à cheval sur la colonne des
+    // noms) avait une seule carte : texte hors de l'écran ou sous les noms,
+    // bout de carte vide de l'autre côté. Elle a désormais une carte par
+    // morceau visible, chacune à la largeur de sa part et avec son texte
+    // (.bulle-morceaux, style.css) : la carte d'origine pour la semaine
+    // (ou la seule part visible), des copies (.b-carte-voisin, placées par
+    // `order`) pour les jours voisins. La bulle elle-même (item de grille)
+    // ne change pas : clic, glisser et poignées comme avant.
+    function ajusterBullesJoursVoisins_() {
+      var bulles = [].slice.call(grilleCorps.querySelectorAll(".bulle")).concat([].slice.call(grilleEntete.querySelectorAll(".bulle")));
+      bulles.forEach(function (b) {
+        if (!b.classList.contains("bulle-morceaux")) return;
+        b.classList.remove("bulle-morceaux");
+        b.querySelectorAll(":scope > .b-carte-voisin").forEach(function (c) { c.remove(); });
+        var c0 = b.querySelector(":scope > .b-carte");
+        if (c0) c0.style.marginLeft = c0.style.width = c0.style.maxWidth = c0.style.order = "";
+      });
+      if (!vueBordsRendue_ || !scroller.getClientRects().length) return;
+      var zoom = (niveauZoomPlanning / 100) || 1;
+      var rS = scroller.getBoundingClientRect(), visG = rS.left + scroller.clientLeft, visD = visG + scroller.clientWidth;
+      // Morceaux visibles d'après les en-têtes de jours : semaine d'avant
+      // (0), semaine affichée (1), semaine d'après (2).
+      var zones = [null, null, null];
+      grilleEntete.querySelectorAll(".th[data-gi]").forEach(function (th) {
+        var gi = +th.dataset.gi, s = estGiWeekend(gi) ? semaineDuGiWeekend(gi) : Math.floor(gi / 5);
+        var k = s === 0 ? 0 : s >= nbSemainesAffichees - 1 ? 2 : 1;
+        var r = th.getBoundingClientRect(), g = Math.max(r.left, visG), d = Math.min(r.right, visD);
+        if (d - g < 1) return;
+        zones[k] = zones[k] ? [Math.min(zones[k][0], g), Math.max(zones[k][1], d)] : [g, d];
+      });
+      bulles.forEach(function (b) {
+        var carte = b.querySelector(":scope > .b-carte");
+        if (!carte) return;
+        var r = b.getBoundingClientRect();
+        if (r.width < 1) return;
+        var parts = [];
+        zones.forEach(function (z, k) {
+          if (!z) return;
+          var g = Math.max(r.left, z[0]), d = Math.min(r.right, z[1]);
+          if (d - g >= 1) parts.push({ g: g, d: d, k: k });
+        });
+        if (!parts.length || (parts.length === 1 && parts[0].g - r.left < 1 && r.right - parts[0].d < 1)) return;
+        b.classList.add("bulle-morceaux");
+        var principale = parts.filter(function (p) { return p.k === 1; })[0] || parts[0], x = r.left;
+        parts.forEach(function (p, i) {
+          var c = carte;
+          if (p !== principale) {
+            c = carte.cloneNode(true);
+            c.classList.add("b-carte-voisin");
+            c.setAttribute("aria-hidden", "true");
+            b.appendChild(c);
+          }
+          c.style.order = String(i);
+          c.style.marginLeft = ((p.g - x) / zoom) + "px";
+          c.style.width = c.style.maxWidth = ((p.d - p.g) / zoom) + "px";
+          x = p.d;
+        });
+      });
+    }
     function ajusterLargeurBullesJourMobile(pendantGlissement, xConnu) {
       if (!enModeJourMobile) return;
       var zoom = (niveauZoomPlanning / 100) || 1;
@@ -2180,7 +2255,9 @@
       if (avant && avant.slice(0, 7) === iso.slice(0, 7)) return;
       coin.innerHTML = htmlCoinMoisAnnee([iso]);
     }
-    reajusterBullesJourMobile = function () { planifierAjustLargeurBulles(false); };
+    // Suite 84 : en vue « Jours voisins », l'aperçu d'une poignée recoupe
+    // aussi les cartes par morceau (ajusterBullesJoursVoisins_).
+    reajusterBullesJourMobile = function () { if (vueBordsRendue_) ajusterBullesJoursVoisins_(); else planifierAjustLargeurBulles(false); };
     // Round du 23.09.2026 (suite 5) — Lionel : « Swipper un vendredi permet
     // de passer au lundi de la semaine suivante ? ». Réattaché à chaque
     // rendu (comme le mirroir de scroll juste au-dessus) puisque .scroller
@@ -2857,6 +2934,7 @@
     // en cours, ex. re-rendu sans changement de semaine/jour) — cf. le
     // commentaire de ajusterLargeurBullesJourMobile plus haut.
     ajusterLargeurBullesJourMobile();
+    ajusterBullesJoursVoisins_(); // vue « Jours voisins » (suite 84)
     // Hauteurs du jour affiché (suite 35, cf. figerHauteursJourMobile),
     // APRÈS le calage horizontal : c'est ce jour-là qu'on mesure. Si les
     // polices ne sont pas encore chargées (premier affichage), la mesure est
