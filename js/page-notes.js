@@ -223,3 +223,26 @@
       render(false);
     });
   }
+
+  // ---- Raccourcis de l'icône de l'appli — round du 27.09.2026 (suite 88)
+  // Lionel : « J'aimerai des boutons d'accès rapide pour enregistrer des
+  // notes rapidement. » (capture : appui long sur l'icône d'une appli
+  // installée → « Nouvelle tâche », « Mes tâches »). manifest.json
+  // (shortcuts) : « Nouvelle note » → index.html?raccourci=nouvelle-note
+  // (fiche Ajouter, aujourd'hui, clavier ouvert sur le texte), « Mes
+  // notes » → index.html?raccourci=notes (page Notes). Lu une fois, après
+  // le premier affichage du planning (demarrer, js/donnees-sync.js), puis
+  // retiré de l'adresse : recharger la page ne rouvre pas la fiche.
+  function lancerRaccourciAppli() {
+    var p;
+    try { p = new URLSearchParams(location.search); } catch (e) { return; }
+    var r = p.get("raccourci");
+    if (!r) return;
+    p.delete("raccourci");
+    try {
+      var q = p.toString();
+      history.replaceState(history.state, "", location.pathname + (q ? "?" + q : "") + location.hash);
+    } catch (e) { /* adresse gardée : sans conséquence */ }
+    if (r === "nouvelle-note") ouvrirFormulaireNote(null);
+    else if (r === "notes") afficherPage("notes");
+  }
