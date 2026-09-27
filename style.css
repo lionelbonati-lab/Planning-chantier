@@ -1059,7 +1059,35 @@
   .lbl span { font-size: calc(10px * var(--aff-t-noms, 1)); color: var(--ink-faint); font-family: var(--police-mono); text-transform: uppercase; letter-spacing: .04em; }
   .lbl-speciale { background: var(--surface); }
   .lbl-speciale b { color: var(--ink-muted); font-size: calc(11px * var(--aff-t-noms, 1)); text-transform: uppercase; letter-spacing: .04em; }
-  .th.coin, .lbl, .lbl-speciale { position: sticky; left: 0; z-index: 2; }
+  .th.coin, .lbl, .lbl-speciale { position: sticky; left: var(--noms-gauche, 0px); z-index: 2; }
+  /* Jours voisins aux bords (round du 27.09.2026, suite 74, page Affichage)
+     — Lionel : « le vendredi de la semaine avant à gauche de l'écran et le
+     lundi de la semaine suivante à droite […] Les nom seraient affiché que
+     sur la partie centrale. » --noms-gauche (posé en JS sur #racine,
+     construireGrille) : la colonne des noms, les libellés Personnel /
+     Intervenants et le texte collant des bulles se collent après le bord
+     du vendredi et la bande entre semaines, plus au bord de l'écran. Le
+     défilement horizontal est tenu (on change de semaine, on ne défile
+     pas) : pas de barre. */
+  .scroller.vue-bords { overflow-x: hidden; }
+  /* Jour et date du jour coupé, du côté visible (th-bord-avant/-apres). */
+  .th.th-bord-avant { text-align: right; }
+  .th.th-bord-apres { text-align: left; }
+  /* Libellé Personnel / Intervenants : seul à rester fixe au changement de
+     semaine (le bandeau glisse avec la grille) — opaque, sur toute la
+     largeur de la colonne des noms. */
+  #racine.vue-bords .section-row-sticky { background: inherit; min-width: var(--largeur-noms); box-sizing: border-box; }
+  /* Round du 27.09.2026 (suite 75) — Lionel : « pas de bordure sur le bord de
+     l'écran pour les semaines adjacentes. Ça doit être collé au bord de la
+     fenêtre. » Le planning reprend les 18 px de marge de .page-scroll de
+     chaque côté ; cadre sans bord ni coin arrondi à gauche et à droite (la
+     suite est « cachée en dehors de l'écran »). La barre d'outils, elle,
+     garde sa marge. */
+  #racine.vue-bords { margin-left: -18px; margin-right: -18px; }
+  #racine.vue-bords .entete-planning-scroll, #racine.vue-bords .grille-cadre { border-left: none; border-right: none; border-radius: 0; }
+  /* « Pas de samedi-dimanche dans les semaines adjacentes » : colonnes de
+     0 px (cf. gabaritB), leur contenu masqué. */
+  #racine.vue-bords .we-voisin { display: none; }
   /* Round du 27.09.2026 (suite 72) — Lionel : « J'aimerai un effet
      similaire sur ordinateur lors du passage d'une semaine à l'autre. »
      Glissement de semaine (glisserVersSemaine_, js/grille-rendu.js, API View
@@ -1085,6 +1113,13 @@
   html.vt-semaine::view-transition-new(semaine) { animation-name: vt-semaine-entree; }
   @keyframes vt-semaine-sortie { from { transform: none; } to { transform: translateX(calc(var(--vt-dir, 1) * -1 * var(--vt-pas, 100%))); } }
   @keyframes vt-semaine-entree { from { transform: translateX(calc(var(--vt-dir, 1) * var(--vt-pas, 100%))); } to { transform: none; } }
+  /* Jours voisins aux bords (suite 74, cf. glisserVersSemaine_) : chaque
+     photo son pas (--vt-sortie, --vt-entree) et ses parties gardées
+     (--vt-masque-ancien, --vt-masque-nouveau). */
+  html.vt-semaine.vt-bords::view-transition-old(semaine) { animation-name: vt-bords-sortie; -webkit-mask-image: var(--vt-masque-ancien); mask-image: var(--vt-masque-ancien); }
+  html.vt-semaine.vt-bords::view-transition-new(semaine) { animation-name: vt-bords-entree; -webkit-mask-image: var(--vt-masque-nouveau); mask-image: var(--vt-masque-nouveau); }
+  @keyframes vt-bords-sortie { from { transform: none; } to { transform: translateX(var(--vt-sortie, 0px)); } }
+  @keyframes vt-bords-entree { from { transform: translateX(var(--vt-entree, 0px)); } to { transform: none; } }
   /* Round du 24.09.2026 — Lionel : « ajoute un bordure à droite de la
      première colonne. » La colonne d'étiquette (116px, sticky left:0)
      n'avait pour seule séparation que le gap de grille de 1px habituel
@@ -1310,7 +1345,7 @@
      propre fond indépendamment. */
   .section-row-personnel { background: var(--section-personnel-bg); }
   .section-row-intervenants { background: var(--section-intervenants-bg); }
-  .section-row-sticky { position: sticky; left: 0; display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px; }
+  .section-row-sticky { position: sticky; left: var(--noms-gauche, 0px); display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px; }
   .section-label { font-family: var(--police-mono); font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-muted); }
   /* .btn-plage-ligne (le "+" de fin de ligne section) a vécu : §85 (round du
      17.09.2026) — Lionel, mockup mockup-sous-menu-outils.html à l'appui,
@@ -1512,7 +1547,7 @@
      avoir besoin (Lionel : « la case jour... déborde à droite »). Fallback
      calc(100vw - 132px) conservé au cas où cette variable ne serait pas
      encore posée (avant le tout premier rendu). */
-  .b-txt, .b-statut, .b-serie { position: sticky; left: var(--largeur-noms); max-width: var(--largeur-visible-bulle, calc(100vw - var(--largeur-noms) - 16px)); }
+  .b-txt, .b-statut, .b-serie { position: sticky; left: calc(var(--largeur-noms) + var(--noms-gauche, 0px)); max-width: var(--largeur-visible-bulle, calc(100vw - var(--largeur-noms) - 16px)); }
   .b-txt { align-self: flex-start; }
   .b-statut {
     align-self: flex-start; margin-top: 1px; display: inline-flex; align-items: center; gap: 4px;

@@ -90,6 +90,8 @@
     { id: "zebre", groupe: "Planning", nom: "Lignes alternées", aide: "Une personne sur deux légèrement teintée, pour suivre une ligne d’un bout à l’autre.", interrupteur: true, defaut: "non", css: true },
     { id: "teinte", groupe: "Planning", nom: "Colonnes teintées", aide: "La demi-journée légèrement grisée, pour distinguer le matin de l’après-midi.", choix: [["aucune", "Aucune"], ["matin", "Matin"], ["aprem", "Après-midi"]], defaut: "aprem", css: true },
     { id: "separation", groupe: "Planning", nom: "Espace entre 2 semaines", aide: "Comme 2 fenêtres côte à côte. Éteint : un simple trait, comme entre 2 jours.", interrupteur: ["espace", "rien"], defaut: "espace", alias: { trait: "rien" }, css: true },
+    // Suite 74 (cf. vueBordsActive, js/core.js).
+    { id: "bords", groupe: "Planning", nom: "Jours voisins aux bords", aide: "Ordinateur, tablette : le vendredi d’avant à gauche et le lundi d’après à droite, coupés par le bord de l’écran. Les noms restent entre les deux.", interrupteur: true, defaut: "non" },
     { id: "cadre", groupe: "Planning", nom: "Coins du planning arrondis", aide: "Éteint : coins carrés.", interrupteur: ["arrondis", "carres"], defaut: "arrondis", css: true },
     { id: "noms", groupe: "Planning", nom: "Taille des noms", aide: "La colonne de gauche : personnes, Jalons, Notes.", choix: [["petit", "Petite"], ["normal", "Normale"], ["grand", "Grande"], ["tresgrand", "Très grande"]], defaut: "normal", css: true },
     { id: "jourSemaine", groupe: "Dates", nom: "Jour de la semaine", choix: [["abrege", "Jeu"], ["complet", "Jeudi"], ["initiale", "J"], ["masque", "Masqué"]], defaut: "abrege" },
@@ -315,7 +317,14 @@
     // change la grille (séparateurs, hauteurs mesurées en vue « 1 jour ») :
     // nouveau rendu, s'il y a déjà un planning.
     if (id === "vueOrdi" || id === "vueTel") return;
+    // Jours voisins aux bords (suite 74) : la fenêtre chargée change (une
+    // semaine de plus de chaque côté, ou de moins).
+    if (id === "bords") { rechargerFenetreAffichage_(); return; }
     if (typeof racineEl !== "undefined" && racineEl && typeof render === "function") render(false);
+  }
+  function rechargerFenetreAffichage_() {
+    if (typeof racineEl === "undefined" || !racineEl || typeof assurerFenetreChargee !== "function") return;
+    assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); majBarreSelection(); });
   }
   function retablirAffichage() {
     var avant = {};
@@ -325,7 +334,8 @@
     var chk = document.getElementById("chkWeekends");
     if (chk) chk.checked = false;
     appliquerStyleAffichage_();
-    if (Object.keys(avant).some(function (id) { return id !== "vueOrdi" && id !== "vueTel" && avant[id] !== optionAffichageParId_(id).defaut; }) &&
+    if (avant.bords !== optionAffichageParId_("bords").defaut) rechargerFenetreAffichage_();
+    else if (Object.keys(avant).some(function (id) { return id !== "vueOrdi" && id !== "vueTel" && avant[id] !== optionAffichageParId_(id).defaut; }) &&
       typeof racineEl !== "undefined" && racineEl) render(false);
     majPageAffichage();
   }
