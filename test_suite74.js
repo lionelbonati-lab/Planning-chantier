@@ -22,6 +22,15 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //   5. fenêtre rétrécie : colonnes recalculées, bords toujours égaux ;
 //   6. 2 semaines : 4 semaines chargées, bords autour des 2 ;
 //   7. téléphone : jamais (vue « 1 jour » normale) ; éteinte : 1 semaine.
+// Round du 27.09.2026 (suite 75) — Lionel : « Pas de samedi-dimanche dans les
+// semaines adjacentes. pas de bordure sur le bord de l'écran pour les
+// semaines adjacentes. Ça doit être collé au bord de la fenêtre. » :
+//   2b. planning de bord à bord de la fenêtre, sans bord ni coin arrondi
+//       sur les côtés (la barre d'outils garde sa marge) ;
+//   8. week-ends affichés : le vendredi 18 dans le bord gauche (pas le
+//      dimanche 20), aucun samedi/dimanche des semaines voisines, ceux de
+//      la semaine affichée présents ; glissement : l'ancienne photo va
+//      jusqu'à mettre son vendredi (pas son dimanche) dans le bord gauche.
 //
 // Lancer : node test_suite74.js
 
@@ -32,6 +41,8 @@ const t = (p, d, texte) => { for (const demi of ['matin', 'aprem']) TACHES.push(
 t(1, '2026-09-17', 'Coffrage long'); t(1, '2026-09-18', 'Coffrage long'); t(1, '2026-09-21', 'Coffrage long'); t(1, '2026-09-22', 'Coffrage long');
 t(2, '2026-09-18', 'Vendredi avant'); t(2, '2026-09-22', 'Mardi');
 t(3, '2026-09-25', 'Ven'); t(3, '2026-09-28', 'Lundi après');
+TACHES.push({ id: id++, personne_id: 2, date: '2026-09-19', demi: 'matin', ordre: 0, texte: 'Samedi 19', est_absence: false, chantier_id: 1 });
+TACHES.push({ id: id++, personne_id: 2, date: '2026-09-26', demi: 'matin', ordre: 0, texte: 'Samedi 26', est_absence: false, chantier_id: 1 });
 
 // Disposition à l'écran, dans le repère du .scroller.
 const dispo = (page) => page.evaluate(() => {
@@ -85,6 +96,13 @@ const interrupteur = async (page) => {
       'à l\'écran : bord du vendredi 18 (' + d.bordG + ' px), bande, noms, lundi 21 contre les noms, bord du lundi 28 (' + d.bordD + ' px)');
     verifier(d.seps.length === 2 && Math.abs(d.seps[0] - (d.bordG - 4)) <= 1 && Math.abs(d.seps[1] - (d.lundiS - 5)) <= 1,
       'bandes entre semaines : entre le vendredi et les noms, entre vendredi 25 et lundi 28 (' + JSON.stringify(d.seps) + ')');
+    const cote = await page.evaluate(() => {
+      const sc = document.querySelector('.scroller').getBoundingClientRect(), bar = document.querySelector('.toolbar, #legendeBarre').getBoundingClientRect();
+      const st = (sel) => { const c = getComputedStyle(document.querySelector(sel)); return c.borderLeftWidth + ' ' + c.borderRightWidth + ' ' + c.borderTopLeftRadius + ' ' + c.borderBottomRightRadius; };
+      return { g: Math.round(sc.left), d: Math.round(innerWidth - sc.right), barre: Math.round(bar.left), cadre: st('.grille-cadre'), entete: st('.entete-planning-scroll') };
+    });
+    verifier(cote.g === 0 && cote.d <= 1 && cote.barre > 0 && cote.cadre === '0px 0px 0px 0px' && cote.entete === '0px 0px 0px 0px',
+      'collé aux bords de la fenêtre : ni marge, ni bord, ni coin arrondi sur les côtés ; la barre garde sa marge (' + JSON.stringify(cote) + ')');
     verifier(/sept/i.test(d.coin) && !/oct/i.test(d.coin), 'case du mois : septembre seul, pas le lundi 28 (« ' + d.coin + ' »)');
     const visibles = await page.evaluate(() => {
       const sc = document.querySelector('.scroller'), lbl = sc.querySelector('.lbl[data-vt="p1"]').getBoundingClientRect(), out = [];
@@ -153,8 +171,8 @@ const interrupteur = async (page) => {
     await page.setViewportSize({ width: 1000, height: 700 });
     await page.waitForTimeout(700);
     d = await dispo(page);
-    verifier(d.largeur < 1000 && bordOk(d) && d.noms === d.bordG + 4 && d.lundi === d.nomsD + 1 && d.lundiS + d.bordD === d.largeur,
-      'fenêtre rétrécie à 1000 px : colonnes recalculées, bords égaux (' + d.bordG + ' / ' + d.bordD + ')');
+    verifier(d.largeur === 1000 && bordOk(d) && d.noms === d.bordG + 4 && d.lundi === d.nomsD + 1 && d.lundiS + d.bordD === d.largeur,
+      'fenêtre rétrécie à 1000 px : planning sur toute la largeur, colonnes recalculées, bords égaux (' + d.bordG + ' / ' + d.bordD + ')');
 
     // --- 6. 2 semaines ---
     await page.setViewportSize({ width: 1400, height: 700 });
@@ -166,6 +184,45 @@ const interrupteur = async (page) => {
       '2 semaines : 4 semaines chargées, bords autour des 2, 3 bandes (' + JSON.stringify(d) + ')');
     await page.evaluate(() => document.getElementById('btnDeuxSemaines').click());
     await page.waitForTimeout(700);
+
+    // --- 8. Week-ends affichés ---
+    await page.evaluate(() => changerOptionAffichage('weekends', 'oui'));
+    await page.waitForTimeout(700);
+    d = await dispo(page);
+    const we = () => page.evaluate(() => {
+      const vis = (e) => { const r = e.getBoundingClientRect(); return r.width > 0 && getComputedStyle(e).display !== 'none'; };
+      const ths = [...document.querySelectorAll('.entete-planning-figee .th.th-weekend[data-gi]')].filter(vis).map((e) => isoDeGi(+e.dataset.gi).slice(8));
+      const bulles = [...document.querySelectorAll('.scroller .bulle')].filter(vis).map((b) => b.textContent.trim()).filter((x) => /^Samedi/.test(x));
+      const n = nbJoursAffiches(), fin = document.querySelector('.entete-planning-figee .th[data-gi="' + (n - 6) + '"]').getBoundingClientRect();
+      return { ths, bulles, finVen: Math.round(fin.right - document.querySelector('.scroller').getBoundingClientRect().left) };
+    });
+    let w = await we();
+    verifier(d.venIso === '2026-09-18' && bordOk(d) && d.noms === d.bordG + 4 && d.lundi === d.nomsD + 1 && JSON.stringify(w.ths) === '["26","27"]' && JSON.stringify(w.bulles) === '["Samedi 26"]',
+      'week-ends : vendredi 18 dans le bord gauche, samedi/dimanche seulement pour la semaine affichée (' + JSON.stringify({ d, w }) + ')');
+    const avantWe = d, finVen = w.finVen;
+    await page.mouse.move(sc.x, sc.y);
+    await page.mouse.wheel(120, 0);
+    const vtWe = await page.evaluate(async () => {
+      const t0 = performance.now(); let a;
+      for (;;) { a = document.getAnimations().find((x) => x.effect && x.effect.pseudoElement === '::view-transition-old(semaine)'); if (a || performance.now() - t0 > 3000) break; await new Promise((ok) => requestAnimationFrame(ok)); }
+      if (!a) return null;
+      const anims = document.getAnimations().filter((x) => x.effect && /view-transition/.test(x.effect.pseudoElement || ''));
+      anims.forEach((x) => { x.pause(); x.currentTime = 340; });
+      await new Promise((ok) => requestAnimationFrame(ok));
+      const m = /matrix\(([^)]+)\)/.exec(getComputedStyle(document.documentElement, '::view-transition-old(semaine)').transform);
+      anims.forEach((x) => x.play());
+      return m ? Math.round(+m[1].split(',')[4]) : 0;
+    });
+    await page.waitForTimeout(800);
+    d = await dispo(page); w = await we();
+    verifier(vtWe !== null && Math.abs(vtWe + (finVen - avantWe.bordG)) <= 2,
+      'week-ends, glissement : l\'ancienne semaine met son vendredi 25 (pas son dimanche) dans le bord gauche (' + vtWe + ' px, attendu ' + -(finVen - avantWe.bordG) + ')');
+    verifier(d.venIso === '2026-09-25' && d.lunIso === '2026-09-28' && bordOk(d) && d.lundi === avantWe.lundi && JSON.stringify(w.ths) === '["03","04"]' && w.bulles.length === 0,
+      'week-ends, arrivée : vendredi 25 au bord gauche, samedi 26 caché, week-end du 3-4 octobre seul (' + JSON.stringify({ d, w }) + ')');
+    await page.mouse.wheel(-120, 0);
+    await page.waitForTimeout(900);
+    await page.evaluate(() => changerOptionAffichage('weekends', 'non'));
+    await page.waitForTimeout(500);
 
     // --- 7b. Éteinte ---
     await interrupteur(page);

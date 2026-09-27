@@ -843,14 +843,21 @@
       var z = (niveauZoomPlanning / 100) || 1, ths = racineEl.querySelectorAll(".entete-planning-figee .th[data-gi]:not(.th-demi):not(.th-weekend)");
       var thL = racineEl.querySelector('.entete-planning-figee .th[data-gi="5"]'), thS = ths[ths.length - 5];
       var xL = thL.getBoundingClientRect().left - r.left, xS = thS.getBoundingClientRect().left - r.left, xG = xL - (noms + 4) * z;
+      // Week-ends affichés (round du 27.09.2026, suite 75 — Lionel : « Pas de
+      // samedi-dimanche dans les semaines adjacentes ») : le vendredi qui
+      // passe dans le bord gauche (ou en revient) est suivi de son
+      // week-end, que le bord n'a pas. Le pas se prend donc sur ce vendredi
+      // (xF, son bord droit + l'écart de 1 px), pas sur le lundi d'après :
+      // le week-end finit (ou part) sous les noms. Sans week-end, xF = xS.
+      var thF = ths[ths.length - 6], xF = thF ? thF.getBoundingClientRect().right - r.left + z : xS;
       var px = function (v) { return Math.round(v * 10) / 10 + "px"; };
       var masqueComplet = "linear-gradient(to right, #000 " + px(xG + 3) + ", transparent " + px(xG + 3) + ", transparent " + px(xL) + ", #000 " + px(xL) + ", #000 " + px(xS + 3) + ", transparent " + px(xS + 3) + ")";
       var masqueDroite = "linear-gradient(to right, transparent " + px(xL) + ", #000 " + px(xL) + ")";
       html.style.setProperty("--vt-noms", "0px");
       html.style.setProperty("--vt-masque-ancien", dir > 0 ? masqueComplet : masqueDroite);
       html.style.setProperty("--vt-masque-nouveau", dir > 0 ? masqueDroite : masqueComplet);
-      html.style.setProperty("--vt-sortie", px(dir > 0 ? -(xS - xG) : xS - xL));
-      html.style.setProperty("--vt-entree", px(dir > 0 ? xS - xL : -(xS - xG)));
+      html.style.setProperty("--vt-sortie", px(dir > 0 ? -(xF - xG) : xS - xL));
+      html.style.setProperty("--vt-entree", px(dir > 0 ? xS - xL : -(xF - xG)));
     }
     html.classList.add("vt-semaine");
     nommerColonneNoms_(true);
@@ -1395,14 +1402,25 @@
       var colB = Math.max(20, ((W - 2 * P - LN - 4) / nbC - weB) / (5 * cpjB) - 1);
       // Colonne vide : la bande couvre ses 3 premiers px (+ 4 du vendredi),
       // les noms le reste, jusqu'au trait de 1 px avant le lundi.
-      var espaceB = LN + 3;
-      var gabaritB = LN + "px", nbColsB = 1;
+      //
+      // Round du 27.09.2026 (suite 75) — Lionel : « Pas de samedi-dimanche dans les
+      // semaines adjacentes. » Week-ends de la semaine d'avant et de celle
+      // d'après : colonnes de 0 px (leur contenu est masqué, cf.
+      // colsWeVoisins) ; le vendredi d'avant reste donc collé à la bande. Les
+      // 2 écarts de 1 px de ces colonnes sont repris sur la colonne vide :
+      // le lundi reste à la même distance du vendredi.
+      var espaceB = LN + 3 - (afficherWeekends ? 2 : 0);
+      var gabaritB = LN + "px", nbColsB = 1, nbWeB = 0;
       for (var sB = 0; sB < nbSemainesAffichees; sB++) {
         if (sB === 1) { gabaritB += " " + espaceB + "px"; nbColsB++; }
         gabaritB += " repeat(" + (5 * cpjB) + ", " + colB + "px)"; nbColsB += 5 * cpjB;
-        if (afficherWeekends) { gabaritB += " repeat(2, 46px)"; nbColsB += 2; }
+        if (afficherWeekends) {
+          var voisineB = sB === 0 || sB === nbSemainesAffichees - 1;
+          gabaritB += voisineB ? " repeat(2, 0px)" : " repeat(2, 46px)"; nbColsB += 2;
+          if (!voisineB) nbWeB++;
+        }
       }
-      var totalB = LN + espaceB + nbSemainesAffichees * (5 * cpjB * colB + (afficherWeekends ? 92 : 0)) + (nbColsB - 1);
+      var totalB = LN + espaceB + nbSemainesAffichees * 5 * cpjB * colB + nbWeB * 92 + (nbColsB - 1);
       grilleEntete.style.gridTemplateColumns = grilleCorps.style.gridTemplateColumns = gabaritB;
       grilleEntete.style.minWidth = grilleCorps.style.minWidth = totalB + "px";
       geoBords = { P: P, largeur: W, zoom: zB };
@@ -2275,8 +2293,19 @@
       else if (accumulMolette >= seuilMolette) { accumulMolette = 0; naviguerSemaineDepuisBordJour(1); }
     }, { passive: false });
 
+    // Jours voisins aux bords (suite 75) : week-ends des
+    // semaines d'avant et d'après, colonnes de 0 px (cf. gabaritB) — tout ce
+    // qui y est posé (en-têtes, cases, bulles d'un samedi/dimanche) est
+    // masqué (.we-voisin).
+    var colsWeVoisins = {};
+    if (vueBordsRendue_ && afficherWeekends) {
+      [0, nbSemainesAffichees - 1].forEach(function (sV) {
+        colsWeVoisins[colonneGrille(giWeekend(sV, 0))] = colsWeVoisins[colonneGrille(giWeekend(sV, 1))] = true;
+      });
+    }
     function poserDans(cibleGrille) {
       return function (el, col, row, colSpan, rowSpan) {
+        if (colsWeVoisins[col] && (!colSpan || colSpan === 1)) el.classList.add("we-voisin");
         el.style.gridColumn = colSpan ? (col + " / span " + colSpan) : String(col);
         el.style.gridRow = rowSpan ? (row + " / span " + rowSpan) : String(row);
         cibleGrille.appendChild(el);
@@ -2346,7 +2375,7 @@
         // Jours voisins aux bords (suite 74) : jour et date collés du côté
         // visible (le vendredi d'avant n'en montre que la fin, le lundi
         // d'après que le début).
-        + (vueBordsRendue_ && gi === 4 && !afficherWeekends ? " th-bord-avant" : "")
+        + (vueBordsRendue_ && gi === 4 ? " th-bord-avant" : "")
         + (vueBordsRendue_ && gi === n - 5 ? " th-bord-apres" : "");
       th.dataset.gi = gi;
       var infoJour = libelleJourGi(gi);
@@ -2374,7 +2403,7 @@
         [0, 1].forEach(function (j) {
           var giWE = giWeekend(semIdxTh, j);
           var thWE = document.createElement("div");
-          thWE.className = "th th-weekend" + (vueBordsRendue_ && giWE === giWeekend(0, 1) ? " th-bord-avant" : "");
+          thWE.className = "th th-weekend";
           thWE.dataset.gi = giWE;
           var infoWE = libelleJourGi(giWE), enteteWE = enteteJourAffichage(isoDeGi(giWE), infoWE.jour);
           thWE.innerHTML = nomJourHTML_(enteteWE.nom) + '<span class="th-date">' + htmlDateWeekEnd(enteteWE.date) + "</span>";

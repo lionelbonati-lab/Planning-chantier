@@ -9374,3 +9374,31 @@ Lionel :
 - test_suite35.js : la poignée tenue contre le bord droit est tenue 700 ms au lieu de 1000. Elle part déjà dans la zone du bord : 1300 ms tombaient à 50 ms du 2e saut de jour, franchi une fois sur la CI (fusionné avec la suite 73).
 - test_suite62.js : la liste attendue des réglages de la page Affichage compte « bords » (20 réglages). test_grille_compacte.js : `vueBordsRendue_` (éteint) dans le bac à sable de colonneGrille.
 - Suite complète : 82/82.
+
+## 183. Round du 27.09.2026 (suite 75) — Jours voisins aux bords : pas de week-end dans les semaines voisines, planning collé aux bords de la fenêtre
+- « Pas de samedi-dimanche dans les semaines adjacentes. »
+- « pas de bordure sur le bord de l'écran pour les semaines adjacentes. Ça doit être collé au bord de la fenêtre. »
+
+### Ce qui change
+- **Week-ends affichés** : le bord gauche montre le vendredi d'avant (plus le dimanche), collé à l'espace entre semaines. Les samedi et dimanche des semaines d'avant et d'après n'apparaissent plus, bulles comprises. Ceux de la semaine affichée restent.
+- **Bords de la fenêtre** : dans cette vue, le planning va d'un bord à l'autre de la fenêtre. Il n'y a plus de marge, de bord ni de coin arrondi à gauche et à droite : la suite est « cachée en dehors de l'écran ». La barre d'outils garde sa marge.
+- **Changement de semaine, week-ends affichés** : l'ancienne semaine glisse jusqu'à ce que son vendredi (plus son dimanche) arrive dans le bord gauche. Son week-end finit sous les noms. Vers la semaine précédente, c'est l'inverse.
+
+### Fonctionnement
+- **Gabarit** (construireGrille, js/grille-rendu.js) :
+  - les 2 colonnes de week-end de la 1re et de la dernière semaine chargées font 0 px ;
+  - leurs 2 écarts de 1 px sont repris sur la colonne vide des noms (LN + 1 au lieu de LN + 3), si bien que le lundi reste à la même distance du vendredi d'avant ;
+  - tout ce qui est posé dans ces colonnes (en-têtes, cases, bulles) reçoit `.we-voisin` (`display: none`) ;
+  - colonneGrille est inchangé.
+- **Jour et date du vendredi d'avant** : toujours collés à droite (`th-bord-avant`), week-ends ou non.
+- **Glissement** (glisserVersSemaine_) : le pas de la photo qui passe au bord gauche se prend sur le bord droit de son dernier vendredi (xF), plus sur le lundi d'après (xS). Sans week-end, les deux sont égaux.
+- **CSS** : `#racine.vue-bords` reprend les 18 px de marge de .page-scroll de chaque côté (`margin: 0 -18px`). `.entete-planning-scroll` et `.grille-cadre` perdent leurs bords gauche et droit et leurs coins arrondis. Les colonnes restent calculées sur la largeur réelle du .scroller, désormais celle de la fenêtre.
+
+### Tests
+- test_suite74.js, 20/20 :
+  - planning de bord à bord, sans bord ni coin arrondi sur les côtés ;
+  - week-ends : vendredi 18 dans le bord gauche ; samedi/dimanche et bulle du samedi 19 absents ; ceux du 26-27 présents ;
+  - glissement au pas du vendredi 25 ;
+  - arrivée sans le samedi 26 ;
+  - fenêtre de 1000 px : le planning fait 1000 px.
+- Suite complète : 82/82.

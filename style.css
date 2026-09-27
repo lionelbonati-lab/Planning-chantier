@@ -1077,6 +1077,17 @@
      semaine (le bandeau glisse avec la grille) — opaque, sur toute la
      largeur de la colonne des noms. */
   #racine.vue-bords .section-row-sticky { background: inherit; min-width: var(--largeur-noms); box-sizing: border-box; }
+  /* Round du 27.09.2026 (suite 75) — Lionel : « pas de bordure sur le bord de
+     l'écran pour les semaines adjacentes. Ça doit être collé au bord de la
+     fenêtre. » Le planning reprend les 18 px de marge de .page-scroll de
+     chaque côté ; cadre sans bord ni coin arrondi à gauche et à droite (la
+     suite est « cachée en dehors de l'écran »). La barre d'outils, elle,
+     garde sa marge. */
+  #racine.vue-bords { margin-left: -18px; margin-right: -18px; }
+  #racine.vue-bords .entete-planning-scroll, #racine.vue-bords .grille-cadre { border-left: none; border-right: none; border-radius: 0; }
+  /* « Pas de samedi-dimanche dans les semaines adjacentes » : colonnes de
+     0 px (cf. gabaritB), leur contenu masqué. */
+  #racine.vue-bords .we-voisin { display: none; }
   /* Round du 27.09.2026 (suite 72) — Lionel : « J'aimerai un effet
      similaire sur ordinateur lors du passage d'une semaine à l'autre. »
      Glissement de semaine (glisserVersSemaine_, js/grille-rendu.js, API View
