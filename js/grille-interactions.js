@@ -940,9 +940,9 @@
       lignesBulles[id] = res;
       return res;
     }
-    function poserSurlignagePrecis(bornes, gridRow, parent) {
+    function poserSurlignagePrecis(bornes, gridRow, parent, interdit) {
       var el = document.createElement("div");
-      el.className = "survol-precis";
+      el.className = "survol-precis" + (interdit ? " survol-interdit" : "");
       el.style.pointerEvents = "none";
       var cs = colonneEtSpanDemi(bornes.giDebut, bornes.duree, bornes.demiDebut, bornes.demiFin);
       el.style.gridColumn = cs[0] + " / span " + cs[1];
@@ -984,6 +984,22 @@
       surlignagesPrecis.forEach(function (el) { el.remove(); });
       surlignagesPrecis = [];
     }
+    // Forme qu'aurait la tâche déposée sur `cible` si le dépôt était permis
+    // (bulle seule, case d'une personne, hors week-end) ; null sinon.
+    function previsionInterdite(cible, clientX) {
+      if (groupeIds.length !== 1 || !cible || cible.dataset.kind !== "personne" || celluleValidePourGeste(cible)) return null;
+      var giBrut = +cible.dataset.jour;
+      if (estGiWeekend(giBrut) || estGiWeekend(itemClic.giDebut)) return null;
+      var nTotal = nbJoursAffiches();
+      if (clientX != null) {
+        return bordsDeplacementNoteMultiJours(itemClic.giDebut, itemClic.duree, itemClic.demiDebut || null, itemClic.demiFin || null,
+          offsetHalvesClic, giBrut, demiDepuisPointeur(cible, clientX), nTotal);
+      }
+      return {
+        giDebut: Math.max(0, Math.min(nTotal - itemClic.duree, giBrut - offsetJoursClic)),
+        duree: itemClic.duree, demiDebut: itemClic.demiDebut || null, demiFin: itemClic.demiFin || null
+      };
+    }
     function survolerCible(cible, clientX) {
       nettoyerSurvol();
       if (!cible) return;
@@ -1022,6 +1038,21 @@
       var previsions = previsionsJourEntier(cible);
       if (previsions) {
         previsions.forEach(function (p) { poserSurlignagePrecis(p, p.gridRow, p.parent); });
+        return;
+      }
+      // Round du 27.09.2026 (suite 69) — Lionel, capture à l'appui : « en cas
+      // de déplacement interdit, la grandeur de la surbrillance n'est pas
+      // correct ». Une tâche d'intervenant tirée sur une AUTRE ligne (cf.
+      // changementPersonneAutorise, suite 66) retombait ici : seules les
+      // cases de la demi-journée sous le pointeur, jour après jour, étaient
+      // marquées « interdit » — une demi-journée pour une tâche qui en
+      // occupe deux. La surbrillance interdite a désormais la forme exacte
+      // de la tâche, calculée comme un dépôt autorisé (même formule que
+      // cibleNotePreciseCompacte à la souris, previsionsJourEntier au
+      // doigt), en rouge.
+      var interdite = previsionInterdite(cible, clientX);
+      if (interdite) {
+        poserSurlignagePrecis(interdite, cible.style.gridRow, cible.parentElement, true);
         return;
       }
       var classe = celluleValidePourGeste(cible) ? "drop-hover" : "cell-interdite";
