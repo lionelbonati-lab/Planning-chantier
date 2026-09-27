@@ -149,26 +149,29 @@ const poids = (page, sel) => page.evaluate((s) => { const n = document.querySele
       demandes_absence: [D(5, 2, '2026-09-23', '2026-09-24', 'aprem', 'aprem', 'Congé', 'mariage'), D(6, 1, '2026-10-05', '2026-10-05', 'matin', 'matin', 'Maladie')]
     } });
     await page.waitForTimeout(600);
-    const vu = await page.evaluate(() => ({ bandeau: document.getElementById('bandeauDemandes').hidden ? null : document.querySelector('#bandeauDemandes .bd-texte').textContent,
+    // Suite 81 : plus de bandeau — la cloche « Notifications » les compte.
+    const vu = await page.evaluate(() => ({ bandeau: document.getElementById('bandeauDemandes'), compte: (() => { const b = document.querySelector('#btnNotifications .compte-notifications'); return b.hidden ? '' : b.textContent; })(),
+      titre: document.getElementById('btnNotifications').title,
       cases: [...document.querySelectorAll('.cell.demande-absence')].map((c) => c.dataset.personne + '/' + isoDeGi(+c.dataset.jour) + '/' + c.dataset.demi).join(','),
       fond: getComputedStyle(document.querySelector('.cell.demande-absence.cell-aprem, .cell.demande-absence')).backgroundImage }));
-    verifier(vu.bandeau === '2 demandes d’absence à valider' && vu.cases === '2/2026-09-23/aprem,2/2026-09-24/matin,2/2026-09-24/aprem' && /gradient/.test(vu.fond),
-      'bandeau « 2 demandes » + demi-journées demandées hachurées sur la ligne de Mathis (' + JSON.stringify(vu) + ')');
-    await page.click('#bandeauDemandes'); await page.waitForTimeout(250);
-    const liste = await page.evaluate(() => [...document.querySelectorAll('.da-liste li')].map((l) => l.querySelector('.da-qui').textContent + ' · ' + l.querySelector('.da-quoi').textContent + ' · ' + l.querySelector('.da-quand').textContent));
+    verifier(vu.bandeau === null && vu.compte === '2' && vu.titre === 'Notifications — 2 demandes d’absence' && vu.cases === '2/2026-09-23/aprem,2/2026-09-24/matin,2/2026-09-24/aprem' && /gradient/.test(vu.fond),
+      'cloche à 2 (plus de bandeau) + demi-journées demandées hachurées sur la ligne de Mathis (' + JSON.stringify(vu) + ')');
+    await page.click('#btnNotifications'); await page.waitForTimeout(250);
+    const liste = await page.evaluate(() => [...document.querySelectorAll('.pop-notifications .notif-demandes .da-liste li')].map((l) => l.querySelector('.da-qui').textContent + ' · ' + l.querySelector('.da-quoi').textContent + ' · ' + l.querySelector('.da-quand').textContent));
     verifier(liste.join(' / ') === 'Mathis · Congé - mariage · du mer. 23 sept. après-midi au jeu. 24 sept. / Lionel · Maladie · le lun. 5 oct. matin', 'liste : qui, quoi (« Congé - Motif », suite 80), quand (' + liste.join(' / ') + ')');
     await page.click('.da-liste li[data-id="5"] .da-accepter'); await page.waitForTimeout(1200);
     const acc = await page.evaluate(() => ({ abs: __BD.taches.filter((t) => t.est_absence).map((t) => t.personne_id + ' ' + t.date + ' ' + t.demi + ' ' + t.texte).join(','),
       dem: __BD.demandes_absence.map((d) => d.id + ':' + d.statut + ':' + !!d.traitee_le).join(','), bulle: TACHES.some((t) => t.type === 'absence' && t.texte === 'Congé - mariage'),
-      bandeau: document.querySelector('#bandeauDemandes .bd-texte').textContent, cases: document.querySelectorAll('.cell.demande-absence').length }));
+      compte: document.querySelector('#btnNotifications .compte-notifications').textContent, titre: document.querySelector('.notif-demandes .notif-titre').textContent, cases: document.querySelectorAll('.cell.demande-absence').length }));
     // Suite 80 : bulle « Congé - Motif » (le motif écrit par l'ouvrier).
     verifier(acc.abs === '2 2026-09-23 aprem Congé - mariage,2 2026-09-24 matin Congé - mariage,2 2026-09-24 aprem Congé - mariage' && acc.dem === '5:acceptee:true,6:en_attente:false' &&
-      acc.bulle && acc.bandeau === '1 demande d’absence à valider' && acc.cases === 0,
+      acc.bulle && acc.compte === '1' && acc.titre === 'Demandes d’absence1' && acc.cases === 0,
       'Accepter : absence posée (3 demi-journées), demande acceptée, hachures retirées (' + JSON.stringify(acc) + ')');
     await page.click('.da-liste li[data-id="6"] .da-refuser'); await page.waitForTimeout(500);
-    const ref = await page.evaluate(() => ({ dem: __BD.demandes_absence.map((d) => d.id + ':' + d.statut).join(','), cache: document.getElementById('bandeauDemandes').hidden,
+    const ref = await page.evaluate(() => ({ dem: __BD.demandes_absence.map((d) => d.id + ':' + d.statut).join(','), cache: document.querySelector('#btnNotifications .compte-notifications').hidden,
+      vide: (document.querySelector('.notif-demandes .notif-vide') || {}).textContent,
       abs: __BD.taches.filter((t) => t.est_absence).length }));
-    verifier(ref.dem === '5:acceptee,6:refusee' && ref.cache && ref.abs === 3, 'Refuser : demande refusée, rien posé, bandeau caché (' + JSON.stringify(ref) + ')');
+    verifier(ref.dem === '5:acceptee,6:refusee' && ref.cache && ref.vide === 'Aucune demande en attente.' && ref.abs === 3, 'Refuser : demande refusée, rien posé, compteur de la cloche retiré (' + JSON.stringify(ref) + ')');
     toutesErreurs.push(...erreurs);
     await page.context().close();
   }

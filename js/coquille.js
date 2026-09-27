@@ -77,12 +77,13 @@
             '<span class="nom" id="switcherNom">Planning</span>' +
             '<span class="caret">▾</span>' +
           '</button>' +
-          // « À réserver » dans la barre du bas (round du 25.09.2026, suite 53
-          // — Lionel : « A réservé pourrait être placer sur la barre du bas
-          // en mode mobile. ») : icône + compteur, de toutes les pages ; sur
-          // téléphone, il ne figure plus dans la barre d'outils du planning
-          // (cf. js/a-reserver.js, style-mobile.css).
-          '<button type="button" class="nav-bas-a-reserver" id="btnAReserverNavBas" title="À réserver" aria-label="À réserver" hidden>' + ICONS.reserver + '<span class="compte-a-reserver" hidden></span></button>' +
+          // « À réserver » dans la barre du bas (round du 25.09.2026, suite 53
+          // — Lionel : « A réservé pourrait être placer sur la barre du bas
+          // en mode mobile. ») : icône + compteur, de toutes les pages ; sur
+          // téléphone, il ne figure plus dans la barre d'outils du planning.
+          // Suite 81 : devenu le bouton « Notifications » (cloche), cf.
+          // js/notifications.js, style-mobile.css.
+          '<button type="button" class="nav-bas-notifications" id="btnNotificationsNavBas" title="Notifications" aria-label="Notifications" hidden>' + ICONS.cloche + '<span class="compte-notifications" hidden></span></button>' +
           '<button type="button" class="avatar-nav" id="lienDeconnexionNavBas" title="Compte et réglages" aria-label="Compte et réglages">L</button>' +
           '<button type="button" class="fermer-reglages" id="btnFermerReglagesBas" title="Fermer les réglages" aria-label="Fermer les réglages">' + ICONS.close + '</button>' +
           '<div class="switcher-panneau" id="switcherPanneau">' +
@@ -110,7 +111,7 @@
     window.addEventListener("resize", ajusterOngletsNav);
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(ajusterOngletsNav);
     cablerPagePlanning();
-    cablerAReserver();
+    cablerNotifications();
     cablerDemandesAbsence();
     cablerPageSauvegardes();
     cablerPageRaccourcis();
@@ -341,14 +342,17 @@
         // les cible à chaque rendu), seul leur affichage y change
         // (style-mobile.css). Habillage "pilule" comme Zoom/Sem. N et largeur
         // fixe de 25 caractères, cf. .select-chantier-btn dans style.css.
-        // Résumé « À réserver » (round du 25.09.2026, suite 47 — Lionel :
-        // « Un résumé facilement accessible des statuts à réserver ») :
-        // icône + compteur dans la barre ; replié dans « ⋮ » (avec son
+        // Résumé « À réserver » (round du 25.09.2026, suite 47 — Lionel :
+        // « Un résumé facilement accessible des statuts à réserver ») :
+        // icône + compteur dans la barre ; replié dans « ⋮ » (avec son
         // libellé) seulement quand la place manque, après Zoom et Masquages
-        // (cf. REPLIS_ORDRE, grille-rendu.js) ; toujours dans la barre sur
-        // téléphone. Cf. js/a-reserver.js.
-        '<div class="toolbar-groupe sep-avant" id="groupeAReserver" data-rang="25" data-rang-menu="15" hidden>' +
-          '<button type="button" class="toolbar-btn" id="btnAReserver" title="À réserver">' + ICONS.reserver + '<span class="toolbar-btn-label">À réserver</span><span class="compte-a-reserver" hidden></span></button>' +
+        // (cf. REPLIS_ORDRE, grille-rendu.js). Round du 27.09.2026 (suite
+        // 81) — Lionel : « J'aimerai un bouton notifications à la place de
+        // celui de statut. On y placera les demandes de congés et les
+        // statuts à réserver. » Même place, même repli ; cloche, compteur
+        // de tout ce qui attend. Cf. js/notifications.js.
+        '<div class="toolbar-groupe sep-avant" id="groupeNotifications" data-rang="25" data-rang-menu="15" hidden>' +
+          '<button type="button" class="toolbar-btn" id="btnNotifications" title="Notifications" aria-label="Notifications">' + ICONS.cloche + '<span class="toolbar-btn-label">Notifications</span><span class="compte-notifications" hidden></span></button>' +
         '</div>' +
         '<div class="toolbar-groupe sep-avant" id="groupeChantier" data-rang="30">' +
           '<div class="select-chantier" id="selectChantier">' +
@@ -501,12 +505,6 @@
         '<div class="toolbar-secondaire" id="toolbarSecondaire" data-rang="110"></div>' +
       '</div>' +
       '<div class="zone-planning">' +
-        // Bandeau des demandes d'absence envoyées depuis les liens de
-        // consultation (round du 27.09.2026, suite 69 — Lionel : « Le lien
-        // de consultation des ouvriers doit pouvoir ajouter une absence que
-        // je doit valider dans mon planning. »). Caché sans demande en
-        // attente ; cf. js/demandes-absence.js.
-        '<button type="button" class="bandeau-demandes" id="bandeauDemandes" hidden>' + ICONS.absence + '<span class="bd-texte"></span><span class="bd-action">Examiner</span></button>' +
         '<div id="racine"></div>' +
         // Pilule de sélection (#panneauSelection) — round du 24.09.2026,
         // suite 8 puis suite 9 (Lionel, capture BlueMail à l'appui : « placer

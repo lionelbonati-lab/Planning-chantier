@@ -14,6 +14,15 @@
      amène le planning sur ce jour. Des pastilles en haut de la liste
      passent aux autres statuts (réservé, confirmé…) : même résumé.
 
+     Round du 27.09.2026 (suite 81) — Lionel : « J'aimerai un bouton
+     notifications à la place de celui de statut. On y placera les
+     demandes de congés et les statuts à réserver. On peut retirer les
+     statuts réserver et confirmer de cette section. » Le bouton et la
+     fenêtre sont désormais ceux des notifications (js/notifications.js) ;
+     ce fichier ne fait plus que lire et regrouper les tâches « à
+     réserver » (dernierResumeAReserver), sans les pastilles des autres
+     statuts.
+
      Lu directement sur le serveur (table taches, statut_id, date >=
      aujourd'hui), pas dans les semaines chargées : une réservation dans 3
      mois compte aussi. Une tâche posée sur plusieurs jours de suite (une
@@ -86,121 +95,54 @@
     return dateAReserver_(g.du) + (matin && !aprem ? ", matin" : aprem && !matin ? ", après-midi" : "");
   }
 
-  // Compteur du bouton : relu après chaque rendu, au plus toutes les 1,5 s.
+  // Tâches à réserver : relues après chaque rendu, au plus toutes les 1,5 s.
   var minuteurAReserver = null, dernierResumeAReserver = null;
-  // Le bouton lui-même (affiché s'il existe au moins un statut) est
-  // montré ou caché tout de suite, pas 1,5 s plus tard : un bouton qui
-  // apparaît après coup décalerait toute la barre sous le doigt/la souris.
+  // Le bouton « Notifications » (affiché s'il existe un statut ou une
+  // demande) est montré ou caché tout de suite, pas 1,5 s plus tard : un
+  // bouton qui apparaît après coup décalerait toute la barre sous le
+  // doigt/la souris.
   function planifierMajAReserver() {
-    var groupe = document.getElementById("groupeAReserver");
-    var cache = !statutAReserverCle_();
-    if (groupe && groupe.hidden !== cache) {
-      groupe.hidden = cache;
-      if (typeof ajusterDebordementToolbar === "function") ajusterDebordementToolbar();
-    }
-    var btnBas = document.getElementById("btnAReserverNavBas"); // barre du bas (suite 53)
-    if (btnBas) btnBas.hidden = cache;
+    majBoutonNotifications();
     clearTimeout(minuteurAReserver);
-    if (!cache) minuteurAReserver = setTimeout(majBoutonAReserver, 1500);
+    if (statutAReserverCle_()) minuteurAReserver = setTimeout(majAReserver, 1500);
   }
-  function majBoutonAReserver() {
-    var btn = document.getElementById("btnAReserver");
-    if (!btn || !window.sbClient) return Promise.resolve();
-    var cleStatut = statutAReserverCle_();
-    if (!cleStatut) return Promise.resolve();
+  function majAReserver() {
+    if (!window.sbClient || !statutAReserverCle_()) return Promise.resolve();
     return chargerTachesAvecStatut_().then(function (lignes) {
-      dernierResumeAReserver = regrouperAReserver(lignes);
-      afficherCompteAReserver_(cleStatut);
+      var cle = statutAReserverCle_();
+      // Suite 81 : seules les tâches « à réserver » (plus de pastilles pour
+      // réservé, confirmé…).
+      dernierResumeAReserver = regrouperAReserver(lignes).filter(function (g) { return g.statut === cle; });
+      majBoutonNotifications();
     }).catch(function () { /* compteur laissé tel quel : réessayé au prochain rendu */ });
   }
-  function afficherCompteAReserver_(cleStatut) {
-    var btn = document.getElementById("btnAReserver");
-    if (!btn || !dernierResumeAReserver) return;
-    var s = STATUTS[cleStatut] || { nom: cleStatut, couleur: "var(--surface-2)" };
-    var n = dernierResumeAReserver.filter(function (g) { return g.statut === cleStatut; }).length;
-    btn.querySelector(".toolbar-btn-label").textContent = premiereMajuscule_(s.nom);
-    var badge = btn.querySelector(".compte-a-reserver");
-    badge.textContent = n;
-    badge.hidden = !n;
-    badge.style.background = s.couleur;
-    // Même compteur sur le bouton de la barre du bas (téléphone, suite 53).
-    var btnBas = document.getElementById("btnAReserverNavBas");
-    if (btnBas) {
-      var badgeBas = btnBas.querySelector(".compte-a-reserver");
-      badgeBas.textContent = n;
-      badgeBas.hidden = !n;
-      badgeBas.style.background = s.couleur;
-    }
-    var barre = document.getElementById("legendeBarre");
-    if (barre) barre.style.setProperty("--couleur-a-reserver", s.couleur); // pastille de « ⋮ » (style.css)
-    btn.title = premiereMajuscule_(s.nom) + " — " + (n ? n + " tâche" + (n > 1 ? "s" : "") + " à partir d’aujourd’hui" : "rien à partir d’aujourd’hui");
-    if (btnBas) { btnBas.title = btn.title; btnBas.setAttribute("aria-label", btn.title); }
-    // Libellé et compteur changent la largeur du bouton : la barre est
-    // remesurée (suite 50 — un compteur à 2 chiffres pouvait pousser « ⋮ »
-    // hors de la barre d'un téléphone étroit).
-    if (typeof ajusterDebordementToolbar === "function") ajusterDebordementToolbar();
+  // Nom du statut résumé, pour le titre de sa section (« À réserver »).
+  function nomStatutAReserver_() {
+    var cle = statutAReserverCle_();
+    return cle ? premiereMajuscule_((STATUTS[cle] || { nom: cle }).nom) : "";
   }
 
-  function ouvrirResumeAReserver(cleStatut) {
-    if (popFermerActuel) popFermerActuel();
-    cleStatut = cleStatut || statutAReserverCle_();
-    if (!cleStatut) return;
-    var pop = document.createElement("div");
-    pop.className = "pop form-pop pop-a-reserver";
-    pop.innerHTML = '<div class="cp-titre">Résumé des statuts</div><div class="ar-contenu"><p class="ar-vide">Chargement…</p></div>' +
-      '<div class="form-actions"><button type="button" class="f-annuler">Fermer</button></div>';
-    var btn = document.getElementById("btnAReserver");
-    var r = btn && btn.getBoundingClientRect().width ? btn.getBoundingClientRect() : { left: window.innerWidth / 2 - 190, bottom: 80 };
-    positionnerPop(pop, Math.round(r.left), Math.round(r.bottom + 6));
-    var fermer = fermerAuClicExterieur(pop, null, null);
-    pop.querySelector(".f-annuler").addEventListener("click", fermer);
-    var contenu = pop.querySelector(".ar-contenu");
-
-    function dessiner() {
-      var groupes = dernierResumeAReserver || [];
-      var statuts = (etat.statutsServeur || []).slice().sort(function (a, b) { return (a.ordre || 0) - (b.ordre || 0); });
-      var html = '<div class="chip-row ar-statuts">' + statuts.map(function (s) {
-        var n = groupes.filter(function (g) { return g.statut === s.cle; }).length;
-        return '<button type="button" class="chip sub' + (s.cle === cleStatut ? " actif" : "") + '" data-statut="' + esc2(s.cle) + '">' +
-          '<span class="ar-pastille" style="background:' + esc2(s.couleur) + '"></span>' + esc(premiereMajuscule_(s.nom)) + ' <b>' + n + "</b></button>";
-      }).join("") + "</div>";
-      var liste = groupes.filter(function (g) { return g.statut === cleStatut; });
-      var nomStatut = premiereMajuscule_((STATUTS[cleStatut] || { nom: cleStatut }).nom);
-      if (!liste.length) {
-        html += '<p class="ar-vide">Aucune tâche « ' + esc(nomStatut) + " » à partir d’aujourd’hui.</p>";
-      } else {
-        html += '<ul class="ar-liste">' + liste.map(function (g, i) {
-          var p = personneParAncre(g.personneId);
-          var ch = g.chantier && CHANTIERS[g.chantier];
-          return '<li><button type="button" class="ar-ligne" data-i="' + i + '" title="Voir dans le planning">' +
-            '<span class="ar-quand">' + esc(quandAReserver_(g)) + "</span>" +
-            '<span class="ar-qui">' + esc(p ? p.nom : "?") + "</span>" +
-            '<span class="ar-quoi">' + esc(g.texte || "(sans texte)") + "</span>" +
-            (ch ? '<span class="ar-chantier"><span class="swatch" style="background:' + esc2(ch.couleur) + '"></span>' + esc(ch.nom) + "</span>" : "") +
-            "</button></li>";
-        }).join("") + "</ul>";
-      }
-      contenu.innerHTML = html;
-      contenu.querySelectorAll(".ar-statuts .chip").forEach(function (c) {
-        c.addEventListener("click", function () { cleStatut = c.dataset.statut; dessiner(); });
-      });
-      contenu.querySelectorAll(".ar-ligne").forEach(function (b) {
-        b.addEventListener("click", function () {
-          var g = liste[+b.dataset.i];
-          fermer();
-          // Ouvert depuis la barre du bas sur une autre page (suite 53) :
-          // retour au planning d'abord.
-          var pagePlanning = document.getElementById("page-planning");
-          if (pagePlanning && !pagePlanning.classList.contains("actif")) {
-            var onglet = document.querySelector('.onglet[data-page="planning"]');
-            if (onglet) onglet.click();
-          }
-          allerAuJour(g.du, function () { selectionnerDepuisResume_(g); });
-        });
-      });
+  // Une ligne de la liste : quand, qui, quoi, chantier ; un clic amène le
+  // planning sur ce jour et y sélectionne la tâche (suite 61).
+  function htmlLigneAReserver_(g, i) {
+    var p = personneParAncre(g.personneId);
+    var ch = g.chantier && CHANTIERS[g.chantier];
+    return '<li><button type="button" class="ar-ligne" data-i="' + i + '" title="Voir dans le planning">' +
+      '<span class="ar-quand">' + esc(quandAReserver_(g)) + "</span>" +
+      '<span class="ar-qui">' + esc(p ? p.nom : "?") + "</span>" +
+      '<span class="ar-quoi">' + esc(g.texte || "(sans texte)") + "</span>" +
+      (ch ? '<span class="ar-chantier"><span class="swatch" style="background:' + esc2(ch.couleur) + '"></span>' + esc(ch.nom) + "</span>" : "") +
+      "</button></li>";
+  }
+  function allerATacheAReserver_(g) {
+    // Ouvert depuis la barre du bas sur une autre page (suite 53) :
+    // retour au planning d'abord.
+    var pagePlanning = document.getElementById("page-planning");
+    if (pagePlanning && !pagePlanning.classList.contains("actif")) {
+      var onglet = document.querySelector('.onglet[data-page="planning"]');
+      if (onglet) onglet.click();
     }
-    if (dernierResumeAReserver) dessiner();
-    majBoutonAReserver().then(function () { if (pop.isConnected) dessiner(); });
+    allerAuJour(g.du, function () { selectionnerDepuisResume_(g); });
   }
 
   // Round du 26.09.2026 (suite 61) — Lionel : « Quand on appuie sur une
@@ -251,11 +193,4 @@
     var rs = scroller.getBoundingClientRect(), gauche = rs.left + largeurNoms() * ((niveauZoomPlanning / 100) || 1) + 8;
     if (r.left < gauche) scroller.scrollLeft -= gauche - r.left;
     else if (r.right > rs.right - 8) scroller.scrollLeft += Math.min(r.right - rs.right + 8, r.left - gauche);
-  }
-
-  function cablerAReserver() {
-    var btn = document.getElementById("btnAReserver");
-    if (btn) btn.addEventListener("click", function () { ouvrirResumeAReserver(); });
-    var btnBas = document.getElementById("btnAReserverNavBas");
-    if (btnBas) btnBas.addEventListener("click", function (e) { e.stopPropagation(); ouvrirResumeAReserver(); });
   }
