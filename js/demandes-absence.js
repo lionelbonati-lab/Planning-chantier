@@ -61,6 +61,20 @@
          la nouvelle série posée.
        - Base sans la migration 0022 : relue avec les anciennes colonnes,
          rien de cassé (aucune demande ne peut alors être en série).
+
+     Round du 27.09.2026 (suite 87) — Lionel : « Un ouvrier doit pouvoir
+     modifier une serie ou juste un des éléments. » et « Les congés placés
+     par le bureau doivent aussi apparaître dans la liste des congés de
+     l'ouvrier. » Une modification / annulation peut viser une PARTIE du
+     planning (colonnes cible_*, sql/0023) :
+       - une seule absence d'une série acceptée (remplace_id = la série) :
+         Accepter ne retire que cette absence ; la modification est posée
+         dans la même série (serie_id de la série, « ↻ ») ; la série reste
+         acceptée ;
+       - une absence posée par le bureau (remplace_id vide) : Accepter
+         retire ce bloc (cible_texte = son texte) puis pose la nouvelle.
+     « Quand » dit ce qui est visé (« une absence de la série … », « posée
+     par le bureau »).
      ============================================================ */
 
   var demandesAbsence = [];         // demandes en attente (lignes serveur)
@@ -71,7 +85,7 @@
   // Suite 86 : colonnes de répétition (sql/0022). Tant que la migration
   // n'est pas passée, la lecture qui les demande échoue : relue sans elles
   // (colonnesSerie_ retombe à false pour la session).
-  var COLONNES_SERIE_ = ", serie_frequence, serie_intervalle, serie_fin, serie_id";
+  var COLONNES_SERIE_ = ", serie_frequence, serie_intervalle, serie_fin, serie_id, cible_debut, cible_fin, cible_demi_debut, cible_demi_fin, cible_texte";
   var colonnesSerie_ = true;
   function lireDemandes_(filtrer) {
     function lire(avecSerie) {
@@ -142,8 +156,25 @@
     return (t === "modification" ? "Modification : " : t === "annulation" ? "Annulation : " : "") + texteDemandeAbsence(q);
   }
   function quandDemandeAbsence_(q) {
+    // Suite 87 : partie visée (une absence d'une série, absence du bureau).
+    var cible = cibleDemande_(q);
+    if (cible) {
+      var provenance = q.remplace_id == null ? " (posée par le bureau)"
+        : q.origine && estSerieDemande_(q.origine) ? " (une absence de la série « " + texteDemandeAbsence(q.origine) + " », " + libelleRepetitionDemande_(q.origine) + ")" : "";
+      if (typeDemande_(q) === "annulation") return libelleDemandeAbsence(q) + provenance;
+      return libelleDemandeAbsence(q) + " — avant : " + (cible.texte && cible.texte !== texteDemandeAbsence(q) ? cible.texte + ", " : "") + libelleDemandeAbsence(cible) + provenance;
+    }
     var avant = typeDemande_(q) === "modification" && q.origine;
     return libelleDemandeAbsence(q) + (avant ? " — avant : " + (texteDemandeAbsence(q.origine) !== texteDemandeAbsence(q) ? texteDemandeAbsence(q.origine) + ", " : "") + libelleDemandeAbsence(q.origine) : "");
+  }
+  // Partie du planning visée par une modification / annulation (suite
+  // 87), au format d'une demande simple (+ texte des absences visées), ou
+  // null quand la demande vise toute l'absence acceptée (q.origine).
+  function cibleDemande_(q) {
+    if (!q || !q.cible_debut || typeDemande_(q) === "nouvelle") return null;
+    return { personne_id: q.personne_id, date_debut: q.cible_debut, date_fin: q.cible_fin || q.cible_debut,
+      demi_debut: q.cible_demi_debut || "matin", demi_fin: q.cible_demi_fin || "aprem",
+      texte: q.cible_texte || (q.origine ? texteDemandeAbsence(q.origine) : null) };
   }
   function nomPersonneDemande_(q) {
     var p = personneParAncre(q.personne_id);
@@ -291,7 +322,8 @@
       .gte("date", dates[0]).lte("date", dates[dates.length - 1])).then(function (res) {
       if (res.error) throw res.error;
       var abs = (res.data || []).filter(function (r) { return r.est_absence && cles[r.date + "|" + r.demi]; });
-      var memes = abs.filter(function (r) { return r.texte === texteDemandeAbsence(orig); });
+      var texte = orig.texte || texteDemandeAbsence(orig);
+      var memes = abs.filter(function (r) { return r.texte === texte; });
       var ids = (memes.length ? memes : abs).map(function (r) { return r.id; });
       if (!ids.length) return;
       return Promise.resolve(sbClient.from("taches").delete().in("id", ids)).then(function (r) { if (r.error) throw r.error; });
@@ -307,13 +339,18 @@
     occupe(true);
     var type = typeDemande_(q);
     // Annulation : mêmes dates que l'absence visée (copiées par le serveur).
-    var aRetirer = accepter && type !== "nouvelle" ? (q.origine || (type === "annulation" ? q : null)) : null;
+    // Suite 87 : une partie seulement (cible_*) → ces absences-là.
+    var aRetirer = accepter && type !== "nouvelle" ? (cibleDemande_(q) || q.origine || (type === "annulation" ? q : null)) : null;
     var slots = accepter && type !== "annulation" ? slotsDemandeAbsence_(q) : [];
     var chaine = aRetirer || slots.length ? attendreFinSynchro_() : Promise.resolve();
     if (aRetirer) chaine = chaine.then(function () { return retirerAbsencesDemande_(aRetirer); });
     // Suite 86 : demande en série → ligne `series` d'abord (mêmes colonnes
     // que celles d'enregistrer-serie), puis chaque absence avec son serie_id.
-    var serieId = null;
+    // Suite 87 : une seule absence d'une série modifiée → reposée dans
+    // cette même série (pas de nouvelle ligne `series`, rien à mémoriser
+    // dans la demande : son retrait ultérieur passera par ses dates).
+    var serieId = null, serieCreee = false;
+    if (slots.length && !estSerieDemande_(q) && cibleDemande_(q) && q.origine && q.origine.serie_id != null) serieId = q.origine.serie_id;
     if (slots.length && estSerieDemande_(q)) {
       chaine = chaine.then(function () {
         return Promise.resolve(sbClient.from("series").insert({
@@ -325,6 +362,7 @@
           var ligne = Array.isArray(res.data) ? res.data[0] : res.data;
           serieId = ligne && ligne.id != null ? ligne.id : null;
           if (serieId == null) throw new Error("série non créée");
+          serieCreee = true;
         });
       });
     }
@@ -336,11 +374,12 @@
     var maintenant = new Date().toISOString();
     chaine.then(function () {
       var maj = { statut: accepter ? "acceptee" : "refusee", traitee_le: maintenant };
-      if (serieId != null) maj.serie_id = serieId;
+      if (serieCreee) maj.serie_id = serieId;
       return Promise.resolve(sbClient.from("demandes_absence").update(maj).eq("id", q.id));
     }).then(function (res) {
       if (res && res.error) throw res.error;
-      if (!accepter || type === "nouvelle" || q.remplace_id == null) return res;
+      // Une partie seulement (suite 87) : l'absence d'origine reste acceptée.
+      if (!accepter || type === "nouvelle" || q.remplace_id == null || cibleDemande_(q)) return res;
       return Promise.resolve(sbClient.from("demandes_absence")
         .update({ statut: type === "annulation" ? "annulee" : "remplacee", traitee_le: maintenant }).eq("id", q.remplace_id));
     }).then(function (res) {
