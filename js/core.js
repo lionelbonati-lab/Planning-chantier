@@ -728,7 +728,9 @@
     }
     return isos;
   }
-  function htmlCoinMoisAnnee(isos) {
+  // profil (suite 76) : jeu de réglages lu, pour l'aperçu de la page
+  // Affichage (« ordi » ou « tel ») ; absent : celui de cet appareil.
+  function htmlCoinMoisAnnee(isos, profil) {
     var mois = [], annees = [];
     isos.slice().sort().forEach(function (iso) {
       var m = MOIS_ABBR[+iso.slice(5, 7)], a = iso.slice(0, 4);
@@ -736,7 +738,7 @@
       if (annees.indexOf(a) === -1) annees.push(a);
     });
     if (!annees.length) return "";
-    var fd = typeof optionAffichage === "function" ? optionAffichage("formatDate") : "numero";
+    var fd = typeof optionAffichage === "function" ? optionAffichage("formatDate", profil) : "numero";
     // Suite 71 (round du 27.09.2026) — Lionel : « Lorsque le numéro de mois
     // est dans la case jour, l'enlever de la colonne gauche. » « 24.09 »
     // écrit lui aussi le mois (en chiffres), comme « 24 sept. » et « 24

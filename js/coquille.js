@@ -781,6 +781,9 @@
     if (switcherNom) switcherNom.textContent = onglet ? onglet.textContent.trim() : (reglage ? reglage.nom : nom);
     fermerSwitcherPages();
     ajusterOngletsNav(); // l'onglet actif garde son nom (suite 53)
+    // Suite 76 : la page Affichage a pu poser le style de l'autre jeu
+    // (ordinateur / téléphone) pour son aperçu.
+    if (nom !== "affichage" && typeof quitterPageAffichage === "function") quitterPageAffichage();
     var fn = renduParPage_[nom];
     if (fn) fn();
   }
@@ -815,7 +818,7 @@
       compte: chargerInfosCompte,
       // Suite 64 : aperçu redessiné (chantiers, statuts) et polices des
       // pastilles chargées à l'ouverture de la page.
-      affichage: majPageAffichage,
+      affichage: ouvrirPageAffichage,
       // Round du 16.09.2026 (suite, encore) : la page Planning elle-même
       // n'a pas besoin d'un re-rendu complet à chaque activation (ses
       // données restent à jour en tâche de fond, cf. synchroniser()) — mais

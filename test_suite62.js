@@ -151,7 +151,11 @@ const style = (page, sel, prop) => page.evaluate(([s, p]) => { const e = documen
     const cl = await page.evaluate(() => ({ v: optionAffichage('separation'), focus: document.activeElement.id, seps: document.querySelectorAll('#racine .sep-semaines').length }));
     verifier(cl.v === 'espace' && cl.focus === 'chkAff-separation' && cl.seps === 2, 'clavier : Espace rallume l\'espace entre semaines (' + JSON.stringify(cl) + ')');
     // Vue d'ouverture : enregistrée, rien ne bouge maintenant.
-    await pastille(page, 'vueOrdi', '2'); await pastille(page, 'vueTel', 'semaine');
+    // Suite 76 : la ligne « Téléphone » n'est visible qu'en mode Téléphone
+    // (bascule au-dessus de l'aperçu) ; le réglage reste dans le jeu de l'ordinateur.
+    await pastille(page, 'vueOrdi', '2');
+    await page.click('#page-affichage .bascule-profil[data-profil="tel"]'); await pastille(page, 'vueTel', 'semaine');
+    await page.click('#page-affichage .bascule-profil[data-profil="ordi"]');
     await page.waitForTimeout(700);
     const attendu = { texte: 'petit', lignes: '3', hauteur: 'aeree', coins: 'droits', statut: 'non', auj: 'oui', zebre: 'oui', weekends: 'oui', vueOrdi: '2', vueTel: 'semaine' };
     const bd = await reglageBd(page), lc = await local(page);

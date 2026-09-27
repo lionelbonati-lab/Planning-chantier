@@ -9402,3 +9402,40 @@ Lionel :
   - arrivée sans le samedi 26 ;
   - fenêtre de 1000 px : le planning fait 1000 px.
 - Suite complète : 82/82.
+
+## 184. Round du 27.09.2026 (suite 76) — Page Affichage : bascule Ordinateur / Téléphone au-dessus de l'aperçu
+- « toggle au-dessus de l'aperçu afin de pouvoir switcher entre le mode desktop et mobile. L'aperçu doit refléter le mode desktop ou mobile. »
+- « quand nous ouvrirons les setups d'affichage, la vue par défaut est celle où l'on est. Si on est sur ordinateur, ce sera desktop, ou si on est sur mobile, ce sera mobile. »
+
+### Ce qui change
+- **Bascule** : deux boutons « Ordinateur » et « Téléphone » (icônes écran et téléphone) au-dessus de l'aperçu de la page Affichage.
+- **Par défaut** : à chaque ouverture de la page, la bascule est sur l'appareil utilisé (téléphone si la fenêtre fait 600 px ou moins, sinon ordinateur).
+- **Aperçu** :
+  - en mode Téléphone, il prend la largeur d'un téléphone (360 px au plus, centré) avec les colonnes et le texte du téléphone ;
+  - en mode Ordinateur, il reprend la largeur d'un ordinateur. Sur un téléphone, il défile de côté.
+- **Réglages** : ceux de la page sont ceux du mode choisi. Les deux jeux existaient déjà (suite 67), un pour l'ordinateur et un pour le téléphone. Les lignes propres à un appareil n'apparaissent que dans son mode : vue ordinateur et bords pour l'ordinateur, vue téléphone pour le téléphone.
+- **Planning** : modifier les réglages de l'autre appareil ne change que ce jeu et l'aperçu, jamais le planning affiché sur l'appareil en cours.
+
+### Fonctionnement
+- **Mode édité** : `profilEdite_` vaut null pour l'appareil en cours. `profilPage_()` donne le mode de la page.
+  - `ouvrirPageAffichage` (rendu de la page) le remet à null.
+  - `quitterPageAffichage`, appelé par afficherPage quand on part vers une autre page, le remet aussi à null et réapplique le style de l'appareil.
+- **Style** : `appliquerStyleAffichage_(profil)` pose les `html[data-aff-*]` du mode affiché tant que la page est ouverte, pour que l'aperçu les suive. Les pages du planning sont hors écran pendant ce temps.
+- **Réglages par profil** :
+  - `changerOptionAffichage(id, valeur, profil)` enregistre dans le jeu du profil. L'effet sur le planning (`appliquerEffetOption_`) n'est déclenché que si ce profil est celui de l'appareil.
+  - `retablirAffichage` et `reprendreAutreJeuAffichage` travaillent aussi sur le mode de la page.
+- **Lectures par profil** : `htmlApercuAffichage_(profil)`, `enteteJourAffichage(…, profil)` et `htmlCoinMoisAnnee(isos, profil)` lisent le format de date et les options du profil. La racine de l'aperçu reçoit `.aa-tel` en mode Téléphone.
+- **CSS** : les règles de l'aperçu téléphone ne dépendent plus d'une media query mais de `.aa-tel`. L'aperçu ordinateur a une largeur minimale de 520 px dans un `#apercuAffichage` qui défile de côté.
+
+### Tests
+- test_suite76.js, 9/9 :
+  - l'ordinateur ouvre en mode Ordinateur ;
+  - le mode Téléphone donne un aperçu étroit, sans mardi, avec les lignes du téléphone ;
+  - texte et week-ends réglés en mode Téléphone vont dans le jeu du téléphone seulement, le planning ne change pas ;
+  - en quittant la page, le style de l'ordinateur revient ;
+  - la page rouvre en mode Ordinateur ;
+  - en mode Ordinateur, les week-ends s'appliquent tout de suite ;
+  - le téléphone ouvre en mode Téléphone ;
+  - Ordinateur sur téléphone : aperçu large qui défile.
+- test_suite62.js : la vue d'ouverture « Téléphone » se règle après un passage en mode Téléphone (la ligne n'est plus visible en mode Ordinateur).
+- Suite complète : 83/83.
