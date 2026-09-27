@@ -1158,8 +1158,9 @@
      remplacer par un petite espace de quelque pixel. Mêmes arrondis en haut
      et bas que sur les bord du cadrillage, comme si on voyais 2 fenêtres
      côtes à côte. » Plus de bordure : la bande .sep-semaines (posée par
-     poserSepSemaines_, js/grille-rendu.js) la remplace. La vue « 1 jour »
-     du téléphone n'a pas cette bande (cf. sans-trait-semaines). */
+     poserSepSemaines_, js/grille-rendu.js) la remplace. Vue « 1 jour » du
+     téléphone : la même bande depuis la suite 71, visible pendant le
+     glissement d'une semaine à l'autre. */
   #racine.avec-sep-semaines .sem-frontiere { border-left: 0; }
   /* Suite 69 — Lionel : « Sur mobile la grosse bordure est restée entre les
      semaines » : la vue « 1 jour » la perd aussi (simple trait de grille). */

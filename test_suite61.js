@@ -478,12 +478,14 @@ async function imagePng(page) {
     await page.close();
   }
   {
-    // Téléphone, vue « 1 jour » : pas de bande ; plus de trait épais non plus
-    // depuis la suite 69 (« Sur mobile la grosse bordure est restée entre les
-    // semaines »).
+    // Téléphone, vue « 1 jour » : plus de trait épais depuis la suite 69
+    // (« Sur mobile la grosse bordure est restée entre les semaines ») ; la
+    // bande, posée depuis la suite 71 (« L'espace entre semaines n'est pas
+    // visible lorsqu'on change de semaine »), reste hors de l'écran tant
+    // que le jour est posé (glissement : test_suite71.js).
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 390, height: 844 }, hasTouch: true });
-    const t = await page.evaluate(() => ({ n: document.querySelectorAll('#racine .sep-semaines').length, bord: getComputedStyle(document.querySelector('.cell.sem-frontiere')).borderLeftWidth }));
-    verifier(t.n === 0 && t.bord === '0px', 'téléphone, vue 1 jour : ni bande ni trait épais (' + JSON.stringify(t) + ')');
+    const t = await page.evaluate(() => ({ n: document.querySelectorAll('#racine .sep-semaines').length, visibles: [...document.querySelectorAll('#racine .sep-semaines')].filter((s) => !s.hidden).length, bord: getComputedStyle(document.querySelector('.cell.sem-frontiere')).borderLeftWidth }));
+    verifier(t.n === 2 && t.visibles === 0 && t.bord === '0px', 'téléphone, vue 1 jour posée : bande hors de l\'écran, pas de trait épais (' + JSON.stringify(t) + ')');
     toutesErreurs.push(...erreurs);
     await page.close();
   }
