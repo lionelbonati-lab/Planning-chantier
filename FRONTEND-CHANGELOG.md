@@ -9231,3 +9231,58 @@ Lionel :
 - Sans les correctifs, 4 de ces vérifications échouent.
 - test_suite61.js : en vue 1 jour du téléphone, la bande existe et reste cachée tant que le jour est posé. Avant cette suite, le test vérifiait qu'il n'y avait aucune bande.
 - Suite complète : 79/79 (test_suite61 relancé après sa mise à jour, 99/99).
+
+## 180. Round du 27.09.2026 (suite 72) — Glissement de jour plus fluide sur téléphone, en-tête au pixel ; glissement de semaine sur ordinateur
+
+Lionel :
+- « Essaie d'améliorer la fluidité du passage d'un jour à l'autre sur mobile, l'effet me plaît mais ça lag un peu sur mobile. »
+- « La partie en-tête avec les notes et jalons ne suis pas toujours le planning (petit décalage). »
+- « J'aimerai un effet similaire sur ordinateur lors du passage d'une semaine à l'autre. »
+
+### Ce qui change
+- **Téléphone, glissement d'un jour à l'autre** : moins de travail à chaque image. Mesures sur un Chromium ralenti 6 fois (proche d'un téléphone moyen) :
+  - pose du jour : 110–240 ms avant, 25–40 ms maintenant ;
+  - recalculs de mise en page par image du geste : 3–4 avant, 1 maintenant ;
+  - reconstruction de la fenêtre de 2 semaines (jour posé près de son bord) : elle ne tombe plus dans la dernière image du glissement, qui arrivait en retard et d'un coup. Elle a lieu juste après, le jour déjà posé.
+- **En-tête (jours, Jalons, Notes)** : il est placé au même pixel entier que la grille, dans la même image. Avant, la grille recevait une position fractionnaire que le navigateur arrondissait à sa façon, et l'en-tête la recopiait parfois une image plus tard, d'où le « petit décalage ».
+- **Ordinateur, passage d'une semaine à l'autre** : les jours glissent. L'ancienne semaine sort d'un côté pendant que la nouvelle entre de l'autre, jointives, en ralentissant à l'arrivée comme sur téléphone (0,34 s). La colonne des noms, le coin et les bandeaux Personnel/Intervenants ne bougent pas : ils passent seulement à leur nouvelle hauteur. Cela vaut pour ‹ ›, les raccourcis P/S, la molette au bord, le bouton Aujourd'hui et le menu Sem. N, chaque fois dans le sens du saut.
+- Sans glissement de semaine (rendu immédiat, comme avant) : vue « 1 jour » du téléphone (le jour y glisse déjà), système réglé sur « réduire les animations », navigateur sans l'API View Transitions.
+
+### Fonctionnement
+- **defilerHorizontal_** (js/grille-interactions.js) : il écrit la position arrondie au pixel dans la grille, relit la valeur retenue et donne CETTE valeur à l'en-tête et au suivi (suivreDefilementJourMobile), sans relire le DOM. La position fractionnaire de la courbe est gardée à part (`_xFin`, xCourant_), pour que la décélération ne perde rien à l'arrondi.
+- **Géométrie gardée pendant le geste** (js/grille-rendu.js) :
+  - ajusterLargeurBullesJourMobile mesure une fois les colonnes et les cartes (geoGlisse_, positionsBulles_), puis ne fait que décaler de la position connue à chaque image ;
+  - placerSepSemaines_ et majCoinJourMobile_ reçoivent aussi la position au lieu de la relire ;
+  - le tout est invalidé à chaque changement de taille de fenêtre.
+- **figerHauteursJourMobile** :
+  - il réutilise les hauteurs déjà mesurées pour le jour posé (hauteursParRepere) ;
+  - il ne lance le glissement des hauteurs que si elles changent vraiment (au moins un demi-pixel) ;
+  - il mesure les jours voisins (mesurerVoisins_) après coup, une fois tout immobile, au lieu de le faire dans l'image de pose.
+- **defilementArrete** : le recentrage de la fenêtre passe toujours par une minuterie. Elle part après l'image d'arrivée, ou après le glissement des hauteurs s'il dure encore.
+- **glisserVersSemaine_(dir, maj)** (js/grille-rendu.js), appelée par naviguerSemaine, naviguerSemaineDepuisBordJour, allerAujourdhui et le menu Sem. N (js/coquille.js) :
+  - `document.startViewTransition` photographie la grille avant `maj` (le rendu habituel), puis après ;
+  - `#racine` porte `view-transition-name: semaine` ;
+  - chaque case de la colonne des noms (attribut `data-vt` posé à la construction : `coin`, `coin-demi`, `s-jalon`, `s-note`, `section-personnel`, `section-intervenants`, `p<id>`) porte son propre nom, unique : un doublon annulerait l'effet ;
+  - les noms sont retirés dès la 2e photo, la classe `html.vt-semaine` à la fin ;
+  - un 2e clic rapide prend le relais du 1er.
+- **style.css** :
+  - les 2 photos de la grille glissent de `--vt-pas`, la largeur des jours seuls, pour rester jointives ;
+  - le sens vient de `--vt-dir` ;
+  - elles sont rognées de leur colonne des noms et à droite de la colonne fixe (`--vt-noms`) ;
+  - aucun fondu, ni sur la page autour ni sur les cases fixes. Le coin « sept. » → « sept. – oct. » montrait 2 textes superposés.
+- **Essais écartés**, sans gain mesuré :
+  - content-visibility sur les cases hors écran ;
+  - retrait du sticky ou des ombres ;
+  - en-tête en `overflow-x: auto`.
+
+### Tests
+- test_suite72.js (nouveau), 14/14 :
+  - téléphone, balayages au doigt : à chaque événement de défilement et à chaque image (184 relevés), colonne de chaque jour alignée entre en-tête et grille, au même pixel entier ;
+  - mardi 22 posé au bord de la fenêtre : grille pas encore reconstruite dans l'image d'arrivée, puis fenêtre recentrée, jour et mois justes ;
+  - ordinateur › : ancienne semaine à gauche et nouvelle à droite, jointives, en plein glissement ; case « Personne 1 » immobile ; semaine du 28 à la fin, rien qui traîne ;
+  - ‹ : sens inverse ;
+  - › › rapides : 2 semaines plus loin ;
+  - cases qui reçoivent de nouveau le pointeur ;
+  - « réduire les animations » et vue 1 jour du téléphone : pas de glissement de semaine.
+- test_suite57.js : la vérification « arrivée en douceur » accepte 2 images de suite sur le même pixel en fin de courbe, conséquence des positions entières.
+- Suite complète : 79/79 avant l'ajout de test_suite72.

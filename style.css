@@ -1060,6 +1060,31 @@
   .lbl-speciale { background: var(--surface); }
   .lbl-speciale b { color: var(--ink-muted); font-size: calc(11px * var(--aff-t-noms, 1)); text-transform: uppercase; letter-spacing: .04em; }
   .th.coin, .lbl, .lbl-speciale { position: sticky; left: 0; z-index: 2; }
+  /* Round du 27.09.2026 (suite 72) — Lionel : « J'aimerai un effet
+     similaire sur ordinateur lors du passage d'une semaine à l'autre. »
+     Glissement de semaine (glisserVersSemaine_, js/grille-rendu.js, API View
+     Transitions) : html.vt-semaine le temps de l'effet. La grille
+     (« semaine ») : ancienne photo qui sort, nouvelle qui entre, jointives
+     (--vt-pas = largeur des jours seuls, --vt-dir = 1 vers la semaine
+     suivante, -1 vers la précédente), chacune rognée de sa colonne des noms
+     et la paire rognée à droite de la colonne fixe (--vt-noms), pour que les
+     jours passent sous elle sans la recouvrir. Cases de la colonne des noms
+     (vt-coin, vt-p12…) : ne bougent pas, passent seulement à leur nouvelle
+     hauteur, même durée, sans fondu (la nouvelle case d'emblée : 2 textes
+     superposés dans le coin « sept. » → « sept. – oct. » se lisaient mal).
+     Page autour (root) : pareil, aucun fondu. */
+  html.vt-semaine::view-transition-group(*) { animation-duration: .34s; animation-timing-function: cubic-bezier(.22, .61, .36, 1); }
+  html.vt-semaine::view-transition-old(*) { animation: none; opacity: 0; }
+  html.vt-semaine::view-transition-new(*) { animation: none; }
+  html.vt-semaine::view-transition-image-pair(semaine) { clip-path: inset(0 0 0 var(--vt-noms, 0px)); }
+  html.vt-semaine::view-transition-old(semaine), html.vt-semaine::view-transition-new(semaine) {
+    clip-path: inset(0 0 0 var(--vt-noms, 0px)); mix-blend-mode: normal; opacity: 1;
+    animation-duration: .34s; animation-timing-function: cubic-bezier(.22, .61, .36, 1); animation-fill-mode: both;
+  }
+  html.vt-semaine::view-transition-old(semaine) { animation-name: vt-semaine-sortie; }
+  html.vt-semaine::view-transition-new(semaine) { animation-name: vt-semaine-entree; }
+  @keyframes vt-semaine-sortie { from { transform: none; } to { transform: translateX(calc(var(--vt-dir, 1) * -1 * var(--vt-pas, 100%))); } }
+  @keyframes vt-semaine-entree { from { transform: translateX(calc(var(--vt-dir, 1) * var(--vt-pas, 100%))); } to { transform: none; } }
   /* Round du 24.09.2026 — Lionel : « ajoute un bordure à droite de la
      première colonne. » La colonne d'étiquette (116px, sticky left:0)
      n'avait pour seule séparation que le gap de grille de 1px habituel

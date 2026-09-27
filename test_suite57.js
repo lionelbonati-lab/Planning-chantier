@@ -129,7 +129,11 @@ const journaliser = (page, duree) => page.evaluate((duree) => new Promise((pret)
     const cible = apres.gauche;
     // Images du glissement : du lâcher (dernière position du doigt) à l'arrivée.
     const iArrivee = j.findIndex((x) => Math.round(x.g) === cible);
-    let iLacher = iArrivee; while (iLacher > 0 && j[iLacher - 1].g < j[iLacher].g) iLacher--;
+    // Suite 72 : positions au pixel entier (defilerHorizontal_) — la fin de
+    // la courbe avance de moins d'un pixel par image, deux images de suite
+    // peuvent donc tomber sur le même pixel (1196, 1196, 1197) ; on remonte
+    // jusqu'au lâcher sans exiger un pas à chaque image.
+    let iLacher = iArrivee; while (iLacher > 0 && j[iLacher - 1].g <= j[iLacher].g && j[iLacher - 1].g > avant.gauche) iLacher--;
     const glissement = j.slice(iLacher, iArrivee + 1).map((x) => Math.round(x.g));
     const pas = glissement.slice(1).map((g, i) => g - glissement[i]);
     const monotone = pas.every((p) => p >= 0);
