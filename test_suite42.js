@@ -31,8 +31,21 @@ const cartes = (page) => page.evaluate(() => {
   });
   return o;
 });
+// Round du 27.09.2026 (suite 69) — CI de la PR #63 : « Montage […] (359/360,
+// 280/360, 360/360) », mesure prise une image trop tôt sur une machine
+// chargée. L'appli ajuste les cartes à l'image QUI SUIT l'événement
+// "scroll" (planifierAjustLargeurBulles, rAF) : on attend donc cet
+// événement (écouteur posé après celui de l'appli, donc appelé après lui),
+// puis 2 images — plus un délai fixe qui peut tomber avant l'ajustement.
 const aller = (page, s0, x) => page.evaluate(async ([s0, x]) => {
-  document.querySelector('.scroller').scrollLeft = s0 + x;
+  const s = document.querySelector('.scroller');
+  const cible = s0 + x;
+  const defile = Math.round(s.scrollLeft) !== Math.round(cible) ? new Promise((ok) => {
+    const t = setTimeout(ok, 500);
+    s.addEventListener('scroll', () => { clearTimeout(t); ok(); }, { once: true });
+  }) : Promise.resolve();
+  s.scrollLeft = cible;
+  await defile;
   await new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(ok)));
 }, [s0, x]);
 const poser = async (page) => {
