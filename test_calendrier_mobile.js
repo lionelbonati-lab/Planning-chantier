@@ -323,7 +323,10 @@ const FAUX_SUPABASE = '(' + function () {
   await choisirDateBarre('2026-11-13');
   sem = await semaine();
   verifier(sem.pilule.indexOf('Sem. 46') === 0, 'ordinateur, même semaine : rien ne bouge (' + sem.pilule + ')');
-  await page.click('#btnDeuxSemaines');
+  // Suite 82 : bouton de vue unique — 1 semaine > jours voisins > 2 semaines.
+  await page.click('#btnModeVue');
+  await page.waitForTimeout(500);
+  await page.click('#btnModeVue');
   await page.waitForTimeout(500);
   await choisirDateBarre('2026-12-03');
   sem = await semaine();

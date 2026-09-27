@@ -20,7 +20,8 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //      dans le bord gauche) ; même disposition à l'arrivée, défilement tenu ;
 //   4. une bulle glissée dans le bord gauche : posée le vendredi d'avant ;
 //   5. fenêtre rétrécie : colonnes recalculées, bords toujours égaux ;
-//   6. 2 semaines : 4 semaines chargées, bords autour des 2 ;
+//   6. 2 semaines : 4 semaines chargées, bords autour des 2 (suite 82 : un
+//      seul mode à la fois, 2 semaines sans bords) ;
 //   7. téléphone : jamais (vue « 1 jour » normale) ; éteinte : 1 semaine.
 // Round du 27.09.2026 (suite 75) — Lionel : « Pas de samedi-dimanche dans les
 // semaines adjacentes. pas de bordure sur le bord de l'écran pour les
@@ -57,7 +58,7 @@ const dispo = (page) => page.evaluate(() => {
     venIso: isoDeGi(4), lunIso: isoDeGi(5), lunSIso: isoDeGi(n - 5),
     bordG: Math.round(ven.right - g), noms: Math.round(lbl.left - g), nomsD: Math.round(lbl.right - g),
     lundi: Math.round(lun.left - g), lundiS: Math.round(lunS.left - g), largeur: sc.clientWidth,
-    bordD: Math.round(sc.clientWidth - (lunS.left - g)), seps, sl: sc.scrollLeft,
+    bordD: Math.round(sc.clientWidth - (lunS.left - g)), seps, sl: sc.scrollLeft, jour: Math.round(lun.width), venL: Math.round(ven.left - g),
     coin: document.querySelector('.th.coin').textContent.trim()
   };
 });
@@ -67,10 +68,14 @@ const carte = (page, texte) => page.evaluate((x) => {
   return { cx: r.left + Math.min(40, r.width / 2), cy: r.top + r.height / 2 };
 }, texte);
 const tache = (page, texte) => page.evaluate((x) => { const y = TACHES.find((z) => z.texte === x); return y ? isoDeGi(y.giDebut) + ' ' + (y.demiDebut || '-') : null; }, texte);
-// Suite 79 : bouton de la barre d'outils, à côté de « Afficher 2 semaines ».
+// Suite 79 : bouton de la barre d'outils. Suite 82 : bouton de vue unique
+// (1 semaine > jours voisins > 2 semaines > 1 semaine) — allumer : 1 clic
+// depuis « 1 semaine » ; éteindre : jusqu'à revenir sur « 1 semaine ».
 const interrupteur = async (page) => {
-  await page.click('#btnJoursBords');
+  const mode = await page.evaluate(() => modeVueCourant());
+  await page.click('#btnModeVue');
   await page.waitForTimeout(500);
+  if (mode === 'bords') { await page.click('#btnModeVue'); await page.waitForTimeout(500); }
 };
 
 (async () => {
@@ -88,7 +93,9 @@ const interrupteur = async (page) => {
     // --- 2. Allumée ---
     await interrupteur(page);
     d = await dispo(page);
-    const bordOk = (x) => x.bordG >= 24 && x.bordG <= 124 && Math.abs(x.bordG - x.bordD) <= 3;
+    // Suite 82 — « Jour voisins n'affichent qu'une demi journée. » : un jour
+    // entier de chaque côté (le vendredi commence au bord de l'écran).
+    const bordOk = (x) => Math.abs(x.bordG - x.jour) <= 3 && x.venL >= -1 && x.venL <= 3 && Math.abs(x.bordG - x.bordD) <= 3;
     verifier(d.labs === 3 && d.bords && d.venIso === '2026-09-18' && d.lunIso === '2026-09-21' && d.lunSIso === '2026-09-28',
       'allumée : semaine d\'avant et d\'après chargées (' + JSON.stringify(d) + ')');
     verifier(bordOk(d) && d.noms === d.bordG + 4 && d.lundi === d.nomsD + 1 && d.lundiS > d.lundi,
@@ -176,13 +183,15 @@ const interrupteur = async (page) => {
     // --- 6. 2 semaines ---
     await page.setViewportSize({ width: 1400, height: 700 });
     await page.waitForTimeout(500);
-    await page.evaluate(() => document.getElementById('btnDeuxSemaines').click());
+    // Suite 82 : un seul mode à la fois — « Jours voisins » puis « 2
+    // semaines » au clic suivant, sans bords.
+    await page.click('#btnModeVue');
     await page.waitForTimeout(900);
-    d = await dispo(page);
-    verifier(d.labs === 4 && d.lunIso === '2026-09-21' && d.lunSIso === '2026-10-05' && bordOk(d) && d.seps.length === 3,
-      '2 semaines : 4 semaines chargées, bords autour des 2, 3 bandes (' + JSON.stringify(d) + ')');
-    await page.evaluate(() => document.getElementById('btnDeuxSemaines').click());
-    await page.waitForTimeout(700);
+    const deux = await page.evaluate(() => ({ labs: fenetreLabGs().length, bords: document.querySelector('#racine').classList.contains('vue-bords'), deux: deuxSemaines, opt: optionAffichage('bords'), n: nbJoursAffiches() }));
+    verifier(deux.labs === 2 && !deux.bords && deux.deux && deux.opt === 'non' && deux.n === 10,
+      '2 semaines : les 2 semaines seules, sans bords (' + JSON.stringify(deux) + ')');
+    await page.click('#btnModeVue'); await page.waitForTimeout(700); // 1 semaine
+    await page.click('#btnModeVue'); await page.waitForTimeout(900); // jours voisins
 
     // --- 8. Week-ends affichés ---
     await page.evaluate(() => changerOptionAffichage('weekends', 'oui'));

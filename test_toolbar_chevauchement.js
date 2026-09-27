@@ -104,7 +104,7 @@ function mesurer() {
   //    fonctions »), puis Masquages, Navigation, Imprimer. Suite 47 :
   //    « À réserver » après Masquages, avant la navigation.
   // Suite 79 : « Jours voisins aux bords » juste avant la navigation.
-  const ORDRE_REPLI = ['groupeZoom', 'controlesAffichage', 'groupeNotifications', 'groupeJoursBords', 'groupeNavSemaine', 'groupeImprimer'];
+  const ORDRE_REPLI = ['groupeZoom', 'controlesAffichage', 'groupeNotifications', 'groupeNavSemaine', 'groupeImprimer'];
   const TOUJOURS_BARRE = ['groupeAnnulerRefaire', 'groupeChantier', 'groupeAujourdhui', 'groupeAjoutElement'];
   let largeursOk = 0, nbLargeurs = 0, replis = [], ordreRespecte = true, toujoursLa = true;
   for (let w = 1400; w >= 320; w -= 10) {
@@ -129,7 +129,7 @@ function mesurer() {
   //    Chantier | navigation semaines | Zoom | Insertions | Masquages ».
   await largeur(1400);
   let e = await etatBarre();
-  verifier(JSON.stringify(e.barre) === JSON.stringify(['groupeAnnulerRefaire', 'groupeImprimer', 'groupeChantier', 'groupeAujourdhui', 'groupeNavSemaine', 'groupeJoursBords', 'groupeZoom', 'groupeAjoutLigne', 'groupeAjoutElement', 'controlesAffichage']) && e.menu.length === 0,
+  verifier(JSON.stringify(e.barre) === JSON.stringify(['groupeAnnulerRefaire', 'groupeImprimer', 'groupeChantier', 'groupeAujourdhui', 'groupeNavSemaine', 'groupeZoom', 'groupeAjoutLigne', 'groupeAjoutElement', 'controlesAffichage']) && e.menu.length === 0,
     'barre complète dans l\'ordre demandé, menu vide : ' + e.barre);
   verifier(await page.evaluate(() => getComputedStyle(document.getElementById('btnPlusOutils')).display === 'none'), '"⋮" masqué quand rien n\'est replié');
 
@@ -146,7 +146,7 @@ function mesurer() {
   await largeur(700);
   e = await etatBarre();
   // Suite 79 : « Jours voisins aux bords » juste après la navigation.
-  verifier(JSON.stringify(e.menu) === JSON.stringify(['groupeNotifications', 'groupeZoom', 'groupeNavSemaine', 'groupeJoursBords', 'controlesAffichage']), 'ordre du menu à 700px (« À réserver » juste après Imprimer, suite 47) : ' + e.menu);
+  verifier(JSON.stringify(e.menu) === JSON.stringify(['groupeNotifications', 'groupeZoom', 'groupeNavSemaine', 'controlesAffichage']), 'ordre du menu à 700px (« À réserver » juste après Imprimer, suite 47) : ' + e.menu);
   await page.click('#btnPlusOutils');
   await page.waitForTimeout(100);
   const lignes = await page.evaluate(() => {
@@ -156,7 +156,7 @@ function mesurer() {
   });
   verifier(new Set(lignes.nav).size === 1, '‹ Sem. N › sur une seule ligne dans le menu');
   verifier(new Set(lignes.masq).size === 1, 'les 4 masquages sur une seule ligne dans le menu');
-  verifier(JSON.stringify(lignes.libelles) === JSON.stringify(['Afficher 2 semaines']), 'plus de texte "Semaine précédente/suivante" : ' + JSON.stringify(lignes.libelles));
+  verifier(JSON.stringify(lignes.libelles) === JSON.stringify(['1 semaine']), 'plus de texte "Semaine précédente/suivante", seul le mode de vue (suite 82) : ' + JSON.stringify(lignes.libelles));
   verifier(await page.evaluate(() => !Array.from(document.querySelectorAll('#groupeNavSemaine *')).some((el) => el.children.length === 0 && /^\s*Semaine\s*$/.test(el.textContent) && el.getBoundingClientRect().width > 0)),
     'pas d\'intitulé "Semaine" devant ‹ Sem. N ›');
   const ouvert = () => page.evaluate(() => document.getElementById('toolbarSecondaire').classList.contains('ouvert'));
@@ -176,7 +176,7 @@ function mesurer() {
   verifier(await icone() === 'croix', 'menu ouvert : "⋮" remplacé par "✕"');
   const nav = await page.evaluate(() => {
     const g = document.getElementById('groupeNavSemaine').getBoundingClientRect();
-    const imp = document.querySelector('#groupeNavSemaine #btnDeuxSemaines svg').getBoundingClientRect();
+    const imp = document.querySelector('#groupeNavSemaine #btnModeVue svg').getBoundingClientRect();
     return { prec: document.getElementById('btnSemainePrec').getBoundingClientRect().left - g.left, icone2sem: imp.left - g.left };
   });
   verifier(nav.prec <= nav.icone2sem, '‹ Sem. N › aligné à gauche (‹ à ' + Math.round(nav.prec) + 'px du bord, icône "2 semaines" à ' + Math.round(nav.icone2sem) + 'px)');

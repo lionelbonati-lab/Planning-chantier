@@ -227,10 +227,11 @@
   // « ⋮ ») — replié sinon (suite 50, cf. ajusterDebordementToolbar).
   // Suite 79 : « Jours voisins aux bords » replié juste avant la navigation.
   // Suite 81 : « À réserver » devient « Notifications » (même place).
-  var REPLIS_ORDRE = ["groupeZoom", "controlesAffichage", "groupeNotifications", "groupeJoursBords", "groupeNavSemaine", "groupeImprimer"];
+  // Suite 82 : « Jours voisins » rejoint le bouton de vue (#btnModeVue).
+  var REPLIS_ORDRE = ["groupeZoom", "controlesAffichage", "groupeNotifications", "groupeNavSemaine", "groupeImprimer"];
   // Jours voisins aux bords (suite 79) : masqué sur téléphone, laissé dans
   // la barre sans largeur (comme « À réserver »).
-  var REPLIS_TELEPHONE = REPLIS_ORDRE.filter(function (id) { return id !== "groupeNotifications" && id !== "groupeJoursBords"; }).concat(["groupeAjoutLigne"]);
+  var REPLIS_TELEPHONE = REPLIS_ORDRE.filter(function (id) { return id !== "groupeNotifications"; }).concat(["groupeAjoutLigne"]);
   // Insère `el` dans `conteneur` avant le premier enfant de rang supérieur
   // (data-rang ou data-rang-menu selon `cle`) — garde le DOM dans l'ordre
   // visuel, dont dépendent les séparateurs (.sep-avant, cf. style.css).
@@ -950,6 +951,32 @@
     deuxSemaines = !deuxSemaines;
     assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); });
   }
+  // Round du 27.09.2026 (suite 82) — Lionel : « Regrouper les boutons mode
+  // de vue en 1 seul bouton afin qu'un seul mode ne soit actif à la fois.
+  // Comportement du clic sur le bouton 1 semaine > jours voisin > 2
+  // semaines > 1 semaine. » #btnModeVue (ordinateur, tablette) : 3 modes,
+  // un seul à la fois. « Jours voisins » reste l'option enregistrée `bords`
+  // (compte et appareil, suite 74) ; « 2 semaines » reste deuxSemaines (vue
+  // d'ouverture : réglage vueOrdi). En 2 semaines, pas de bords
+  // (vueBordsActive).
+  var MODES_VUE = {
+    semaine: { nom: "1 semaine", icone: "uneSemaine", suivant: "bords" },
+    bords: { nom: "Jours voisins", icone: "joursBords", suivant: "deux" },
+    deux: { nom: "2 semaines", icone: "deuxSemaines", suivant: "semaine" }
+  };
+  function modeVueCourant() {
+    if (deuxSemaines) return "deux";
+    return typeof optionAffichage === "function" && optionAffichage("bords", "ordi") === "oui" ? "bords" : "semaine";
+  }
+  function basculerModeVue() {
+    var suivant = MODES_VUE[modeVueCourant()].suivant;
+    deuxSemaines = suivant === "deux";
+    var bords = suivant === "bords" ? "oui" : "non";
+    // Changer `bords` recharge la fenêtre (appliquerEffetOption_) ; sinon
+    // (déjà bon), c'est fait ici.
+    if (optionAffichage("bords", "ordi") !== bords) changerOptionAffichage("bords", bords, "ordi");
+    else assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); majBarreSelection(); });
+  }
   // Round du 23.09.2026 (suite 4) — pendant mobile de basculerDeuxSemaines()
   // ci-dessus, pour le bouton "1 semaine" qui remplace "Afficher 2 semaines"
   // sur téléphone (cf. commentaire du gabarit dans construireGrille et
@@ -1393,7 +1420,9 @@
     // largeur fixe calculées pour la largeur réelle du .scroller :
     // le défilement horizontal, calé plus bas (cibleScrollLeft) et tenu
     // (écouteur "scroll"), cache le reste. Bord : 40 % d'un jour, entre 24
-    // et 120 px.
+    // et 120 px. Round du 27.09.2026 (suite 82) — Lionel : « Jour voisins
+    // n'affichent qu'une demi journée. » Bord : un jour entier (matin et
+    // après-midi), exactement la largeur d'un jour de la semaine affichée.
     var geoBords = null;
     if (vueBordsRendue_) {
       var zB = (niveauZoomPlanning / 100) || 1, cpjB = colsParJour(), nbC = nbSemainesAffichees - 2;
@@ -1401,9 +1430,9 @@
       // Une semaine : 5 jours de cpj colonnes (+ 1 px d'écart chacune), et
       // ses 2 colonnes de week-end de 46 px (+ 1).
       var weB = afficherWeekends ? 2 * 47 : 0;
-      var jourB = (W - LN - 4 - nbC * weB) / (5 * nbC + 0.8);
-      var P = Math.round(Math.max(24, Math.min(120, 0.4 * jourB)));
-      var colB = Math.max(20, ((W - 2 * P - LN - 4) / nbC - weB) / (5 * cpjB) - 1);
+      // 5 jours par semaine affichée + 2 jours entiers aux bords.
+      var colB = Math.max(20, (W - LN - 4 - nbC * weB) / (5 * nbC + 2) / cpjB - 1);
+      var P = Math.floor(cpjB * (colB + 1));
       // Colonne vide : la bande couvre ses 3 premiers px (+ 4 du vendredi),
       // les noms le reste, jusqu'au trait de 1 px avant le lundi.
       //

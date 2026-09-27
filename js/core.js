@@ -273,6 +273,8 @@
     deuxSemaines: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="2" y="4" width="7" height="12" rx="1.3" stroke="currentColor" stroke-width="1.5"/><rect x="11" y="4" width="7" height="12" rx="1.3" stroke="currentColor" stroke-width="1.5"/></svg>',
     // Suite 79 — jours voisins aux bords : la semaine au milieu, un bout de
     // la précédente et de la suivante, ouverts vers le bord.
+    // Mode de vue (suite 82) : « 1 semaine », un seul bloc.
+    uneSemaine: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="4.5" y="4" width="11" height="12" rx="1.3" stroke="currentColor" stroke-width="1.5"/></svg>',
     joursBords: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="6" y="4" width="8" height="12" rx="1.3" stroke="currentColor" stroke-width="1.5"/><path d="M1 4h2v12H1M19 4h-2v12h2" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>',
     // Round du 23.09.2026 (suite 4) — semaineMobile : 5 colonnes fines
     // (5 jours ouvrés), pour le bouton mobile "1 semaine" qui remplace
@@ -554,8 +556,9 @@
   // défilement est calé pour n'en laisser voir qu'un bord (cf.
   // construireGrille, js/grille-rendu.js). Au tout début ou à la toute fin
   // des semaines du planning (pas de voisine d'un côté) : vue normale.
+  // Suite 82 : un seul mode de vue à la fois — en 2 semaines, pas de bords.
   function vueBordsActive() {
-    if (typeof optionAffichage !== "function" || optionAffichage("bords") !== "oui" || modeJourMobileActif()) return false;
+    if (deuxSemaines || typeof optionAffichage !== "function" || optionAffichage("bords") !== "oui" || modeJourMobileActif()) return false;
     if (typeof window.matchMedia === "function" && window.matchMedia("(max-width: 600px)").matches) return false;
     var i = etat.indexSemaine, k = deuxSemaines ? 2 : 1;
     return !!(etat.semaines[i - 1] && etat.semaines[i + k]);

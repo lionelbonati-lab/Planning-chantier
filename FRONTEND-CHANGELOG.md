@@ -9589,3 +9589,43 @@ Lionel :
   - sans statut : bouton seulement s'il y a une demande.
 - test_suite47, 50, 53, 61, 69 et test_toolbar_chevauchement : nouveaux identifiants, compteur rouge, plus de pastilles de statut, cloche à la place du bandeau.
 - Suite complète : 86/86.
+
+## 190. Round du 27.09.2026 (suite 82) — Jours voisins en entier ; un seul bouton de mode de vue
+- « Jour voisins n'affichent qu'une demi journée. »
+- « Regrouper les boutons mode de vue en 1 seul bouton afin qu'un seul mode ne soit actif à la fois. Comportement du clic sur le bouton 1 semaine > jours voisin > 2 semaines > 1 semaine. »
+
+### Ce qui change
+- **Jours voisins** : le vendredi d'avant et le lundi d'après s'affichent en entier (matin et après-midi), aussi larges qu'un jour de la semaine. Avant, on n'en voyait que 40 % (environ une demi-journée).
+- **Un seul bouton de vue** dans la barre, à la place de « Afficher 2 semaines » et « Jours voisins aux bords ».
+  - Il montre le mode affiché (icône et libellé : 1 semaine, Jours voisins, 2 semaines).
+  - Un clic passe au mode suivant : 1 semaine → Jours voisins → 2 semaines → 1 semaine.
+  - Au survol : « Vue : 1 semaine — clic : jours voisins ».
+  - Un seul mode à la fois : en 2 semaines, jamais de jours voisins.
+  - Replié dans ⋮ avec la navigation, avec le libellé du mode. Absent sur téléphone, comme avant.
+- **Touche V** : même tour que le bouton (sur téléphone, toujours 1 jour / 1 semaine).
+
+### Fonctionnement
+- **Largeur des bords** (construireGrille, js/grille-rendu.js) : colonnes calculées pour 5 jours par semaine affichée + 2 jours entiers aux bords. P (largeur d'un bord) = largeur d'un jour.
+- **Bouton `#btnModeVue`** (js/coquille.js, groupe #groupeNavSemaine) :
+  - `basculerModeVue`, `modeVueCourant` et `MODES_VUE` sont dans js/grille-rendu.js ;
+  - le mode « Jours voisins » reste le réglage `bords` enregistré (compte et appareil), le mode « 2 semaines » reste `deuxSemaines` ;
+  - majSemaineAffichage pose l'icône (`ICONS.uneSemaine`, `joursBords`, `deuxSemaines`), le libellé et le survol.
+- **Exclusivité** : `vueBordsActive` renvoie faux en 2 semaines. Une ouverture en 2 semaines (réglage « Vue d'ouverture ») avec « jours voisins » enregistré donne donc 2 semaines seules. Le clic suivant revient à 1 semaine et éteint le réglage.
+- **Retirés** : `#groupeJoursBords`, `#btnJoursBords`, `#btnDeuxSemaines`, `basculerJoursBords`.
+
+### Tests
+- test_suite82.js, 10/10 :
+  - un seul bouton, sur « 1 semaine » ;
+  - le tour des 3 modes (icône, libellé, survol, vue, réglage) ;
+  - jours voisins entiers, avec les bulles du matin et de l'après-midi ;
+  - touche V ;
+  - ouverture en 2 semaines avec « jours voisins » enregistré.
+- test_suite74.js :
+  - les bords font un jour entier ;
+  - « 2 semaines » est sans bords.
+- test_suite79.js : le bouton de vue remplace #btnJoursBords.
+- test_calendrier_mobile.js : deux clics pour arriver en 2 semaines.
+- test_toolbar_chevauchement.js :
+  - plus de groupe « Jours voisins » ;
+  - libellé « 1 semaine » dans le menu.
+- Suite complète : 87/87.

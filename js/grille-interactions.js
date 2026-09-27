@@ -2005,20 +2005,24 @@
   function majSemaineAffichage() {
     var pill = document.getElementById("btnSemainePill");
     if (pill && etat.semaines[etat.indexSemaine]) pill.textContent = "Sem. " + etat.semaines[etat.indexSemaine].num + " ▾";
-    var btn2s = document.getElementById("btnDeuxSemaines");
-    if (btn2s) btn2s.classList.toggle("actif", deuxSemaines);
-    // Jours voisins aux bords (suite 79) : l'option enregistrée, pas la vue
-    // rendue (qui attend une semaine chargée de chaque côté).
-    var btnBords = document.getElementById("btnJoursBords");
-    if (btnBords && typeof optionAffichage === "function") {
-      var bordsOui = optionAffichage("bords", "ordi") === "oui";
-      btnBords.classList.toggle("actif", bordsOui);
-      btnBords.setAttribute("aria-pressed", bordsOui ? "true" : "false");
+    // Bouton de vue (suite 82) : icône et libellé du mode affiché, le
+    // survol dit le suivant.
+    var btnVue = document.getElementById("btnModeVue");
+    if (btnVue && typeof modeVueCourant === "function") {
+      var idMode = modeVueCourant(), mode = MODES_VUE[idMode], suivant = MODES_VUE[mode.suivant];
+      if (btnVue.dataset.mode !== idMode) {
+        btnVue.dataset.mode = idMode;
+        btnVue.querySelector(".mode-vue-icone").innerHTML = ICONS[mode.icone];
+        btnVue.querySelector(".toolbar-btn-label").textContent = mode.nom;
+      }
+      var titreVue = "Vue : " + mode.nom + " — clic : " + suivant.nom.toLowerCase();
+      btnVue.title = titreVue;
+      btnVue.setAttribute("aria-label", titreVue);
     }
     // Round du 23.09.2026 (suite 4) — #btnVueJourMobile (mobile uniquement,
     // remplace "Afficher 2 semaines" sur téléphone) : "actif" représente son
     // propre libellé "1 semaine", donc tinté quand on N'EST PLUS en mode "1
-    // jour" — même logique que btn2s juste au-dessus.
+    // jour".
     var btnVJM = document.getElementById("btnVueJourMobile");
     if (btnVJM) btnVJM.classList.toggle("actif", !vueJourMobile);
     // Round du 24.09.2026 (suite 15) — "1 semaine" (icône seule) dit son

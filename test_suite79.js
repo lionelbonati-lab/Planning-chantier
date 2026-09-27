@@ -19,15 +19,18 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //      après la navigation, avec son libellé ;
 //   7. téléphone : bouton absent de la barre et du menu ⋮.
 //
+// Suite 82 : le bouton est devenu #btnModeVue (1 semaine > jours voisins >
+// 2 semaines) ; « allumé » = mode « Jours voisins ».
+//
 // Lancer : node test_suite79.js
 
 const etat = (page) => page.evaluate(() => {
-  const b = document.getElementById('btnJoursBords'), p = document.getElementById('page-affichage');
+  const b = document.getElementById('btnModeVue'), p = document.getElementById('page-affichage');
   const ligne = (id) => { const l = p && p.querySelector('.reglage-ligne[data-option="' + id + '"]'); return l ? (l.hidden ? 'cachee' : 'visible') : 'absente'; };
   return {
-    // Suite 79 : son propre groupe, collé derrière celui de « Afficher 2 semaines ».
-    apres2s: !!b && b.parentElement.previousElementSibling && b.parentElement.previousElementSibling.id === 'groupeNavSemaine' && !b.parentElement.classList.contains('sep-avant'),
-    visible: !!b && b.getBoundingClientRect().width > 0, actif: !!b && b.classList.contains('actif'), pressed: b && b.getAttribute('aria-pressed'),
+    // Suite 82 : dans le groupe de la navigation, à la place de « Afficher 2 semaines ».
+    apres2s: !!b && b.parentElement.id === 'groupeNavSemaine' && !document.getElementById('btnJoursBords') && !document.getElementById('btnDeuxSemaines'),
+    visible: !!b && b.getBoundingClientRect().width > 0, actif: !!b && b.dataset.mode === 'bords', pressed: b && (b.dataset.mode === 'bords' ? 'true' : 'false'),
     vue: !!document.querySelector('#racine.vue-bords'), opt: optionAffichage('bords'),
     local: JSON.parse(localStorage.getItem('planning.affichage') || '{}').bords || null,
     compte: ((window.__BD.reglages || []).find((x) => x.cle === 'affichage') || { valeur: {} }).valeur.bords || null,
@@ -48,9 +51,9 @@ const etat = (page) => page.evaluate(() => {
     verifier(e.ligneBords === 'absente' && e.ligneCadre === 'visible', 'page Affichage : plus de ligne « Jours voisins aux bords », coins visibles (' + JSON.stringify(e) + ')');
     await page.evaluate(() => afficherPage('planning')); await page.waitForTimeout(200);
     e = await etat(page);
-    verifier(e.apres2s && e.visible && !e.actif && e.pressed === 'false' && !e.vue, 'barre d\'outils : bouton juste après « Afficher 2 semaines », éteint (' + JSON.stringify(e) + ')');
+    verifier(e.apres2s && e.visible && !e.actif && e.pressed === 'false' && !e.vue, 'barre d\'outils : bouton de vue à la place de « Afficher 2 semaines », sur « 1 semaine » (' + JSON.stringify(e) + ')');
     // --- 2. Allumé ---
-    await page.click('#btnJoursBords'); await page.waitForTimeout(900);
+    await page.click('#btnModeVue'); await page.waitForTimeout(900);
     e = await etat(page);
     verifier(e.actif && e.pressed === 'true' && e.vue && e.opt === 'oui' && e.local === 'oui' && e.compte === 'oui',
       'un clic : vue bord à bord, bouton actif, enregistré sur le compte et l\'appareil (' + JSON.stringify(e) + ')');
@@ -77,10 +80,10 @@ const etat = (page) => page.evaluate(() => {
       toutesErreurs.push(...o.erreurs);
       await o.page.context().close();
     }
-    // --- 5. Éteint ---
-    await page.click('#btnJoursBords'); await page.waitForTimeout(900);
+    // --- 5. Éteint (suite 82 : 2e clic = 2 semaines, sans bords) ---
+    await page.click('#btnModeVue'); await page.waitForTimeout(900);
     e = await etat(page);
-    verifier(!e.actif && e.pressed === 'false' && !e.vue && e.opt === 'non', '2e clic : vue normale (' + JSON.stringify(e) + ')');
+    verifier(!e.actif && !e.vue && e.opt === 'non' && await page.evaluate(() => deuxSemaines), '2e clic : 2 semaines, sans bords (' + JSON.stringify(e) + ')');
     await page.evaluate(() => afficherPage('affichage')); await page.waitForTimeout(200);
     e = await etat(page);
     verifier(e.ligneCadre === 'visible', 'ligne des coins revenue (' + JSON.stringify(e) + ')');
@@ -88,17 +91,16 @@ const etat = (page) => page.evaluate(() => {
     await page.context().close();
   }
   {
-    // --- 6. Fenêtre étroite : dans le menu ⋮ avec « Afficher 2 semaines » ---
+    // --- 6. Fenêtre étroite : dans le menu ⋮ avec la navigation ---
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 700, height: 800 } });
     await page.waitForTimeout(400);
     const m = await page.evaluate(() => {
-      const b = document.getElementById('btnJoursBords'), d = document.getElementById('btnDeuxSemaines');
+      const b = document.getElementById('btnModeVue');
       const lbl = b.querySelector('.toolbar-btn-label');
-      const g = b.parentElement, n = d.parentElement;
-      return { collé: g.previousElementSibling === n || n.parentElement !== g.parentElement, dansMenu: !!b.closest('.toolbar-secondaire'), navDansMenu: !!d.closest('.toolbar-secondaire'),
+      return { collé: b.parentElement.id === 'groupeNavSemaine', dansMenu: !!b.closest('.toolbar-secondaire'),
         libelle: lbl && getComputedStyle(lbl).display !== 'none' ? lbl.textContent : null };
     });
-    verifier(m.collé && m.dansMenu && m.libelle === 'Jours voisins aux bords', 'fenêtre étroite : dans le menu ⋮ avec son libellé, juste après la navigation (' + JSON.stringify(m) + ')');
+    verifier(m.collé && m.dansMenu && m.libelle === '1 semaine', 'fenêtre étroite : dans le menu ⋮ avec la navigation, libellé du mode (' + JSON.stringify(m) + ')');
     toutesErreurs.push(...erreurs);
     await page.context().close();
   }
@@ -106,10 +108,10 @@ const etat = (page) => page.evaluate(() => {
     // --- 7. Téléphone ---
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 390, height: 844 }, hasTouch: true });
     await page.waitForTimeout(300);
-    const t = await page.evaluate(() => { const b = document.getElementById('btnJoursBords'); return { display: getComputedStyle(b.parentElement).display, larg: b.getBoundingClientRect().width }; });
+    const t = await page.evaluate(() => { const b = document.getElementById('btnModeVue'); return { display: getComputedStyle(b).display, larg: b.getBoundingClientRect().width }; });
     const btnMenu = await page.$('#btnPlusOutils, .btn-plus-outils, [aria-label="Plus d\'outils"]');
     let menu = null;
-    if (btnMenu) { await btnMenu.click(); await page.waitForTimeout(200); menu = await page.evaluate(() => document.getElementById('btnJoursBords').getBoundingClientRect().width); }
+    if (btnMenu) { await btnMenu.click(); await page.waitForTimeout(200); menu = await page.evaluate(() => document.getElementById('btnModeVue').getBoundingClientRect().width); }
     verifier(t.display === 'none' && t.larg === 0 && (menu === null || menu === 0), 'téléphone : bouton absent de la barre et du menu ⋮ (' + JSON.stringify({ t, menu }) + ')');
     toutesErreurs.push(...erreurs);
     await page.context().close();
