@@ -1688,7 +1688,33 @@
       xDejaSuivi = scroller.scrollLeft;
     };
     // Hauteurs des lignes (suite 58) : tout de suite, pas à l'image suivante.
-    scroller.addEventListener("scroll", function () { enteteScroll.scrollLeft = scroller.scrollLeft; suivreHauteursJourMobile(); planifierAjustLargeurBulles(true); placerSepSemaines_(); });
+    scroller.addEventListener("scroll", function () { enteteScroll.scrollLeft = scroller.scrollLeft; suivreHauteursJourMobile(); planifierAjustLargeurBulles(true); placerSepSemaines_(); planifierMajCoinJourMobile_(); });
+    // Case coin en vue « 1 jour » (suite 70, cf. sa création plus bas) : le
+    // jour affiché est celui dont le bord gauche est le plus proche du bord
+    // de l'écran — même règle que l'arrêt du défilement (defilementArrete),
+    // la case bascule donc à mi-chemin, là où l'aimantation posera le jour.
+    // Une fois par image ; rien tant que la grille est masquée (tout y
+    // mesure 0).
+    var rafCoinJour_ = null;
+    function planifierMajCoinJourMobile_() {
+      if (!enModeJourMobile || rafCoinJour_) return;
+      rafCoinJour_ = requestAnimationFrame(function () { rafCoinJour_ = null; majCoinJourMobile_(); });
+    }
+    function majCoinJourMobile_() {
+      if (!enModeJourMobile || !coin || !scroller.isConnected || !scroller.getClientRects().length) return;
+      var thJour = null, ecart = Infinity;
+      grilleEntete.querySelectorAll(".th[data-gi]").forEach(function (th) {
+        var e = Math.abs(decalerSurColonne_(th) - scroller.scrollLeft);
+        if (e < ecart) { ecart = e; thJour = th; }
+      });
+      var iso = thJour ? isoDeGi(+thJour.dataset.gi) : null;
+      if (!iso || iso === isoCoinJour_) return;
+      var avant = isoCoinJour_;
+      isoCoinJour_ = iso;
+      // Même mois, même année : rien à réécrire.
+      if (avant && avant.slice(0, 7) === iso.slice(0, 7)) return;
+      coin.innerHTML = htmlCoinMoisAnnee([iso]);
+    }
     reajusterBullesJourMobile = function () { planifierAjustLargeurBulles(false); };
     // Round du 23.09.2026 (suite 5) — Lionel : « Swipper un vendredi permet
     // de passer au lundi de la semaine suivante ? ». Réattaché à chaque
@@ -1878,7 +1904,18 @@
     // nulle part depuis le §87 (cf. le commentaire de htmlCoinMoisAnnee, js/core.js) ;
     // posé ici, dans cette case restée vide depuis le §83.
     // Suite 67 : mois + année, cf. htmlCoinMoisAnnee (js/core.js).
-    var coin = document.createElement("div"); coin.className = "th coin"; coin.innerHTML = htmlCoinPlanning(n); poser(coin, 1, row);
+    // Round du 27.09.2026 (suite 70) — Lionel : « En mode mobile, le mois
+    // affiché dans la case en haut à gauche ne peut pas être
+    // septembre-octobre car il n'affiche qu'un jour. » La grille du
+    // téléphone porte bien 2 semaines, mais l'écran n'en montre qu'UN jour :
+    // en vue « 1 jour », la case prend le mois et l'année de ce jour-là
+    // (jourMobileCourant), puis suit le glissement (majCoinJourMobile_,
+    // appelée à l'image du défilement) — « oct. » dès que le jeudi 1er
+    // occupe l'écran.
+    var coin = document.createElement("div"); coin.className = "th coin";
+    var isoCoinJour_ = enModeJourMobile ? jourMobileCourant() : null;
+    coin.innerHTML = isoCoinJour_ ? htmlCoinMoisAnnee([isoCoinJour_]) : htmlCoinPlanning(n);
+    poser(coin, 1, row);
     for (var gi = 0; gi < n; gi++) {
       var th = document.createElement("div");
       var estAuj = isoDeGi(gi) === aujIso;
