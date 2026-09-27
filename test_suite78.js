@@ -112,5 +112,5 @@ const ecart = (a, b) => Math.max(...a.map((v, i) => Math.abs(v - b[i])));
   }
   verifier(toutesErreurs.length === 0, 'aucune erreur console (' + toutesErreurs.join(' | ') + ')');
   await browser.close();
-  bilan();
+  process.exit(bilan(toutesErreurs));
 })();

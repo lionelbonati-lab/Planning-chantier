@@ -90,8 +90,13 @@
     { id: "zebre", groupe: "Planning", nom: "Lignes alternées", aide: "Une personne sur deux légèrement teintée, pour suivre une ligne d’un bout à l’autre.", interrupteur: true, defaut: "non", css: true },
     { id: "teinte", groupe: "Planning", nom: "Colonnes teintées", aide: "La demi-journée légèrement grisée, pour distinguer le matin de l’après-midi.", choix: [["aucune", "Aucune"], ["matin", "Matin"], ["aprem", "Après-midi"]], defaut: "aprem", css: true },
     { id: "separation", groupe: "Planning", nom: "Espace entre 2 semaines", aide: "Comme 2 fenêtres côte à côte. Éteint : un simple trait, comme entre 2 jours.", interrupteur: ["espace", "rien"], defaut: "espace", alias: { trait: "rien" }, css: true },
-    // Suite 74 (cf. vueBordsActive, js/core.js).
-    { id: "bords", groupe: "Planning", nom: "Jours voisins aux bords", aide: "Ordinateur, tablette : le vendredi d’avant à gauche et le lundi d’après à droite, coupés par le bord de l’écran. Les noms restent entre les deux.", interrupteur: true, defaut: "non" },
+    // Suite 74 (cf. vueBordsActive, js/core.js). Suite 79 — Lionel :
+    // « L'option jour voisins au bord doit être placé dans la toolbar avec
+    // le mode 2 semaines. » `barre` : réglée par #btnJoursBords
+    // (basculerJoursBords), plus de ligne sur la page ; hors de « Tout
+    // rétablir ». `commun` : un seul réglage, dans le jeu de l'ordinateur
+    // (les téléphones ne l'ont pas), gardé quand un jeu reprend l'autre.
+    { id: "bords", groupe: "Planning", nom: "Jours voisins aux bords", aide: "Ordinateur, tablette : le vendredi d’avant à gauche et le lundi d’après à droite, coupés par le bord de l’écran. Les noms restent entre les deux.", interrupteur: true, defaut: "non", barre: true, commun: true },
     { id: "cadre", groupe: "Planning", nom: "Coins du planning arrondis", aide: "Éteint : coins carrés.", interrupteur: ["arrondis", "carres"], defaut: "arrondis", css: true },
     { id: "noms", groupe: "Planning", nom: "Taille des noms", aide: "La colonne de gauche : personnes, Jalons, Notes.", choix: [["petit", "Petite"], ["normal", "Normale"], ["grand", "Grande"], ["tresgrand", "Très grande"]], defaut: "normal", css: true },
     { id: "jourSemaine", groupe: "Dates", nom: "Jour de la semaine", choix: [["abrege", "Jeu"], ["complet", "Jeudi"], ["initiale", "J"], ["masque", "Masqué"]], defaut: "abrege" },
@@ -194,7 +199,18 @@
     return o && valeurPermise_(o, v) ? v : (o ? o.defaut : null);
   }
   function affichageModifie_(profil) {
-    return OPTIONS_AFFICHAGE.some(function (o) { return optionAffichage(o.id, profil) !== o.defaut; });
+    return OPTIONS_AFFICHAGE.some(function (o) { return !o.barre && optionAffichage(o.id, profil) !== o.defaut; });
+  }
+  // Réglages de la barre d'outils (suite 79) : ce que « Tout rétablir »
+  // garde.
+  function reglagesBarreAffichage_() {
+    var m = {};
+    OPTIONS_AFFICHAGE.forEach(function (o) { if (o.barre && optionAffichage(o.id, "ordi") !== o.defaut) m[o.id] = optionAffichage(o.id, "ordi"); });
+    return m;
+  }
+  // #btnJoursBords (suite 79, cf. js/coquille.js).
+  function basculerJoursBords() {
+    changerOptionAffichage("bords", optionAffichage("bords", "ordi") === "oui" ? "non" : "oui", "ordi");
   }
   var minuteursAffichage_ = {};
   function ecrireJeu_(cle, cleLocale, m) {
@@ -347,16 +363,17 @@
   function retablirAffichage() {
     // Suite 76 : le jeu montré par la page ; l'autre ne touche pas au
     // planning de cet appareil.
-    if (profilPage_() !== profilAppareil_()) { enregistrerModifsAffichage_({}, profilPage_()); majPageAffichage(); return; }
+    // Suite 79 : les réglages de la barre d'outils (jours voisins aux bords)
+    // restent tels quels.
+    if (profilPage_() !== profilAppareil_()) { enregistrerModifsAffichage_(reglagesBarreAffichage_(), profilPage_()); majPageAffichage(); return; }
     var avant = {};
     OPTIONS_AFFICHAGE.forEach(function (o) { avant[o.id] = optionAffichage(o.id); });
-    enregistrerModifsAffichage_({}, profilAppareil_());
+    enregistrerModifsAffichage_(reglagesBarreAffichage_(), profilAppareil_());
     afficherWeekends = false;
     var chk = document.getElementById("chkWeekends");
     if (chk) chk.checked = false;
     appliquerStyleAffichage_();
-    if (avant.bords !== optionAffichageParId_("bords").defaut) rechargerFenetreAffichage_();
-    else if (Object.keys(avant).some(function (id) { return id !== "vueOrdi" && id !== "vueTel" && avant[id] !== optionAffichageParId_(id).defaut; }) &&
+    if (Object.keys(avant).some(function (id) { return id !== "vueOrdi" && id !== "vueTel" && !optionAffichageParId_(id).barre && avant[id] !== optionAffichageParId_(id).defaut; }) &&
       typeof racineEl !== "undefined" && racineEl) render(false);
     majPageAffichage();
   }
@@ -415,7 +432,7 @@
         '<div class="affichage-options">' +
           groupes.map(function (g) {
             return '<h2 class="titre-liste">' + esc(g) + '</h2>' +
-              OPTIONS_AFFICHAGE.filter(function (o) { return o.groupe === g && !o.sousLigne; }).map(htmlLigneOption_).join("");
+              OPTIONS_AFFICHAGE.filter(function (o) { return o.groupe === g && !o.sousLigne && !o.barre; }).map(htmlLigneOption_).join("");
           }).join("") +
           '<p class="page-sous affichage-note">« À l’ouverture » : pris en compte à la prochaine ouverture de l’appli.</p>' +
         '</div>' +
@@ -557,11 +574,16 @@
       b.setAttribute("aria-checked", actif ? "true" : "false");
     });
     // Vue à l'ouverture : seule celle du jeu montré.
-    var lignesVue = { vueOrdi: "ordi", vueTel: "tel", bords: "ordi" };
+    var lignesVue = { vueOrdi: "ordi", vueTel: "tel" };
     Object.keys(lignesVue).forEach(function (id) {
       var l = page.querySelector('.reglage-ligne[data-option="' + id + '"]');
       if (l) l.hidden = lignesVue[id] !== profil;
     });
+    // Suite 79 — Lionel : « Coin arrondi planning ne doit pas apparaître
+    // aussi car la vue est bord à bord. » Ordinateur, jours voisins aux
+    // bords allumés : planning de bord à bord, sans coin (suite 75).
+    var ligneCadre = page.querySelector('.reglage-ligne[data-option="cadre"]');
+    if (ligneCadre) ligneCadre.hidden = profil === "ordi" && optionAffichage("bords", "ordi") === "oui";
     OPTIONS_AFFICHAGE.forEach(function (o) {
       var v = optionAffichage(o.id, profil);
       if (o.sousLigne) {

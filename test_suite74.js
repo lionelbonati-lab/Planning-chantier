@@ -67,11 +67,10 @@ const carte = (page, texte) => page.evaluate((x) => {
   return { cx: r.left + Math.min(40, r.width / 2), cy: r.top + r.height / 2 };
 }, texte);
 const tache = (page, texte) => page.evaluate((x) => { const y = TACHES.find((z) => z.texte === x); return y ? isoDeGi(y.giDebut) + ' ' + (y.demiDebut || '-') : null; }, texte);
+// Suite 79 : bouton de la barre d'outils, à côté de « Afficher 2 semaines ».
 const interrupteur = async (page) => {
-  await page.evaluate(() => afficherPage('affichage')); await page.waitForTimeout(200);
-  await page.click('#page-affichage .reglage-ligne[data-option="bords"] .interrupteur');
-  await page.waitForTimeout(200);
-  await page.evaluate(() => afficherPage('planning')); await page.waitForTimeout(500);
+  await page.click('#btnJoursBords');
+  await page.waitForTimeout(500);
 };
 
 (async () => {

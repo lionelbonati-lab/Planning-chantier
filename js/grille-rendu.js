@@ -225,8 +225,11 @@
   // chassait la navigation dans « ⋮ » dès 820 px (tablette). Sur téléphone,
   // il reste dans la barre tant qu'il y tient (tout le reste est dans
   // « ⋮ ») — replié sinon (suite 50, cf. ajusterDebordementToolbar).
-  var REPLIS_ORDRE = ["groupeZoom", "controlesAffichage", "groupeAReserver", "groupeNavSemaine", "groupeImprimer"];
-  var REPLIS_TELEPHONE = REPLIS_ORDRE.filter(function (id) { return id !== "groupeAReserver"; }).concat(["groupeAjoutLigne"]);
+  // Suite 79 : « Jours voisins aux bords » replié juste avant la navigation.
+  var REPLIS_ORDRE = ["groupeZoom", "controlesAffichage", "groupeAReserver", "groupeJoursBords", "groupeNavSemaine", "groupeImprimer"];
+  // Jours voisins aux bords (suite 79) : masqué sur téléphone, laissé dans
+  // la barre sans largeur (comme « À réserver »).
+  var REPLIS_TELEPHONE = REPLIS_ORDRE.filter(function (id) { return id !== "groupeAReserver" && id !== "groupeJoursBords"; }).concat(["groupeAjoutLigne"]);
   // Insère `el` dans `conteneur` avant le premier enfant de rang supérieur
   // (data-rang ou data-rang-menu selon `cle`) — garde le DOM dans l'ordre
   // visuel, dont dépendent les séparateurs (.sep-avant, cf. style.css).
