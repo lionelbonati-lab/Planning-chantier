@@ -1684,6 +1684,11 @@
      sélection et l'ombre, 2,5 et 3 px), et découpée à cette marge : jamais
      plus bas que le bas de sa piste. */
   .grille.hauteurs-figees .bulle { min-height: 0; max-height: calc(100% - 3px); clip-path: inset(-4px -4px -3px -4px); }
+  /* Suite 73 : bulle d'un autre jour sur une piste que le jour posé
+     ramène à 0 (pistes du jour seul, gabaritPistesDuJour_,
+     js/grille-rendu.js) — la marge de 3 px ci-dessus la ferait déborder dans
+     le trait entre deux noms : rognée entièrement (marquerPistesNulles_). */
+  .grille.hauteurs-figees .bulle.piste-nulle { clip-path: inset(0 0 100% 0); }
   /* Suite 57 — Lionel : « La transition entre les jours en mobile me
      dérange. » Au jour posé, les lignes glissent vers leurs nouvelles
      hauteurs au lieu d'y sauter (figerHauteursJourMobile ne change la
