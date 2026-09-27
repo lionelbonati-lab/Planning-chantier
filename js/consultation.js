@@ -42,6 +42,15 @@
    nouvelle demande / supprimer une demande refusée ou une absence
    supprimée (détail plus bas, sql/0021). « Recharge la page pour voir les
    derniers changements. » passe dans l'en-tête.
+
+   Round du 27.09.2026 (suite 86) — Lionel : « Pouvoir gérer les séries
+   dans les demande de congé. » Le formulaire a « Répéter » (non, chaque
+   semaine, toutes les 2/3/4 semaines, chaque mois, tous les 2/3 mois) et
+   « Jusqu'au » : la demande garde la première absence et la règle
+   (sql/0022). Liste : « chaque semaine jusqu'au … » ; pointillés sur
+   chaque occurrence en attente ; une série se modifie / s'annule d'un
+   bloc tant que sa dernière absence n'est pas passée (modifier une série
+   commencée repart de sa prochaine absence).
    ============================================================ */
 (function () {
   // Même projet et même clé publique que js/core.js (clé « anon », faite
@@ -161,17 +170,49 @@
   }
   function libelleDemande(q) {
     var dm = function (demi) { return demi === "aprem" ? "après-midi" : "matin"; };
+    var serie = estSerie(q) ? ", " + libelleRepetition(q.serie_frequence, q.serie_intervalle) + " jusqu’au " + jourCourt(q.serie_fin) : "";
     if (q.debut === q.fin) {
-      return jourCourt(q.debut) + (q.demi_debut === q.demi_fin ? " " + dm(q.demi_debut) : "");
+      return jourCourt(q.debut) + (q.demi_debut === q.demi_fin ? " " + dm(q.demi_debut) : "") + serie;
     }
     return "du " + jourCourt(q.debut) + (q.demi_debut === "aprem" ? " après-midi" : "") +
-      " au " + jourCourt(q.fin) + (q.demi_fin === "matin" ? " matin" : "");
+      " au " + jourCourt(q.fin) + (q.demi_fin === "matin" ? " matin" : "") + serie;
   }
+  // ---- Suite 86 : séries (même calcul que occurrencesDemandeAbsence_,
+  // js/demandes-absence.js, et que le serveur, sql/0022) ----
+  function estSerie(q) { return !!(q && (q.serie_frequence === "semaine" || q.serie_frequence === "mois") && q.serie_fin); }
+  function libelleRepetition(freq, intervalle) {
+    var n = Math.max(1, +intervalle || 1);
+    if (freq === "mois") return n === 1 ? "chaque mois" : "tous les " + n + " mois";
+    return n === 1 ? "chaque semaine" : "toutes les " + n + " semaines";
+  }
+  // k × N semaines, ou k × N mois au même quantième (ramené au dernier
+  // jour d'un mois plus court).
+  function pas(iso, freq, n) {
+    if (freq !== "mois") return plusJours(iso, 7 * n);
+    var d = dateDe(iso), jour = d.getDate(), m = d.getMonth() + n;
+    var dernier = new Date(d.getFullYear(), m + 1, 0).getDate();
+    return isoDe(new Date(d.getFullYear(), m, Math.min(jour, dernier)));
+  }
+  function occurrences(q) {
+    if (!estSerie(q)) return [{ debut: q.debut, fin: q.fin }];
+    var duree = Math.round((dateDe(q.fin) - dateDe(q.debut)) / 864e5), n = Math.max(1, +q.serie_intervalle || 1), out = [];
+    for (var k = 0; k < 60; k++) {
+      var debut = pas(q.debut, q.serie_frequence, k * n);
+      if (debut > q.serie_fin) break;
+      out.push({ debut: debut, fin: plusJours(debut, duree) });
+    }
+    return out;
+  }
+  function finDerniere(q) { var o = occurrences(q); return o[o.length - 1].fin; }
   function demandeCouvre(q, iso, demi) {
-    if (iso < q.debut || iso > q.fin) return false;
-    if (iso === q.debut && q.demi_debut === "aprem" && demi === "matin") return false;
-    if (iso === q.fin && q.demi_fin === "matin" && demi === "aprem") return false;
-    return true;
+    // Série : week-ends sautés (comme les absences posées par le bureau).
+    if (estSerie(q) && dateDe(iso).getDay() % 6 === 0) return false;
+    return occurrences(q).some(function (o) {
+      if (iso < o.debut || iso > o.fin) return false;
+      if (iso === o.debut && q.demi_debut === "aprem" && demi === "matin") return false;
+      if (iso === o.fin && q.demi_fin === "matin" && demi === "aprem") return false;
+      return true;
+    });
   }
   function typeDe(q) { return q.type || "nouvelle"; }
   function demandeParId(id) { return (donnees.demandes || []).filter(function (x) { return x.id === id; })[0] || null; }
@@ -206,7 +247,7 @@
       if (t !== "annulation") g.push(["modifier", "Modifier"]);
       g.push(["retirer", "Retirer", 1]);
     } else if (e === "acceptee") {
-      if (q.fin >= donnees.aujourdhui) { g.push(["modifier", "Modifier"]); g.push(["annuler", "Annuler l’absence", 1]); }
+      if (finDerniere(q) >= donnees.aujourdhui) { g.push(["modifier", "Modifier"]); g.push(["annuler", estSerie(q) ? "Annuler la série" : "Annuler l’absence", 1]); }
     } else {
       if (e !== "annulee" && t !== "annulation") g.push(["nouvelle", "Nouvelle demande"]);
       g.push(["masquer", "Supprimer", 1]);
@@ -295,7 +336,8 @@
     if (geste === "nouvelle") return ouvrirFormulaire(q, "refaire");
     var appel = {
       retirer: ["Retirer cette demande d’absence ?", "consultation_annuler_demande", "Impossible de retirer la demande"],
-      annuler: ["Annuler cette absence ? Le bureau est prévenu et la retire du planning.", "consultation_annuler_absence", "Impossible d’annuler l’absence"],
+      annuler: [estSerie(q) ? "Annuler toute la série (les absences à venir) ? Le bureau est prévenu et la retire du planning."
+        : "Annuler cette absence ? Le bureau est prévenu et la retire du planning.", "consultation_annuler_absence", "Impossible d’annuler l’absence"],
       masquer: [null, "consultation_masquer_demande", "Impossible de supprimer la demande"]
     }[geste];
     if (!appel || (appel[0] && !window.confirm(appel[0]))) return;
@@ -317,6 +359,19 @@
     var v = q ? { motif: q.motif, debut: q.debut < d.aujourdhui ? d.aujourdhui : q.debut, demiDebut: q.demi_debut, demiFin: q.demi_fin, remarque: q.remarque || "" }
       : { motif: motifs[0], debut: debutDefaut, demiDebut: "matin", demiFin: "aprem", remarque: "" };
     v.fin = q ? (q.fin < v.debut ? v.debut : q.fin) : debutDefaut;
+    // Suite 86 : série commencée → repart de sa prochaine absence (dates
+    // de celle-ci), même règle et même fin.
+    v.repeter = estSerie(q) ? q.serie_frequence + ":" + Math.max(1, +q.serie_intervalle || 1) : "";
+    v.jusquau = estSerie(q) ? q.serie_fin : "";
+    if (estSerie(q) && q.debut < d.aujourdhui) {
+      var prochaine = occurrences(q).filter(function (o) { return o.debut >= d.aujourdhui; })[0];
+      if (prochaine) { v.debut = prochaine.debut; v.fin = prochaine.fin; }
+    }
+    var CHOIX_REPETER = [["", "Non"], ["semaine:1", "Chaque semaine"], ["semaine:2", "Toutes les 2 semaines"], ["semaine:3", "Toutes les 3 semaines"],
+      ["semaine:4", "Toutes les 4 semaines"], ["mois:1", "Chaque mois"], ["mois:2", "Tous les 2 mois"], ["mois:3", "Tous les 3 mois"]];
+    if (v.repeter && !CHOIX_REPETER.some(function (c) { return c[0] === v.repeter; })) {
+      CHOIX_REPETER.push([v.repeter, libelleRepetition(q.serie_frequence, q.serie_intervalle).replace(/^./, function (c) { return c.toUpperCase(); })]);
+    }
     var accepteeModifiee = mode === "modifier" && q.statut === "acceptee";
     var titre = mode === "modifier" ? (accepteeModifiee ? "Modifier l’absence" : "Modifier la demande") : mode === "refaire" ? "Nouvelle demande" : "Demander une absence";
     var envoyer = mode === "modifier" ? (accepteeModifiee ? "Envoyer la modification" : "Enregistrer") : "Envoyer la demande";
@@ -333,6 +388,10 @@
       '<label>Type<select id="faMotif">' + motifs.map(function (m) { return "<option" + (m === v.motif ? " selected" : "") + ">" + esc(m) + "</option>"; }).join("") + "</select></label>" +
       '<div class="fa-ligne"><label>Du<input type="date" id="faDebut" required min="' + d.aujourdhui + '" value="' + v.debut + '"></label>' + choixDemi("faDemiDebut", v.demiDebut) + "</div>" +
       '<div class="fa-ligne"><label>Au<input type="date" id="faFin" required min="' + d.aujourdhui + '" value="' + v.fin + '"></label>' + choixDemi("faDemiFin", v.demiFin) + "</div>" +
+      '<div class="fa-ligne fa-serie"><label>Répéter<select id="faRepeter">' + CHOIX_REPETER.map(function (c) {
+        return '<option value="' + c[0] + '"' + (c[0] === v.repeter ? " selected" : "") + ">" + esc(c[1]) + "</option>";
+      }).join("") + "</select></label>" +
+      '<label id="faLigneJusquau"' + (v.repeter ? "" : " hidden") + '>Jusqu’au<input type="date" id="faJusquau" value="' + esc(v.jusquau) + '"></label></div>' +
       '<label>Motif <small>(facultatif)</small><textarea id="faRemarque" rows="2" maxlength="300" placeholder="Ex. : rendez-vous médical">' + esc(v.remarque) + "</textarea></label>" +
       '<p class="fa-erreur" id="faErreur" hidden></p>' +
       '<div class="fa-actions"><button type="button" class="btn-secondaire" id="faAnnuler">Annuler</button>' +
@@ -343,7 +402,24 @@
     ouvrirFeuille("formulaire", titre, html);
     var form = document.getElementById("formAbsence");
     var debut = document.getElementById("faDebut"), fin = document.getElementById("faFin");
-    debut.addEventListener("change", function () { if (fin.value < debut.value) fin.value = debut.value; });
+    var repeter = document.getElementById("faRepeter"), jusquau = document.getElementById("faJusquau");
+    // « Jusqu'au » : au plus tôt la 2e absence, au plus tard dans un an ;
+    // vide ou trop tôt → 4 absences proposées.
+    var majJusquau = function () {
+      var r = repeter.value.split(":");
+      document.getElementById("faLigneJusquau").hidden = !repeter.value;
+      if (!repeter.value || !debut.value) return;
+      var n = +r[1] || 1, mini = pas(debut.value, r[0], n);
+      jusquau.min = mini;
+      jusquau.max = plusJours(d.aujourdhui, 365);
+      if (!jusquau.value || jusquau.value < mini) {
+        var propose = pas(debut.value, r[0], 3 * n);
+        jusquau.value = propose > jusquau.max ? (mini > jusquau.max ? mini : jusquau.max) : propose;
+      }
+    };
+    repeter.addEventListener("change", majJusquau);
+    debut.addEventListener("change", function () { if (fin.value < debut.value) fin.value = debut.value; majJusquau(); });
+    majJusquau();
     var masquerErreur = function () { document.getElementById("faErreur").hidden = true; };
     form.addEventListener("input", masquerErreur);
     form.addEventListener("change", masquerErreur);
@@ -362,6 +438,15 @@
       if (!corps.p_debut || !corps.p_fin) return montrer("Choisis les dates.");
       if (corps.p_fin < corps.p_debut) return montrer("La fin est avant le début.");
       if (corps.p_debut === corps.p_fin && corps.p_demi_debut === "aprem" && corps.p_demi_fin === "matin") return montrer("Le même jour : de l’après-midi au matin, ce n’est pas possible.");
+      // Répétition : envoyée seulement si choisie (un serveur sans sql/0022
+      // accepte toujours une demande simple). Mêmes contrôles que le serveur.
+      if (repeter.value) {
+        var r = repeter.value.split(":"), n = +r[1] || 1;
+        if (!jusquau.value || jusquau.value < pas(corps.p_debut, r[0], n)) return montrer("« Jusqu’au » trop tôt : il faut au moins deux absences.");
+        if (jusquau.value > plusJours(d.aujourdhui, 365)) return montrer("Répétition possible jusqu’à dans un an.");
+        if (Math.round((dateDe(corps.p_fin) - dateDe(corps.p_debut)) / 864e5) >= (r[0] === "mois" ? 28 : 7) * n) return montrer("Chaque absence doit finir avant la suivante.");
+        corps.p_serie_frequence = r[0]; corps.p_serie_intervalle = n; corps.p_serie_fin = jusquau.value;
+      }
       if (mode === "modifier") corps.p_id = q.id;
       envoiEnCours = true;
       document.getElementById("faEnvoyer").disabled = true;
@@ -369,9 +454,12 @@
         envoiEnCours = false;
         if (!r || !r.ok) { document.getElementById("faEnvoyer").disabled = false; montrer((r && r.erreur) || "Demande refusée par le serveur."); return; }
         return charger(donnees.lundi).then(quitter);
-      }).catch(function () {
+      }).catch(function (err) {
         envoiEnCours = false;
         document.getElementById("faEnvoyer").disabled = false;
+        // Serveur pas encore à jour (sql/0022 absente) : la fonction à
+        // 10 paramètres n'existe pas (HTTP 404).
+        if (corps.p_serie_frequence && /HTTP 404/.test(err && err.message)) return montrer("La répétition n’est pas encore possible : fais une demande par absence.");
         montrer("Envoi impossible : vérifie ta connexion internet.");
       });
     });

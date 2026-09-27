@@ -2260,10 +2260,12 @@
   // max existant + 1) pour ne jamais écraser ni réordonner les autres tâches
   // déjà posées ce jour-là — contrairement à enregistrerCellulePersonneServeur,
   // qui réécrit la case entière depuis l'état complet connu de la grille
-  // (état qu'on n'a justement pas hors de la fenêtre). serie_id toujours null :
+  // (état qu'on n'a justement pas hors de la fenêtre). serie_id null :
   // seules les tâches HORS série passent ici — une occurrence de série,
   // même envoyée hors de la fenêtre, passe par series.js (round du
-  // 24.09.2026, suite 20) et y garde son serie_id.
+  // 24.09.2026, suite 20) et y garde son serie_id. Exception (suite 86) :
+  // champs.serieId, les absences d'une demande en série acceptée
+  // (js/demandes-absence.js), posées d'un coup dans leur série neuve.
   function enregistrerTacheEnDatesServeur(personneId, idsASupprimer, slots, champs) {
     var chaine = idsASupprimer.length
       ? sbClient.from("taches").delete().in("id", idsASupprimer).then(function (res) { if (res.error) throw res.error; })
@@ -2285,7 +2287,7 @@
         var ligne = {
           personne_id: personneId, date: s.date, demi: s.demi, ordre: (ordreMax[k] == null ? -1 : ordreMax[k]) + 1,
           texte: champs.texte, statut_id: champs.statut ? (etat.statutIdParCle[champs.statut] || null) : null,
-          important: !!champs.important, serie_id: null, est_absence: !!champs.absence
+          important: !!champs.important, serie_id: champs.serieId != null ? champs.serieId : null, est_absence: !!champs.absence
         };
         if (chantierId) ligne.chantier_id = chantierId;
         return ligne;

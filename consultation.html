@@ -129,6 +129,9 @@
   .form-absence textarea { resize: vertical; }
   .fa-ligne { display: flex; align-items: flex-end; gap: 8px; }
   .fa-ligne select { width: auto; flex: 0 0 auto; }
+  /* Suite 86 : « Répéter » prend la place, « Jusqu’au » masqué sans répétition. */
+  .fa-serie label select { width: 100%; }
+  .form-absence label[hidden] { display: none; }
   .fa-actions { display: flex; justify-content: flex-end; gap: 8px; }
   .fa-erreur { margin: 0; color: var(--danger); font-weight: 700; font-size: 13.5px; }
   .fa-aide { margin: 0; color: var(--ink-faint); font-size: 12px; }

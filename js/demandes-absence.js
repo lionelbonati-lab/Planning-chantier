@@ -42,6 +42,25 @@
      rendu du planning, toutes les 2 minutes tant que l'onglet est visible
      et au retour sur l'onglet. Accepter efface l'historique d'annulation,
      comme toute écriture faite hors de la grille (cf. ecrireHorsFenetre).
+
+     Round du 27.09.2026 (suite 86) — Lionel : « Enlever le bouton
+     "refuser" des annulations de congé. Pouvoir gérer les séries dans les
+     demande de congé. »
+       - Annulation : plus de « Refuser » — seulement Voir / Accepter
+         (l'ouvrier ne vient plus au travail : l'absence sort du planning) ;
+       - Séries : l'ouvrier peut demander une absence qui se répète
+         (colonnes serie_frequence « semaine »/« mois », serie_intervalle,
+         serie_fin — sql/0022). Hachures, « Voir », libellé (« chaque
+         semaine jusqu'au … ») : toutes les occurrences
+         (occurrencesDemandeAbsence_). Accepter pose les absences en VRAIE
+         série du planning (ligne `series` + serie_id sur chaque absence,
+         mémorisé dans la demande) : le bureau la gère ensuite comme toute
+         série (« cet événement / les suivants / tous », js/series.js).
+         Modification / annulation d'une série acceptée : toutes ses
+         absences à venir retirées (par serie_id, même déplacées entre-temps),
+         la nouvelle série posée.
+       - Base sans la migration 0022 : relue avec les anciennes colonnes,
+         rien de cassé (aucune demande ne peut alors être en série).
      ============================================================ */
 
   var demandesAbsence = [];         // demandes en attente (lignes serveur)
@@ -49,15 +68,28 @@
   var lectureDemandesEnCours_ = null;
   var traitementDemandeEnCours_ = false;
   var COLONNES_DEMANDES_ = "id, personne_id, date_debut, date_fin, demi_debut, demi_fin, motif, remarque, statut, cree_le, type, remplace_id";
+  // Suite 86 : colonnes de répétition (sql/0022). Tant que la migration
+  // n'est pas passée, la lecture qui les demande échoue : relue sans elles
+  // (colonnesSerie_ retombe à false pour la session).
+  var COLONNES_SERIE_ = ", serie_frequence, serie_intervalle, serie_fin, serie_id";
+  var colonnesSerie_ = true;
+  function lireDemandes_(filtrer) {
+    function lire(avecSerie) {
+      return Promise.resolve(filtrer(sbClient.from("demandes_absence").select(COLONNES_DEMANDES_ + (avecSerie ? COLONNES_SERIE_ : ""))));
+    }
+    if (!colonnesSerie_) return lire(false);
+    return lire(true).then(function (res) {
+      if (!res || !res.error) return res;
+      return lire(false).then(function (r2) { if (r2 && !r2.error) colonnesSerie_ = false; return r2; });
+    });
+  }
 
   function chargerDemandesAbsence(forcer) {
     if (!window.sbClient) return Promise.resolve(demandesAbsence);
     if (lectureDemandesEnCours_) return lectureDemandesEnCours_;
     if (!forcer && Date.now() - derniereLectureDemandes_ < 30000) return Promise.resolve(demandesAbsence);
     derniereLectureDemandes_ = Date.now();
-    lectureDemandesEnCours_ = Promise.resolve(sbClient.from("demandes_absence")
-      .select(COLONNES_DEMANDES_)
-      .eq("statut", "en_attente").order("date_debut").limit(200))
+    lectureDemandesEnCours_ = lireDemandes_(function (q) { return q.eq("statut", "en_attente").order("date_debut").limit(200); })
       .then(function (res) {
         // Table absente (migration pas encore passée) ou serveur injoignable :
         // rien dans les notifications, rien de cassé.
@@ -66,7 +98,7 @@
         // annulation (q.origine).
         var ids = (res.data || []).map(function (q) { return q.remplace_id; }).filter(function (id) { return id != null; });
         if (!ids.length) return res;
-        return Promise.resolve(sbClient.from("demandes_absence").select(COLONNES_DEMANDES_).in("id", ids)).then(function (r2) {
+        return lireDemandes_(function (q) { return q.in("id", ids); }).then(function (r2) {
           var parId = {};
           ((r2 && r2.data) || []).forEach(function (o) { parId[o.id] = o; });
           res.data.forEach(function (q) { if (q.remplace_id != null) q.origine = parId[q.remplace_id] || null; });
@@ -119,16 +151,61 @@
   }
   function libelleDemandeAbsence(q) {
     var j = function (iso) { return libelleDateCourteIso(iso).toLowerCase(); };
+    var serie = estSerieDemande_(q) ? ", " + libelleRepetitionDemande_(q) + " jusqu’au " + j(q.serie_fin) : "";
     if (q.date_debut === q.date_fin) {
-      return "le " + j(q.date_debut) + (q.demi_debut === q.demi_fin ? (q.demi_debut === "aprem" ? " après-midi" : " matin") : "");
+      return "le " + j(q.date_debut) + (q.demi_debut === q.demi_fin ? (q.demi_debut === "aprem" ? " après-midi" : " matin") : "") + serie;
     }
     return "du " + j(q.date_debut) + (q.demi_debut === "aprem" ? " après-midi" : "") +
-      " au " + j(q.date_fin) + (q.demi_fin === "matin" ? " matin" : "");
+      " au " + j(q.date_fin) + (q.demi_fin === "matin" ? " matin" : "") + serie;
+  }
+
+  // ---- Suite 86 : demandes en série ----
+  function estSerieDemande_(q) { return !!(q && (q.serie_frequence === "semaine" || q.serie_frequence === "mois") && q.serie_fin); }
+  function libelleRepetitionDemande_(q) {
+    var n = Math.max(1, +q.serie_intervalle || 1);
+    if (q.serie_frequence === "mois") return n === 1 ? "chaque mois" : "tous les " + n + " mois";
+    return n === 1 ? "chaque semaine" : "toutes les " + n + " semaines";
+  }
+  // Dates ISO en UTC (pas d'heure d'été/hiver dans le calcul).
+  function dateUtcDemande_(iso) { return new Date(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10))); }
+  function plusJoursDemande_(iso, n) { var d = dateUtcDemande_(iso); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
+  // k-ième pas de la répétition : k × N semaines, ou k × N mois au même
+  // quantième, ramené au dernier jour d'un mois plus court (le 31 → le 30,
+  // le 28 février…) — comme `date + interval 'N month'` côté serveur.
+  function pasDemande_(iso, frequence, n) {
+    var d = dateUtcDemande_(iso);
+    if (frequence !== "mois") { d.setUTCDate(d.getUTCDate() + 7 * n); return d.toISOString().slice(0, 10); }
+    var jour = d.getUTCDate(), m = d.getUTCMonth() + n;
+    var dernier = new Date(Date.UTC(d.getUTCFullYear(), m + 1, 0)).getUTCDate();
+    return new Date(Date.UTC(d.getUTCFullYear(), m, Math.min(jour, dernier))).toISOString().slice(0, 10);
+  }
+  // Absences d'une demande [{debut, fin}] : la première, puis (série) une
+  // par pas tant qu'elle commence au plus tard le serie_fin, même durée.
+  function occurrencesDemandeAbsence_(q) {
+    if (!estSerieDemande_(q)) return [{ debut: q.date_debut, fin: q.date_fin }];
+    var duree = Math.round((dateUtcDemande_(q.date_fin) - dateUtcDemande_(q.date_debut)) / 86400000);
+    var n = Math.max(1, +q.serie_intervalle || 1), out = [];
+    for (var k = 0; k < 60; k++) {
+      var debut = pasDemande_(q.date_debut, q.serie_frequence, k * n);
+      if (debut > q.serie_fin) break;
+      out.push({ debut: debut, fin: plusJoursDemande_(debut, duree) });
+    }
+    return out;
   }
   // Demi-journées couvertes : jours ouvrés (slotsPlageTacheIso), fériés
-  // sautés — personne ne pose d'absence un jour déjà chômé.
+  // sautés — personne ne pose d'absence un jour déjà chômé. Série (suite
+  // 86) : toutes les occurrences, week-ends sautés (une répétition au mois
+  // peut tomber un samedi).
   function slotsDemandeAbsence_(q) {
-    return slotsPlageTacheIso(q.date_debut, q.date_fin, q.demi_debut, q.demi_fin).filter(function (s) { return !feriesParIso[s.date]; });
+    var serie = estSerieDemande_(q), out = [];
+    occurrencesDemandeAbsence_(q).forEach(function (o) {
+      slotsPlageTacheIso(o.debut, o.fin, q.demi_debut, q.demi_fin).forEach(function (s) {
+        if (feriesParIso[s.date]) return;
+        if (serie) { var j = dateUtcDemande_(s.date).getUTCDay(); if (j === 0 || j === 6) return; }
+        out.push(s);
+      });
+    });
+    return out;
   }
 
   function marquerCellulesDemandes() {
@@ -157,7 +234,9 @@
 
   // Liste des demandes, dans la section « Demandes d'absence » des
   // notifications (suite 81 ; avant, fenêtre ouverte par le bandeau) :
-  // qui, quoi, quand ; Voir / Refuser / Accepter.
+  // qui, quoi, quand ; Voir / Refuser / Accepter. Suite 86 : pas de
+  // « Refuser » pour une annulation (Lionel : « Enlever le bouton
+  // "refuser" des annulations de congé. »).
   function htmlDemandesAbsence_() {
     if (!demandesAbsence.length) return '<p class="notif-vide">Aucune demande en attente.</p>';
     return '<ul class="da-liste">' + demandesAbsence.map(function (q) {
@@ -167,7 +246,7 @@
         '<span class="da-quand">' + esc(quandDemandeAbsence_(q)) + "</span></div>" +
         '<div class="da-boutons">' +
         '<button type="button" class="lien-modifier da-voir">Voir</button>' +
-        '<button type="button" class="lien-supprimer da-refuser">Refuser</button>' +
+        (typeDemande_(q) === "annulation" ? "" : '<button type="button" class="lien-supprimer da-refuser">Refuser</button>') +
         '<button type="button" class="btn-enregistrer da-accepter">Accepter</button>' +
         "</div></li>";
     }).join("") + "</ul>";
@@ -187,21 +266,28 @@
         }
         allerAuJour(slotsDemandeAbsence_(q).length ? slotsDemandeAbsence_(q)[0].date : q.date_debut);
       });
-      li.querySelector(".da-refuser").addEventListener("click", function () { traiterDemandeAbsence(q, false, redessiner); });
+      var refuser = li.querySelector(".da-refuser");
+      if (refuser) refuser.addEventListener("click", function () { traiterDemandeAbsence(q, false, redessiner); });
       li.querySelector(".da-accepter").addEventListener("click", function () { traiterDemandeAbsence(q, true, redessiner); });
     });
   }
 
   // Suite 83 : retire du planning les absences d'une demande acceptée
   // (modification ou annulation acceptée), à partir d'aujourd'hui.
+  // Suite 86 : série posée à l'acceptation (serie_id) → toutes ses absences
+  // à venir, où qu'elles soient (le bureau a pu en déplacer).
   function retirerAbsencesDemande_(orig) {
     var auj = isoDeDate(new Date());
+    if (orig.serie_id != null) {
+      return Promise.resolve(sbClient.from("taches").delete().eq("serie_id", orig.serie_id).eq("personne_id", orig.personne_id).gte("date", auj))
+        .then(function (r) { if (r && r.error) throw r.error; });
+    }
     var slots = slotsDemandeAbsence_(orig).filter(function (s) { return s.date >= auj; });
     if (!slots.length) return Promise.resolve();
     var cles = {};
     slots.forEach(function (s) { cles[s.date + "|" + s.demi] = true; });
     var dates = slots.map(function (s) { return s.date; }).sort();
-    return Promise.resolve(sbClient.from("taches").select("id, date, demi, texte, est_absence").eq("personne_id", orig.personne_id)
+    return Promise.resolve(sbClient.from("taches").select("id, date, demi, texte, est_absence").eq("personne_id", orig.personne_id).eq("est_absence", true)
       .gte("date", dates[0]).lte("date", dates[dates.length - 1])).then(function (res) {
       if (res.error) throw res.error;
       var abs = (res.data || []).filter(function (r) { return r.est_absence && cles[r.date + "|" + r.demi]; });
@@ -225,15 +311,33 @@
     var slots = accepter && type !== "annulation" ? slotsDemandeAbsence_(q) : [];
     var chaine = aRetirer || slots.length ? attendreFinSynchro_() : Promise.resolve();
     if (aRetirer) chaine = chaine.then(function () { return retirerAbsencesDemande_(aRetirer); });
+    // Suite 86 : demande en série → ligne `series` d'abord (mêmes colonnes
+    // que celles d'enregistrer-serie), puis chaque absence avec son serie_id.
+    var serieId = null;
+    if (slots.length && estSerieDemande_(q)) {
+      chaine = chaine.then(function () {
+        return Promise.resolve(sbClient.from("series").insert({
+          type: "tache", cible_personne_id: q.personne_id, cible_demi: q.demi_debut === "aprem" ? "aprem" : "matin",
+          texte: texteDemandeAbsence(q), statut_id: null, important: false, chantier_id: null, date_debut: q.date_debut,
+          frequence: q.serie_frequence, intervalle: Math.max(1, +q.serie_intervalle || 1), fin_type: "date", fin_valeur: q.serie_fin
+        }).select("id")).then(function (res) {
+          if (res.error) throw res.error;
+          var ligne = Array.isArray(res.data) ? res.data[0] : res.data;
+          serieId = ligne && ligne.id != null ? ligne.id : null;
+          if (serieId == null) throw new Error("série non créée");
+        });
+      });
+    }
     if (slots.length) {
       chaine = chaine.then(function () {
-        return enregistrerTacheEnDatesServeur(q.personne_id, [], slots, { texte: texteDemandeAbsence(q), absence: true, important: false, chantier: null, statut: null });
+        return enregistrerTacheEnDatesServeur(q.personne_id, [], slots, { texte: texteDemandeAbsence(q), absence: true, important: false, chantier: null, statut: null, serieId: serieId });
       });
     }
     var maintenant = new Date().toISOString();
     chaine.then(function () {
-      return Promise.resolve(sbClient.from("demandes_absence")
-        .update({ statut: accepter ? "acceptee" : "refusee", traitee_le: maintenant }).eq("id", q.id));
+      var maj = { statut: accepter ? "acceptee" : "refusee", traitee_le: maintenant };
+      if (serieId != null) maj.serie_id = serieId;
+      return Promise.resolve(sbClient.from("demandes_absence").update(maj).eq("id", q.id));
     }).then(function (res) {
       if (res && res.error) throw res.error;
       if (!accepter || type === "nouvelle" || q.remplace_id == null) return res;

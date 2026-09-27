@@ -9768,3 +9768,49 @@ Lionel :
 
 ### Tests
 - test_suite85.js, 10/10 : en hauteur, en largeur, retour en hauteur (vue « 1 jour » gardée), ouvert en largeur, tablette et ordinateur jamais, page de consultation, manifeste.
+
+## 194. Round du 27.09.2026 (suite 86) — Demandes de congé : plus de « Refuser » sur les annulations ; demandes en série
+- « Enlever le bouton "refuser" des annulations de congé. »
+- « Pouvoir gérer les séries dans les demande de congé. »
+
+### Ce qui change
+- **Notifications du bureau** : une annulation d'absence n'a plus que « Voir » et « Accepter ». Les nouvelles demandes et les modifications gardent « Refuser ».
+- **Page de consultation, formulaire de demande** : nouveau choix « Répéter ».
+  - Choix : Non, chaque semaine, toutes les 2, 3 ou 4 semaines, chaque mois, tous les 2 ou 3 mois.
+  - « Jusqu’au » apparaît avec la répétition. Il est proposé pour 4 absences, de la 2e absence à dans un an au plus.
+  - Exemples : tous les lundis matin, un vendredi sur deux, le 1er de chaque mois.
+- **Liste de l'ouvrier** :
+  - « lun. 28 sept. matin, chaque semaine jusqu’au lun. 19 oct. ».
+  - Pointillés sur chaque absence en attente.
+  - Une série acceptée se modifie ou s'annule d'un bloc (« Annuler la série ») tant que sa dernière absence n'est pas passée.
+  - Modifier une série déjà commencée repart de sa prochaine absence.
+- **Bureau** :
+  - La demande dit « …, chaque semaine jusqu’au … ». Toutes ses absences sont hachurées.
+  - « Accepter » pose les absences en vraie série du planning (« ↻ série »). Elle se gère ensuite comme les autres : cet événement, les suivants, tous.
+  - Une modification ou une annulation acceptée retire toutes les absences à venir de la série, même celles déplacées entre-temps. Le passé reste.
+
+### Fonctionnement
+- **sql/0022_demandes_absence_series.sql** (nouvelle migration, appliquée sur le projet) :
+  - Colonnes `serie_frequence` (« semaine » / « mois »), `serie_intervalle` (1 à 12), `serie_fin` (dernier début possible) et `serie_id` (série posée à l'acceptation).
+  - `consultation_demander_absence` et `consultation_modifier_demande` prennent 3 paramètres de plus, avec des valeurs par défaut.
+  - Garde-fous : au moins 2 absences, jusqu'à dans un an, chaque absence finit avant la suivante.
+  - `consultation_annuler_absence` copie la règle.
+  - `consultation_planning` la renvoie et compte une série jusqu'à la fin de sa dernière absence.
+- **Occurrences** (`occurrencesDemandeAbsence_` au bureau, `occurrences` sur la page, même calcul que le serveur) :
+  - La première absence, puis une par pas de N semaines ou N mois, tant qu'elle commence au plus tard le « Jusqu’au ».
+  - Au mois : même quantième, ramené au dernier jour d'un mois plus court.
+  - Fériés et week-ends sautés.
+- **js/demandes-absence.js** :
+  - Accepter une série : ligne `series` d'abord (mêmes colonnes qu'enregistrer-serie), puis les absences avec son `serie_id` (`enregistrerTacheEnDatesServeur`, nouveau `champs.serieId`). Le `serie_id` est gardé dans la demande.
+  - `retirerAbsencesDemande_` : série connue → ses absences à venir par `serie_id` ; sinon les demi-journées de toutes les occurrences.
+  - Base sans la migration : la lecture des demandes échoue avec les nouvelles colonnes, elle est refaite sans elles (`colonnesSerie_`).
+- **js/consultation.js** : la règle n'est envoyée que si « Répéter » est choisi. Une demande simple marche donc aussi sur le serveur d'avant. Sans la migration, une demande en série reçoit « La répétition n’est pas encore possible : fais une demande par absence. »
+
+### Tests
+- test_suite86.js, 21/21 :
+  - boutons (annulation sans « Refuser ») ;
+  - série en attente : libellé, hachures ; Accepter (ligne `series`, `serie_id`, « ↻ série ») ;
+  - annulation et modification d'une série acceptée ;
+  - occurrences au mois ;
+  - relecture sans la migration ;
+  - page de consultation : Répéter / Jusqu’au, contrôles, envoi avec ou sans règle, liste, pointillés, série commencée, serveur pas à jour.
