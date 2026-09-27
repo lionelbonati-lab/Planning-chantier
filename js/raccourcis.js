@@ -283,6 +283,51 @@
     if (reset) reset.hidden = !Object.keys(modifsRaccourcis_()).length;
   }
 
+  // ---- Impression -------------------------------------------------------
+  // Round du 26.09.2026 (suite 69) — Lionel : « Imprimer la page des
+  // raccourcis. » Une feuille à part (.impression-raccourcis, enfant direct
+  // de <body>) : un tableau Action | Touches par groupe, avec les touches
+  // réellement en place (modifications comprises), sans les boutons + × ↺.
+  // À l'impression, seule cette feuille reste (cf. @media print, style.css),
+  // en portrait ; retirée après l'impression.
+  function htmlImpressionRaccourcis_() {
+    function tableau(titre, lignes) {
+      return '<h2>' + esc(titre) + '</h2><table><tbody>' + lignes.map(function (l) {
+        return '<tr><td class="ir-nom">' + esc(l.nom) + '</td><td class="ir-touches">' +
+          (l.combos.length ? l.combos.map(function (c) { return '<span class="rc-combo">' + htmlCombo_(c) + '</span>'; }).join(" ") : '<span class="rc-aucune">Aucune touche</span>') +
+          '</td></tr>';
+      }).join("") + '</tbody></table>';
+    }
+    var groupes = [];
+    ACTIONS_CLAVIER.forEach(function (a) { if (groupes.indexOf(a.groupe) < 0) groupes.push(a.groupe); });
+    return '<h1>Raccourcis clavier</h1>' +
+      groupes.map(function (g) {
+        return tableau(g, ACTIONS_CLAVIER.filter(function (a) { return a.groupe === g; }).map(function (a) { return { nom: a.nom, combos: combosDe(a) }; }));
+      }).join("") +
+      tableau("Touches fixes", TOUCHES_FIXES_.map(function (f) { return { nom: f.nom, combos: [f.combo] }; })) +
+      tableau("Souris", GESTES_SOURIS_.map(function (f) { return { nom: f.nom, combos: [f.combo] }; }));
+  }
+  function retirerImpressionRaccourcis_() {
+    document.querySelectorAll(".impression-raccourcis, #stylePageRaccourcis").forEach(function (n) { n.remove(); });
+    document.documentElement.classList.remove("impr-raccourcis");
+  }
+  function imprimerRaccourcis() {
+    retirerImpressionRaccourcis_();
+    var feuille = document.createElement("div");
+    feuille.className = "impression-raccourcis";
+    feuille.innerHTML = htmlImpressionRaccourcis_();
+    document.body.appendChild(feuille);
+    // Portrait, marges ordinaires : placée en dernier, cette règle @page
+    // l'emporte sur celle de la mise en page du planning.
+    var st = document.createElement("style");
+    st.id = "stylePageRaccourcis";
+    st.textContent = "@media print { @page { size: A4 portrait; margin: 14mm; } }";
+    document.head.appendChild(st);
+    document.documentElement.classList.add("impr-raccourcis");
+    window.addEventListener("afterprint", retirerImpressionRaccourcis_, { once: true });
+    window.print();
+  }
+
   // Attend la combinaison suivante (écouteur en phase de capture, avant le
   // gestionnaire général). Échap ou un clic ailleurs : abandon.
   function capturerCombo_(ligne) {
@@ -393,6 +438,8 @@
         renderRaccourcis();
       }
     });
+    var imprimer = document.getElementById("btnImprimerRaccourcis");
+    if (imprimer) imprimer.addEventListener("click", imprimerRaccourcis);
     var reset = document.getElementById("btnRaccourcisDefaut");
     if (reset) reset.addEventListener("click", function () {
       demanderConfirmation("Revenir aux touches d’origine pour tous les raccourcis ?", function () {

@@ -111,6 +111,7 @@
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(ajusterOngletsNav);
     cablerPagePlanning();
     cablerAReserver();
+    cablerDemandesAbsence();
     cablerPageSauvegardes();
     cablerPageRaccourcis();
     cablerPageNotes();
@@ -190,7 +191,9 @@
       '</div></div>' +
       // Raccourcis clavier (suite 61, js/raccourcis.js).
       '<div class="page page-reglages" id="page-raccourcis"><div class="page-scroll">' +
-        '<div class="page-titre"><h1>Raccourcis clavier</h1><button type="button" class="lien-reset-tout" id="btnRaccourcisDefaut" hidden>Tout rétablir</button></div>' +
+        '<div class="page-titre"><h1>Raccourcis clavier</h1><span class="page-titre-actions"><button type="button" class="lien-reset-tout" id="btnRaccourcisDefaut" hidden>Tout rétablir</button>' +
+          // Suite 69 — Lionel : « Imprimer la page des raccourcis. »
+          '<button type="button" class="btn-calculer btn-imprimer-page" id="btnImprimerRaccourcis">' + ICONS.print + 'Imprimer</button></span></div>' +
         '<p class="page-sous">Touches du clavier et boutons de la souris d’un ordinateur, les mêmes sur tous les appareils du compte. « + » puis la combinaison voulue (ou le bouton du milieu, précédent, suivant de la souris) pour en ajouter une, « × » pour la retirer, « ↺ » pour revenir aux touches d’origine.</p>' +
         '<div id="listeRaccourcis"></div>' +
       '</div></div>' +
@@ -487,6 +490,12 @@
         '<div class="toolbar-secondaire" id="toolbarSecondaire" data-rang="110"></div>' +
       '</div>' +
       '<div class="zone-planning">' +
+        // Bandeau des demandes d'absence envoyées depuis les liens de
+        // consultation (round du 27.09.2026, suite 69 — Lionel : « Le lien
+        // de consultation des ouvriers doit pouvoir ajouter une absence que
+        // je doit valider dans mon planning. »). Caché sans demande en
+        // attente ; cf. js/demandes-absence.js.
+        '<button type="button" class="bandeau-demandes" id="bandeauDemandes" hidden>' + ICONS.absence + '<span class="bd-texte"></span><span class="bd-action">Examiner</span></button>' +
         '<div id="racine"></div>' +
         // Pilule de sélection (#panneauSelection) — round du 24.09.2026,
         // suite 8 puis suite 9 (Lionel, capture BlueMail à l'appui : « placer
@@ -511,6 +520,11 @@
           '<button type="button" class="toolbar-btn" id="selModifier" title="Modifier (Entrée)" aria-label="Modifier">' + ICONS.pencil + '</button>' +
           '<button type="button" class="toolbar-btn" id="selCopier" title="Copier au prochain déplacement (flèches ou glisser) au lieu de déplacer" aria-label="Copier au prochain déplacement">' + ICONS.copy + '</button>' +
           '<button type="button" class="toolbar-btn sel-important" id="selImportant" title="Important : marquer ou retirer" aria-label="Important" aria-pressed="false">' + ICONS.important + '</button>' +
+          // Suite 69 — Lionel : « Possibilité de changer le statut d'une tâche
+          // plus rapidement via la barre de sélection. Multiselection peut
+          // changer les statut sur plusieurs tâches à la fois » (cf.
+          // basculerMenuStatutSelection, formulaires-communs.js).
+          '<span class="sel-statut-wrap"><button type="button" class="toolbar-btn sel-statut" id="selStatut" title="Statut" aria-label="Statut" aria-haspopup="true" aria-expanded="false">' + ICONS.tag + '</button></span>' +
           '<button type="button" class="toolbar-btn sel-supprimer" id="selSupprimer" title="Supprimer (Suppr)" aria-label="Supprimer">' + ICONS.trash + '</button>' +
           '<span class="sel-fleches" hidden>' +
             '<span class="sel-sep"></span>' +
@@ -1109,6 +1123,7 @@
     document.getElementById("selModifier").addEventListener("click", modifierSelection);
     document.getElementById("selCopier").addEventListener("click", basculerCopieSelection);
     document.getElementById("selImportant").addEventListener("click", basculerImportantSelection);
+    document.getElementById("selStatut").addEventListener("click", basculerMenuStatutSelection);
     document.getElementById("selSupprimer").addEventListener("click", supprimerSelection);
     document.getElementById("selFermer").addEventListener("click", function () { quitterModeSelection(); render(false); });
     if (btnDeuxSemainesBarre) btnDeuxSemainesBarre.addEventListener("click", basculerDeuxSemaines);

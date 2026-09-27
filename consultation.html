@@ -16,6 +16,8 @@
      Tout passe par UNE fonction serveur, consultation_planning(jeton,
      lundi) (sql/0018_liens_consultation.sql), qui ne renvoie que la semaine
      de cette personne. Logique : js/consultation.js.
+     Suite 69 (27.09.2026) : le personnel peut aussi y DEMANDER une absence
+     (sql/0020_demandes_absence.sql), que Lionel valide dans son planning.
      ============================================================ -->
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
@@ -101,6 +103,41 @@
     border-radius: 999px; padding: 1px 7px; background: var(--cs, rgba(255,255,255,.6)); }
   .tache.absence { background: repeating-linear-gradient(135deg, var(--surface-2) 0 8px, var(--surface) 8px 16px); color: var(--ink); }
   .tache .important { color: var(--danger); font-weight: 800; }
+  /* Demandes d'absence (round du 27.09.2026, suite 69 — js/consultation.js). */
+  .absences { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 12px; padding: 10px 12px; }
+  .absences-titre { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: 800; }
+  .btn-demander, .btn-secondaire, .btn-retirer {
+    border: 0; border-radius: 10px; height: 38px; padding: 0 14px; font-weight: 700; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn-demander { background: var(--accent); color: var(--accent-ink); }
+  .btn-demander:disabled { opacity: .5; cursor: default; }
+  .btn-secondaire { background: var(--surface-2); }
+  .btn-retirer { height: 32px; padding: 0 10px; background: var(--surface-2); color: var(--danger); font-size: 13px; }
+  .absences-vide { margin: 6px 0 0; color: var(--ink-faint); font-size: 13.5px; }
+  .form-absence { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+  .form-absence label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 700; color: var(--ink-muted); flex: 1; min-width: 0; }
+  .form-absence label small { font-weight: 400; }
+  .form-absence input, .form-absence select, .form-absence textarea {
+    font: inherit; font-size: 16px; color: var(--ink); background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 9px; padding: 8px 10px; min-height: 40px; width: 100%;
+  }
+  .form-absence textarea { resize: vertical; }
+  .fa-ligne { display: flex; align-items: flex-end; gap: 8px; }
+  .fa-ligne select { width: auto; flex: 0 0 auto; }
+  .fa-actions { display: flex; justify-content: flex-end; gap: 8px; }
+  .fa-erreur { margin: 0; color: var(--danger); font-weight: 700; font-size: 13.5px; }
+  .fa-aide { margin: 0; color: var(--ink-faint); font-size: 12px; }
+  .demandes { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .demandes li { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 9px; background: var(--surface-2); font-size: 13.5px; }
+  .demandes li > div { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .demande-remarque { color: var(--ink-muted); font-size: 12.5px; }
+  .demandes .etat { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; border-radius: 999px; padding: 2px 8px;
+    background: var(--surface); border: 1px solid var(--border); white-space: nowrap; }
+  .demande-acceptee .etat { color: #1e7a3c; border-color: currentColor; }
+  .demande-refusee .etat { color: var(--danger); border-color: currentColor; }
+  .demande-en_attente .etat { color: var(--accent); border-color: currentColor; }
+  .tache.demande { background: transparent; color: var(--ink); border: 1.5px dashed var(--ink-faint); border-left-width: 1.5px; }
   .pied { text-align: center; font-size: 12px; color: var(--ink-faint); margin-top: 18px; }
   .chargement main { opacity: .55; transition: opacity .15s; }
 </style>

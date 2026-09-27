@@ -9139,3 +9139,38 @@ Lionel : « texte d'entête du formulaire peu visible. Mettre de la couleur du t
 
 ### Tests
 - test_suite67.js : avec un chantier, le nom dans le bandeau a la couleur du texte des bulles (plus du blanc). 43/43.
+
+## 177. Round du 27.09.2026 (suite 69) — Demandes d'absence depuis le lien de consultation, statut depuis la pilule, impression des raccourcis
+
+Lionel :
+- « Certains texte gras ne fonctionnent pas. »
+- « Imprimer la page des raccourcis. »
+- « Le lien de consultation des ouvriers doit pouvoir ajouter une absence que je doit valider dans mon planning. »
+- « Sur mobile la grosse bordure est restée entre les semaines »
+- « Possibilité de changer le statut d'une tâche plus rapidement via la barre de sélection. Multiselection peut changer les statut sur plusieurs tâches à la fois »
+- « en cas de déplacement interdit, la grandeur de la surbrillance n'est pas correct » (capture : tâche d'intervenant tirée sur une autre ligne)
+
+### Ce qui change
+- **Gras** : dans l'aperçu de la page Affichage, le jour de la semaine et la ligne des horaires étaient en texte normal alors que le planning les montre en gras : l'icône **G** semblait sans effet. L'aperçu les met en gras comme le planning, et G les remet en normal.
+- **Raccourcis** : bouton « Imprimer » en haut de la page. Il imprime une feuille dédiée (A4 portrait) : un tableau par groupe — action et touches —, plus les touches fixes et les gestes de la souris. Rien d'autre de l'appli n'est imprimé.
+- **Téléphone, vue 1 jour** : plus de trait épais entre deux semaines ; le passage d'une semaine à l'autre ressemble à celui entre deux jours.
+- **Statut depuis la pilule** : nouveau bouton (étiquette) dans la pilule de sélection, dès qu'une tâche d'intervenant est sélectionnée. Il ouvre un petit menu au-dessus de la pilule : « Aucun » puis les statuts de la page Statuts, avec leur couleur ; le statut commun à toute la sélection est coché. Un choix l'applique à **toutes** les tâches d'intervenant sélectionnées, en une étape d'annulation (Ctrl+Z) ; la sélection reste en place. Tâches du personnel, absences, notes et jalons n'ont pas de statut : laissés tels quels (le message le dit).
+- **Demandes d'absence** :
+  - Page de consultation d'un membre du personnel : bloc « Mes absences » en tête, avec « Demander une absence » : motif (les entrées rapides de type absence, sinon Congé / Vacances / Maladie), du … matin/après-midi au … matin/après-midi, remarque facultative. La demande est envoyée au bureau ; elle apparaît dans la liste « En attente » (avec « Retirer ») et en pointillés dans les demi-journées demandées. Une fois traitée : « Acceptée » ou « Refusée » (pendant 30 jours). Rien pour un lien d'intervenant ou d'équipe (pas d'absence sur ces lignes).
+  - Planning : bandeau « 2 demandes d'absence à valider » au-dessus de la grille, seulement quand il y en a ; les demi-journées demandées sont hachurées sur la ligne de la personne (info-bulle : qui, quoi, quand). Le bandeau ouvre la liste : qui, motif, dates, remarque, et **Voir** (amène le planning sur le premier jour), **Refuser**, **Accepter** (pose l'absence, une par demi-journée ouvrée, fériés sautés, comme si elle avait été saisie à la main).
+- **Déplacement interdit** : la surbrillance rouge a la forme de la tâche (2 demi-journées pour une tâche qui en occupe 2), au lieu de la seule demi-journée sous le pointeur.
+
+### Fonctionnement
+- style.css : `.aa-coin, .aa-th, .aa-demi` en `font-weight: 600` (valeur de base du planning) ; `data-aff-*-gras` éteint les remet à 400.
+- Raccourcis (js/raccourcis.js) : `imprimerRaccourcis()` construit `.impression-raccourcis` (`htmlImpressionRaccourcis_`, à partir d'`ACTIONS_CLAVIER`, `TOUCHES_FIXES_`, `GESTES_SOURIS_`), pose `html.impr-raccourcis` et un `@page` A4, lance `window.print()` et retire le tout à `afterprint`. En impression, `html.impr-raccourcis` masque tout le reste du `body`.
+- Vue 1 jour (js/grille-rendu.js, `poserSepSemaines_`) : `#racine.sans-trait-semaines` retire la bordure de `.sem-frontiere`.
+- Statut (js/formulaires-communs.js) : `#selStatut` (js/coquille.js) caché sans tâche d'intervenant (`tachesStatutSelection_`) ; `basculerMenuStatutSelection` crée `#menuStatutSelection` dans `.sel-statut-wrap` ; `appliquerStatutSelection(cle)` : `sauvegarderUndo`, `item.statut = cle`, puis `rendreAvecPorteeSerie("modifier", …)` — boîte « événement récurrent » pour une série, écriture par la synchro habituelle (`statut_id`).
+- Demandes (sql/0020_demandes_absence.sql, appliquée sur le projet) : table `demandes_absence` (personne, dates, demi-journées, motif, remarque, statut en_attente / acceptee / refusee), fermée à anon comme `liens_consultation`. La page de consultation n'y accède que par 2 fonctions SECURITY DEFINER liées au jeton : `consultation_demander_absence` (personnel seulement ; d'aujourd'hui à un an ; 62 jours au plus ; 10 demandes en attente au plus ; textes bornés) et `consultation_annuler_demande` (en attente seulement). `consultation_planning` renvoie en plus `peut_demander`, `motifs` et `demandes`.
+- js/consultation.js : bloc `#blocAbsences`, formulaire `#formAbsence` (contrôles sur place, message du serveur affiché sinon), ce qui est saisi est gardé si on change de semaine.
+- js/demandes-absence.js (nouveau) : `chargerDemandesAbsence` (au démarrage, au plus toutes les 30 s après un rendu, toutes les 2 min et au retour sur l'onglet), `#bandeauDemandes` (js/coquille.js), `.cell.demande-absence`, fenêtre `.pop-demandes-absence`. Accepter : `enregistrerTacheEnDatesServeur` (absences en vraies dates, en bout de case) puis la demande passe « acceptee » ; si l'écriture échoue, la demande reste en attente. L'historique d'annulation est vidé, comme après toute écriture hors de la grille.
+- Glisser (js/grille-interactions.js) : `previsionInterdite` calcule la forme qu'aurait la tâche déposée (même formule qu'un dépôt permis) ; `.survol-precis.survol-interdit` la dessine en rouge.
+
+### Tests
+- test_suite69.js (nouveau), 28/28 : gras de l'aperçu ; feuille d'impression des raccourcis, seule imprimée, retirée après ; aucun trait épais en vue 1 jour ; menu de statut (visibilité, choix, application à 2 tâches, statut commun coché, fermeture, Ctrl+Z) ; bandeau, hachures, Accepter / Refuser dans le planning ; page de consultation (bloc, contrôle des dates, envoi, liste, pointillés, Retirer, rien pour un intervenant) ; surbrillance interdite de 2 demi-journées.
+- test_suite61.js : en vue 1 jour du téléphone, la frontière de semaine n'a plus de bordure.
+- Suite complète : 76/77 ; test_suite35 (étirement de la poignée contre le bord, sensible au minutage quand tout tourne en parallèle) repasse seul, 2 fois sur 2.

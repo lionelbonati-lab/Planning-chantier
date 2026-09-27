@@ -2416,7 +2416,8 @@
      de la frontière (en-tête du lundi), à chaque rendu, défilement
      horizontal et changement de taille ; cachés quand la frontière passe
      sous la colonne des noms ou hors de l'écran. Vue « 1 jour » du
-     téléphone : pas concernée (un jour à la fois), trait d'avant gardé. */
+     téléphone : pas concernée (un jour à la fois) ; depuis la suite 69,
+     sans trait épais non plus (classe sans-trait-semaines). */
   var sepSemaines_ = null;
   function poserSepSemaines_(jourMobile, enteteFigee, enteteScroll, grilleEntete, cadre, scroller) {
     if (sepSemaines_ && sepSemaines_.ro) sepSemaines_.ro.disconnect();
@@ -2428,6 +2429,10 @@
     var trait = typeof optionAffichage === "function" && optionAffichage("separation") === "rien";
     var ths = (jourMobile || trait) ? [] : [].slice.call(grilleEntete.querySelectorAll(".th.sem-frontiere:not(.th-demi)"));
     racineEl.classList.toggle("avec-sep-semaines", ths.length > 0);
+    // Vue « 1 jour » du téléphone : plus de trait épais non plus — round du
+    // 26.09.2026 (suite 69), Lionel : « Sur mobile la grosse bordure est
+    // restée entre les semaines ». Un simple trait, comme entre 2 jours.
+    racineEl.classList.toggle("sans-trait-semaines", !!jourMobile);
     if (!ths.length) return;
     function morceau(ou, cote) {
       var m = document.createElement("div");
@@ -2480,6 +2485,7 @@
     construireGrille();
     if (sync !== false) synchroniser();
     planifierMajAReserver(); // compteur « À réserver » (suite 47, js/a-reserver.js)
+    apresRenduDemandes(); // demandes d'absence des liens de consultation (suite 69, js/demandes-absence.js)
   }
 
   function bulleEl(it) {

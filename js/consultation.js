@@ -19,6 +19,20 @@
    jour dans le titre (la dernière période qui contient la date l'emporte,
    même règle que l'appli). ‹ › changent de semaine, « Auj. » revient à
    celle d'aujourd'hui ; un glissement horizontal fait de même.
+
+   DEMANDES D'ABSENCE — round du 27.09.2026 (suite 69). Lionel : « Le lien
+   de consultation des ouvriers doit pouvoir ajouter une absence que je
+   doit valider dans mon planning. » Bloc « Mes absences » en tête de page
+   (personnel seulement : ni intervenant ni équipe, peut_demander) :
+   « Demander une absence » ouvre un petit formulaire — motif (entrées
+   rapides d'absence de l'appli, sinon Congé / Vacances / Maladie), du …
+   (matin / après-midi) au … (matin / après-midi), remarque —, envoyé par
+   consultation_demander_absence (sql/0020). Rien n'est écrit dans le
+   planning : la demande attend l'accord du bureau (js/demandes-absence.js
+   côté appli). La liste montre les demandes en attente (« Retirer »
+   possible) et celles traitées depuis moins de 30 jours (acceptée /
+   refusée) ; une demande en attente apparaît aussi, en pointillés, dans
+   les demi-journées qu'elle couvre.
    ============================================================ */
 (function () {
   // Même projet et même clé publique que js/core.js (clé « anon », faite
@@ -102,6 +116,117 @@
       (details.length ? '<div class="details">' + details.join("") + "</div>" : "") + "</div>";
   }
 
+  // ---- Demandes d'absence (suite 69, cf. en-tête) ----------------------
+  var formulaireOuvert = false, envoiEnCours = false;
+  var LIBELLE_STATUT = { en_attente: "En attente", acceptee: "Acceptée", refusee: "Refusée" };
+  function jourCourt(iso) { return JOURS[(dateDe(iso).getDay() + 6) % 7].slice(0, 3).toLowerCase() + ". " + jourMois(iso); }
+  function libelleDemande(q) {
+    var dm = function (demi) { return demi === "aprem" ? "après-midi" : "matin"; };
+    if (q.debut === q.fin) {
+      return jourCourt(q.debut) + (q.demi_debut === q.demi_fin ? " " + dm(q.demi_debut) : "");
+    }
+    return "du " + jourCourt(q.debut) + (q.demi_debut === "aprem" ? " après-midi" : "") +
+      " au " + jourCourt(q.fin) + (q.demi_fin === "matin" ? " matin" : "");
+  }
+  function demandeCouvre(q, iso, demi) {
+    if (iso < q.debut || iso > q.fin) return false;
+    if (iso === q.debut && q.demi_debut === "aprem" && demi === "matin") return false;
+    if (iso === q.fin && q.demi_fin === "matin" && demi === "aprem") return false;
+    return true;
+  }
+  function htmlDemandes() {
+    var d = donnees;
+    if (!d.peut_demander) return "";
+    var liste = d.demandes || [];
+    var motifs = (d.motifs && d.motifs.length ? d.motifs : ["Congé", "Vacances", "Maladie"]);
+    var debutDefaut = d.lundi > d.aujourdhui ? d.lundi : d.aujourdhui;
+    var html = '<section class="absences" id="blocAbsences"><div class="absences-titre"><span>Mes absences</span>' +
+      (formulaireOuvert ? "" : '<button type="button" class="btn-demander" id="btnDemanderAbsence">Demander une absence</button>') + "</div>";
+    if (formulaireOuvert) {
+      var choixDemi = function (id, val) {
+        return '<select id="' + id + '"><option value="matin"' + (val === "matin" ? " selected" : "") + ">Matin</option>" +
+          '<option value="aprem"' + (val === "aprem" ? " selected" : "") + ">Après-midi</option></select>";
+      };
+      html += '<form class="form-absence" id="formAbsence" novalidate>' +
+        '<label>Motif<select id="faMotif">' + motifs.map(function (m) { return "<option>" + esc(m) + "</option>"; }).join("") + "</select></label>" +
+        '<div class="fa-ligne"><label>Du<input type="date" id="faDebut" required min="' + d.aujourdhui + '" value="' + debutDefaut + '"></label>' + choixDemi("faDemiDebut", "matin") + "</div>" +
+        '<div class="fa-ligne"><label>Au<input type="date" id="faFin" required min="' + d.aujourdhui + '" value="' + debutDefaut + '"></label>' + choixDemi("faDemiFin", "aprem") + "</div>" +
+        '<label>Remarque <small>(facultatif)</small><textarea id="faRemarque" rows="2" maxlength="300" placeholder="Ex. : rendez-vous médical"></textarea></label>' +
+        '<p class="fa-erreur" id="faErreur" hidden></p>' +
+        '<div class="fa-actions"><button type="button" class="btn-secondaire" id="faAnnuler">Annuler</button>' +
+        '<button type="submit" class="btn-demander" id="faEnvoyer">Envoyer la demande</button></div>' +
+        '<p class="fa-aide">Le bureau doit la valider : elle n’apparaît dans le planning qu’une fois acceptée.</p></form>';
+    }
+    if (liste.length) {
+      html += '<ul class="demandes">' + liste.map(function (q) {
+        return '<li class="demande-' + esc(q.statut) + '"><div><b>' + esc(q.motif) + "</b> — " + esc(libelleDemande(q)) +
+          (q.remarque ? '<div class="demande-remarque">' + esc(q.remarque) + "</div>" : "") + "</div>" +
+          '<span class="etat">' + esc(LIBELLE_STATUT[q.statut] || q.statut) + "</span>" +
+          (q.statut === "en_attente" ? '<button type="button" class="btn-retirer" data-id="' + esc(q.id) + '">Retirer</button>' : "") + "</li>";
+      }).join("") + "</ul>";
+    } else if (!formulaireOuvert) {
+      html += '<p class="absences-vide">Aucune demande en cours.</p>';
+    }
+    return html + "</section>";
+  }
+  function appelRpc(nom, corps) {
+    return fetch(SUPABASE_URL + "/rest/v1/rpc/" + nom, {
+      method: "POST",
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + SUPABASE_ANON_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify(corps)
+    }).then(function (rep) {
+      if (!rep.ok) throw new Error("HTTP " + rep.status);
+      return rep.json();
+    });
+  }
+  function cablerDemandes() {
+    var btn = document.getElementById("btnDemanderAbsence");
+    if (btn) btn.addEventListener("click", function () { formulaireOuvert = true; afficher(); var m = document.getElementById("faMotif"); if (m) m.focus(); });
+    var form = document.getElementById("formAbsence");
+    if (form) {
+      var debut = document.getElementById("faDebut"), fin = document.getElementById("faFin");
+      debut.addEventListener("change", function () { if (fin.value < debut.value) fin.value = debut.value; });
+      var masquerErreur = function () { document.getElementById("faErreur").hidden = true; };
+      form.addEventListener("input", masquerErreur);
+      form.addEventListener("change", masquerErreur);
+      document.getElementById("faAnnuler").addEventListener("click", function () { formulaireOuvert = false; afficher(); });
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        if (envoiEnCours) return;
+        var erreur = document.getElementById("faErreur");
+        var montrer = function (t) { erreur.textContent = t; erreur.hidden = false; };
+        var corps = {
+          p_jeton: jeton, p_debut: debut.value, p_fin: fin.value,
+          p_demi_debut: document.getElementById("faDemiDebut").value, p_demi_fin: document.getElementById("faDemiFin").value,
+          p_motif: document.getElementById("faMotif").value, p_remarque: document.getElementById("faRemarque").value
+        };
+        if (!corps.p_debut || !corps.p_fin) return montrer("Choisis les dates.");
+        if (corps.p_fin < corps.p_debut) return montrer("La fin est avant le début.");
+        if (corps.p_debut === corps.p_fin && corps.p_demi_debut === "aprem" && corps.p_demi_fin === "matin") return montrer("Le même jour : de l’après-midi au matin, ce n’est pas possible.");
+        envoiEnCours = true;
+        document.getElementById("faEnvoyer").disabled = true;
+        appelRpc("consultation_demander_absence", corps).then(function (r) {
+          envoiEnCours = false;
+          if (!r || !r.ok) { document.getElementById("faEnvoyer").disabled = false; montrer((r && r.erreur) || "Demande refusée par le serveur."); return; }
+          formulaireOuvert = false;
+          return charger(donnees.lundi);
+        }).catch(function () {
+          envoiEnCours = false;
+          document.getElementById("faEnvoyer").disabled = false;
+          montrer("Envoi impossible : vérifie ta connexion internet.");
+        });
+      });
+    }
+    document.querySelectorAll("#blocAbsences .btn-retirer").forEach(function (b) {
+      b.addEventListener("click", function () {
+        if (!window.confirm("Retirer cette demande d’absence ?")) return;
+        b.disabled = true;
+        appelRpc("consultation_annuler_demande", { p_jeton: jeton, p_id: +b.dataset.id }).then(function () { return charger(donnees.lundi); })
+          .catch(function () { b.disabled = false; window.alert("Impossible de retirer la demande : vérifie ta connexion internet."); });
+      });
+    });
+  }
+
   function afficher() {
     var d = donnees;
     document.getElementById("nom").textContent = d.personne.nom;
@@ -114,7 +239,8 @@
     var lundiAujourdhui = plusJours(d.aujourdhui, -((dateDe(d.aujourdhui).getDay() + 6) % 7));
     document.getElementById("btnAujourdhui").disabled = d.lundi === lundiAujourdhui;
 
-    var html = "";
+    var html = htmlDemandes();
+    var enAttente = (d.demandes || []).filter(function (q) { return q.statut === "en_attente"; });
     for (var i = 0; i < 7; i++) {
       var iso = plusJours(d.lundi, i);
       var taches = (d.taches || []).filter(function (t) { return t.date === iso; });
@@ -128,14 +254,26 @@
         feries.map(function (f) { return '<div class="ferie">Férié — ' + esc(f.libelle || "") + "</div>"; }).join("");
       [["matin", "Matin"], ["aprem", "Après-midi"]].forEach(function (dm) {
         var liste = taches.filter(function (t) { return t.demi === dm[0]; });
+        var demandes = enAttente.filter(function (q) { return demandeCouvre(q, iso, dm[0]); });
         if (feries.length && !liste.length) return;
         html += '<div class="demi demi-' + dm[0] + '"><div class="demi-nom">' + dm[1] + "</div>" +
-          '<div class="taches">' + (liste.length ? liste.map(htmlTache).join("") : '<span class="vide">—</span>') + "</div></div>";
+          '<div class="taches">' + (liste.length || demandes.length ? liste.map(htmlTache).join("") + demandes.map(function (q) {
+            return '<div class="tache demande"><div class="texte">' + esc(q.motif) + '</div><div class="details"><span>Demande d’absence en attente</span></div></div>';
+          }).join("") : '<span class="vide">—</span>') + "</div></div>";
       });
       html += "</section>";
     }
     html += '<p class="pied">Planning tenu à jour par le bureau : recharge la page pour voir les derniers changements.</p>';
+    // Formulaire ouvert pendant un changement de semaine : ce qui est déjà
+    // saisi est gardé.
+    var saisie = {};
+    ["faMotif", "faDebut", "faDemiDebut", "faFin", "faDemiFin", "faRemarque"].forEach(function (id) {
+      var c = document.getElementById(id);
+      if (c) saisie[id] = c.value;
+    });
     document.getElementById("contenu").innerHTML = html;
+    Object.keys(saisie).forEach(function (id) { var c = document.getElementById(id); if (c) c.value = saisie[id]; });
+    cablerDemandes();
     var carteAuj = document.querySelector(".jour.aujourdhui");
     if (carteAuj && !afficher.dejaDefile) { afficher.dejaDefile = true; carteAuj.scrollIntoView({ block: "center" }); }
   }

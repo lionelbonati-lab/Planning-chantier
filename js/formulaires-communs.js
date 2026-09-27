@@ -144,6 +144,99 @@
     btnImportant.hidden = !marquables.length;
     btnImportant.classList.toggle("actif", tousImportants);
     btnImportant.setAttribute("aria-pressed", tousImportants ? "true" : "false");
+    // Statut (suite 69) : seulement si la sélection a des tâches
+    // d'intervenant (les seules à porter un statut, comme dans la fiche).
+    var btnStatut = document.getElementById("selStatut");
+    if (btnStatut) {
+      btnStatut.hidden = !tachesStatutSelection_().length || !STATUTS_ORDRE.length;
+      if (btnStatut.hidden || !n) fermerMenuStatutSelection_();
+      else majMenuStatutSelection_();
+    }
+  }
+  // ---- Statut depuis la pilule (round du 26.09.2026, suite 69) ----------
+  // Lionel : « Possibilité de changer le statut d'une tâche plus rapidement
+  // via la barre de sélection. Multiselection peut changer les statut sur
+  // plusieurs tâches à la fois ». Le bouton (étiquette) ouvre un petit menu
+  // au-dessus de la pilule : « Aucun » puis les statuts (page Statuts), le
+  // statut commun à toute la sélection coché. Un choix l'applique à toutes
+  // les tâches d'intervenant sélectionnées (une étape d'annulation, boîte
+  // « événement récurrent » pour une série) ; la sélection reste en place.
+  // Tâches du personnel, absences, notes, jalons : pas de statut, ignorées
+  // (comme la fiche, qui ne propose le statut qu'aux intervenants).
+  function tachesStatutSelection_() {
+    var out = [];
+    Object.keys(bullesSelectionnees).forEach(function (id) {
+      var p = itemParId(id);
+      if (p && p.item.type === "tache" && secteurPersonne(p.item.personneId) === "sous-traitant") out.push(p);
+    });
+    return out;
+  }
+  function statutCommunSelection_() {
+    var ts = tachesStatutSelection_();
+    if (!ts.length) return undefined;
+    var s0 = ts[0].item.statut || "";
+    return ts.every(function (p) { return (p.item.statut || "") === s0; }) ? s0 : undefined;
+  }
+  function menuStatutSelection_() { return document.getElementById("menuStatutSelection"); }
+  function majMenuStatutSelection_() {
+    var menu = menuStatutSelection_();
+    if (!menu) return;
+    var commun = statutCommunSelection_();
+    menu.querySelectorAll("[data-statut]").forEach(function (b) {
+      var actif = commun !== undefined && b.dataset.statut === commun;
+      b.classList.toggle("actif", actif);
+      b.setAttribute("aria-checked", actif ? "true" : "false");
+    });
+  }
+  function fermerMenuStatutSelection_() {
+    var menu = menuStatutSelection_();
+    if (menu) menu.remove();
+    var btn = document.getElementById("selStatut");
+    if (btn) { btn.classList.remove("ouvert"); btn.setAttribute("aria-expanded", "false"); }
+    document.removeEventListener("pointerdown", fermerMenuStatutDehors_, true);
+  }
+  function fermerMenuStatutDehors_(ev) {
+    var wrap = document.querySelector(".sel-statut-wrap");
+    if (!wrap || !wrap.contains(ev.target)) fermerMenuStatutSelection_();
+  }
+  function basculerMenuStatutSelection() {
+    if (menuStatutSelection_()) { fermerMenuStatutSelection_(); return; }
+    var btn = document.getElementById("selStatut");
+    if (!btn || !tachesStatutSelection_().length) return;
+    var menu = document.createElement("div");
+    menu.id = "menuStatutSelection";
+    menu.className = "menu-statut-selection";
+    menu.setAttribute("role", "radiogroup");
+    menu.setAttribute("aria-label", "Statut");
+    menu.innerHTML = '<button type="button" role="radio" class="ms-choix" data-statut=""><span class="ms-pastille ms-aucun"></span>Aucun</button>' +
+      STATUTS_ORDRE.map(function (k) {
+        var st = STATUTS[k];
+        return '<button type="button" role="radio" class="ms-choix" data-statut="' + esc(k) + '"><span class="ms-pastille" style="background:' + esc(st.couleur || "") + '"></span>' + esc(st.nom) + '</button>';
+      }).join("");
+    menu.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-statut]");
+      if (!b) return;
+      appliquerStatutSelection(b.dataset.statut || null);
+    });
+    btn.parentNode.appendChild(menu);
+    btn.classList.add("ouvert");
+    btn.setAttribute("aria-expanded", "true");
+    majMenuStatutSelection_();
+    setTimeout(function () { document.addEventListener("pointerdown", fermerMenuStatutDehors_, true); }, 0);
+  }
+  function appliquerStatutSelection(cle) {
+    var plages = tachesStatutSelection_();
+    fermerMenuStatutSelection_();
+    if (!plages.length) return;
+    var autres = Object.keys(bullesSelectionnees).length - plages.length;
+    if (plages.every(function (p) { return (p.item.statut || null) === cle; })) return;
+    sauvegarderUndo();
+    plages.forEach(function (p) { p.item.statut = cle; });
+    var msg = (cle ? "Statut « " + STATUTS[cle].nom + " » (" : "Statut retiré (") + plages.length + ")" +
+      (autres ? " — " + autres + " bulle(s) sans statut possible laissée(s) telle(s) quelle(s)." : ".");
+    var enAttente = rendreAvecPorteeSerie("modifier", msg);
+    majBarreSelection();
+    if (!enAttente) toast(msg);
   }
   // Bulles de la sélection qui peuvent porter le drapeau "important" depuis
   // la grille : tâches, absences, notes. Pas les jalons : leur drapeau se

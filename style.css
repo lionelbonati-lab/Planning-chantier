@@ -750,6 +750,23 @@
   .panneau-selection .sel-fleches[hidden], .panneau-selection .toolbar-btn[hidden] { display: none; }
   .panneau-selection .sel-sep { width: 1px; height: 20px; background: color-mix(in srgb, var(--accent) 35%, transparent); margin: 0 4px; flex-shrink: 0; }
   .panneau-selection .sel-supprimer { color: var(--danger); }
+  /* Statut (suite 69) : menu au-dessus de la pilule, ancré sur le bouton. */
+  .panneau-selection .sel-statut-wrap { position: relative; display: flex; }
+  .panneau-selection .sel-statut-wrap:has(> .toolbar-btn[hidden]) { display: none; }
+  .panneau-selection .sel-statut.ouvert { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+  .menu-statut-selection {
+    position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translateX(-50%);
+    display: flex; flex-direction: column; gap: 2px; min-width: 170px; padding: 6px;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 10px 28px var(--shadow-lg);
+  }
+  .menu-statut-selection .ms-choix {
+    display: flex; align-items: center; gap: 8px; padding: 7px 10px; border: none; border-radius: 8px; background: none;
+    font: inherit; font-size: 13px; font-weight: 600; color: var(--ink); text-align: left; cursor: pointer; white-space: nowrap;
+  }
+  .menu-statut-selection .ms-choix.actif { background: var(--accent-soft); color: var(--accent); }
+  @media (hover: hover) and (pointer: fine) { .menu-statut-selection .ms-choix:hover { background: var(--bg); } }
+  .menu-statut-selection .ms-pastille { width: 12px; height: 12px; border-radius: 50%; flex: none; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 32%, transparent); }
+  .menu-statut-selection .ms-aucun { background: var(--surface); }
   @media (hover: hover) and (pointer: fine) { .panneau-selection .sel-supprimer:hover:not(:disabled) { background: var(--interdit-bg); color: var(--danger); } }
   /* ⚑ important (suite 14) : plein quand toute la sélection est
      importante. Round du 24.09.2026 (suite 19) — Lionel : « quand inactif
@@ -841,6 +858,39 @@
     font: inherit; color: var(--ink); background: var(--surface-2); border: 1px solid var(--border); border-radius: 9px; padding: 8px 10px; cursor: pointer;
   }
   @media (hover: hover) and (pointer: fine) { .ar-ligne:hover { border-color: var(--accent); } }
+  /* Demandes d'absence des liens de consultation (round du 27.09.2026,
+     suite 69 — Lionel : « Le lien de consultation des ouvriers doit
+     pouvoir ajouter une absence que je doit valider dans mon planning. »,
+     js/demandes-absence.js). Bandeau au-dessus de la grille, caché sans
+     demande ; demi-journées demandées hachurées sur la ligne de la
+     personne (sous les bulles : simple fond de case). */
+  .bandeau-demandes {
+    display: flex; align-items: center; gap: 8px; width: 100%; margin: 0 0 8px; padding: 8px 12px;
+    font: inherit; font-weight: 700; font-size: 13.5px; text-align: left; cursor: pointer;
+    color: var(--ink); background: var(--accent-soft); border: 1.5px dashed var(--accent); border-radius: 12px;
+  }
+  .bandeau-demandes[hidden] { display: none; }
+  .bandeau-demandes svg { flex-shrink: 0; color: var(--accent); }
+  .bandeau-demandes .bd-texte { flex: 1; min-width: 0; }
+  .bandeau-demandes .bd-action { color: var(--accent); white-space: nowrap; }
+  @media (hover: hover) and (pointer: fine) { .bandeau-demandes:hover { border-style: solid; } }
+  /* !important : les règles de fond des cases (après-midi, teinte M/A,
+     week-end…) passent par le raccourci `background`, qui remettrait
+     l'image à zéro. */
+  .cell.demande-absence {
+    background-image: repeating-linear-gradient(135deg, color-mix(in srgb, var(--accent) 22%, transparent) 0 5px, transparent 5px 11px) !important;
+    box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 55%, transparent);
+  }
+  .pop.pop-demandes-absence { width: 480px; max-width: calc(100vw - 20px); } /* .pop : passe devant .form-pop (280px), plus bas */
+  .pop-demandes-absence .da-aide, .pop-demandes-absence .da-vide { margin: 0 0 10px; color: var(--ink-muted); font-size: 13px; }
+  .da-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: min(60vh, 460px); overflow-y: auto; }
+  .da-liste li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 8px 10px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 9px; }
+  .da-infos { flex: 1 1 220px; min-width: 0; display: flex; flex-wrap: wrap; gap: 2px 8px; overflow-wrap: anywhere; }
+  .da-qui { font-weight: 800; }
+  .da-quoi { font-weight: 700; }
+  .da-quand { flex-basis: 100%; color: var(--ink-muted); font-size: 12.5px; }
+  .da-remarque { flex-basis: 100%; color: var(--ink-muted); font-size: 12.5px; font-style: italic; }
+  .da-boutons { display: flex; align-items: center; gap: 6px; margin-left: auto; }
   .ar-quand { font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; }
   .ar-qui { font-size: 12px; font-weight: 700; color: var(--ink-muted); text-align: right; }
   .ar-quoi { font-size: 13px; grid-column: 1 / -1; overflow-wrap: anywhere; }
@@ -1109,8 +1159,11 @@
      et bas que sur les bord du cadrillage, comme si on voyais 2 fenêtres
      côtes à côte. » Plus de bordure : la bande .sep-semaines (posée par
      poserSepSemaines_, js/grille-rendu.js) la remplace. La vue « 1 jour »
-     du téléphone garde le trait (pas de classe avec-sep-semaines). */
+     du téléphone n'a pas cette bande (cf. sans-trait-semaines). */
   #racine.avec-sep-semaines .sem-frontiere { border-left: 0; }
+  /* Suite 69 — Lionel : « Sur mobile la grosse bordure est restée entre les
+     semaines » : la vue « 1 jour » la perd aussi (simple trait de grille). */
+  #racine.sans-trait-semaines .sem-frontiere { border-left: 0; }
   #racine { position: relative; }
   /* Bande de 8 px : trait du cadre à gauche (bord droit de la 1re semaine)
      et à droite (bord gauche de la 2e), fond de page entre les deux. Au-
@@ -1316,6 +1369,9 @@
      bulles » : sous les bulles (z 1 et 2), au-dessus des cases (ajouté
      après elles dans la grille). */
   .survol-precis { box-shadow: inset 0 0 0 2px var(--accent); background: var(--accent-soft); border-radius: 8px; z-index: 0; }
+  /* Dépôt interdit (tâche d'intervenant sur une autre ligne) : même forme que
+     la tâche, en rouge (suite 69, cf. previsionInterdite). */
+  .survol-precis.survol-interdit { box-shadow: inset 0 0 0 2px var(--avertissement-ink); background: var(--avertissement-bg); }
   /* .selection-precis (round du 12.09.2026 — refonte "case par case" de la
      sélection au glissé, demandée par Lionel) : jalon/note n'ont qu'UNE
      cellule DOM par jour (cf. creerCelluleFond, jamais scindée matin/aprem),
@@ -3101,7 +3157,9 @@
        appendChild(document.body) séparés) — cette règle masque tout le
        reste de la page (l'appli, toute autre modale déjà ouverte), sans
        rien supposer de plus sur la structure. */
-    body > *:not(.voile-confirm):not(.impression-modal) { display: none !important; }
+    body > *:not(.voile-confirm):not(.impression-modal):not(.impression-raccourcis) { display: none !important; }
+    /* Raccourcis (suite 69) : leur feuille seule. */
+    html.impr-raccourcis body > *:not(.impression-raccourcis) { display: none !important; }
     /* Fond de <body> forcé en blanc : sans ça, la teinte --bg (claire mais
        pas blanche, cf. :root plus haut — encore plus visible en mode
        sombre) remplit toute la page autour du document, gaspille de
@@ -3241,6 +3299,21 @@
   }
   @keyframes rc-clignote { 50% { opacity: .55; } }
   #page-raccourcis .page-titre { max-width: 640px; }
+  /* Impression des raccourcis (suite 69, imprimerRaccourcis). */
+  .page-titre-actions { display: inline-flex; align-items: center; gap: 12px; }
+  .btn-imprimer-page { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; }
+  .impression-raccourcis { display: none; }
+  @media print {
+    .impression-raccourcis { display: block; color: #1a2129; background: #fff; font-size: 11pt; }
+    .impression-raccourcis h1 { font-size: 16pt; margin: 0 0 4mm; }
+    .impression-raccourcis h2 { font-size: 11pt; text-transform: uppercase; letter-spacing: .05em; color: #57616b; margin: 5mm 0 1.5mm; break-after: avoid; }
+    .impression-raccourcis table { width: 100%; border-collapse: collapse; }
+    .impression-raccourcis tr { break-inside: avoid; }
+    .impression-raccourcis td { border-bottom: 1px solid #d7dad2; padding: 1.6mm 2mm; vertical-align: middle; }
+    .impression-raccourcis .ir-touches { text-align: right; white-space: nowrap; }
+    .impression-raccourcis .rc-combo { background: #fff; border-color: #d7dad2; }
+    .impression-raccourcis .rc-combo kbd { background: #fff; color: #1a2129; border-color: #1a2129; }
+  }
 
   /* Palettes enregistrées (page Couleurs, js/page-couleurs.js). */
   .bloc-palettes { max-width: 540px; }
@@ -3450,7 +3523,11 @@
   .apercu-affichage { --aa-noms: 70px; position: relative; font-size: 11px; color: var(--ink); }
   .aa-cadre { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--border); }
   .aa-grille { display: grid; gap: 1px; }
-  .aa-coin, .aa-th, .aa-demi { background: var(--surface); color: var(--ink-muted); font-family: var(--police-mono); font-size: 10px; text-transform: uppercase; padding: 6px 2px; text-align: center; overflow: hidden; min-width: 0; }
+  /* font-weight 600 comme .th du planning — round du 26.09.2026 (suite 69),
+     Lionel : « Certains texte gras ne fonctionnent pas. » : le jour et les
+     horaires de l'aperçu étaient maigres d'origine, l'icône G n'y changeait
+     donc rien. */
+  .aa-coin, .aa-th, .aa-demi { background: var(--surface); color: var(--ink-muted); font-family: var(--police-mono); font-size: 10px; font-weight: 600; text-transform: uppercase; padding: 6px 2px; text-align: center; overflow: hidden; min-width: 0; }
   .aa-coin { text-align: left; padding-left: 8px; }
   /* En-tête d'un jour (suite 64) : comme .th du planning — nom, date en
      gros, durée de travail. */
