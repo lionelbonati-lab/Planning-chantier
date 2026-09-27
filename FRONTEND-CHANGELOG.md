@@ -9439,3 +9439,23 @@ Lionel :
   - Ordinateur sur téléphone : aperçu large qui défile.
 - test_suite62.js : la vue d'ouverture « Téléphone » se règle après un passage en mode Téléphone (la ligne n'est plus visible en mode Ordinateur).
 - Suite complète : 83/83.
+
+## 185. Round du 27.09.2026 (suite 77) — Page Affichage : aperçu Téléphone sur un seul jour
+- « L'aperçu mobile ne doit afficher que 1 jour car le planning est basé sur 1 jour. »
+
+### Ce qui change
+- En mode Téléphone, l'aperçu ne montre plus que le jeudi (aujourd'hui), avec ses colonnes matin et après-midi, comme le planning du téléphone. Avant, il montrait jeudi, vendredi et lundi.
+- Il n'y a ni week-end ni espace entre semaines dans cet aperçu. Le mode Ordinateur est inchangé.
+
+### Fonctionnement
+- `htmlApercuAffichage_("tel")` :
+  - la liste des jours se réduit au jeudi ;
+  - la bulle « Bétonnage » (jeudi–vendredi) s'arrête au bord du jour ;
+  - Mathis a « Gabarits » le matin et « Coffrage piliers » l'après-midi ;
+  - la bulle avec statut d'Antoine passe au jeudi, pour que chaque réglage (statut, teinte M/A, texte, coins) reste visible ;
+  - les pièces de l'espace entre semaines ne sont pas posées.
+
+### Tests
+- test_suite76.js : l'aperçu Téléphone ne montre que « jeu », même week-ends allumés.
+- test_suite62.js : aperçu sur téléphone « Jeu 24 » seul, sans débordement.
+- Suite complète : 83/83.

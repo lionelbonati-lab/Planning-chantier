@@ -198,12 +198,12 @@ const style = (page, sel, prop) => page.evaluate(([s, p]) => { const e = documen
     await page.close();
   }
   {
-    // Téléphone : aperçu sans le mardi, rien ne déborde.
+    // Téléphone : aperçu sur un seul jour (suite 77), rien ne déborde.
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 390, height: 844 }, hasTouch: true, bd: BD });
     await page.evaluate(() => afficherPage('affichage')); await page.waitForTimeout(250);
     const t = await page.evaluate(() => ({ jours: [...document.querySelectorAll('#apercuAffichage .aa-th')].map((n) => n.querySelector('.aa-jour').textContent + ' ' + n.querySelector('.aa-date').textContent).join(','),
       large: document.documentElement.scrollWidth, ap: Math.round(document.querySelector('#apercuAffichage .apercu-affichage').getBoundingClientRect().right) }));
-    verifier(t.jours === 'Jeu 24,Ven 25,Lun 28' && t.large <= 390 && t.ap <= 390, 'téléphone : aperçu Jeu Ven | Lun, sans débordement (' + JSON.stringify(t) + ')');
+    verifier(t.jours === 'Jeu 24' && t.large <= 390 && t.ap <= 390, 'téléphone : aperçu sur le seul jeudi, sans débordement (' + JSON.stringify(t) + ')');
     toutesErreurs.push(...erreurs);
     await page.close();
   }

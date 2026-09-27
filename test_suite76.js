@@ -53,8 +53,9 @@ const etatPage = (page) => page.evaluate(() => {
     // --- 2. Téléphone ---
     await page.click('.bascule-profil[data-profil="tel"]'); await page.waitForTimeout(200);
     e = await etatPage(page);
-    verifier(e.actif === 'tel' && e.tel && e.largeur <= 360 && !e.jours.includes('mar') && !e.bords && !e.vueOrdi && e.vueTel && /téléphones/.test(e.jeu),
-      '« Téléphone » : aperçu de la largeur d\'un téléphone, sans le mardi, réglages du téléphone (' + JSON.stringify(e) + ')');
+    // Suite 77 : un seul jour, comme le planning du téléphone.
+    verifier(e.actif === 'tel' && e.tel && e.largeur <= 360 && e.jours.join() === 'jeu' && !e.bords && !e.vueOrdi && e.vueTel && /téléphones/.test(e.jeu),
+      '« Téléphone » : aperçu de la largeur d\'un téléphone, un seul jour, réglages du téléphone (' + JSON.stringify(e) + ')');
     // --- 3. Réglage du téléphone ---
     const txtAvant = e.txtApercu;
     await page.click('.choix-pastille[data-option="texte"][data-valeur="grand"]'); await page.waitForTimeout(200);
@@ -63,8 +64,8 @@ const etatPage = (page) => page.evaluate(() => {
     let jeux = await page.evaluate(() => ({ tel: optionAffichage('texte', 'tel'), ordi: optionAffichage('texte', 'ordi'), weTel: optionAffichage('weekends', 'tel'), weOrdi: optionAffichage('weekends', 'ordi'), live: afficherWeekends }));
     verifier(jeux.tel === 'grand' && jeux.ordi === 'normal' && jeux.weTel === 'oui' && jeux.weOrdi === 'non' && !jeux.live,
       'mode Téléphone : texte et week-ends vont dans le jeu du téléphone, pas dans celui de l\'ordinateur ni son planning (' + JSON.stringify(jeux) + ')');
-    verifier(e.texte === 'grand' && e.txtApercu !== txtAvant && e.jours.some((j) => /sam/.test(j)),
-      'l\'aperçu montre le texte agrandi et les week-ends du téléphone (' + txtAvant + ' → ' + e.txtApercu + ', ' + JSON.stringify(e.jours) + ')');
+    verifier(e.texte === 'grand' && e.txtApercu !== txtAvant && e.jours.join() === 'jeu',
+      'l\'aperçu montre le texte agrandi du téléphone, toujours sur un seul jour (' + txtAvant + ' → ' + e.txtApercu + ', ' + JSON.stringify(e.jours) + ')');
     await page.evaluate(() => afficherPage('planning')); await page.waitForTimeout(400);
     const planning = await page.evaluate(() => ({ attr: document.documentElement.getAttribute('data-aff-texte'), we: document.querySelectorAll('#racine .th.th-weekend').length }));
     verifier(planning.attr === null && planning.we === 0, 'page quittée : style et planning de l\'ordinateur (' + JSON.stringify(planning) + ')');

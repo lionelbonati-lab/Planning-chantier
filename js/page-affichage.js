@@ -429,7 +429,10 @@
   // après-midi) et la ligne sous les jours ; en-têtes écrits par
   // enteteJourAffichage, horaires d'exemple (7 h–12 h, 13 h–16 h 45).
   // Suite 76 : aperçu du jeu `profil` — « tel » : étroit, comme un
-  // téléphone (sans le mardi, colonne des noms réduite, .aa-tel).
+  // téléphone (colonne des noms réduite, .aa-tel).
+  // Suite 77 : « L'aperçu mobile ne doit afficher que 1 jour car le
+  // planning est basé sur 1 jour. » — téléphone : le jeudi seul (matin +
+  // après-midi), sans week-end ni espace entre semaines.
   function htmlApercuAffichage_(profil) {
     var opt = function (id) { return optionAffichage(id, profil); };
     var we = opt("weekends") === "oui", espace = opt("separation") === "espace";
@@ -442,12 +445,14 @@
     var styleStatut = statut && statut.couleur ? ' style="background:' + esc(statut.couleur) + '"' : "";
     // Jours : [clé, date iso, type]. La séparation de semaine est posée
     // par-dessus (placerSepApercu_), comme dans le vrai planning.
-    // Téléphone : sans le mardi, pour garder des colonnes lisibles.
+    // Téléphone : un seul jour, comme le planning du téléphone (suite 77).
     var etroit = profil === "tel";
-    var jours = [["jeu", "2026-09-24", "jour"], ["ven", "2026-09-25", "jour"]];
-    if (we) jours.push(["sam", "2026-09-26", "we"], ["dim", "2026-09-27", "we"]);
-    jours.push(["lun", "2026-09-28", "jour"]);
-    if (!etroit) jours.push(["mar", "2026-09-29", "jour"]);
+    var jours = [["jeu", "2026-09-24", "jour"]];
+    if (!etroit) {
+      jours.push(["ven", "2026-09-25", "jour"]);
+      if (we) jours.push(["sam", "2026-09-26", "we"], ["dim", "2026-09-27", "we"]);
+      jours.push(["lun", "2026-09-28", "jour"], ["mar", "2026-09-29", "jour"]);
+    }
     // Colonnes de la grille : noms, puis matin + après-midi par jour ouvré,
     // une seule par jour de week-end.
     var debut = {}, fin = {}, c0 = 2, pistes = ["var(--aa-noms)"];
@@ -457,7 +462,8 @@
       else { pistes.push("minmax(0, .5fr)", "minmax(0, .5fr)"); c0 += 2; }
       fin[j[0]] = c0;
     });
-    // Jour absent de l'aperçu (le mardi sur téléphone) : le dernier affiché.
+    // Jour absent de l'aperçu (le vendredi sur téléphone, pour une bulle
+    // qui continue le lendemain) : le dernier affiché.
     function colDe(k) { return debut[k] || debut[jours[jours.length - 1][0]]; }
     function colA(k) { return fin[k] || fin[jours[jours.length - 1][0]]; }
     function classesJour(j) {
@@ -499,14 +505,21 @@
         (avecStatut ? '<span class="aa-statut"' + styleStatut + ' title="' + esc(nomStatut) + '"><i></i>' + esc(nomStatut) + '</span>' : '') + '</span></span>';
     }
     h.push(bulle(0, "jeu", "ven", "Bétonnage dalle piliers et muret de l’extension côté jardin", teintes[0]));
-    h.push(bulle(0, "lun", "lun", "Coffrage piliers", teintes[1]));
     h.push(bulle(1, "jeu", "jeu", "Gabarits", teintes[2], false, "m"));
-    h.push(bulle(1, "lun", "mar", "Décoffrage balcons", teintes[1]));
-    h.push(bulle(2, "ven", "ven", "Armature dalle supérieure", teintes[0], true));
-    if (!etroit) h.push(bulle(2, "mar", "mar", "Ouvertures murs", teintes[2]));
+    if (etroit) {
+      // Téléphone : l'après-midi de Mathis et la bulle avec statut
+      // d'Antoine, pour que chaque réglage se voie sur le seul jour.
+      h.push(bulle(1, "jeu", "jeu", "Coffrage piliers", teintes[1], false, "a"));
+      h.push(bulle(2, "jeu", "jeu", "Armature dalle supérieure", teintes[0], true));
+    } else {
+      h.push(bulle(0, "lun", "lun", "Coffrage piliers", teintes[1]));
+      h.push(bulle(1, "lun", "mar", "Décoffrage balcons", teintes[1]));
+      h.push(bulle(2, "ven", "ven", "Armature dalle supérieure", teintes[0], true));
+      h.push(bulle(2, "mar", "mar", "Ouvertures murs", teintes[2]));
+    }
     return '<div class="apercu-affichage' + (etroit ? " aa-tel" : "") + '" aria-hidden="true"><div class="aa-cadre">' +
       '<div class="aa-grille" style="grid-template-columns:' + pistes.join(" ") + '">' + h.join("") + '</div></div>' +
-      (espace ? '<div class="sep-semaines sep-haut aa-sep" hidden><span class="sep-coin sep-coin-g"></span><span class="sep-coin sep-coin-d"></span></div>' +
+      (espace && !etroit ? '<div class="sep-semaines sep-haut aa-sep" hidden><span class="sep-coin sep-coin-g"></span><span class="sep-coin sep-coin-d"></span></div>' +
         '<div class="sep-semaines sep-bas aa-sep" hidden><span class="sep-coin sep-coin-g"></span><span class="sep-coin sep-coin-d"></span></div>' : '') +
       '</div>';
   }
