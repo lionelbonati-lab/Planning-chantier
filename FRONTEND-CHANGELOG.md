@@ -9881,3 +9881,66 @@ Lionel :
 - test_suite88.js, 9/9 : manifeste et icônes ; « Nouvelle note » (fiche, date du jour, texte prêt, note enregistrée et visible, adresse nettoyée, rien de rouvert au rechargement) ; « Mes notes » ; ouverture normale.
 - aide_tests.js : `ouvrirPlanning(…, { query })`.
 - Suite complète : 93/93.
+
+## 197. Round du 28.09.2026 (suite 89) — Temps réel ; « Aucun chantier » ; glissement de semaine limité aux dates ; séparations collantes ; réglages d'affichage par appareil ; balayage par les bords sur tablette ; tests rangés dans tests/
+- « une tâche mise sur mon téléphone met bcp de temps à apparaître sur mon ordinateur. »
+- « une tâche ne veut pas prendre "aucun chantier" après enregistrement, je peux le sélectionner mais il ne s'enregistrera pas »
+- « Ne faire bouger que la colonne d'entête et les séparations personnels et intervenants quand le planning avance, ça évite de calculer les déplacements de quadrillage et de bulles. »
+- « La séparation personnel doit rester sous la note tant qu'une partie du personnel est visible à l'écran. Elle se fera pousser hors de l'écran par la séparation intervenants. »
+- « La page de setup affichage doit être enregistrée par l'appareil »
+- « Bug en vue jours voisins sur tablette. » ; « sur tablette une petite zone n'est pas visible, il faut légèrement balayer l'écran, ce qui fait changer la semaine. idée : balayage depuis côté droit avance une semaine, depuis côté gauche recule une semaine. défilement au centre »
+- « Fais de l'ordre dans ta série de tests GitHub »
+
+### Ce qui change
+- **Temps réel** : une tâche, un jalon ou une note écrits sur un autre appareil apparaissent d'eux-mêmes, environ une demi-seconde plus tard, sur la semaine affichée. Avant, un ordinateur resté ouvert ne relisait sa semaine qu'en revenant sur l'onglet.
+  - Fiche ouverte, geste ou enregistrement en cours : la relecture attend, jamais sous les doigts.
+  - Secours si la liaison temps réel tombe (réseau, veille) : relecture de la semaine toutes les minutes et au retour sur la fenêtre, si elle a plus de 90 s.
+- **« Aucun chantier »** : choisi dans la fiche d'une tâche existante, il est maintenant enregistré. Avant, un chantier vide gardait l'ancien.
+- **Changement de semaine** (flèches, molette, balayage) : seules les lignes des dates (jours, M/A, horaires) glissent. Le quadrillage, les bulles, Jalons, Notes et les séparations changent sur place, sans rien déplacer.
+- **Séparations collantes** : en descendant, la bande « Personnel » reste collée sous l'en-tête figé (jours, Jalons, Notes) tant que du personnel est à l'écran. La bande « Intervenants » la pousse vers le haut en arrivant, puis prend sa place.
+- **Réglages d'affichage** : enregistrés sur l'appareil seulement (ordinateur, tablette et téléphone ont chacun les leurs). Ceux du compte sont repris une fois, au premier lancement de cette version sur l'appareil. La page Affichage le dit.
+- **Tablette, balayage latéral** :
+  - posé dans la bande du bord droit et tiré vers la gauche : semaine suivante ;
+  - bande du bord gauche vers la droite : semaine précédente ;
+  - ailleurs (le centre) : simple défilement, jamais de changement de semaine, même en butée. La petite zone cachée se voit donc sans changer de semaine.
+- **Jours voisins sur tablette** : plus de tremblement. La grille ne défile plus de côté (rien à y faire défiler) ; un balayage n'importe où change de semaine, comme avant.
+- **Tests** : tous les tests sont rangés dans `tests/` (94 tests, plus `aide_tests.js` et `lancer_tests.js`). La racine du dépôt ne garde que l'appli.
+- **Anciennes captures** (« Supprime les anciennes captures PNG à la racine ») : les 44 captures numérotées de la racine (`01-…png` à `33-…png`) disparaissent. `verify_webapp.js` écrit les siennes dans `screenshots/`. Les icônes `icon-*.png` restent.
+
+### Fonctionnement
+- **sql/0024_temps_reel.sql** (appliquée) : ajoute `taches`, `jalons` et `notes` à la publication `supabase_realtime`, qui était vide. RLS s'applique aussi aux messages temps réel.
+- **js/donnees-sync.js** :
+  - `ecouterTempsReel` (appelée à la fin de `demarrer`) s'abonne aux 3 tables sur le canal `planning`.
+  - `surChangementDistant_` ignore l'écho de nos écritures : pendant la synchro et dans les 3 s qui suivent (`finSyncLocaleTs_`, posé à la fin réussie de `synchroniser`).
+  - Une ligne hors de la fenêtre marque seulement sa semaine périmée (`etat.cacheTs`). Sinon, `relireFenetre_(true)` est lancée 500 ms plus tard, une seule fois pour plusieurs messages.
+  - `relireFenetre_` est remise à 2 s tant qu'une synchro, une fiche, un glissement ou la boîte « série » est en cours. Elle efface `etat.cacheTs` de la fenêtre, puis `assurerFenetreChargee` → `construireVueDepuisCache` (nouvelle `syncBaseline`) → `render`.
+  - Une suppression ne transmet que l'id : la fenêtre est relue.
+- **js/formulaires-edition.js** (`ouvrirEdition`, « Enregistrer ») : `chantierFourni` (la fiche a une liste Chantier) remplace le test `if (chantier)`. La valeur vide (« Aucun chantier ») est appliquée à la tâche, à la conversion en série et à la mise à jour d'une série.
+- **js/grille-rendu.js** :
+  - `glisserVersSemaine_` n'utilise plus l'API View Transitions. Avant le rendu, elle copie `.entete-planning-scroll` : `.entete-glisse-ancien`, avec des cases sans `id` ni `data-gi`, les coins masqués et un fond transparent.
+  - Après le rendu, la copie est posée par-dessus la nouvelle ligne des dates (position absolue, z-index 1, sous la colonne des noms en z-index 2), rognée à la hauteur des dates. Elle sort de son pas pendant que les cases `.th` de la nouvelle ligne entrent du leur : animations Web sur `transform` seul, 340 ms, même courbe qu'avant. La copie est retirée à la fin.
+  - Jours voisins : même partage qu'avant, cases gardées ou cachées selon leur position (bord gauche + semaine pour l'une, à partir du lundi pour l'autre).
+  - Les `data-vt` et `nommerColonneNoms_` disparaissent.
+  - `placerSepCollantes_` (une fois par image au défilement, capture sur `document`, et après chaque rendu) donne à chaque bande `translateY(d)`, avec d = max(0, min(bas de l'en-tête figé, haut de la bande suivante ou bas de la grille − hauteur) − place naturelle). Classe `section-collee` (z-index 4). `position: sticky` ne peut pas servir ici (`.scroller` défile en largeur).
+  - Détecteur tactile de changement de semaine : `zoneBordSemaine_()` donne la bande de chaque bord (12 % de la largeur visible, entre 48 et 120 px). La zone de départ est fixée au `touchstart`. Le `touchmove` passe en `passive: false` pour empêcher la grille de défiler pendant un balayage parti d'un bord. En jours voisins, la zone suit le sens du geste.
+- **style.css** :
+  - `#racine.vue-bords .scroller { overflow-x: hidden; touch-action: pan-y; }` : le défilement natif ne se bat plus avec l'écouteur qui ramenait `scrollLeft` (le tremblement).
+  - `.section-row.section-collee { z-index: 4; }`.
+  - Les règles `html.vt-semaine` / `vt-bords` et leurs `@keyframes` disparaissent.
+- **js/page-affichage.js** : `lireJeu_` / `ecrireJeu_` lisent et écrivent `planning.affichage` / `planning.affichage.tel` dans localStorage seulement. Plus d'écriture dans la table `reglages`. Migration : si la clé locale est absente, la valeur du compte y est copiée une fois.
+- **Tests déplacés** : `git mv` vers `tests/`. Les chemins passent par `path.join(__dirname, '..', …)`. `lancer_tests.js` lance chaque test depuis la racine du dépôt. `.github/workflows/tests.yml` exécute `node tests/lancer_tests.js`.
+
+### Tests
+- test_suite89.js, 17/17 :
+  - « Aucun chantier » enregistré puis relu ;
+  - temps réel : abonnements, ajout et suppression venus d'ailleurs, écho ignoré, fiche ouverte, autre semaine ;
+  - réglages sur l'appareil (reprise du compte, aucune écriture `reglages`) ;
+  - séparations collantes (collée, poussée, relayée, retour) ;
+  - tablette en jours voisins (pas de défilement natif, balayage au centre).
+- aide_tests.js : faux `channel` qui garde les abonnements dans `window.__TEMPS_REEL`. L'ancien faux `channel` muet, qui l'écrasait, est retiré.
+- Adaptés :
+  - test_suite72 et test_suite74 : glissement des seules dates, grille et bulles non animées ;
+  - test_swipe_tablette_1semaine et test_selection_multijour_tablette : départ dans la bande du bord ; le centre ne change pas de semaine ;
+  - test_suite62, 64, 67, 79 et 84 : réglages lus dans localStorage ; nouveau cas : un autre téléphone ne voit pas les réglages du premier ;
+  - test_suite76 : nouveaux libellés de la page Affichage.
+- Suite complète : 94/94.

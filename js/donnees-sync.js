@@ -489,6 +489,8 @@
       // sans bloquer davantage l'écran de chargement.
       chargerFormulairesRapides();
       prechargerHorsLigne();
+      // Suite 89 : écritures des autres appareils reçues en temps réel.
+      ecouterTempsReel();
       // Suite 88 : ouverte par un raccourci de l'icône (« Nouvelle note »,
       // « Mes notes », manifest.json) → fiche ou page demandée.
       if (typeof lancerRaccourciAppli === "function") lancerRaccourciAppli();
@@ -1908,6 +1910,74 @@
       });
     });
   });
+
+  // ---- Temps réel — round du 28.09.2026 (suite 89) ----------------------
+  // Lionel : « une tâche mise sur mon téléphone met bcp de temps à
+  // apparaître sur mon ordinateur ». Un ordinateur resté affiché ne relisait
+  // sa semaine qu'en revenant sur l'onglet (visibilitychange ci-dessus) ou
+  // après sa propre écriture. Désormais :
+  // - taches / jalons / notes sont publiées en temps réel (sql/0024) : une
+  //   écriture d'un autre appareil sur la fenêtre affichée la fait relire
+  //   ~0,5 s plus tard (plusieurs messages d'un même enregistrement = une
+  //   seule relecture). Hors de la fenêtre : la semaine touchée est
+  //   seulement marquée périmée, relue quand on y va ;
+  // - l'écho de NOS écritures (reçu pendant la synchro ou dans les 3 s
+  //   qui suivent) est ignoré : synchroniser relit déjà après écrire ;
+  // - fiche ouverte, geste ou synchro en cours : relecture remise à plus
+  //   tard (toutes les 2 s), jamais sous les doigts ;
+  // - secours si la connexion temps réel tombe (réseau, veille) : relecture
+  //   de la fenêtre périmée toutes les minutes et au retour du focus.
+  var finSyncLocaleTs_ = 0, minuteurTempsReel_ = null;
+  function bornesFenetre_() {
+    var labs = fenetreLabGs();
+    return { debut: labGVersIso_(labs[0]), fin: infosSemaineDepuisLabG(labs[labs.length - 1]).fin };
+  }
+  function relireFenetre_(forcer) {
+    clearTimeout(minuteurTempsReel_);
+    minuteurTempsReel_ = null;
+    if (!syncBaseline || !racineEl) return;
+    if (syncEnCours || syncRelance || popFermerActuel || document.body.classList.contains("en-glissement") || document.querySelector(".confirm-pop-serie")) {
+      if (forcer) minuteurTempsReel_ = setTimeout(function () { relireFenetre_(true); }, 2000);
+      return;
+    }
+    var labs = fenetreLabGs();
+    if (forcer) labs.forEach(function (lg) { delete etat.cacheTs[lg]; });
+    else if (!labs.some(function (lg) { var ts = etat.cacheTs[lg]; return !ts || (Date.now() - ts) >= FRAICHEUR_MS; })) return;
+    assurerFenetreChargee(function () {
+      if (syncEnCours || syncRelance || popFermerActuel) return;
+      construireVueDepuisCache();
+      render(false);
+      majBarreSelection();
+    });
+  }
+  function surChangementDistant_(msg) {
+    if (syncEnCours || Date.now() - finSyncLocaleTs_ < 3000) return;
+    var ligne = (msg && (msg.new && msg.new.date ? msg.new : msg.old)) || {};
+    if (ligne.date && fenetrePrete()) {
+      var b = bornesFenetre_();
+      if (ligne.date < b.debut || ligne.date > b.fin) {
+        var lg = isoVersLabG(lundiDeSemaineUTC(ligne.date));
+        delete etat.cacheTs[lg];
+        return;
+      }
+    }
+    // Suppression (seul l'id est transmis) ou ligne de la fenêtre : relue.
+    if (minuteurTempsReel_) return;
+    minuteurTempsReel_ = setTimeout(function () { relireFenetre_(true); }, 500);
+  }
+  function ecouterTempsReel() {
+    if (typeof sbClient.channel !== "function") return;
+    try {
+      var canal = sbClient.channel("planning");
+      ["taches", "jalons", "notes"].forEach(function (t) {
+        canal.on("postgres_changes", { event: "*", schema: "public", table: t }, surChangementDistant_);
+      });
+      canal.subscribe();
+    } catch (e) { /* sans temps réel : le secours ci-dessous suffit */ }
+  }
+  setInterval(function () { if (document.visibilityState === "visible") relireFenetre_(false); }, 60000);
+  window.addEventListener("focus", function () { relireFenetre_(false); });
+
   // Promesse résolue quand plus aucune synchronisation n'est en cours ni
   // relancée (suite 47, cf. la conversion d'une tâche en série dans
   // ouvrirEdition) — au plus 10 s, puis on continue quand même.
@@ -2047,6 +2117,7 @@
         if (syncEnCours) return;   // une nouvelle écriture part : c'est elle qui relira
       }
       syncEnCours = false;
+      finSyncLocaleTs_ = Date.now(); // suite 89 : écho temps réel de cette écriture ignoré
       // Ni enregistrer-plage ni apiEnregistrerCellulePersonne (une fois
       // portée) ne renvoient plus la semaine entière rafraîchie (contrairement
       // à l'ancien apiXxx, cf. commentaire de tête d'apiEnregistrerJalonNote,

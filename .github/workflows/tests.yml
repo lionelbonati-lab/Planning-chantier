@@ -4,7 +4,8 @@
 # la suite tourne automatiquement sur GitHub à chaque PR ? » : « Oui, à
 # chaque PR ». 8 tests avaient cassé en silence le 17.09.2026 parce qu'ils
 # ne tournaient qu'à la main ; un test rouge est désormais signalé sur la PR
-# avant la fusion. Même lanceur qu'en local : node lancer_tests.js.
+# avant la fusion. Même lanceur qu'en local : node tests/lancer_tests.js
+# (suite 89 : tous les tests rangés dans tests/).
 name: Tests
 
 on:
@@ -35,7 +36,7 @@ jobs:
 
       # Même version de Playwright que l'environnement de développement.
       # Les tests lancent Chromium par son chemin dans cet environnement
-      # (/opt/pw-browsers/chromium, cf. lancerNavigateur dans aide_tests.js) :
+      # (/opt/pw-browsers/chromium, cf. lancerNavigateur dans tests/aide_tests.js) :
       # ce chemin est recréé ici vers le Chromium installé par Playwright.
       - name: Playwright et Chromium
         run: |
@@ -45,4 +46,4 @@ jobs:
           sudo ln -sf "$(node -e "console.log(require('playwright').chromium.executablePath())")" /opt/pw-browsers/chromium
 
       - name: Tests
-        run: node lancer_tests.js
+        run: node tests/lancer_tests.js
