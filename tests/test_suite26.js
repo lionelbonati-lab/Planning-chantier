@@ -93,7 +93,14 @@ const caseVide = (page) => page.evaluate(() => {
     verifier(apres.semaine === avant.semaine, 'tablette, vertical avec 80 px de dérive : même semaine (' + avant.semaine + ' → ' + apres.semaine + ')');
     verifier(apres.haut > avant.haut, 'tablette, vertical avec dérive : la page a défilé (' + avant.haut + ' → ' + apres.haut + ')');
 
-    await glisser(page, await caseVide(page), 200, 20);
+    // Suite 89 (Lionel : « balayage depuis coté droit avance une semaine,
+    // depuis côté gauche recule une semaine. défilement au centre ») : le
+    // balayage part désormais de la bande du bord gauche (zoneBordSemaine_,
+    // grille-rendu.js) ; parti d'une case du centre, il ne ferait que
+    // défiler. Suite 90 : ce test ne remontait pas ses échecs (bilan sans
+    // code de sortie), d'où l'oubli.
+    const bord = await page.evaluate(() => Math.round(document.querySelector('.scroller').getBoundingClientRect().left + 30));
+    await glisser(page, { x: bord, y: (await caseVide(page)).y }, 200, 20);
     await page.waitForTimeout(500);
     const apresSwipe = await position(page);
     verifier(apresSwipe.semaine === avant.semaine - 1, 'tablette, vrai swipe vers la droite : semaine précédente (' + avant.semaine + ' → ' + apresSwipe.semaine + ')');
@@ -150,5 +157,5 @@ const caseVide = (page) => page.evaluate(() => {
   }
 
   await browser.close();
-  bilan(toutesErreurs);
+  process.exit(bilan(toutesErreurs));
 })();

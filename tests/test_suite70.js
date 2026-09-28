@@ -84,5 +84,5 @@ const defilerSur = (page, iso, fraction) => page.evaluate(async ([iso, fraction]
 
   verifier(toutesErreurs.length === 0, 'aucune erreur JS (' + toutesErreurs.join(' | ') + ')');
   await browser.close();
-  bilan();
+  process.exit(bilan());
 })();

@@ -274,5 +274,5 @@ const poids = (page, sel) => page.evaluate((s) => { const n = document.querySele
 
   verifier(toutesErreurs.length === 0, 'aucune erreur JS (' + toutesErreurs.join(' | ') + ')');
   await browser.close();
-  bilan();
+  process.exit(bilan());
 })();

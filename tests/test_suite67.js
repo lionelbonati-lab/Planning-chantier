@@ -250,5 +250,5 @@ const style = ([sel, prop]) => { const n = document.querySelector(sel); return n
 
   verifier(toutesErreurs.length === 0, 'aucune erreur JavaScript (' + toutesErreurs.join(' | ') + ')');
   await browser.close();
-  bilan();
+  process.exit(bilan());
 })();

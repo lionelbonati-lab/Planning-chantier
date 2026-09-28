@@ -1106,14 +1106,81 @@
   #racine.vue-bords .bulle .b-carte > :is(.b-txt, .b-statut, .b-serie) { position: static; max-width: none; }
   #racine.vue-bords .bulle.bulle-morceaux { flex-direction: row; align-items: stretch; }
   #racine.vue-bords .bulle.bulle-morceaux > .b-carte { flex: none; box-sizing: border-box; min-width: 0; }
-  /* Glissement de semaine (suite 72, glisserVersSemaine_ dans
-     js/grille-rendu.js). Round du 28.09.2026 (suite 89) — Lionel : « Ne
-     faire bouger que la colonne d'entête […] ça évite de calculer les
-     déplacements de quadrillage et de bulles. » Plus de View Transitions
-     (ni html.vt-semaine, ni photos de toute la grille) : seules les lignes
-     des dates glissent, par animations Web posées en JS ; la copie de
-     l'ancienne ligne (.entete-glisse-ancien) reçoit sa place en style
-     direct et disparaît à la fin. Rien à déclarer ici. */
+  /* Round du 27.09.2026 (suite 72) — Lionel : « J'aimerai un effet
+     similaire sur ordinateur lors du passage d'une semaine à l'autre. »
+     Glissement de semaine (glisserVersSemaine_, js/grille-rendu.js, API View
+     Transitions) : html.vt-semaine le temps de l'effet. La grille
+     (« semaine ») : ancienne photo qui sort, nouvelle qui entre, jointives
+     (--vt-pas = largeur des jours seuls, --vt-dir = 1 vers la semaine
+     suivante, -1 vers la précédente), chacune rognée de sa colonne des noms
+     et la paire rognée à droite de la colonne fixe (--vt-noms), pour que les
+     jours passent sous elle sans la recouvrir. Cases de la colonne des noms
+     (vt-coin, vt-p12…) : ne bougent pas, passent seulement à leur nouvelle
+     hauteur, même durée, sans fondu (la nouvelle case d'emblée : 2 textes
+     superposés dans le coin « sept. » → « sept. – oct. » se lisaient mal).
+     Page autour (root) : pareil, aucun fondu. */
+  html.vt-semaine::view-transition-group(*) { animation-duration: .34s; animation-timing-function: cubic-bezier(.22, .61, .36, 1); }
+  html.vt-semaine::view-transition-old(*) { animation: none; opacity: 0; }
+  html.vt-semaine::view-transition-new(*) { animation: none; }
+  html.vt-semaine::view-transition-image-pair(semaine) { clip-path: inset(0 0 0 var(--vt-noms, 0px)); }
+  html.vt-semaine::view-transition-old(semaine), html.vt-semaine::view-transition-new(semaine) {
+    clip-path: inset(0 0 0 var(--vt-noms, 0px)); mix-blend-mode: normal; opacity: 1;
+    animation-duration: .34s; animation-timing-function: cubic-bezier(.22, .61, .36, 1); animation-fill-mode: both;
+  }
+  html.vt-semaine::view-transition-old(semaine) { animation-name: vt-semaine-sortie; }
+  html.vt-semaine::view-transition-new(semaine) { animation-name: vt-semaine-entree; }
+  @keyframes vt-semaine-sortie { from { transform: none; } to { transform: translateX(calc(var(--vt-dir, 1) * -1 * var(--vt-pas, 100%))); } }
+  @keyframes vt-semaine-entree { from { transform: translateX(calc(var(--vt-dir, 1) * var(--vt-pas, 100%))); } to { transform: none; } }
+  /* Jours voisins aux bords (suite 74, cf. glisserVersSemaine_) : chaque
+     photo son pas (--vt-sortie, --vt-entree) et ses parties gardées
+     (--vt-masque-ancien, --vt-masque-nouveau). */
+  html.vt-semaine.vt-bords::view-transition-old(semaine) { animation-name: vt-bords-sortie; -webkit-mask-image: var(--vt-masque-ancien); mask-image: var(--vt-masque-ancien); }
+  html.vt-semaine.vt-bords::view-transition-new(semaine) { animation-name: vt-bords-entree; -webkit-mask-image: var(--vt-masque-nouveau); mask-image: var(--vt-masque-nouveau); }
+  @keyframes vt-bords-sortie { from { transform: none; } to { transform: translateX(var(--vt-sortie, 0px)); } }
+  @keyframes vt-bords-entree { from { transform: translateX(var(--vt-entree, 0px)); } to { transform: none; } }
+  /* Round du 28.09.2026 (suite 90) — Lionel : « Je voulais que seule la
+     première colonne et les séparations s'adaptent. Le planning glisse mais
+     ne modifie pas ses hauteurs de ligne. » Glissement de semaine ci-dessus
+     rétabli (la suite 89 ne faisait plus glisser que les dates). Même
+     principe au téléphone, en vue « 1 jour » : la page du jour
+     (tournerPageJour_, js/grille-interactions.js) — photo du jour quitté,
+     photo du jour d'arrivée, chacune avec ses hauteurs de lignes, jointives
+     à la bordure entre les 2 jours (--vt-sortie, --vt-entree, masques
+     --vt-masque-ancien / --vt-masque-nouveau), rognées à droite de la
+     colonne des noms (--vt-noms). Aucune durée réelle : le script met les
+     animations en pause et les règle à la position du doigt (1 s = page
+     entière, d'où la courbe linéaire), puis à son glissement de fin de
+     geste. Cases des noms et bandes Personnel / Intervenants : passent de
+     leur hauteur, de leur place, à celles du jour d'arrivée, au même
+     rythme. */
+  html.vt-page::view-transition-group(*) { animation-duration: 1s; animation-timing-function: linear; animation-fill-mode: both; }
+  /* Toucher sur le calque des photos (cible : html) : suivi par le script
+     (grille-interactions.js, doigtsSurPhotos), jamais par le navigateur. */
+  html.vt-page { touch-action: none; }
+  html.vt-page::view-transition-old(*) { animation: none; opacity: 0; }
+  html.vt-page::view-transition-new(*) { animation: none; }
+  html.vt-page::view-transition-image-pair(semaine) { clip-path: inset(0 0 0 var(--vt-noms, 0px)); }
+  html.vt-page::view-transition-old(semaine), html.vt-page::view-transition-new(semaine) {
+    mix-blend-mode: normal; opacity: 1; animation-duration: 1s; animation-timing-function: linear; animation-fill-mode: both;
+  }
+  html.vt-page::view-transition-old(semaine) { animation-name: vt-bords-sortie; -webkit-mask-image: var(--vt-masque-ancien); mask-image: var(--vt-masque-ancien); }
+  html.vt-page::view-transition-new(semaine) { animation-name: vt-bords-entree; -webkit-mask-image: var(--vt-masque-nouveau); mask-image: var(--vt-masque-nouveau); }
+  /* Bandes Personnel / Intervenants de la vue « 1 jour » : leur libellé
+     collé à gauche (seul nommé, cf. grille-rendu.js) couvre la colonne des
+     noms, avec les traits de la bande, le temps de la page — il suit le
+     doigt comme les noms. Côté jours, chaque photo garde sa bande à sa
+     hauteur, comme ses lignes. */
+  html.vt-page #racine.vue-jour-mobile .section-row-sticky {
+    min-width: var(--largeur-noms); box-sizing: border-box; background: inherit;
+    box-shadow: 0 -1px 0 var(--border), 0 1px 0 var(--border);
+  }
+  /* Cases des noms (semaine et page du jour) : la photo garde sa taille,
+     centrée et rognée dans la case qui change de hauteur — le nom reste
+     au milieu de sa case au lieu de sauter à celui de la nouvelle. La
+     photo de la grille, elle, reste calée en haut. */
+  html:is(.vt-semaine, .vt-page)::view-transition-new(*), html:is(.vt-semaine, .vt-page)::view-transition-old(*) { block-size: 100%; object-fit: none; object-position: center; overflow: clip; }
+  html:is(.vt-semaine, .vt-page)::view-transition-new(semaine), html:is(.vt-semaine, .vt-page)::view-transition-old(semaine),
+  html:is(.vt-semaine, .vt-page)::view-transition-new(root), html:is(.vt-semaine, .vt-page)::view-transition-old(root) { block-size: auto; object-fit: fill; }
   /* Round du 24.09.2026 — Lionel : « ajoute un bordure à droite de la
      première colonne. » La colonne d'étiquette (116px, sticky left:0)
      n'avait pour seule séparation que le gap de grille de 1px habituel

@@ -1,5 +1,5 @@
 const { chromium } = require('playwright');
-const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests');
+const { ouvrirPlanning, verificateur, lancerNavigateur, sansViewTransitions } = require('./aide_tests');
 
 // Round du 27.09.2026 (suite 78). Lionel, capture à l'appui (téléphone, en
 // plein glissement d'un jour à l'autre) :
@@ -17,6 +17,13 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //      Lionel, tenue à sa place du jeudi ;
 //   3. rien ne bouge au repos : largeur de défilement, traits de la colonne
 //      des noms ; sur ordinateur, les traits restent ceux de la grille.
+//
+// Round du 28.09.2026 (suite 90) : au doigt, le téléphone photographie
+// maintenant les deux jours (chacun avec ses hauteurs) ; la grille est déjà
+// sur le vendredi et aucune bulle n'est plus « tenue » sur la bande. Ce test
+// mesure l'interpolation d'avant, toujours utilisée quand les animations
+// sont réduites ou sans View Transitions : il tourne sans elles
+// (sansViewTransitions). La page photographiée est vérifiée par test_suite90.
 //
 // Lancer : node test_suite78.js
 
@@ -48,6 +55,7 @@ const ecart = (a, b) => Math.max(...a.map((v, i) => Math.abs(v - b[i])));
   const toutesErreurs = [];
   {
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 360, height: 740 }, hasTouch: true, bd: { personnes: PERS, taches: TACHES } });
+    await sansViewTransitions(page);
     await page.waitForTimeout(400);
     // 3. Au repos : défilement inchangé (les traits prolongés ne l'élargissent pas).
     const repos = await page.evaluate(() => {

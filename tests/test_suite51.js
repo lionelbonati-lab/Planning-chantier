@@ -187,5 +187,5 @@ async function ouvrirConsultation(browser, opts) {
 
   verifier(toutesErreurs.length === 0, 'aucune erreur JS (' + toutesErreurs.join(' | ') + ')');
   await browser.close();
-  bilan();
+  process.exit(bilan());
 })();

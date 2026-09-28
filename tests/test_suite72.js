@@ -1,5 +1,5 @@
 const { chromium } = require('playwright');
-const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests');
+const { ouvrirPlanning, verificateur, lancerNavigateur, sansViewTransitions } = require('./aide_tests');
 
 // Round du 27.09.2026 (suite 72). Lionel :
 //   « Essaie d'améliorer la fluidité du passage d'un jour à l'autre sur
@@ -14,16 +14,19 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //   2. téléphone : jour posé au bord de la fenêtre de 2 semaines → le
 //      recentrage (re-rendu de la grille) n'a plus lieu dans l'image
 //      d'arrivée du glissement, mais juste après ; jour et mois justes ;
-//   3. ordinateur, › : glissement de semaine — ancienne ligne des dates qui
-//      sort à gauche, nouvelle qui entre par la droite, colonne des noms
-//      fixe ; tout est rangé à la fin. Suite 89 (Lionel : « Ne faire bouger
-//      que la colonne d'entête […] ça évite de calculer les déplacements de
-//      quadrillage et de bulles ») : plus de View Transitions, seules les
-//      cases des dates glissent — ni la grille ni les bulles ne sont animées ;
+//   3. ordinateur, › : glissement de semaine (View Transitions) — ancienne
+//      semaine qui sort à gauche, nouvelle qui entre par la droite, colonne
+//      des noms fixe ; tout est rangé à la fin ;
 //   4. ordinateur, ‹ : sens inverse ; 2 clics rapides : 2 semaines plus
 //      loin, rien qui traîne ;
 //   5. « réduire les animations », vue 1 jour du téléphone : pas de
 //      glissement de semaine, rendu immédiat.
+//
+// Round du 28.09.2026 (suite 90) — Lionel, retour sur la suite 89 : « Je
+// voulais que seule la première colonne et les séparations s'adaptent. Le
+// planning glisse mais ne modifie pas ses hauteurs de ligne. » Le
+// glissement de toute la semaine (View Transitions) est rétabli : ce test
+// reprend ses vérifications d'avant la suite 89.
 //
 // Lancer : node test_suite72.js
 
@@ -73,36 +76,32 @@ const journaliserAlignement = (page) => page.evaluate(() => {
   const f = () => { note('image'); if (performance.now() < fin) requestAnimationFrame(f); };
   requestAnimationFrame(f);
 });
-// Glissement de semaine en cours (suite 89) : décalage horizontal
-// (translateX) de la copie de l'ancienne ligne des dates et d'une case de
-// la nouvelle, animations en dehors de l'en-tête. Attend que le glissement
-// soit parti depuis ~110 ms (la semaine suivante peut d'abord être
-// chargée : la copie n'est prise qu'ensuite).
+// Glissement de semaine en cours : pseudo-éléments animés et position
+// horizontale (translateX) de l'ancienne et de la nouvelle photo.
+// Attend que le glissement soit parti depuis ~110 ms (la semaine suivante
+// peut d'abord être chargée : la photo d'avant n'est prise qu'ensuite).
 const etatGlissement = (page) => page.evaluate(async () => {
+  const html = document.documentElement;
   const t0 = performance.now();
-  let copie, a;
   for (;;) {
-    copie = document.querySelector('#racine .entete-glisse-ancien');
-    a = copie && copie.querySelector('.grille').getAnimations()[0];
+    const a = document.getAnimations().find((x) => x.effect && x.effect.pseudoElement === '::view-transition-new(semaine)');
     if (a && a.currentTime >= 110) break;
     if (performance.now() - t0 > 3000) break;
     await new Promise((ok) => requestAnimationFrame(ok));
   }
-  const tx = (el) => { if (!el) return null; const m = /matrix\(([^)]+)\)/.exec(getComputedStyle(el).transform); return m ? Math.round(+m[1].split(',')[4]) : 0; };
-  const lbl = document.querySelector('#racine .scroller .lbl-compacte');
-  const sc = document.querySelector('#racine .scroller');
+  const tx = (ps) => { const t = getComputedStyle(html, ps).transform; const m = /matrix\(([^)]+)\)/.exec(t); return m ? Math.round(+m[1].split(',')[4]) : (t === 'none' ? 0 : null); };
+  const pseudos = document.getAnimations().map((a) => a.effect && a.effect.pseudoElement).filter(Boolean);
+  const lbl = document.querySelector('#racine .lbl[data-vt="p1"]');
   return {
-    copie: !!copie,
-    vieille: copie ? tx(copie.querySelector('.grille')) : null,
-    nouvelle: tx(document.querySelector('#racine .entete-planning-scroll:not(.entete-glisse-ancien) .th[data-gi="0"]')),
-    lblGauche: lbl ? Math.round(lbl.getBoundingClientRect().left) : null,
-    grilleAnimee: sc.getAnimations({ subtree: true }).length,
-    pas: a ? Math.abs(Math.round(+/translateX\((-?[\d.]+)px\)/.exec(a.effect.getKeyframes()[1].transform)[1])) : null
+    classe: html.classList.contains('vt-semaine'),
+    pseudos,
+    vieille: tx('::view-transition-old(semaine)'), nouvelle: tx('::view-transition-new(semaine)'),
+    groupeNom: tx('::view-transition-group(vt-p1)'), lblGauche: lbl ? Math.round(lbl.getBoundingClientRect().left) : null,
+    dir: html.style.getPropertyValue('--vt-dir'), pas: parseFloat(html.style.getPropertyValue('--vt-pas'))
   };
 });
-const rangé = (page) => page.evaluate(() => !document.querySelector('#racine .entete-glisse-ancien')
-  && !document.querySelector('[style*="view-transition-name"]') && !document.documentElement.classList.contains('vt-semaine')
-  && document.querySelector('#racine .entete-planning-figee').getAnimations({ subtree: true }).length === 0);
+const rangé = (page) => page.evaluate(() => !document.documentElement.classList.contains('vt-semaine')
+  && !document.querySelector('[style*="view-transition-name"]') && document.getAnimations().every((a) => !(a.effect && /view-transition/.test(a.effect.pseudoElement || ''))));
 const lundi = (page) => page.evaluate(() => isoDeGi(Math.min(...[...document.querySelectorAll('#racine .th[data-gi]')].map((t) => +t.dataset.gi))));
 
 (async () => {
@@ -111,9 +110,11 @@ const lundi = (page) => page.evaluate(() => isoDeGi(Math.min(...[...document.que
   const toutesErreurs = [];
 
   // --- 1. Téléphone : en-tête au pixel de la grille, image par image -------
+  // Suite 90 : glissement réel, repli sans View Transitions.
   {
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 390, height: 800 }, hasTouch: true, bd: { personnes: PERS, taches: TACHES } });
     await page.waitForTimeout(400);
+    await sansViewTransitions(page);
     const de = await caseVide(page);
     await journaliserAlignement(page);
     await balayer(page, de, -150, 4, 10);
@@ -164,20 +165,21 @@ const lundi = (page) => page.evaluate(() => isoDeGi(Math.min(...[...document.que
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 1400, height: 900 }, bd: { personnes: PERS, taches: TACHES } });
     await page.waitForTimeout(400);
     const l0 = await lundi(page);
-    const lblAvant = await page.evaluate(() => Math.round(document.querySelector('#racine .scroller .lbl-compacte').getBoundingClientRect().left));
+    const lblAvant = await page.evaluate(() => Math.round(document.querySelector('#racine .lbl[data-vt="p1"]').getBoundingClientRect().left));
     await page.evaluate(() => document.getElementById('btnSemaineSuiv').click());
     let g = await etatGlissement(page);
-    verifier(g.copie && g.pas > 1000 && g.vieille < -20 && g.nouvelle > 20 && Math.abs(g.nouvelle - g.vieille - g.pas) <= 2,
-      '› en cours : l\'ancienne ligne des dates sort à gauche, la nouvelle entre par la droite, jointives (' + g.vieille + ' / ' + g.nouvelle + ', pas ' + g.pas + ')');
-    verifier(g.grilleAnimee === 0, '› en cours (suite 89) : ni la grille ni les bulles ne sont animées (' + g.grilleAnimee + ' animation(s))');
-    verifier(g.lblGauche !== null && Math.abs(g.lblGauche - lblAvant) <= 1, '› en cours : la case « Personne 1 » ne bouge pas (' + g.lblGauche + ' / ' + lblAvant + ')');
+    const attendus = ['::view-transition-old(semaine)', '::view-transition-new(semaine)', '::view-transition-group(vt-p1)', '::view-transition-group(vt-coin)'];
+    verifier(attendus.every((p) => g.pseudos.includes(p)), '› : ancienne et nouvelle semaine animées, cases des noms à part (' + attendus.filter((p) => !g.pseudos.includes(p)).join(', ') + ')');
+    verifier(g.dir === '1' && g.pas > 1000 && g.vieille < -20 && g.nouvelle > 20 && Math.abs(g.nouvelle - g.vieille - g.pas) <= 2,
+      '› en cours : l\'ancienne semaine sort à gauche, la nouvelle entre par la droite, jointives (' + g.vieille + ' / ' + g.nouvelle + ', pas ' + g.pas + ')');
+    verifier(g.groupeNom !== null && Math.abs(g.groupeNom - lblAvant) <= 1, '› en cours : la case « Personne 1 » ne bouge pas (' + g.groupeNom + ' / ' + lblAvant + ')');
     await page.waitForTimeout(600);
     const l1 = await lundi(page);
-    verifier(l0 === '2026-09-21' && l1 === '2026-09-28' && await rangé(page), '› fini : semaine du 28, copie de l\'en-tête retirée (' + l0 + ' → ' + l1 + ')');
+    verifier(l0 === '2026-09-21' && l1 === '2026-09-28' && await rangé(page), '› fini : semaine du 28, classe et noms retirés (' + l0 + ' → ' + l1 + ')');
 
     await page.evaluate(() => document.getElementById('btnSemainePrec').click());
     g = await etatGlissement(page);
-    verifier(g.copie && g.vieille > 20 && g.nouvelle < -20, '‹ en cours : sens inverse, l\'ancienne sort à droite (' + g.vieille + ' / ' + g.nouvelle + ')');
+    verifier(g.dir === '-1' && g.vieille > 20 && g.nouvelle < -20, '‹ en cours : sens inverse, l\'ancienne sort à droite (' + g.vieille + ' / ' + g.nouvelle + ')');
     await page.waitForTimeout(600);
     verifier(await lundi(page) === '2026-09-21' && await rangé(page), '‹ fini : retour semaine du 21, rien qui traîne');
 
@@ -196,7 +198,7 @@ const lundi = (page) => page.evaluate(() => isoDeGi(Math.min(...[...document.que
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 1400, height: 900 }, bd: { personnes: PERS, taches: TACHES } });
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.waitForTimeout(300);
-    const r = await page.evaluate(() => { document.getElementById('btnSemaineSuiv').click(); return !!document.querySelector('.entete-glisse-ancien'); });
+    const r = await page.evaluate(() => { document.getElementById('btnSemaineSuiv').click(); return document.documentElement.classList.contains('vt-semaine'); });
     await page.waitForTimeout(200);
     verifier(!r && await lundi(page) === '2026-09-28' && await rangé(page), '« réduire les animations » : semaine suivante affichée sans glissement');
     toutesErreurs.push(...erreurs);
@@ -205,7 +207,7 @@ const lundi = (page) => page.evaluate(() => isoDeGi(Math.min(...[...document.que
   {
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 390, height: 800 }, hasTouch: true, bd: { personnes: PERS, taches: TACHES } });
     await page.waitForTimeout(300);
-    const r = await page.evaluate(() => { naviguerSemaine(1); return !!document.querySelector('.entete-glisse-ancien'); });
+    const r = await page.evaluate(() => { naviguerSemaine(1); return document.documentElement.classList.contains('vt-semaine'); });
     await page.waitForTimeout(500);
     verifier(!r && await page.evaluate(() => jourMobileIso) === '2026-10-01' && await rangé(page), 'téléphone, vue 1 jour : semaine suivante sans glissement de semaine (le jour glisse déjà) — jeudi 1er');
     toutesErreurs.push(...erreurs);

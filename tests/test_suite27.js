@@ -176,5 +176,5 @@ const toastTexte = (page) => page.evaluate(() => document.getElementById('toast'
   }
 
   await browser.close();
-  bilan(toutesErreurs);
+  process.exit(bilan(toutesErreurs));
 })();

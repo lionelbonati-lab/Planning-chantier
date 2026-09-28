@@ -282,4 +282,15 @@ async function glisserDoigt(page, departX, arriveeX, y) {
   await page.waitForTimeout(300);
 }
 
-module.exports = { FAUX_SUPABASE, ouvrirPlanning, verificateur, glisserDoigt, glisserBulleDoigt, lancerNavigateur, sourceApp };
+// Round du 28.09.2026 (suite 90) : en vue « 1 jour » du téléphone, le
+// changement de jour au doigt passe désormais par la page photographiée
+// (API View Transitions, tournerPageJour_ — test_suite90.js) : la grille
+// ne défile plus sous le doigt. Les tests du glissement réel (image par
+// image, hauteurs qui suivent, en-tête au pixel — suites 57, 58, 72)
+// restent valables pour le repli des navigateurs sans l'API : ils
+// l'enlèvent avec ceci avant leur geste.
+function sansViewTransitions(page) {
+  return page.evaluate(() => { document.startViewTransition = undefined; });
+}
+
+module.exports = { FAUX_SUPABASE, ouvrirPlanning, verificateur, glisserDoigt, glisserBulleDoigt, lancerNavigateur, sourceApp, sansViewTransitions };

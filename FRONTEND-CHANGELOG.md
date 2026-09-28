@@ -9944,3 +9944,38 @@ Lionel :
   - test_suite62, 64, 67, 79 et 84 : réglages lus dans localStorage ; nouveau cas : un autre téléphone ne voit pas les réglages du premier ;
   - test_suite76 : nouveaux libellés de la page Affichage.
 - Suite complète : 94/94.
+
+## 198. Round du 28.09.2026 (suite 90) — Page du jour au doigt sur téléphone ; retour du glissement de toute la semaine ; noms et séparations qui s'adaptent ; position verticale gardée au rendu ; 8 tests muets réparés
+- « "Changement de semaine : seules les dates de l'en-tête glissent. Le quadrillage et les bulles ne sont plus animés, ils changent sur place." Ce n'est pas ce que je voulais. Je voulais que seule la première colonne et les séparations s'adaptent. Le planning glisse mais ne modifie pas ses hauteurs de ligne. Entant donné qu'on a un bordure entre chaque jour un décalage de hauteur entre 2 jours n'est pas grave car on le verra plus une fois aimanté. »
+- Réponses de Lionel : vue concernée = « Les deux » (vue 1 jour du téléphone et changement de semaine) ; noms = « Suivent le doigt » ; ordinateur = « Appliquer le nouveau principe ».
+
+### Ce qui change
+- **Téléphone, vue 1 jour** : le jour affiché et le jour suivant (ou précédent) sont photographiés chacun avec ses propres hauteurs de ligne, et glissent côte à côte, jointifs, au rythme exact du doigt. La grille ne recalcule plus ses hauteurs à chaque pixel : elle n'a que deux jeux de hauteurs, celui du jour de départ et celui du jour d'arrivée. Le petit décalage de hauteur entre les deux jours se voit à la bordure qui les sépare, et disparaît une fois le jour aimanté.
+  - La colonne des noms et les bandes « Personnel » / « Intervenants » passent de leur hauteur de départ à celle d'arrivée au prorata du doigt (le texte reste centré sur sa ligne, il ne saute pas).
+  - Au lâcher, même règle qu'avant (`calageJourCible_` : distance parcourue et élan) : le jour suivant s'aimante (lâché à 40 %), ou retour au jour de départ (lâché à 13 %, sans élan). Un doigt qui dépasse un jour entier enchaîne la page suivante (1,6 jour → deux jours plus loin).
+  - Deux balayages rapides enchaînés : le second est pris même pendant l'aimantation du premier.
+  - « Réduire les animations » : pas de photos, comme avant.
+- **Ordinateur et tablette, changement de semaine** : toute la semaine glisse de nouveau (grille, bulles, dates), comme avant la suite 89 ; la colonne des noms et les séparations passent d'une hauteur à l'autre pendant le glissement.
+- **Rendu** : un rendu (enregistrement, temps réel…) ne ramène plus le planning tout en haut ; la position verticale est gardée.
+- **Temps réel** : une relecture venue d'un autre appareil attend la fin de la page en cours.
+
+### Fonctionnement
+- **js/grille-interactions.js** :
+  - `pageJourEnCours` (global) et bloc « Page du jour » dans `creerDefilementManuel`. `pagePossible_()` : vue 1 jour du téléphone, `document.startViewTransition` présent, animations non réduites.
+  - `ouvrirPage_(xA, dir)` mesure la hauteur de la grille et le pas à l'écran, règle `--vt-noms`, `--vt-sortie`, `--vt-entree` et les masques, pose la classe `vt-page` et nomme la colonne des noms, puis `startViewTransition` : le rappel pose le jour B par `poserJourPage` (hauteurs figées sans transition).
+  - `pagePrete_` met en pause les animations `::view-transition*` ; `reglerPage_` règle `currentTime` selon la progression du doigt (1 s = une page, plafond 0,999). `suivrePage_` ouvre une page dès 2 px, en enchaîne une autre à 100 %, referme vers A sous 0 %.
+  - `glisserPage_` / `animerFinPage_` : aimantation ease-out cubique, 200 à 320 ms, sous `calageJourEnCours` (arrêt → `fermerPage_`). `fermerPage_(pg, versB)` : pose B ou repose A, puis `skipTransition`.
+  - Le calque des photos capte les touchers (`pointer-events: none` n'y fait rien dans Chromium) : un `pointerdown` en capture sur `document`, cible `<html>`, reprend le geste sur `.scroller` pendant l'aimantation. `doigtsSurPhotos` compte ces doigts pour `defilementArrete`.
+- **js/grille-rendu.js** :
+  - `glisserVersSemaine_`, `transitionSemaine_`, `nommerColonneNoms_` et les `data-vt` (coins, libellés, personnes, bandes) sont rétablis ; en vue 1 jour, c'est le libellé collé de la bande qui est nommé.
+  - `poserJourPage(sc, x)` pose un jour sans interpolation. `figerHauteursJourMobile(forcer, instantane)`. `mesurerVoisins_` et `defilementArrete` attendent la fin de la page.
+  - `render` remet `#app.scrollTop` après `construireGrille` (le vidage de `#racine` le ramenait à 0).
+- **js/donnees-sync.js** : `relireFenetre_` attend aussi `pageJourEnCours`.
+- **style.css** : règles `vt-semaine` d'avant la suite 89 rétablies ; `html.vt-page` : groupes 1 s linéaires, `touch-action: none`, photos de la semaine rognées à la colonne des noms, bande collée élargie à la colonne des noms ; images des noms en `object-fit: none`, centrées, rognées.
+
+### Tests
+- test_suite90.js, 17/17 : page au doigt (photos jointives, deux jeux de hauteurs seulement, noms et bande au prorata), lâchers à 40 %, 13 %, vers la droite et à 1,6 jour, relecture temps réel différée, animations réduites, ordinateur (semaine, noms, bandes), position verticale gardée au rendu, bande « Personnel » toujours collée.
+- aide_tests.js : `sansViewTransitions(page)`, utilisée par test_suite57, 58, 72 et 78, qui mesurent l'ancienne interpolation (toujours en service quand les animations sont réduites).
+- test_suite72 et test_suite74 : rétablis dans leur version d'avant la suite 89.
+- **Tests muets** : test_suite26, 27, 50, 51, 67, 69, 70 et 71 affichaient leur bilan sans code de sortie, et la suite les comptait réussis même en échec. Ils finissent par `process.exit(bilan(...))`. Seul test_suite26 échouait réellement (balayage tablette parti du centre, qui ne change plus de semaine depuis la suite 89) : il part désormais du bord gauche.
+- Suite complète : 95/95.
