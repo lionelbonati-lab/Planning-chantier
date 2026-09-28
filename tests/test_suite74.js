@@ -15,8 +15,7 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //      vendredi 18, la bande entre semaines, les noms, lundi 21 → vendredi
 //      25, la bande, un bord du lundi 28, aussi large que celui du vendredi ;
 //      case du mois : septembre seul ; rien du vendredi sous les noms ;
-//   3. molette horizontale : semaine suivante, glissement où les 2 lignes
-//      des dates (suite 89 : seules à glisser, grille et bulles immobiles)
+//   3. molette horizontale : semaine suivante, glissement où les 2 photos
 //      ont chacune leur pas (l'ancienne jusqu'à ce que son vendredi arrive
 //      dans le bord gauche) ; même disposition à l'arrivée, défilement tenu ;
 //   4. une bulle glissée dans le bord gauche : posée le vendredi d'avant ;
@@ -31,8 +30,14 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //       sur les côtés (la barre d'outils garde sa marge) ;
 //   8. week-ends affichés : le vendredi 18 dans le bord gauche (pas le
 //      dimanche 20), aucun samedi/dimanche des semaines voisines, ceux de
-//      la semaine affichée présents ; glissement : l'ancienne ligne va
+//      la semaine affichée présents ; glissement : l'ancienne photo va
 //      jusqu'à mettre son vendredi (pas son dimanche) dans le bord gauche.
+//
+// Round du 28.09.2026 (suite 90) — Lionel, retour sur la suite 89 : « Je
+// voulais que seule la première colonne et les séparations s'adaptent. Le
+// planning glisse mais ne modifie pas ses hauteurs de ligne. » Le
+// glissement de toute la semaine (View Transitions) est rétabli : ce test
+// reprend ses vérifications d'avant la suite 89.
 //
 // Lancer : node test_suite74.js
 
@@ -50,7 +55,7 @@ TACHES.push({ id: id++, personne_id: 2, date: '2026-09-26', demi: 'matin', ordre
 const dispo = (page) => page.evaluate(() => {
   const sc = document.querySelector('.scroller'), rs = sc.getBoundingClientRect(), g = rs.left + sc.clientLeft;
   const th = (gi) => document.querySelector('.entete-planning-figee .th[data-gi="' + gi + '"]');
-  const lbl = sc.querySelector('.lbl.lbl-compacte').getBoundingClientRect();
+  const lbl = sc.querySelector('.lbl[data-vt]').getBoundingClientRect();
   const n = nbJoursAffiches();
   const ven = th(4).getBoundingClientRect(), lun = th(5).getBoundingClientRect(), lunS = th(n - 5).getBoundingClientRect();
   const seps = [...document.querySelectorAll('#racine > .sep-semaines.sep-bas')].filter((s) => !s.hidden).map((s) => Math.round(s.getBoundingClientRect().left - g));
@@ -112,7 +117,7 @@ const interrupteur = async (page) => {
       'collé aux bords de la fenêtre : ni marge, ni bord, ni coin arrondi sur les côtés ; la barre garde sa marge (' + JSON.stringify(cote) + ')');
     verifier(/sept/i.test(d.coin) && !/oct/i.test(d.coin), 'case du mois : septembre seul, pas le lundi 28 (« ' + d.coin + ' »)');
     const visibles = await page.evaluate(() => {
-      const sc = document.querySelector('.scroller'), lbl = sc.querySelector('.lbl.lbl-compacte').getBoundingClientRect(), out = [];
+      const sc = document.querySelector('.scroller'), lbl = sc.querySelector('.lbl[data-vt="p1"]').getBoundingClientRect(), out = [];
       for (const b of sc.querySelectorAll('.bulle')) {
         const r = b.querySelector('.b-carte').getBoundingClientRect(), y = r.top + r.height / 2;
         for (let x = lbl.left + 2; x < lbl.right - 1; x += 6) { const e = document.elementFromPoint(x, y); if (e && e.closest('.bulle') === b) { out.push(b.textContent.trim()); break; } }
@@ -130,41 +135,29 @@ const interrupteur = async (page) => {
     const sc = await page.evaluate(() => { const r = document.querySelector('.scroller').getBoundingClientRect(); return { x: r.left + 400, y: r.top + 200 }; });
     await page.mouse.move(sc.x, sc.y);
     await page.mouse.wheel(120, 0);
-    // Suite 89 : plus de View Transitions — seule la ligne des dates glisse
-    // (copie de l'ancienne + cases de la nouvelle) ; animations figées en
-    // juste avant la fin (339 ms) pour lire le pas de chacune.
     const vt = await page.evaluate(async () => {
-      const t0 = performance.now(); let copie;
-      for (;;) { copie = document.querySelector('#racine .entete-glisse-ancien'); if (copie || performance.now() - t0 > 3000) break; await new Promise((ok) => requestAnimationFrame(ok)); }
-      if (!copie) return null;
-      const anims = document.querySelector('#racine .entete-planning-figee').getAnimations({ subtree: true });
-      anims.forEach((x) => { x.pause(); x.currentTime = 339; });
+      const t0 = performance.now(); let a;
+      for (;;) { a = document.getAnimations().find((x) => x.effect && x.effect.pseudoElement === '::view-transition-old(semaine)'); if (a || performance.now() - t0 > 3000) break; await new Promise((ok) => requestAnimationFrame(ok)); }
+      if (!a) return null;
+      const anims = document.getAnimations().filter((x) => x.effect && /view-transition/.test(x.effect.pseudoElement || ''));
+      anims.forEach((x) => { x.pause(); x.currentTime = 340; });
       await new Promise((ok) => requestAnimationFrame(ok));
-      const tx = (el) => { const m = /matrix\(([^)]+)\)/.exec(getComputedStyle(el).transform); return m ? Math.round(+m[1].split(',')[4]) : 0; };
-      const neuve = document.querySelector('#racine .entete-planning-scroll:not(.entete-glisse-ancien) .th[data-gi="5"]');
-      const fin = { vieille: tx(copie.querySelector('.grille')), nouvelle: tx(neuve) };
-      anims.forEach((x) => { x.currentTime = 0; });
-      await new Promise((ok) => requestAnimationFrame(ok));
-      // Parties gardées : la copie masque sa colonne des noms et le lundi
-      // d'après ; la nouvelle ligne cache son bord gauche (le vendredi 25).
-      const masquees = [...copie.querySelectorAll('.th')].filter((t) => t.style.visibility === 'hidden' && !t.classList.contains('coin')).length;
-      const ven = document.querySelector('#racine .entete-planning-scroll:not(.entete-glisse-ancien) .th[data-gi="4"]');
-      const r = Object.assign(fin, { depart: tx(neuve), masquees, venCache: getComputedStyle(ven).opacity === '0',
-        grilleAnimee: document.querySelector('#racine .scroller').getAnimations({ subtree: true }).length });
+      const html = document.documentElement, tx = (ps) => { const m = /matrix\(([^)]+)\)/.exec(getComputedStyle(html, ps).transform); return m ? Math.round(+m[1].split(',')[4]) : 0; };
+      const r = { bords: html.classList.contains('vt-bords'), vieille: tx('::view-transition-old(semaine)'), nouvelle: tx('::view-transition-new(semaine)'),
+        masque: getComputedStyle(html, '::view-transition-old(semaine)').maskImage || getComputedStyle(html, '::view-transition-old(semaine)').webkitMaskImage };
       anims.forEach((x) => x.play());
       return r;
     });
     await page.waitForTimeout(700);
     d = await dispo(page);
-    // Pas attendu de l'ancienne ligne des dates : du bord du vendredi d'avant (bande
+    // Pas attendu de l'ancienne photo : du bord du vendredi d'avant (bande
     // de gauche) à la bande de droite ; de la nouvelle : un lundi au suivant.
     const pasAncienne = avant.lundiS - (avant.bordG + 1), pasNouvelle = avant.lundiS - avant.lundi;
-    verifier(vt && Math.abs(vt.vieille + pasAncienne) <= 2 && Math.abs(vt.nouvelle) <= 1 && Math.abs(vt.depart - pasNouvelle) <= 2 && vt.masquees > 0 && vt.venCache,
-      'glissement : l\'ancienne ligne des dates va jusqu\'à mettre son vendredi dans le bord gauche (' + (vt && vt.vieille) + ' px, attendu ' + -pasAncienne + '), la nouvelle part du lundi d\'après et arrive à sa place (' + JSON.stringify(vt) + ')');
-    verifier(vt && vt.grilleAnimee === 0, 'glissement (suite 89) : ni la grille ni les bulles ne sont animées');
+    verifier(vt && vt.bords && Math.abs(vt.vieille + pasAncienne) <= 2 && Math.abs(vt.nouvelle) <= 1 && /gradient/.test(vt.masque || ''),
+      'glissement : l\'ancienne semaine va jusqu\'à mettre son vendredi dans le bord gauche (' + (vt && vt.vieille) + ' px, attendu ' + -pasAncienne + '), la nouvelle arrive à sa place (' + JSON.stringify(vt) + ')');
     verifier(d.lunIso === '2026-09-28' && d.venIso === '2026-09-25' && d.lunSIso === '2026-10-05' && bordOk(d) && d.lundi === avant.lundi && d.noms === avant.noms,
       'arrivée : bord du vendredi 25, noms, lundi 28 à la même place, bord du lundi 5 (' + JSON.stringify(d) + ')');
-    verifier(pasNouvelle > 0 && await page.evaluate(() => !document.querySelector('#racine .entete-glisse-ancien')), 'glissement rangé');
+    verifier(pasNouvelle > 0 && await page.evaluate(() => !document.documentElement.classList.contains('vt-bords') && !document.documentElement.classList.contains('vt-semaine')), 'glissement rangé');
     await page.mouse.wheel(-120, 0);
     await page.waitForTimeout(900);
     d = await dispo(page);
@@ -224,13 +217,13 @@ const interrupteur = async (page) => {
     await page.mouse.move(sc.x, sc.y);
     await page.mouse.wheel(120, 0);
     const vtWe = await page.evaluate(async () => {
-      const t0 = performance.now(); let copie;
-      for (;;) { copie = document.querySelector('#racine .entete-glisse-ancien'); if (copie || performance.now() - t0 > 3000) break; await new Promise((ok) => requestAnimationFrame(ok)); }
-      if (!copie) return null;
-      const anims = document.querySelector('#racine .entete-planning-figee').getAnimations({ subtree: true });
-      anims.forEach((x) => { x.pause(); x.currentTime = 339; });
+      const t0 = performance.now(); let a;
+      for (;;) { a = document.getAnimations().find((x) => x.effect && x.effect.pseudoElement === '::view-transition-old(semaine)'); if (a || performance.now() - t0 > 3000) break; await new Promise((ok) => requestAnimationFrame(ok)); }
+      if (!a) return null;
+      const anims = document.getAnimations().filter((x) => x.effect && /view-transition/.test(x.effect.pseudoElement || ''));
+      anims.forEach((x) => { x.pause(); x.currentTime = 340; });
       await new Promise((ok) => requestAnimationFrame(ok));
-      const m = /matrix\(([^)]+)\)/.exec(getComputedStyle(copie.querySelector('.grille')).transform);
+      const m = /matrix\(([^)]+)\)/.exec(getComputedStyle(document.documentElement, '::view-transition-old(semaine)').transform);
       anims.forEach((x) => x.play());
       return m ? Math.round(+m[1].split(',')[4]) : 0;
     });

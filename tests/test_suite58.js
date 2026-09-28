@@ -1,5 +1,5 @@
 const { chromium } = require('playwright');
-const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests');
+const { ouvrirPlanning, verificateur, lancerNavigateur, sansViewTransitions } = require('./aide_tests');
 
 // Round du 26.09.2026 (suite 58). Lionel, sur son téléphone, après la
 // suite 57 :
@@ -121,9 +121,11 @@ const journaliser = (page, duree) => page.evaluate((duree) => {
   }
 
   // --- 2. Jeudi → vendredi : hauteurs qui suivent, rien après l'arrivée ---
+  // Suite 90 : repli sans View Transitions (cf. sansViewTransitions).
   {
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 390, height: 800 }, hasTouch: true, bd: { personnes: PERS, taches: TACHES } });
     await page.waitForTimeout(500);
+    await sansViewTransitions(page);
     const de = await caseVide(page);
     const hJeudi = await page.evaluate(() => Math.round(document.querySelectorAll('.scroller .lbl')[0].getBoundingClientRect().height));
     await journaliser(page, 1400);

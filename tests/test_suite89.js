@@ -23,8 +23,9 @@ const { ouvrirPlanning, verificateur, glisserDoigt, lancerNavigateur } = require
 //      prend sa place ; les cases ne bougent pas ;
 //   5. tablette, jours voisins : défilement horizontal coupé (plus de
 //      tremblement), balayage au centre = semaine suivante.
-// (Glissement de semaine limité aux dates : test_suite72.js et
-// test_suite74.js ; balayage par les bords : test_swipe_tablette_1semaine.js.)
+// (Glissement de semaine : test_suite72.js et test_suite74.js — limité aux
+// dates par la suite 89, toute la semaine à nouveau depuis la suite 90,
+// cf. test_suite90.js ; balayage par les bords : test_swipe_tablette_1semaine.js.)
 //
 // Lancer : node test_suite89.js
 

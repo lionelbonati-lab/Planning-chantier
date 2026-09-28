@@ -262,6 +262,10 @@
   // son jour d'arrivée : deux balayages rapides avancent de deux jours.
   // Lu aussi par defilementArrete (grille-rendu.js), qui attend sa fin.
   var calageJourEnCours = null;
+  // Page du jour en cours (suite 90, cf. tournerPageJour_ dans
+  // creerDefilementManuel) — lue par grille-rendu.js et donnees-sync.js,
+  // qui ne touchent pas à la grille tant qu'elle est sous sa photo.
+  var pageJourEnCours = null;
   var VITESSE_CHANGEMENT_JOUR = 0.25, PART_CHANGEMENT_JOUR = 0.3;
   function mouvementReduit_() {
     return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
@@ -295,10 +299,13 @@
   // `interrompu` : le geste a coupé un glissement en cours, `depart` est
   // alors son jour d'arrivée — un nouveau balayage dans le même sens va au
   // jour d'après, même s'il n'a pas encore été atteint.
-  function calageJourCible_(scroller, depart, vitesse, interrompu) {
+  // `x` (suite 90) : position où en est le geste, quand ce n'est pas celle
+  // de la grille (page du jour : la grille est déjà sur le jour d'arrivée,
+  // sous sa photo).
+  function calageJourCible_(scroller, depart, vitesse, interrompu, x) {
     var R = reperesJour_(scroller);
     if (!R.length) return null;
-    var f = rangFractionnaire_(R, scroller.scrollLeft);
+    var f = rangFractionnaire_(R, x != null ? x : scroller.scrollLeft);
     var b = Math.round(rangFractionnaire_(R, depart));
     var i;
     if (vitesse >= VITESSE_CHANGEMENT_JOUR) { i = Math.ceil(f - 0.001); if (interrompu && i <= b) i = b + 1; }
@@ -379,6 +386,196 @@
       }
       raf = requestAnimationFrame(image);
     }
+    // ---- Page du jour — round du 28.09.2026 (suite 90) -------------------
+    // Lionel : « Je voulais que seule la première colonne et les séparations
+    // s'adaptent. Le planning glisse mais ne modifie pas ses hauteurs de
+    // ligne. Étant donné qu'on a une bordure entre chaque jour, un décalage
+    // de hauteur entre 2 jours n'est pas grave car on ne le verra plus une
+    // fois aimanté. » ; colonne des noms et séparations : « Suivent le
+    // doigt ». Jusqu'ici, sous le doigt, la grille défilait vraiment et
+    // TOUTES ses lignes passaient, image par image, de la hauteur du jour
+    // quitté à celle du jour qui arrive (suivreHauteursJourMobile, suite
+    // 58) : quadrillage et bulles remis en page à chaque image, et des
+    // lignes qui gonflent ou se tassent pendant le geste.
+    // Désormais, dès que le geste est reconnu horizontal, le navigateur
+    // photographie la page (API View Transitions), la grille est posée d'un
+    // coup sur le jour voisin dans le sens du geste, avec SES hauteurs
+    // (poserJourPage, grille-rendu.js), puis photographiée à nouveau. Les 2
+    // photos — chacune avec ses propres hauteurs de lignes — glissent côte à
+    // côte, jointives à la bordure entre les 2 jours ; seules les cases de
+    // la colonne des noms et les bandes Personnel / Intervenants passent de
+    // leur hauteur, de leur place, à celles du jour d'arrivée. Rien n'est
+    // remis en page pendant le geste : le doigt ne fait que régler l'instant
+    // des animations, mises en pause (1 s = page entière, style.css,
+    // html.vt-page). Au lâcher, même choix du jour d'arrivée qu'avant
+    // (calageJourCible_) et même glissement décéléré, sur les photos : jour
+    // voisin gardé (la grille y est déjà), ou retour au jour de départ
+    // (grille reposée dessus juste avant de retirer les photos).
+    // Doigt qui dépasse le jour voisin sans se lever : la page est gardée
+    // et la suivante s'ouvre depuis ce jour ; qui revient en deçà du jour de
+    // départ : la page est refermée et une autre s'ouvre de l'autre côté.
+    // Navigateur sans l'API, système qui demande de réduire les
+    // animations, hors vue « 1 jour » : défilement réel, comme avant.
+    var pageGeste = null, page = null;
+    function pagePossible_() {
+      return !!(scroller && typeof document.startViewTransition === "function" && !mouvementReduit_()
+        && scroller.closest("#racine.vue-jour-mobile") && scroller.querySelector(".snap-jour"));
+    }
+    function ouvrirPage_(xA, dir) {
+      var racine = scroller.closest("#racine");
+      if (!racine) return null;
+      var LN = largeurNoms(), maxScroll = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+      var reps = [].map.call(scroller.querySelectorAll(".snap-jour"), function (el) { return { x: Math.max(0, Math.min(maxScroll, el.offsetLeft - LN)), el: el }; })
+        .sort(function (a, b) { return a.x - b.x; })
+        .filter(function (r, i, t) { return i === 0 || r.x - t[i - 1].x >= 1; });
+      var iA = -1;
+      reps.forEach(function (r, i) { if (Math.abs(r.x - xA) < 1) iA = i; });
+      var rB = iA >= 0 ? reps[iA + dir] : null;
+      if (!rB) return null;
+      // Bord gauche du jour posé (= bord des noms) et pas d'un jour, à
+      // l'écran, dans le repère de la photo (#racine).
+      var r = racine.getBoundingClientRect(), gA = reps[iA].el.getBoundingClientRect().left - r.left;
+      var pas = Math.abs(rB.el.getBoundingClientRect().left - r.left - gA);
+      if (pas < 1) return null;
+      var html = document.documentElement, px = function (v) { return Math.round(v * 10) / 10 + "px"; };
+      // Photo du jour qui a le jour d'après à sa droite : gardée jusqu'à la
+      // bordure de ce jour ; photo du jour qui a la veille à sa gauche :
+      // gardée à partir de sa propre bordure.
+      var jusquAuSuivant = "linear-gradient(to right, #000 " + px(gA + pas) + ", transparent " + px(gA + pas) + ")";
+      var aPartirDuJour = "linear-gradient(to right, transparent " + px(gA - 1) + ", #000 " + px(gA - 1) + ")";
+      html.style.setProperty("--vt-noms", px(gA));
+      html.style.setProperty("--vt-sortie", px(-dir * pas));
+      html.style.setProperty("--vt-entree", px(dir * pas));
+      html.style.setProperty("--vt-masque-ancien", dir > 0 ? jusquAuSuivant : aPartirDuJour);
+      html.style.setProperty("--vt-masque-nouveau", dir > 0 ? aPartirDuJour : jusquAuSuivant);
+      html.classList.add("vt-page");
+      nommerColonneNoms_(true);
+      var pg = { xA: xA, xB: rB.x, geste: pageGeste, t: null, anims: null, prog: 0, raf: null, fini: false, posee: false, fin: null };
+      pageJourEnCours = pg;
+      pg.t = document.startViewTransition(function () {
+        // Page déjà refermée avant sa 2e photo : grille laissée où
+        // fermerPage_ l'a mise.
+        if (pg.fini) return;
+        pg.posee = poserJourPage(scroller, pg.xB);
+        nommerColonneNoms_(true);
+      });
+      pg.t.ready.then(function () { pagePrete_(pg); }, function () { fermerPage_(pg, false); });
+      var nettoyer = function () {
+        if (pageJourEnCours && pageJourEnCours !== pg) return; // une autre page a pris le relais
+        if (pageJourEnCours === pg) pageJourEnCours = null;
+        html.classList.remove("vt-page");
+        nommerColonneNoms_(false);
+      };
+      pg.t.finished.then(nettoyer, nettoyer);
+      return pg;
+    }
+    function reglerPage_(pg, p) {
+      pg.prog = p = Math.max(0, Math.min(1, p));
+      // Jamais tout à fait au bout : une animation finie terminerait la
+      // transition d'elle-même.
+      pg.anims.forEach(function (a) {
+        var d = a.effect.getComputedTiming().duration;
+        if (typeof d === "number" && d > 0) a.currentTime = Math.min(p, 0.999) * d;
+      });
+    }
+    function pagePrete_(pg) {
+      if (pg.fini) return;
+      // Grille pas posée (plus en vue « 1 jour ») : page refermée, le geste
+      // ne fait plus rien.
+      if (!pg.posee) { fermerPage_(pg, false); if (pageGeste === pg.geste) pageGeste = null; return; }
+      pg.anims = document.getAnimations().filter(function (a) { return a.effect && /^::view-transition/.test(a.effect.pseudoElement || ""); });
+      pg.anims.forEach(function (a) { a.pause(); });
+      reglerPage_(pg, (pg.geste.xVirt - pg.xA) / (pg.xB - pg.xA));
+      if (pg.fin) animerFinPage_(pg);
+      else if (pageGeste === pg.geste) suivrePage_();
+    }
+    // Fin d'une page : jour d'arrivée gardé (versB, la grille y est déjà —
+    // posée ici si la page est coupée avant sa 2e photo) ou grille reposée
+    // sur le jour de départ, AVANT de retirer les photos (même tâche : aucune
+    // image entre les deux).
+    function fermerPage_(pg, versB) {
+      if (pg.fini) return;
+      pg.fini = true;
+      if (pg.raf) { cancelAnimationFrame(pg.raf); pg.raf = null; }
+      if (versB && !pg.posee) pg.posee = poserJourPage(scroller, pg.xB);
+      else if (!versB && pg.posee) { poserJourPage(scroller, pg.xA); pg.posee = false; }
+      try { pg.t.skipTransition(); } catch (ex) {}
+      if (page === pg) page = null;
+      if (pageJourEnCours === pg) pageJourEnCours = null;
+    }
+    function suivrePage_() {
+      var g = pageGeste;
+      for (var n = 0; g && n < 4; n++) {
+        if (!page) {
+          var d = g.xVirt - g.xPose;
+          // Quelques px de marge : un doigt qui tremble au bord d'un jour
+          // n'ouvre et ne referme pas une page à chaque image.
+          if (Math.abs(d) < 2) return;
+          page = ouvrirPage_(g.xPose, d > 0 ? 1 : -1);
+          if (!page) g.xVirt = g.xPose; // plus de jour de ce côté
+          return;
+        }
+        if (!page.anims) return; // photos pas encore prêtes : réglée à pagePrete_
+        var pg = page, p = (g.xVirt - pg.xA) / (pg.xB - pg.xA);
+        if (p >= 1) { fermerPage_(pg, true); g.xPose = pg.xB; continue; }
+        if (p < 0) { fermerPage_(pg, false); g.xPose = pg.xA; continue; }
+        reglerPage_(pg, p);
+        return;
+      }
+    }
+    // Lâcher : jour d'arrivée choisi tout de suite (même règle que
+    // calageJourCible_, depuis là où en est le doigt), même si les photos ne
+    // sont pas encore prêtes — un balayage suivant qui coupe la page part
+    // alors de ce jour (calageJourEnCours.cible), comme avant. Puis
+    // glissement sur les photos (même courbe et même durée que
+    // glisserVersJour) et « jour-cale » comme lui.
+    function glisserPage_(pg, vitesse) {
+      var xVirt = Math.max(Math.min(pg.xA, pg.xB), Math.min(Math.max(pg.xA, pg.xB), pg.geste.xVirt));
+      var cible = calageJourCible_(scroller, departX, vitesse, departInterrompu, xVirt);
+      var versB = cible !== null && (cible - pg.xA) * (pg.xB - pg.xA) > 0;
+      var moi = { cible: versB ? pg.xB : pg.xA, arreter: function () {
+        fermerPage_(pg, versB);
+        if (calageJourEnCours === moi) calageJourEnCours = null;
+        reactiverSnap_(scroller, etatSnap);
+      } };
+      pg.fin = { versB: versB, vitesse: vitesse, moi: moi };
+      calageMoi = moi;
+      calageJourEnCours = moi;
+      if (pg.anims) animerFinPage_(pg);
+    }
+    function animerFinPage_(pg) {
+      var f = pg.fin, p0 = pg.prog, but = f.versB ? 1 : 0;
+      var distance = Math.abs(but - p0) * Math.abs(pg.xB - pg.xA);
+      function finir() {
+        pg.raf = null;
+        f.moi.arreter();
+        scroller.dispatchEvent(new CustomEvent("jour-cale"));
+      }
+      if (distance < 1) { finir(); return; }
+      var duree = Math.max(200, Math.min(320, 3 * distance / Math.max(Math.abs(f.vitesse), 0.5)));
+      var t0 = null;
+      function image(t) {
+        if (pg.fini) return;
+        if (t0 === null) t0 = t;
+        var q = Math.min(1, (t - t0) / duree);
+        if (q >= 1) { finir(); return; }
+        reglerPage_(pg, p0 + (but - p0) * (1 - Math.pow(1 - q, 3)));
+        pg.raf = requestAnimationFrame(image);
+      }
+      pg.raf = requestAnimationFrame(image);
+    }
+    function relacherPage_(vitesse) {
+      pageGeste = null;
+      var pg = page;
+      if (!pg) {
+        // Aucune page ouverte (ou toutes gardées/refermées en chemin) : la
+        // grille est déjà sur son jour.
+        reactiverSnap_(scroller, etatSnap);
+        scroller.dispatchEvent(new CustomEvent("jour-cale"));
+        return;
+      }
+      glisserPage_(pg, vitesse);
+    }
     function finirSurRepere() {
       raf = null;
       // axe "y" (suite 26) : un geste vertical n'a jamais bougé scrollLeft,
@@ -421,12 +618,16 @@
         if (axe === "x" && departX === null && scroller) {
           departX = scroller.scrollLeft;
           if (calageJourEnCours) { departX = calageJourEnCours.cible; departInterrompu = true; calageJourEnCours.arreter(); }
+          // Page du jour (suite 90) : le geste part du jour où est la grille
+          // (celui d'arrivée d'un glissement interrompu, déjà posé).
+          if (pagePossible_()) pageGeste = { xPose: scroller.scrollLeft, xVirt: scroller.scrollLeft };
         }
         // Snap CSS coupé seulement pour un geste horizontal : un geste
         // vertical ne touche jamais scrollLeft, le laisser actif garde le
         // jour exactement calé.
         if (axe === "x") desactiverSnapSiBesoin_(scroller, etatSnap);
-        if (dx && scroller) defilerHorizontal_(scroller, xCourant_(scroller) - dx, true);
+        if (pageGeste) { if (dx) { pageGeste.xVirt -= dx; suivrePage_(); } }
+        else if (dx && scroller) defilerHorizontal_(scroller, xCourant_(scroller) - dx, true);
         if (dy && app) app.scrollTop -= dy;
         if (dt > 0) { vx = vx * 0.7 + (dx / dt) * 0.3; vy = vy * 0.7 + (dy / dt) * 0.3; }
       },
@@ -434,6 +635,7 @@
         // Vue « 1 jour », geste horizontal (suite 57) : glissement jusqu'au
         // jour d'arrivée au lieu de l'inertie libre. vx suit le doigt :
         // défiler vers les jours suivants, c'est un doigt qui va à gauche.
+        if (pageGeste) { relacherPage_(-vx); return; }
         if (axe === "x" && scroller && departX !== null) {
           var cible = calageJourCible_(scroller, departX, -vx, departInterrompu);
           if (cible !== null) { glisserVersJour(cible, vx); return; }
@@ -445,9 +647,52 @@
       // symétrie avec suivre/relacher) : doit elle aussi rétablir le snap
       // CSS si suivre() l'avait désactivé — sinon un futur appelant qui
       // annule au lieu de relâcher laisserait .scroller sans aimantation.
-      annuler: function () { if (calageMoi) calageMoi.arreter(); if (raf) { cancelAnimationFrame(raf); raf = null; } vx = 0; vy = 0; reactiverSnap_(scroller, etatSnap); }
+      annuler: function () { pageGeste = null; if (page) fermerPage_(page, false); if (calageMoi) calageMoi.arreter(); if (raf) { cancelAnimationFrame(raf); raf = null; } vx = 0; vy = 0; reactiverSnap_(scroller, etatSnap); }
     };
   }
+
+  // Toucher pendant le glissement de fin de page (suite 90). Tant que les
+  // photos de la page du jour sont affichées, le navigateur envoie tout
+  // toucher au calque des photos (cible : <html>), pas à la grille — même
+  // avec pointer-events:none sur ::view-transition, essayé en vain. Un 2e
+  // balayage lancé pendant le glissement du 1er ne faisait donc rien, alors
+  // qu'avant, deux balayages rapides avançaient de deux jours. Ce toucher-
+  // là est suivi ici, comme le panoramique d'une case : même défilement
+  // manuel, qui coupe le glissement en cours au premier pas horizontal et
+  // ouvre la page suivante depuis son jour d'arrivée. Simple toucher sans
+  // geste : le jour est posé à la fin du glissement, comme d'habitude.
+  // doigtsSurPhotos : doigts posés sur le calque, lu par l'arrêt du
+  // défilement (grille-rendu.js) comme ses propres doigts posés.
+  var doigtsSurPhotos = 0;
+  ["touchstart", "touchend", "touchcancel"].forEach(function (type) {
+    document.addEventListener(type, function (e) {
+      if (e.target === document.documentElement) doigtsSurPhotos = e.touches.length;
+    }, { capture: true, passive: true });
+  });
+  document.addEventListener("pointerdown", function (e) {
+    if (e.target !== document.documentElement || e.pointerType === "mouse" || !pageJourEnCours || !pageJourEnCours.fin) return;
+    var scroller = document.querySelector("#racine.vue-jour-mobile .scroller");
+    if (!scroller) return;
+    var pointerId = e.pointerId, sx = e.clientX, sy = e.clientY, dernierX = sx, dernierY = sy, dernierT = e.timeStamp;
+    var enDefilement = false, defilementManuel = creerDefilementManuel(scroller);
+    function onMove(e2) {
+      if (e2.pointerId !== pointerId) return;
+      if (!enDefilement && Math.abs(e2.clientX - sx) + Math.abs(e2.clientY - sy) > SEUIL_DEFILEMENT) { enDefilement = true; defilementManuel.verrouillerAxe(e2.clientX - sx, e2.clientY - sy); }
+      if (enDefilement) defilementManuel.suivre(e2.clientX - dernierX, e2.clientY - dernierY, e2.timeStamp - dernierT);
+      dernierX = e2.clientX; dernierY = e2.clientY; dernierT = e2.timeStamp;
+    }
+    function onFin(e2) {
+      if (e2.pointerId !== pointerId) return;
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onFin);
+      document.removeEventListener("pointercancel", onFin);
+      if (enDefilement) defilementManuel.relacher();
+      else if (!calageJourEnCours && !pageJourEnCours && scroller.isConnected) scroller.dispatchEvent(new CustomEvent("jour-cale"));
+    }
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onFin);
+    document.addEventListener("pointercancel", onFin);
+  }, true);
 
   // demiDebut/demiFin (round du 08.09.2026, suite, encore — §49) : depuis
   // que TOUS les types de bulle (jalon/note/tâche/absence) portent

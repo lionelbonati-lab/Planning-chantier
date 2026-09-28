@@ -1,5 +1,5 @@
 const { chromium } = require('playwright');
-const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests');
+const { ouvrirPlanning, verificateur, lancerNavigateur, sansViewTransitions } = require('./aide_tests');
 
 // Round du 26.09.2026 (suite 57). Lionel : « La transition entre les jours
 // en mobile me dérange. Cherche une solution pour faire des transitions
@@ -115,9 +115,12 @@ const journaliser = (page, duree) => page.evaluate((duree) => new Promise((pret)
   }
 
   // --- 2. et 3. Image par image : glissement sans saut, hauteurs qui glissent ---
+  // Suite 90 : glissement réel, repli des navigateurs sans View Transitions
+  // (la page photographiée est vérifiée par test_suite90.js).
   {
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 390, height: 800 }, hasTouch: true, bd: { personnes: PERS, taches: TACHES } });
     await page.waitForTimeout(400);
+    await sansViewTransitions(page);
     const de = await caseVide(page);
     const avant = await jour(page);
     const hauteurJeudi = await page.evaluate(() => Math.round(document.querySelectorAll('.scroller .lbl')[1].getBoundingClientRect().height));

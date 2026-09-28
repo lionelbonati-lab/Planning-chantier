@@ -100,5 +100,5 @@ const lever = async (page) => {
 
   verifier(toutesErreurs.length === 0, 'aucune erreur JS (' + toutesErreurs.join(' | ') + ')');
   await browser.close();
-  bilan();
+  process.exit(bilan());
 })();

@@ -1936,7 +1936,9 @@
     clearTimeout(minuteurTempsReel_);
     minuteurTempsReel_ = null;
     if (!syncBaseline || !racineEl) return;
-    if (syncEnCours || syncRelance || popFermerActuel || document.body.classList.contains("en-glissement") || document.querySelector(".confirm-pop-serie")) {
+    // Page du jour tournée au doigt (suite 90, grille-interactions.js) : la
+    // grille reconstruite sous sa photo la couperait — relue plus tard.
+    if (syncEnCours || syncRelance || popFermerActuel || pageJourEnCours || document.body.classList.contains("en-glissement") || document.querySelector(".confirm-pop-serie")) {
       if (forcer) minuteurTempsReel_ = setTimeout(function () { relireFenetre_(true); }, 2000);
       return;
     }
