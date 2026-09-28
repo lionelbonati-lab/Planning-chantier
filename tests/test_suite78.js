@@ -25,6 +25,17 @@ const { ouvrirPlanning, verificateur, lancerNavigateur, sansViewTransitions } = 
 // sont réduites ou sans View Transitions : il tourne sans elles
 // (sansViewTransitions). La page photographiée est vérifiée par test_suite90.
 //
+// Round du 28.09.2026 (suite 91) — Lionel : « passer à des hauteur de ligne
+// fixe sur mobile. Plus de calculs de hauteur de ligne. Si pas assez de
+// place les bulles se chevaucheront telle des post'it. » Plus de ligne qui
+// rapetisse, ni de bulle « tenue » à sa place de la veille : les 3 bulles
+// de Lionel du jeudi sont en cascade DANS sa ligne, celles de François
+// restent dans la sienne, rognées au bas de la ligne (clip-path). Les
+// traits prolongés sur toute la largeur (ombre 100vw) sont retirés : plus
+// rien à couvrir. Le test vérifie désormais, en plein glissement, que la
+// bande « Intervenants » et le trait Lionel | Mathis restent visibles, les
+// bulles entières au-dessus.
+//
 // Lancer : node test_suite78.js
 
 const noms = ['Lionel', 'Mathis', 'Antoine', 'François', 'Béton'];
@@ -68,8 +79,9 @@ const ecart = (a, b) => Math.max(...a.map((v, i) => Math.abs(v - b[i])));
       return { sw, sans, deborde: lbl.scrollWidth > lbl.clientWidth + 1, prolonge: /100vw|360px/.test(apres.boxShadow) || parseFloat(apres.boxShadow.split(' ').slice(-1)[0]) >= 300, vw: innerWidth,
         zLbl: getComputedStyle(lbl).zIndex, zSection: getComputedStyle(s.querySelector('.section-row')).zIndex };
     });
-    verifier(repos.sw === repos.sans && !repos.deborde && repos.prolonge && repos.zLbl === '3' && repos.zSection === '3',
-      'téléphone au repos : traits entre personnes sur toute la largeur, bandes et noms au-dessus des bulles, défilement inchangé (' + JSON.stringify(repos) + ')');
+    // Suite 91 : traits plus prolongés (repos.prolonge faux).
+    verifier(repos.sw === repos.sans && !repos.deborde && !repos.prolonge && repos.zLbl === '3' && repos.zSection === '3',
+      'téléphone au repos : bandes et noms au-dessus des bulles, traits non prolongés (suite 91), défilement inchangé (' + JSON.stringify(repos) + ')');
 
     // Doigt posé au milieu du glissement jeudi → vendredi.
     const de = await page.evaluate(() => { const r = document.querySelectorAll('.scroller .lbl')[1].getBoundingClientRect(); return { x: 250, y: r.top + r.height / 2 }; });
@@ -83,28 +95,29 @@ const ecart = (a, b) => Math.max(...a.map((v, i) => Math.abs(v - b[i])));
     await pixels(page);
     const r = await page.evaluate(() => {
       const s = document.querySelector('.scroller'), LN = largeurNoms();
-      const carte = (txt) => [...s.querySelectorAll('.bulle')].find((b) => b.textContent.trim() === txt);
+      const carte = (txt) => [...s.querySelectorAll('.bulle')].find((b) => b.querySelector('.b-txt').textContent.trim() === txt);
       const bande = s.querySelector('.section-row-intervenants').getBoundingClientRect();
       const fr = carte('Descendre matériel coffrage'), frc = fr.querySelector('.b-carte').getBoundingClientRect();
       const lbls = [...s.querySelectorAll('.lbl')], lio = lbls.find((l) => /Lionel/.test(l.textContent)).getBoundingClientRect();
       const gab = carte('Gabarits'), gc = gab.querySelector('.b-carte').getBoundingClientRect();
       const coul = { bande: getComputedStyle(s.querySelector('.section-row-intervenants')).backgroundColor, bulle: getComputedStyle(fr.querySelector('.b-carte')).backgroundColor,
         trait: getComputedStyle(s.querySelector('.lbl'), '::after').backgroundColor };
-      // 1. Bulle de François sur la bande : au milieu du recouvrement, côté jours, et sous les noms.
-      const yB = (Math.max(bande.top, frc.top) + Math.min(bande.bottom, frc.bottom)) / 2;
-      const surBande = frc.bottom > bande.top + 2;
+      // 1. Suite 91 : bulle de François au-dessus de la bande (dans sa
+      // ligne) ; bande relevée en son milieu, côté jours et sous les noms.
+      const yB = (bande.top + bande.bottom) / 2;
+      const surBande = frc.bottom > bande.top + 0.5;
       // 2. 3e bulle de Lionel (Gabarits) à cheval sur le trait Lionel | Mathis.
       const yT = lio.bottom, xT = Math.max(gc.left, LN) + 20;
       const colonne = [-1, 0, 1].map((d) => window.__px(xT, Math.floor(yT) + d - 0.5));
-      return { surBande, bandeJour: window.__px(Math.max(frc.left, LN) + 20, yB), bandeNoms: window.__px(4, yB), aCheval: gc.top < yT - 2 && gc.bottom > yT + 2,
+      return { surBande, bandeJour: window.__px(Math.max(frc.left, LN) + 20, yB), bandeNoms: window.__px(4, yB), aCheval: gc.top < yT - 2 && gc.bottom > yT + 0.5,
         colonne, coul, ctx: { bande: [bande.top, bande.bottom], fr: [frc.top, frc.bottom, frc.left], gab: [gc.top, gc.bottom], yT } };
     });
     const cB = rgb(r.coul.bande), cBu = rgb(r.coul.bulle), cT = rgb(r.coul.trait);
-    verifier(r.surBande && ecart(r.bandeJour, cB) <= 3 && ecart(r.bandeNoms, cB) <= 3,
-      'en plein glissement : la bande « Intervenants » couvre la 2e bulle de François, côté jours et sous les noms (' + JSON.stringify({ jour: r.bandeJour, noms: r.bandeNoms, bande: cB, bulle: cBu, ctx: r.ctx }) + ')');
+    verifier(!r.surBande && ecart(r.bandeJour, cB) <= 3 && ecart(r.bandeNoms, cB) <= 3,
+      'en plein glissement : la 2e bulle de François reste dans sa ligne, la bande « Intervenants » entière, côté jours et sous les noms (' + JSON.stringify({ jour: r.bandeJour, noms: r.bandeNoms, bande: cB, bulle: cBu, ctx: r.ctx }) + ')');
     const auPlusPres = Math.min(...r.colonne.map((p) => ecart(p, cT)));
-    verifier(r.aCheval && auPlusPres < ecart(cT, cBu) / 2,
-      'en plein glissement : le trait Lionel | Mathis passe par-dessus la bulle tenue (' + JSON.stringify({ colonne: r.colonne, trait: cT, bulle: cBu, ctx: r.ctx }) + ')');
+    verifier(!r.aCheval && r.ctx.gab[0] > r.ctx.yT - 60 && auPlusPres < ecart(cT, cBu) / 2,
+      'en plein glissement : la 3e bulle de Lionel (cascade) finit dans sa ligne, le trait Lionel | Mathis visible sous elle (' + JSON.stringify({ colonne: r.colonne, trait: cT, bulle: cBu, ctx: r.ctx }) + ')');
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     await cdp.detach();
     toutesErreurs.push(...erreurs);

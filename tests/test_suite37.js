@@ -36,8 +36,12 @@ async function tap(page, a) {
   await cdp.detach();
 }
 const bulle = (texte) => [...document.querySelectorAll('.bulle')].find((e) => e.textContent.includes(texte));
+// Suite 91 : une carte par jour couvert en vue « 1 jour » — celle qui
+// est le plus à l'écran (la 1re si aucune).
 const carte = (page, texte) => page.evaluate(([x, src]) => {
-  const b = eval(src)(x); const c = b.querySelector('.b-carte'); const r = c.getBoundingClientRect();
+  const b = eval(src)(x), s = document.querySelector('.scroller').getBoundingClientRect();
+  const vis = (c) => { const r = c.getBoundingClientRect(); return Math.min(r.right, s.right) - Math.max(r.left, s.left); };
+  const c = [...b.querySelectorAll(':scope > .b-carte')].reduce((a, k) => (vis(k) > vis(a) ? k : a)); const r = c.getBoundingClientRect();
   return { g: r.left, d: r.right, l: r.width, x: r.left + r.width / 2, y: r.top + r.height / 2, cachee: c.style.display === 'none',
     styleL: c.style.width, maxL: getComputedStyle(c).maxWidth };
 }, [texte, '(' + bulle + ')']);
@@ -157,8 +161,10 @@ const pres = (a, b, tol) => Math.abs(a - b) <= (tol == null ? 1 : tol);
     // calcul de texte et bulles sur le jour avant et après le jour affiché »).
     verifier(!liv.cachee && liv.d <= f.g - 1 && pres(liv.l, (jour - 2) / 2), 'mardi posé : la carte du lundi (veille) sort de l\'écran, gardée à sa largeur du lundi (' + Math.round(liv.l) + ' px)');
     verifier(pres(dec.g, f.g) && pres(dec.d, f.d) && pres(gab2.d, f.d) && pres(gab2.l, (jour - 2) / 2), 'mardi posé : largeurs recalculées pour le jour fixé (' + Math.round(dec.l) + ' / ' + Math.round(gab2.l) + ' px)');
-    const pistes = await page.evaluate(() => document.querySelector('.scroller .grille').classList.contains('hauteurs-figees'));
-    verifier(pistes, 'mardi posé : hauteurs de lignes refigées pour ce jour');
+    // Suite 91 : plus de hauteurs refigées pour le jour posé — les lignes
+    // ont une hauteur fixe, la même tous les jours.
+    const pistes = await page.evaluate(() => /var\(--mob-h-pers\)/.test(document.querySelector('.scroller .grille').style.gridTemplateRows));
+    verifier(pistes, 'mardi posé : lignes toujours à leur hauteur fixe (suite 91)');
     toutesErreurs.push(...erreurs);
     await page.close();
   }

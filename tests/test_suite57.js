@@ -13,7 +13,8 @@ const { ouvrirPlanning, verificateur, lancerNavigateur, sansViewTransitions } = 
 // en-tête dans la même image que la grille. Vérifie, téléphone 390 px :
 //   1. le choix du jour d'arrivée (glissé lent / balayage vif / enchaîné) ;
 //   2. image par image : pas de saut, en-tête collé à la grille ;
-//   3. hauteurs qui glissent vers celles du jour posé ;
+//   3. hauteurs qui glissent vers celles du jour posé (suite 91 : lignes
+//      de hauteur fixe, identiques à chaque image) ;
 //   4. recentrage de la fenêtre de 2 semaines invisible ;
 //   5. « réduire les animations » : arrivée directe ;
 //   6. vue semaine (tablette) : pas de repère de jour, inertie libre.
@@ -145,16 +146,21 @@ const journaliser = (page, duree) => page.evaluate((duree) => new Promise((pret)
     verifier(apres.iso === '2026-09-25' && iArrivee > 0 && monotone && apresArrivee, 'glissement vers vendredi : toujours dans le même sens, puis immobile une fois arrivé (' + glissement.join(' ') + ')');
     verifier(dernierPas <= 6 && glissement.length >= 6, 'arrivée en douceur : dernier pas de ' + dernierPas + ' px (avant : saut de 74 px), ' + glissement.length + ' images');
     verifier(j.every((x) => x.e === null || Math.abs(x.e - x.g) < 1), 'en-tête des jours collé à la grille à chaque image (plus une image de retard)');
-    // Hauteurs : ligne de la personne 2, de jeudi (1 bulle) à vendredi (2 empilées).
+    // Hauteurs : ligne de la personne 2, de jeudi (1 bulle) à vendredi (2).
+    // Suite 91 (28.09.2026) — Lionel : « passer à des hauteur de ligne fixe
+    // sur mobile. Plus de calculs de hauteur de ligne. » Les hauteurs qui
+    // glissaient (suites 57, 58) disparaissent : la ligne garde la même
+    // hauteur à chaque image, et les 2 bulles du vendredi y tiennent l'une
+    // sous l'autre (réglage « Hauteur des lignes » : 2 bulles).
     const h2 = j.map((x) => x.lbl[1]);
-    const hVendredi = h2[h2.length - 1];
-    const intermediaires = [...new Set(h2.filter((h) => h > hauteurJeudi + 0.5 && h < hVendredi - 0.5))];
-    verifier(hVendredi > hauteurJeudi + 20 && intermediaires.length >= 3, 'hauteur de ligne qui glisse ' + hauteurJeudi + ' → ' + hVendredi + ' px, par ' + intermediaires.length + ' valeurs intermédiaires (avant : saut)');
-    // Suite 58 — Lionel : « il faudrait que ce soit progressif, durant le
-    // switch ». Les hauteurs suivent désormais le glissement de page lui-
-    // même : elles bougent avant l'arrivée, et plus du tout après.
-    const iPremiere = h2.findIndex((h) => h > hauteurJeudi + 0.5);
-    verifier(iPremiere > 0 && iPremiere < iArrivee && h2.slice(iArrivee).every((h) => Math.abs(h - hVendredi) < 0.5), 'les hauteurs changent pendant le glissement, et plus une fois le jour atteint (suite 58)');
+    verifier(h2.length > 5 && h2.every((h) => Math.abs(h - hauteurJeudi) < 0.5), 'hauteur de ligne fixe : ' + hauteurJeudi + ' px à chacune des ' + h2.length + ' images du glissement (suite 91 ; avant : hauteurs qui glissaient)');
+    const empile = await page.evaluate(() => {
+      const r = (t) => [...document.querySelectorAll('.scroller .bulle')].find((b) => b.querySelector('.b-txt').textContent.trim() === t).querySelector('.b-carte').getBoundingClientRect();
+      const lbl = document.querySelectorAll('.scroller .lbl')[1].getBoundingClientRect(), a = r('A'), b = r('B');
+      return { a: [a.top, a.bottom].map(Math.round), b: [b.top, b.bottom].map(Math.round), l: [lbl.top, lbl.bottom].map(Math.round) };
+    });
+    verifier(empile.b[0] >= empile.a[1] && empile.a[0] >= empile.l[0] && empile.b[1] <= empile.l[1],
+      'vendredi : A et B l\'une sous l\'autre dans la ligne de la personne 2 (' + JSON.stringify(empile) + ')');
     toutesErreurs.push(...erreurs);
     await page.close();
   }

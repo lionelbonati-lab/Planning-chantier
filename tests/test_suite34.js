@@ -125,11 +125,17 @@ const TELEPHONE = { viewport: { width: 390, height: 844 }, hasTouch: true, bd: B
       const ecarts = Object.keys(hJeudi).filter((k) => Math.abs(h[k] - (hJeudi[k] + (cible[k] - hJeudi[k]) * f)) > 1.5);
       verifier(ecarts.length === 0, 'doigt posé, décalage ' + d + ' jour : hauteurs au prorata entre jeudi et le jour qui arrive (' + e.lignes + ')');
     });
-    verifier(hMercredi.Mathis > hJeudi.Mathis + 20, 'doigt posé sur mercredi : la ligne de Mathis y a déjà sa hauteur du mercredi, avant même le lâcher (' + hJeudi.Mathis + ' → ' + hMercredi.Mathis + ')');
+    // Suite 91 (round du 28.09.2026) — Lionel : « passer à des hauteur de
+    // ligne fixe sur mobile. Plus de calculs de hauteur de ligne. » La ligne
+    // de Mathis ne grandit plus pour ses 2 bulles du mercredi : elle a la
+    // place de 2 bulles (réglage d'origine) tous les jours.
+    verifier(hMercredi.Mathis === hJeudi.Mathis && hVendredi.Mathis === hJeudi.Mathis && hJeudi.Mathis === hJeudi.Lionel, 'suite 91 : doigt posé sur mercredi, la ligne de Mathis garde sa hauteur fixe, la même que Lionel (' + hJeudi.Mathis + ' → ' + hMercredi.Mathis + ')');
     verifier([jeudi].concat(etapes.map((e) => e[1])).every((e) => e.coinDessus), 'la case de gauche de la ligne M | A reste au-dessus des jours qui défilent');
     verifier(jeudi.debord.length === 0, 'jour posé : aucun texte de bulle coupé par la hauteur figée');
-    const figees = await page.evaluate(() => [...document.querySelectorAll('.planning-racine .grille, .grille')].filter((g) => g.classList.contains('hauteurs-figees') && g.style.gridTemplateRows).length);
-    verifier(figees === 2, 'en-tête et corps : lignes de hauteur figée en vue « 1 jour » (' + figees + ')');
+    // Suite 91 : pistes de hauteur fixe (variables du réglage) posées une
+    // fois au rendu, plus de classe hauteurs-figees.
+    const figees = await page.evaluate(() => [...document.querySelectorAll('.grille')].filter((g) => /var\(--mob-h-(pers|jal)\)/.test(g.style.gridTemplateRows)).length);
+    verifier(figees === 2, 'en-tête et corps : lignes de hauteur fixe en vue « 1 jour » (' + figees + ')');
     await page.evaluate(() => document.querySelector('.scroller').dispatchEvent(new TouchEvent('touchend', { touches: [] })));
 
     // Zoom 80 % : même stabilité.
@@ -145,7 +151,7 @@ const TELEPHONE = { viewport: { width: 390, height: 844 }, hasTouch: true, bd: B
   // --- Ordinateur : rien de figé (vue semaine inchangée) ---
   {
     const { page, erreurs } = await ouvrirPlanning(browser, { bd: BD });
-    const figees = await page.evaluate(() => document.querySelectorAll('.grille.hauteurs-figees').length);
+    const figees = await page.evaluate(() => [...document.querySelectorAll('.grille')].filter((g) => g.classList.contains('hauteurs-figees') || g.style.gridTemplateRows).length);
     verifier(figees === 0, 'ordinateur : aucune hauteur figée (' + figees + ')');
     toutesErreurs.push(...erreurs);
     await page.close();

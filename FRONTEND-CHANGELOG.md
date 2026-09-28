@@ -9979,3 +9979,36 @@ Lionel :
 - test_suite72 et test_suite74 : rétablis dans leur version d'avant la suite 89.
 - **Tests muets** : test_suite26, 27, 50, 51, 67, 69, 70 et 71 affichaient leur bilan sans code de sortie, et la suite les comptait réussis même en échec. Ils finissent par `process.exit(bilan(...))`. Seul test_suite26 échouait réellement (balayage tablette parti du centre, qui ne change plus de semaine depuis la suite 89) : il part désormais du bord gauche.
 - Suite complète : 95/95.
+
+## 199. Round du 28.09.2026 (suite 91) — Téléphone : lignes de hauteur fixe, bulles en cascade, réglages « Hauteur des lignes » et « Lignes Jalons et Notes »
+- « Je pense qu'il serait judicieux de passer à des hauteur de ligne fixe sur mobile. Plus de calculs de hauteur de ligne. Si pas assez de place les bulles se chevaucheront telle des post'it. Ajouter un réglage d'affichage mobile permettant de choisir sa hauteur de ligne. Réglage différents pour hauteurs des lignes jalons/notes. Pour un réglage de base partir sur une hauteur contenant 2 bulles de 2hauteurs de texte. Pose moi des questions si ce n'est pas clair »
+- Réponses de Lionel : réglage « En nombre de bulles » ; chevauchement « En cascade » ; Jalons/Notes par défaut « 1 bulle d'1 ligne » ; « Téléphone seulement ».
+- Cette demande remplace la page du jour photographiée de la suite 90 (qui laguait) et l'essai de « store » qui l'a suivie.
+
+### Ce qui change
+- **Téléphone, vue 1 jour** : toutes les lignes de personnes ont la même hauteur, tous les jours : la place de 2 bulles de 2 lignes de texte à l'origine (89 px). Jalons et Notes ont la leur : 1 bulle d'1 ligne à l'origine (32 px). Plus aucune hauteur n'est mesurée ni recalculée quand on change de jour : la grille défile, c'est tout.
+- **Bulles en cascade** : les bulles d'une même personne un même jour se rangent l'une sous l'autre tant qu'il y a la place. Au-delà, chacune descend d'un pas régulier et recouvre le bas de la précédente, comme des post-it : le haut de chaque bulle reste visible (au moins 20 px), la dernière est rognée au bas de la ligne si besoin. Un appui sur une bulle la sélectionne et la passe devant.
+- **Bulle de plusieurs jours** : une carte par jour couvert, chacune à la largeur de sa part, texte au début. Plus de carte collée au bord de l'écran qui changeait de largeur pendant le geste.
+- **Réglages** (Réglages › Affichage › Bulles, jeu « Téléphone ») :
+  - « Hauteur des lignes » : 1, 2, 3 ou 4 bulles (2 à l'origine) — 46, 89, 132 ou 175 px avec 2 lignes de texte ;
+  - « Lignes Jalons et Notes » : 1 bulle d'1 ligne, 1 bulle de 2 lignes, 2 bulles d'1 ligne, 2 bulles de 2 lignes ;
+  - la hauteur d'une bulle suit le réglage « Lignes de texte » existant.
+  - L'ancien « Hauteur des lignes » (serrée / normale / aérée) ne s'affiche plus que pour l'ordinateur ; les deux nouveaux, que pour le téléphone.
+- **Statut** : en vue 1 jour du téléphone, il s'affiche en pastille dans le coin de la carte (la carte n'a que la hauteur de son texte) ; « ↻ série » y est masqué.
+- **Tablette et ordinateur** : inchangés (hauteurs calculées au contenu).
+- **Temps réel** : une relecture venue d'un autre appareil attend la fin du glissement au doigt (elle reconstruisait la grille en plein geste, qui revenait au jour de départ).
+
+### Fonctionnement
+- **js/grille-rendu.js** :
+  - En vue 1 jour, une seule piste de grille par personne et par ligne Jalons/Notes (`pistesGrille`) ; les étiquettes portent `data-h-mob="pers"` / `"jal"`, les bulles `data-piste` ; bulles posées dans l'ordre des pistes (`pistesDansLOrdre_`), la plus basse par-dessus.
+  - `mettreEnPlaceJourMobile_` (au rendu, et une fois les polices chargées) : `poserPistesFixes_` (`gridTemplateRows` en `var(--mob-h-pers)` / `var(--mob-h-jal)`), `mesurerHauteursMobile_` (hauteur U d'une carte mesurée sur une carte sonde ; H = 3 + N·U + (N−1)·3 + 3 ; variables `--mob-carte-pers`, `--mob-h-pers`, `--mob-carte-jal`, `--mob-h-jal`, `--mob-lignes-jal` sur `#racine`), `decouperBullesJourMobile_` (cartes `.b-carte-jour`, `data-jour`), `cascaderBullesJourMobile_` (`translate` par carte et par poignée ; pas = U + 3 si n ≤ N, sinon max(min(20, U + 3), (H − 6 − U)/(n − 1))), `poserJourMobile_` (`.hors-jour`).
+  - Retirés : `ajusterLargeurBullesJourMobile`, `figerHauteursJourMobile`, `suivreHauteursJourMobile`, `mesurerVoisins_`, `tenirBullesEntreJours_`, `poserJourPage` et le suivi des hauteurs à l'image ; `suivreDefilementJourMobile` ne fait plus que les séparations et la case coin.
+- **js/grille-interactions.js** : `bulleRangSous` teste toutes les cartes d'une bulle, à rebours (la carte du dessus l'emporte) ; la page photographiée de la suite 90 est retirée (rétabli à l'état d'avant).
+- **js/donnees-sync.js** : `relireFenetre_` attend la fin d'un geste (aimantation coupée ou `calageJourEnCours`).
+- **js/page-affichage.js** : options `lignesTel` et `jalonsTel` ; champ `profil` ("ordi" / "tel") qui décide dans quel jeu une option s'affiche (remplace la liste des vues d'ouverture) ; `hauteur` passe en `profil: "ordi"`.
+- **style.css** : bloc « suite 91 » de la vue 1 jour (cartes à hauteur fixe, `clip-path` au bas de la ligne, bulle sélectionnée devant, statut en pastille) ; règles `vt-page`, `hauteurs-figees`, `piste-nulle`, transitions des suites 57/58 et traits prolongés (ombre 100vw) retirés.
+
+### Tests
+- test_suite91.js, 19/19 : hauteurs fixes (personnes, Jalons), 2 bulles l'une sous l'autre, 4 en cascade (haut de chacune visible, dernière rognée), 3 cartes pour une bulle de 3 jours, mêmes hauteurs le vendredi, appui qui passe une bulle devant, réglages 1 à 4 bulles et Jalons/Notes, page Affichage par appareil, ordinateur et tablette inchangés.
+- Adaptés au nouveau comportement (commentaire « Suite 91 » dans chacun) : test_suite34, 35, 37, 41, 42, 57, 58, 60, 62, 73, 78 et 90 — hauteur constante au lieu de hauteurs qui suivent le jour, une carte par jour au lieu d'une carte qui change de largeur, `hors-jour` au lieu de `jour-voisin`, plus de photos. test_suite90 garde sa partie ordinateur telle quelle.
+- Suite complète : 96/96.

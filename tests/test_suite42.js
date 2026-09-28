@@ -8,6 +8,11 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 // du jour où l'on se dirige pour faire une sorte de transition. »
 // ajusterLargeurBullesJourMobile (js/grille-rendu.js) : pendant le geste,
 // la carte passe de sa largeur du jour posé à celle du jour visé.
+// Suite 91 (28.09.2026) — lignes de hauteur fixe : une bulle de plusieurs
+// jours a une carte par jour couvert, chacune à la largeur de sa part,
+// posées bout à bout (decouperBullesJourMobile_) ; plus rien ne change
+// pendant le geste. Le bord droit « accroché à la fin du jour » vient de
+// là : la carte du mercredi finit à la fin du mercredi.
 //
 // Lancer : node test_suite42.js
 
@@ -23,11 +28,17 @@ const TACHES = [
   // Jeudi matin seul : sort de l'écran en reculant, largeur gardée.
   T(10, 4, '2026-09-24', 'matin', 'Seul')
 ];
+// Suite 91 : l = largeur de la carte la plus visible (celle du jour posé),
+// d = bord droit à l'écran de la dernière carte, parts = [gauche, droite]
+// de chaque carte, dans l'ordre des jours.
 const cartes = (page) => page.evaluate(() => {
   const rs = document.querySelector('.scroller').getBoundingClientRect(), o = {};
   document.querySelectorAll('.scroller .bulle').forEach((b) => {
-    const r = b.querySelector('.b-carte').getBoundingClientRect();
-    o[b.textContent.trim()] = { l: Math.round(r.width), d: Math.round(Math.min(r.right, rs.right)), bord: Math.round(rs.right) };
+    const rects = [...b.querySelectorAll(':scope > .b-carte')].map((c) => c.getBoundingClientRect());
+    const vu = (r) => Math.min(r.right, rs.right) - Math.max(r.left, rs.left);
+    const r = rects.reduce((a, x) => (vu(x) > vu(a) ? x : a));
+    o[b.querySelector('.b-txt').textContent.trim()] = { l: Math.round(r.width), d: Math.round(Math.min(rects[rects.length - 1].right, rs.right)), bord: Math.round(rs.right),
+      parts: rects.map((x) => [Math.round(x.left), Math.round(x.right)]) };
   });
   return o;
 });
@@ -78,11 +89,12 @@ const lever = (page) => page.evaluate(() => document.querySelector('.scroller').
       await aller(page, s0, -p * jour);
       await page.waitForTimeout(30);
       c = await cartes(page);
-      suivi.push([p, c.Fermeture.l, c.Decoffrage.d, c.Seul.l]);
+      suivi.push([p, c.Fermeture.parts, c.Decoffrage.d, c.Seul.parts[0][1] - c.Seul.parts[0][0]]);
     }
-    const attendu = (p) => Math.max(demi, p * jour);
-    verifier(suivi.every(([p, l]) => Math.abs(l - attendu(p)) <= 2),
-      'Fermeture (mercredi entier) : bord droit accroché à la fin du mercredi — ' + suivi.map(([p, l]) => Math.round(p * 100) + ' % : ' + l + ' px').join(', ') + ' (attendu ' + suivi.map(([p]) => Math.round(attendu(p))).join(', ') + ')');
+    // Suite 91 : carte du mercredi (journée) et carte du jeudi (matin) bout
+    // à bout, largeurs inchangées d'un bout à l'autre du geste.
+    verifier(suivi.every(([, pts]) => pts.length === 2 && Math.abs(pts[0][1] - pts[0][0] - jour) <= 2 && Math.abs(pts[1][1] - pts[1][0] - demi) <= 1 && Math.abs(pts[1][0] - pts[0][1]) <= 2),
+      'Fermeture (mercredi entier) : carte du mercredi finie à la fin du mercredi, carte du jeudi à la suite, largeurs fixes — ' + suivi.map(([p, pts]) => Math.round(p * 100) + ' % : ' + pts.map((x) => x[1] - x[0]).join('+') + ' px').join(', '));
     verifier(suivi.filter(([p]) => p <= 0.45).every(([, , d]) => d >= c.Decoffrage.bord - 2),
       'Decoffrage (mercredi après-midi seulement) : couvre toujours l\'écran jusqu\'au bord droit tant que le jeudi en occupe la fin');
     verifier(suivi.every(([, , , l]) => l === demi), 'Seul (jeudi matin, absent du mercredi) : largeur gardée pendant le geste (' + suivi.map((x) => x[3]).join(', ') + ')');

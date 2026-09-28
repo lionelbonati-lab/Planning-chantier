@@ -26,6 +26,16 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //      bandes Personnel / Intervenants à part ; bande collée sous l'en-tête
 //      toujours collée après ; un rendu ne ramène plus la page en haut.
 //
+// Round du 28.09.2026 (suite 91) — Lionel : « Je pense qu'il serait
+// judicieux de passer à des hauteur de ligne fixe sur mobile. Plus de
+// calculs de hauteur de ligne. » Les photos du téléphone (points 1 à 6)
+// disparaissent : lignes de hauteur fixe, changer de jour n'est plus
+// qu'un défilement. Ces points vérifient désormais : aucune photo, la
+// grille défile sous le doigt, ses lignes, la case « Personne 2 » et la
+// bande « Intervenants » ne bougent pas d'un pixel (vendredi : 3 bulles en
+// cascade dans la ligne de la personne 2) ; mêmes jours d'arrivée qu'avant.
+// Le point 7 (ordinateur) est inchangé.
+//
 // Lancer : node test_suite90.js
 
 const PERS = [1, 2, 3, 4, 5].map((id) => ({ id, nom: 'Personne ' + id, sous_traitant: id > 3, ordre: id, actif: true }));
@@ -62,50 +72,47 @@ const caseVide = (page) => page.evaluate(() => {
   const r = c.getBoundingClientRect();
   return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
 });
-// État à l'écran : jour, lignes de la grille, cases et bande, et — pendant
-// une page — position des photos et des groupes.
+// État à l'écran : jour, lignes de la grille, case « Personne 2 » et bande
+// « Intervenants », et ce qui restait de la page photographiée (suite 90 :
+// classe vt-page, noms de transition) — plus jamais posé (suite 91).
 const etat = (page) => page.evaluate(() => {
   const html = document.documentElement, sc = document.querySelector('.scroller'), g = sc.querySelector('.grille');
-  const tx = (ps) => { const t = getComputedStyle(html, ps).transform; const m = /matrix\(([^)]+)\)/.exec(t); return m ? Math.round(+m[1].split(',')[4]) : (t === 'none' ? 0 : null); };
-  const ty = (ps) => { const t = getComputedStyle(html, ps).transform; const m = /matrix\(([^)]+)\)/.exec(t); return m ? Math.round(+m[1].split(',')[5]) : null; };
   const lbl2 = sc.querySelector('.lbl[data-vt="p2"]'), bande = sc.querySelector('.section-row-intervenants .section-row-sticky');
-  const pg = pageJourEnCours;
   return {
-    iso: jourMobileIso, x: sc.scrollLeft, page: !!pg, prog: pg ? Math.round(pg.prog * 100) / 100 : null,
-    classe: html.classList.contains('vt-page'), rows: g.style.gridTemplateRows,
+    iso: jourMobileIso, x: sc.scrollLeft, classe: html.classList.contains('vt-page'), rows: g.style.gridTemplateRows,
     h2: Math.round(lbl2.getBoundingClientRect().height), yBande: Math.round(bande.getBoundingClientRect().top),
-    vieille: pg ? tx('::view-transition-old(semaine)') : null, nouvelle: pg ? tx('::view-transition-new(semaine)') : null,
-    gh2: pg ? Math.round(parseFloat(getComputedStyle(html, '::view-transition-group(vt-p2)').height)) : null,
-    gyBande: pg ? ty('::view-transition-group(vt-section-intervenants)') : null,
-    enPause: pg && pg.anims ? pg.anims.every((a) => a.playState === 'paused') : null,
     noms: document.querySelectorAll('[style*="view-transition-name"]').length,
     calage: !!calageJourEnCours, snap: sc.style.scrollSnapType
   };
 });
-const range = (e) => !e.page && !e.classe && e.noms === 0 && !e.calage && e.snap === '';
+const range = (e) => !e.classe && e.noms === 0 && !e.calage && e.snap === '';
 
 (async () => {
   const browser = await lancerNavigateur(chromium);
   const { verifier, bilan } = verificateur();
   const toutesErreurs = [];
 
-  // --- 1. à 3. Téléphone : page du jour au doigt ------------------------------
+  // --- 1. à 4. Téléphone : la grille défile, rien ne change de hauteur -------
   {
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 390, height: 800 }, hasTouch: true, bd: BD() });
     await page.waitForTimeout(600);
     const de = await caseVide(page);
     const e0 = await etat(page);
-    // Hauteurs du vendredi, mesurées d'avance (veille/lendemain, suite 58).
+    const pas = await page.evaluate(() => document.querySelector('.th[data-gi]').getBoundingClientRect().width);
     const rowsVendredi = await page.evaluate(() => {
       const sc = document.querySelector('.scroller'), R = reperesJour_(sc);
       return R[R.indexOf(Math.round(sc.scrollLeft)) + 1];
     });
-    // Journal de la grille image par image : ses lignes ne doivent prendre
-    // que 2 valeurs (jeudi, vendredi).
+    // Journal image par image : lignes de la grille, case « Personne 2 »,
+    // bande « Intervenants ».
     await page.evaluate(() => {
-      window.__rows = new Set(); window.__stop = false;
-      const g = document.querySelector('.scroller .grille');
-      const f = () => { window.__rows.add(g.style.gridTemplateRows); if (!window.__stop) requestAnimationFrame(f); };
+      window.__vus = new Set(); window.__stop = false;
+      const sc = document.querySelector('.scroller'), g = sc.querySelector('.grille');
+      const lbl2 = sc.querySelector('.lbl[data-vt="p2"]'), bande = sc.querySelector('.section-row-intervenants .section-row-sticky');
+      const f = () => {
+        window.__vus.add(g.style.gridTemplateRows + ' | ' + Math.round(lbl2.getBoundingClientRect().height) + ' | ' + Math.round(bande.getBoundingClientRect().top));
+        if (!window.__stop) requestAnimationFrame(f);
+      };
       requestAnimationFrame(f);
     });
     const d = await poserDoigt(page, de);
@@ -115,23 +122,25 @@ const range = (e) => !e.page && !e.classe && e.noms === 0 && !e.calage && e.snap
     await d.aller(-60, 4, 30);
     await page.waitForTimeout(150);
     const e2 = await etat(page);
-    const pas = e2.nouvelle - e2.vieille;
-    verifier(e1.page && e1.classe && e1.enPause && e0.iso === '2026-09-24', 'doigt qui glisse : page photographiée, animations en pause (' + JSON.stringify({ page: e1.page, classe: e1.classe, pause: e1.enPause }) + ')');
-    verifier(e1.prog > 0.1 && e2.prog > e1.prog + 0.1 && e2.vieille < e1.vieille && e2.nouvelle < e1.nouvelle,
-      'les photos suivent le doigt (' + e1.prog + ' → ' + e2.prog + ' ; ancienne ' + e1.vieille + ' → ' + e2.vieille + ')');
-    verifier(pas > 250 && Math.abs(e2.vieille + e2.prog * pas) <= 3, 'photos du jeudi et du vendredi jointives, décalées d\'un jour (' + e2.vieille + ' / ' + e2.nouvelle + ', pas ' + pas + ')');
-    verifier(e2.x === rowsVendredi && e2.h2 > e0.h2 + 40, 'sous les photos, la grille est déjà sur le vendredi, à ses hauteurs (' + e0.h2 + ' → ' + e2.h2 + ' px)');
-    const attenduH2 = e0.h2 + (e2.h2 - e0.h2) * e2.prog;
-    verifier(Math.abs(e2.gh2 - attenduH2) <= 3, 'case « Personne 2 » : entre sa hauteur du jeudi et celle du vendredi, au prorata du doigt (' + e2.gh2 + ' px, attendu ' + Math.round(attenduH2) + ')');
-    const attenduY = e0.yBande + (e2.yBande - e0.yBande) * e2.prog;
-    verifier(e2.yBande > e0.yBande + 40 && Math.abs(e2.gyBande - attenduY) <= 3, 'bande « Intervenants » : entre ses 2 places, au prorata du doigt (' + e2.gyBande + ', attendu ' + Math.round(attenduY) + ')');
+    verifier(!e1.classe && e1.noms === 0 && e0.iso === '2026-09-24', 'doigt qui glisse : aucune photo de la page (suite 91) (' + JSON.stringify({ classe: e1.classe, noms: e1.noms }) + ')');
+    verifier(e1.x > e0.x + 30 && e2.x > e1.x + 30, 'la grille défile sous le doigt (' + [e0.x, e1.x, e2.x].map(Math.round).join(' → ') + ')');
+    verifier(e2.h2 === e0.h2 && e2.yBande === e0.yBande && e2.rows === e0.rows, 'case « Personne 2 » et bande « Intervenants » immobiles, lignes inchangées (' + e0.h2 + ' / ' + e2.h2 + ' px, bande ' + e0.yBande + ' / ' + e2.yBande + ')');
     await d.lever();
     await page.waitForTimeout(900);
     await page.evaluate(() => { window.__stop = true; });
     const e3 = await etat(page);
-    const vus = await page.evaluate(() => [...window.__rows]);
-    verifier(e3.iso === '2026-09-25' && e3.x === rowsVendredi && range(e3), 'lâcher après ' + Math.round(e2.prog * 100) + ' % : vendredi posé, photos et noms rangés (' + JSON.stringify(e3) + ')');
-    verifier(vus.length <= 2 && vus.includes(e0.rows) && vus.includes(e3.rows), 'la grille n\'a pris que les hauteurs du jeudi puis du vendredi, jamais entre les deux (' + vus.length + ' valeurs)');
+    const vus = await page.evaluate(() => [...window.__vus]);
+    verifier(e3.iso === '2026-09-25' && e3.x === rowsVendredi && range(e3), 'lâcher après ' + Math.round((e2.x - e0.x) / pas * 100) + ' % : vendredi posé, rien qui traîne (' + JSON.stringify(e3) + ')');
+    verifier(vus.length === 1 && e3.rows === e0.rows && e3.h2 === e0.h2, 'une seule hauteur de lignes, de la case « Personne 2 » et place de la bande, à chaque image, jeudi comme vendredi (' + vus.join(' ; ') + ')');
+    // Vendredi : les 3 bulles de la personne 2 en cascade dans sa ligne.
+    const cascade = await page.evaluate(() => {
+      const sc = document.querySelector('.scroller'), l = sc.querySelector('.lbl[data-vt="p2"]').getBoundingClientRect();
+      return ['A', 'B', 'C'].map((t) => {
+        const r = [...sc.querySelectorAll('.bulle')].find((b) => b.querySelector('.b-txt').textContent.trim() === t).querySelector('.b-carte').getBoundingClientRect();
+        return Math.round(r.top - l.top);
+      }).concat(Math.round(l.height));
+    });
+    verifier(cascade[0] < cascade[1] && cascade[1] < cascade[2] && cascade[2] < cascade[3], 'vendredi : A, B et C en cascade dans la ligne de la personne 2 (hauts ' + cascade.slice(0, 3).join(', ') + ' px, ligne ' + cascade[3] + ' px)');
 
     // 3. Glissé lent de 15 % : retour au vendredi (jour de départ).
     const d2 = await poserDoigt(page, de);
@@ -141,8 +150,8 @@ const range = (e) => !e.page && !e.classe && e.noms === 0 && !e.calage && e.snap
     await d2.lever();
     await page.waitForTimeout(900);
     const e5 = await etat(page);
-    verifier(e4.page && e4.iso === '2026-09-25' && e5.iso === '2026-09-25' && e5.x === e3.x && e5.rows === e3.rows && range(e5),
-      'glissé lent de ' + Math.round(e4.prog * 100) + ' % : retour au vendredi, ses hauteurs exactes (' + JSON.stringify([e4.prog, e5.x, e5.iso]) + ')');
+    verifier(e4.iso === '2026-09-25' && e5.iso === '2026-09-25' && e5.x === e3.x && e5.rows === e3.rows && range(e5),
+      'glissé lent de ' + Math.round((e4.x - e3.x) / pas * 100) + ' % : retour au vendredi (' + JSON.stringify([e5.x, e5.iso]) + ')');
 
     // 4. Vers la droite : jeudi ; puis 1,6 jour d'un trait : 2 jours.
     const d3 = await poserDoigt(page, de);
@@ -150,39 +159,36 @@ const range = (e) => !e.page && !e.classe && e.noms === 0 && !e.calage && e.snap
     await d3.lever();
     await page.waitForTimeout(900);
     const e6 = await etat(page);
-    verifier(e6.iso === '2026-09-24' && e6.rows === e0.rows && range(e6), 'balayage vers la droite : jeudi, à ses hauteurs (' + e6.iso + ')');
+    verifier(e6.iso === '2026-09-24' && e6.rows === e0.rows && range(e6), 'balayage vers la droite : jeudi, mêmes lignes (' + e6.iso + ')');
     const d4 = await poserDoigt(page, de);
     await d4.aller(-Math.round(1.6 * pas), 16, 40);
     await page.waitForTimeout(150);
-    const e7 = await etat(page);
     await d4.lever();
     await page.waitForTimeout(1200);
     const e8 = await etat(page);
-    verifier(e7.page && e7.iso === '2026-09-24' && e8.iso === '2026-09-28' && range(e8), '1,6 jour sans lever le doigt : jour d\'après gardé en chemin, lundi 28 au lâcher (' + e8.iso + ')');
+    verifier(e8.iso === '2026-09-28' && range(e8), '1,6 jour sans lever le doigt : lundi 28 au lâcher (' + e8.iso + ')');
     toutesErreurs.push(...erreurs);
     await page.close();
   }
 
-  // --- 5. Temps réel pendant la page -------------------------------------------
+  // --- 5. Temps réel pendant le glissement ---------------------------------------
   {
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 390, height: 800 }, hasTouch: true, bd: BD() });
     await page.waitForTimeout(600);
     const de = await caseVide(page);
-    await page.evaluate(() => { window.__grille0 = document.querySelector('.scroller .grille'); });
     const d = await poserDoigt(page, de);
     await d.aller(-100, 4, 30);
     await page.waitForTimeout(150);
-    const pendant = await page.evaluate(() => { relireFenetre_(true); return [!!pageJourEnCours, document.querySelector('.scroller .grille') === window.__grille0]; });
+    await page.evaluate(() => relireFenetre_(true));
     await d.lever();
     await page.waitForTimeout(3500);
-    const apres = await page.evaluate(() => [jourMobileIso, !!pageJourEnCours]);
-    verifier(pendant[0] && pendant[1], 'relecture temps réel pendant la page : remise à plus tard, grille intacte sous les photos');
-    verifier(apres[0] === '2026-09-25' && !apres[1], 'après la page : vendredi, relecture faite (' + apres.join(' ') + ')');
+    const apres = await etat(page);
+    verifier(apres.iso === '2026-09-25' && range(apres), 'relecture temps réel pendant le glissement : vendredi atteint au lâcher, rien qui traîne (' + apres.iso + ')');
     toutesErreurs.push(...erreurs);
     await page.close();
   }
 
-  // --- 6. « Réduire les animations » : défilement réel ---------------------------
+  // --- 6. « Réduire les animations » : défilement réel ---------------------------
   {
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 390, height: 800 }, hasTouch: true, bd: BD() });
     await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -192,7 +198,7 @@ const range = (e) => !e.page && !e.classe && e.noms === 0 && !e.calage && e.snap
     const d = await poserDoigt(page, de);
     await d.aller(-100, 4, 30);
     await page.waitForTimeout(100);
-    const pendant = await page.evaluate(() => [!!pageJourEnCours, document.querySelector('.scroller').scrollLeft]);
+    const pendant = await page.evaluate(() => [document.documentElement.classList.contains('vt-page'), document.querySelector('.scroller').scrollLeft]);
     await d.lever();
     await page.waitForTimeout(700);
     verifier(!pendant[0] && pendant[1] <= x0 + 100 && pendant[1] > x0 + 40 && await page.evaluate(() => jourMobileIso) === '2026-09-25',
