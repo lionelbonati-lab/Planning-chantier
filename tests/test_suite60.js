@@ -68,11 +68,18 @@ let horloge = Date.parse('2026-09-24T10:00:00');
   });
   // Glissé au doigt sur la ligne vide d'Echafaudage le jeudi ; relevé
   // doigt encore posé (à mi-chemin), puis une fois le jour posé.
+  // Suite 91 : lignes de hauteur fixe, plus hautes — celle d'Echafaudage
+  // passe sous le bas de l'écran ; le doigt se pose sur la case vide la
+  // plus basse encore à l'écran.
   const glisser = async (dx) => {
     horloge += 1000; await page.clock.setFixedTime(new Date(horloge));
     const de = await page.evaluate(() => {
-      const l = [...document.querySelectorAll('.scroller .lbl')].find((x) => x.textContent.includes('Echafaudage')).getBoundingClientRect();
-      return { x: 300, y: l.top + l.height / 2 };
+      const r = document.querySelector('.scroller').getBoundingClientRect();
+      for (let y = Math.min(innerHeight, r.bottom) - 4; y > r.top; y -= 4) {
+        const el = document.elementFromPoint(300, y);
+        if (el && el.classList.contains('cell') && !el.closest('.bulle')) return { x: 300, y };
+      }
+      return null;
     });
     const cdp = await page.context().newCDPSession(page);
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [de] });
@@ -116,11 +123,15 @@ let horloge = Date.parse('2026-09-24T10:00:00');
     await o.page.waitForTimeout(500);
     const avant = page;
     page = o.page;
+    // Suite 91 : plus de piste qui rapetisse le vendredi — la ligne de
+    // Mathis a sa hauteur fixe, la carte de l'absence du jeudi (2e de la
+    // cascade) y tient entière.
     const piste = await page.evaluate(() => {
       const b = [...document.querySelectorAll('.scroller .bulle')].find((x) => x.textContent.includes('Départ 16h15'));
-      return { bulle: Math.round(b.getBoundingClientRect().height), carte: Math.round(b.querySelector('.b-carte').getBoundingClientRect().height) };
+      const rb = [...document.querySelectorAll('.scroller .lbl')].find((x) => x.textContent.includes('Mathis')).getBoundingClientRect(), rc = b.querySelector('.b-carte').getBoundingClientRect();
+      return { ligne: [rb.top, rb.bottom].map(Math.round), carte: [rc.top, rc.bottom].map(Math.round) };
     });
-    verifier(await jour() === '18' && piste.bulle < piste.carte, 'vendredi 18 posé : l\'absence du jeudi, rangée sous les noms, a une piste plus basse que sa carte (' + piste.bulle + ' px contre ' + piste.carte + ')');
+    verifier(await jour() === '18' && piste.carte[0] >= piste.ligne[0] && piste.carte[1] <= piste.ligne[1], 'vendredi 18 posé : l\'absence du jeudi, rangée sous les noms, tient entière dans la ligne fixe de Mathis (carte ' + piste.carte.join('–') + ', ligne ' + piste.ligne.join('–') + ')');
     const nf = await fuites();
     verifier(nf === 0, 'vendredi 18 : rien de l\'absence « Départ 16h15 » du jeudi dans le trait Mathis/Antoine (' + nf + ' pixels différents)');
     erreurs.push(...o.erreurs);

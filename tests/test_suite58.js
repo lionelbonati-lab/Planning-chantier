@@ -21,6 +21,12 @@ const { ouvrirPlanning, verificateur, lancerNavigateur, sansViewTransitions } = 
 //      jour, rien de « suivi » qui traîne ;
 //   5. (suite 59) aucune bulle d'un autre jour visible sous la colonne des
 //      noms, aucune plus haute que sa piste.
+// Suite 91 (28.09.2026) — Lionel : « passer à des hauteur de ligne fixe sur
+// mobile. Plus de calculs de hauteur de ligne. » Les points 2 et 3 vérifient
+// désormais l'inverse de la suite 58 : lignes de hauteur fixe à chaque
+// image, et une carte par jour couvert, chacune à la largeur de sa part,
+// qui ne change plus pendant le geste (decouperBullesJourMobile_). Le
+// point 1 : la carte du jour posé commence au bord des noms.
 //
 // Lancer : node test_suite58.js
 
@@ -74,11 +80,12 @@ const journaliser = (page, duree) => page.evaluate((duree) => {
   const f = () => {
     const sc = document.querySelector('.scroller');
     const lbl = [...document.querySelectorAll('.scroller .lbl')].slice(0, 4).map((l) => Math.round(l.getBoundingClientRect().height * 10) / 10);
-    const cartes = [...document.querySelectorAll('.scroller .bulle .b-carte')].map((c) => {
+    // Suite 91 : cartes par bulle (une par jour couvert).
+    const bulles = [...document.querySelectorAll('.scroller .bulle')].map((b) => [...b.querySelectorAll(':scope > .b-carte')].map((c) => {
       const r = c.getBoundingClientRect();
-      return c.style.display === 'none' ? null : { l: Math.round(r.left), r: Math.round(r.right), w: Math.round(r.width) };
-    });
-    window.__j.push({ t: performance.now() - t0, g: sc.scrollLeft, lbl, cartes, suivies: sc.querySelector('.grille').classList.contains('hauteurs-suivies') });
+      return { l: Math.round(r.left), r: Math.round(r.right), w: Math.round(r.width) };
+    }));
+    window.__j.push({ t: performance.now() - t0, g: sc.scrollLeft, lbl, bulles, suivies: sc.querySelector('.grille').classList.contains('hauteurs-suivies') });
     if (performance.now() - t0 < duree) requestAnimationFrame(f);
   };
   requestAnimationFrame(f);
@@ -98,9 +105,11 @@ const journaliser = (page, duree) => page.evaluate((duree) => {
       const LN = largeurNoms();
       const carte = (txt) => {
         const b = [...document.querySelectorAll('.entete-planning-figee .bulle')].find((x) => x.textContent.includes(txt));
-        const c = b && b.querySelector('.b-carte');
-        if (!c || c.style.display === 'none') return null;
-        const r = c.getBoundingClientRect();
+        // Suite 91 : la carte du jour posé (celle qui commence le plus près
+        // du bord des noms).
+        const cs = b ? [...b.querySelectorAll(':scope > .b-carte')].map((c) => c.getBoundingClientRect()) : [];
+        if (!cs.length) return null;
+        const r = cs.reduce((a, x) => (Math.abs(x.left - LN) < Math.abs(a.left - LN) ? x : a));
         return { l: Math.round(r.left), w: Math.round(r.width) };
       };
       return { iso: jourMobileIso, LN, jalon: carte('Coulage'), note: carte('Livraison grue'), jour: Math.round(document.querySelector('.scroller').clientWidth - LN) };
@@ -120,7 +129,7 @@ const journaliser = (page, duree) => page.evaluate((duree) => {
     await page.close();
   }
 
-  // --- 2. Jeudi → vendredi : hauteurs qui suivent, rien après l'arrivée ---
+  // --- 2. Jeudi → vendredi : hauteurs fixes (suite 91), rien après l'arrivée ---
   // Suite 90 : repli sans View Transitions (cf. sansViewTransitions).
   {
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 390, height: 800 }, hasTouch: true, bd: { personnes: PERS, taches: TACHES } });
@@ -136,17 +145,16 @@ const journaliser = (page, duree) => page.evaluate((duree) => {
     const iArrivee = j.findIndex((x) => Math.round(x.g) === cible);
     const h1 = j.map((x) => x.lbl[0]);
     const hVendredi = h1[h1.length - 1];
-    const avantArrivee = h1.slice(0, iArrivee + 1);
-    const monte = avantArrivee.every((h, i) => i === 0 || h >= avantArrivee[i - 1] - 0.2);
-    const intermediaires = [...new Set(avantArrivee.filter((h) => h > hJeudi + 0.5 && h < hVendredi - 0.5))];
-    verifier(hVendredi > hJeudi + 20 && monte && intermediaires.length >= 3, 'personne 1, jeudi → vendredi : sa ligne grandit PENDANT le glissement, par ' + intermediaires.length + ' valeurs (' + hJeudi + ' → ' + hVendredi + ')');
+    // Suite 91 : plus de ligne qui grandit pendant le glissement.
+    verifier(h1.length > 5 && h1.every((h) => Math.abs(h - hJeudi) < 0.5), 'personne 1, jeudi → vendredi : sa ligne garde sa hauteur fixe à chacune des ' + h1.length + ' images (' + hJeudi + ' → ' + hVendredi + ')');
     verifier(iArrivee > 0 && Math.abs(h1[iArrivee] - hVendredi) < 0.5 && h1.slice(iArrivee).every((h) => Math.abs(h - hVendredi) < 0.5), 'arrivée sur vendredi : hauteurs déjà en place, plus aucune ne bouge ensuite');
     const lignesApres = j.slice(iArrivee).map((x) => x.lbl.join(','));
     verifier(new Set(lignesApres).size === 1, 'jour entier suivi de demi-journées (personne 2) : aucune ligne ne bouge après l\'arrivée (' + [...new Set(lignesApres)].join(' | ') + ')');
-    // Carte de 1,5 jour (1re carte) : rétrécit sans jamais repartir en arrière.
-    const w1 = j.map((x) => x.cartes[0] && x.cartes[0].w);
-    const sansRebond = w1.every((w, i) => i === 0 || w <= w1[i - 1] + 0.5);
-    verifier(sansRebond && Math.abs(w1[w1.length - 1] - 149) <= 2, 'carte de 1,5 jour : 298 → 149 px sans aller-retour, même à l\'arrivée (' + [...new Set(w1)].join(' ') + ')');
+    // Carte de 1,5 jour (1re bulle) : suite 91, une carte du jeudi (journée)
+    // et une du vendredi matin, bout à bout, largeurs fixes à chaque image.
+    const w1 = [...new Set(j.map((x) => x.bulles[0].map((c) => c.w).join('+')))];
+    const boutABout = j.every((x) => x.bulles[0].length === 2 && Math.abs(x.bulles[0][1].l - x.bulles[0][0].r) <= 2);
+    verifier(w1.length === 1 && /^29\d\+14\d$/.test(w1[0]) && boutABout, 'carte de 1,5 jour : jeudi + vendredi matin, bout à bout, largeurs fixes à chaque image (' + w1.join(' | ') + ')');
     // Les dernières images du glissement arrondissent déjà à l'arrivée :
     // la fixation suit à la fin de la courbe, moins de 100 ms après.
     verifier(j.filter((x) => x.t > j[iArrivee].t + 100).every((x) => !x.suivies), 'jour posé : grille rendue aux hauteurs mesurées (plus de hauteurs « suivies »)');
@@ -162,18 +170,20 @@ const journaliser = (page, duree) => page.evaluate((duree) => {
     await balayer(page, de, 150, 4, 10);
     await page.waitForTimeout(1000);
     const mercredi = await page.evaluate(() => jourMobileIso);
-    // Carte de la personne 3 : la dernière de .scroller (ordre du DOM).
+    // Bulle de la personne 3 : la dernière de .scroller (ordre du DOM).
     await journaliser(page, 1200);
     await balayer(page, de, -150, 6, 16);
     await page.waitForTimeout(1300);
     const j = await page.evaluate(() => window.__j);
-    const c3 = j.map((x) => x.cartes[x.cartes.length - 1]).filter(Boolean);
-    const ecran = 390;
-    const dansEcran = c3.every((c) => c.r <= ecran + 1);
-    const croissante = c3.every((c, i) => i === 0 || c.w >= c3[i - 1].w - 0.5);
-    const premierPas = c3.length > 1 ? c3[1].w - c3[0].w : 0;
-    verifier(mercredi === '2026-09-23' && dansEcran && croissante, 'personne 3, mercredi après-midi → jeudi : la carte grandit avec la part à l\'écran, sans déborder (' + [...new Set(c3.map((c) => c.w))].join(' ') + ')');
-    verifier(premierPas < 100, 'pas de carte qui double d\'un coup au départ du geste (premier pas ' + premierPas + ' px, avant : +149)');
+    // Suite 91 : une carte du mercredi après-midi et une du jeudi, bout à
+    // bout, à leur largeur à chaque image — le jeudi entre à l'écran avec
+    // le défilement, plus rien ne grandit.
+    const b3 = j.map((x) => x.bulles[x.bulles.length - 1]);
+    const w3 = [...new Set(b3.map((cs) => cs.map((c) => c.w).join('+')))];
+    const suite3 = b3.every((cs) => cs.length === 2 && Math.abs(cs[1].l - cs[0].r) <= 2);
+    verifier(mercredi === '2026-09-23' && w3.length === 1 && /^1[45]\d\+29\d$/.test(w3[0]) && suite3, 'personne 3, mercredi après-midi → jeudi : carte du mercredi et carte du jeudi bout à bout, largeurs fixes (' + w3.join(' | ') + ')');
+    const premierPas = b3.length > 1 ? b3[1][0].w - b3[0][0].w : 0;
+    verifier(premierPas === 0, 'pas de carte qui double d\'un coup au départ du geste (premier pas ' + premierPas + ' px, avant : +149)');
     toutesErreurs.push(...erreurs);
     await page.close();
   }
@@ -217,7 +227,8 @@ const journaliser = (page, duree) => page.evaluate((duree) => {
       const g = document.querySelector('.scroller .grille');
       const debord = [...g.querySelectorAll('.bulle')].filter((b) => {
         const r = b.getBoundingClientRect(), cs = getComputedStyle(b);
-        const piste = g.style.gridTemplateRows.split(' ').map(parseFloat);
+        // Suite 91 : pistes en var(--mob-h-pers) — valeurs calculées.
+        const piste = getComputedStyle(g).gridTemplateRows.split(' ').map(parseFloat);
         const debut = parseInt(cs.gridRowStart, 10) - 1, n = parseInt((cs.gridRowEnd.match(/span (\d+)/) || [0, 1])[1], 10);
         const haut = piste.slice(debut, debut + n).reduce((a, h) => a + h, 0) + (n - 1);
         return r.height > haut;

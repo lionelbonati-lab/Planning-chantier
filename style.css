@@ -1138,49 +1138,18 @@
   html.vt-semaine.vt-bords::view-transition-new(semaine) { animation-name: vt-bords-entree; -webkit-mask-image: var(--vt-masque-nouveau); mask-image: var(--vt-masque-nouveau); }
   @keyframes vt-bords-sortie { from { transform: none; } to { transform: translateX(var(--vt-sortie, 0px)); } }
   @keyframes vt-bords-entree { from { transform: translateX(var(--vt-entree, 0px)); } to { transform: none; } }
-  /* Round du 28.09.2026 (suite 90) — Lionel : « Je voulais que seule la
+  /* Round du 28.09.2026 (suite 90) — Lionel : « Je voulais que seule la
      première colonne et les séparations s'adaptent. Le planning glisse mais
-     ne modifie pas ses hauteurs de ligne. » Glissement de semaine ci-dessus
-     rétabli (la suite 89 ne faisait plus glisser que les dates). Même
-     principe au téléphone, en vue « 1 jour » : la page du jour
-     (tournerPageJour_, js/grille-interactions.js) — photo du jour quitté,
-     photo du jour d'arrivée, chacune avec ses hauteurs de lignes, jointives
-     à la bordure entre les 2 jours (--vt-sortie, --vt-entree, masques
-     --vt-masque-ancien / --vt-masque-nouveau), rognées à droite de la
-     colonne des noms (--vt-noms). Aucune durée réelle : le script met les
-     animations en pause et les règle à la position du doigt (1 s = page
-     entière, d'où la courbe linéaire), puis à son glissement de fin de
-     geste. Cases des noms et bandes Personnel / Intervenants : passent de
-     leur hauteur, de leur place, à celles du jour d'arrivée, au même
-     rythme. */
-  html.vt-page::view-transition-group(*) { animation-duration: 1s; animation-timing-function: linear; animation-fill-mode: both; }
-  /* Toucher sur le calque des photos (cible : html) : suivi par le script
-     (grille-interactions.js, doigtsSurPhotos), jamais par le navigateur. */
-  html.vt-page { touch-action: none; }
-  html.vt-page::view-transition-old(*) { animation: none; opacity: 0; }
-  html.vt-page::view-transition-new(*) { animation: none; }
-  html.vt-page::view-transition-image-pair(semaine) { clip-path: inset(0 0 0 var(--vt-noms, 0px)); }
-  html.vt-page::view-transition-old(semaine), html.vt-page::view-transition-new(semaine) {
-    mix-blend-mode: normal; opacity: 1; animation-duration: 1s; animation-timing-function: linear; animation-fill-mode: both;
-  }
-  html.vt-page::view-transition-old(semaine) { animation-name: vt-bords-sortie; -webkit-mask-image: var(--vt-masque-ancien); mask-image: var(--vt-masque-ancien); }
-  html.vt-page::view-transition-new(semaine) { animation-name: vt-bords-entree; -webkit-mask-image: var(--vt-masque-nouveau); mask-image: var(--vt-masque-nouveau); }
-  /* Bandes Personnel / Intervenants de la vue « 1 jour » : leur libellé
-     collé à gauche (seul nommé, cf. grille-rendu.js) couvre la colonne des
-     noms, avec les traits de la bande, le temps de la page — il suit le
-     doigt comme les noms. Côté jours, chaque photo garde sa bande à sa
-     hauteur, comme ses lignes. */
-  html.vt-page #racine.vue-jour-mobile .section-row-sticky {
-    min-width: var(--largeur-noms); box-sizing: border-box; background: inherit;
-    box-shadow: 0 -1px 0 var(--border), 0 1px 0 var(--border);
-  }
-  /* Cases des noms (semaine et page du jour) : la photo garde sa taille,
-     centrée et rognée dans la case qui change de hauteur — le nom reste
-     au milieu de sa case au lieu de sauter à celui de la nouvelle. La
-     photo de la grille, elle, reste calée en haut. */
-  html:is(.vt-semaine, .vt-page)::view-transition-new(*), html:is(.vt-semaine, .vt-page)::view-transition-old(*) { block-size: 100%; object-fit: none; object-position: center; overflow: clip; }
-  html:is(.vt-semaine, .vt-page)::view-transition-new(semaine), html:is(.vt-semaine, .vt-page)::view-transition-old(semaine),
-  html:is(.vt-semaine, .vt-page)::view-transition-new(root), html:is(.vt-semaine, .vt-page)::view-transition-old(root) { block-size: auto; object-fit: fill; }
+     ne modifie pas ses hauteurs de ligne. » Glissement de semaine ci-dessus
+     rétabli (la suite 89 ne faisait plus glisser que les dates). Cases des
+     noms : la photo garde sa taille, centrée et rognée dans la case qui
+     change de hauteur — le nom reste au milieu de sa case au lieu de sauter
+     à celui de la nouvelle. La photo de la grille, elle, reste calée en
+     haut. (La page du jour du téléphone de la suite 90 a disparu à la
+     suite 91 : lignes de hauteur fixe, un simple défilement.) */
+  html.vt-semaine::view-transition-new(*), html.vt-semaine::view-transition-old(*) { block-size: 100%; object-fit: none; object-position: center; overflow: clip; }
+  html.vt-semaine::view-transition-new(semaine), html.vt-semaine::view-transition-old(semaine),
+  html.vt-semaine::view-transition-new(root), html.vt-semaine::view-transition-old(root) { block-size: auto; object-fit: fill; }
   /* Round du 24.09.2026 — Lionel : « ajoute un bordure à droite de la
      première colonne. » La colonne d'étiquette (116px, sticky left:0)
      n'avait pour seule séparation que le gap de grille de 1px habituel
@@ -1704,29 +1673,51 @@
      tâche, ce qui n'a pas de sens dès lors qu'on ne voit justement plus
      qu'un seul jour à la fois — modifier la durée reste possible depuis la
      fiche (tap sur la bulle). */
-  /* Round du 24.09.2026 : max-width ci-dessous n'est plus que la valeur de
-     secours avant le premier calcul JS (ou si, pour une raison quelconque,
-     il n'a jamais lieu) — ajusterLargeurBullesJourMobile() (js/grille-
-     rendu.js, dans construireGrille) pose désormais un style INLINE sur
-     chaque .b-carte, recalculé à chaque défilement, qui prime toujours sur
-     cette règle de classe. Nécessaire car --largeur-visible-bulle est une
-     SEULE valeur globale (une journée entière) alors que la largeur
-     correcte dépend de CE QUE cette bulle précise occupe sur le jour
-     ACTUELLEMENT affiché (jour entier, demi-journée de début, demi-journée
-     de fin...) — cf. le commentaire JS pour l'historique complet (bulle qui
-     débordait sur un dernier jour en demi-journée, ou qui ne remplissait
-     pas un jour entier). */
-  /* Suite 58 (round du 26.09.2026) — Lionel : « L'affichage des jalons a
-     disparu, il ne s'affiche que sur le premier jour. » Ces règles ne
-     visaient que .scroller : la bande Jalons/Notes, dans l'en-tête figé
-     (.entete-planning-scroll, hors de .scroller), gardait sa carte au
-     début de la bulle — un jalon de plusieurs jours n'était lisible que le
-     jour où il commence. Posées sur #racine.vue-jour-mobile, elles valent
-     aux deux grilles (.entete-planning-scroll est lui aussi un conteneur
-     de défilement : le collage suit son scrollLeft). */
-  .vue-jour-mobile .bulle > .b-carte {
-    position: sticky; left: var(--largeur-noms); align-self: flex-start; max-width: var(--largeur-visible-bulle, calc(100vw - var(--largeur-noms) - 16px));
+  /* Vue « 1 jour » du téléphone — round du 28.09.2026 (suite 91). Lionel :
+     « passer à des hauteur de ligne fixe sur mobile. Plus de calculs de
+     hauteur de ligne. Si pas assez de place les bulles se chevaucheront
+     telle des post'it. » Remplace la carte collée au bord de l'écran
+     (sticky, suites 14 et 58) et sa largeur recalculée à chaque défilement
+     (suite 24 et suivantes) : une carte par jour couvert, à la largeur de
+     sa part (decouperBullesJourMobile_, js/grille-rendu.js), côte à côte
+     dans la bulle. Toutes de la même hauteur (--mob-carte-pers, Jalons et
+     Notes : --mob-carte-jal, mesurées au rendu), décalées vers le bas par
+     `translate` (cascade, cascaderBullesJourMobile_). La bulle reste en
+     haut de sa ligne, transparente au doigt : seules ses cartes (et ses
+     poignées une fois sélectionnée, plus bas), là où elles sont
+     dessinées, reçoivent les appuis. Sélectionnée,
+     elle passe devant les autres (Lionel : un appui sur une bulle la passe
+     devant). Statut en pastille dans le coin (la carte n'a que la place de
+     son texte) ; « série » masqué. */
+  #racine.vue-jour-mobile .bulle { flex-direction: row; pointer-events: none; }
+  #racine.vue-jour-mobile .bulle-plage { margin: 0; }
+  #racine.vue-jour-mobile .bulle > .b-carte { pointer-events: auto; }
+  #racine.vue-jour-mobile .bulle.selectionnee { z-index: 2; }
+  /* Rognée au bas de sa ligne (hauteur H ; la bulle, elle, fait la hauteur
+     U d'une carte) : les dernières bulles d'une cascade trop chargée ne
+     débordent pas sur la ligne suivante. Côtés et haut : la place de
+     l'anneau de sélection et de l'ombre. */
+  #racine.vue-jour-mobile .bulle { clip-path: inset(-4px -6px calc(var(--mob-carte-pers, 0px) - var(--mob-h-pers, 0px)) -6px); }
+  #racine.vue-jour-mobile :is(.bulle-jalon, .bulle-note) { clip-path: inset(-4px -6px calc(var(--mob-carte-jal, 0px) - var(--mob-h-jal, 0px)) -6px); }
+  #racine.vue-jour-mobile .bulle.dragging { clip-path: none; }
+  #racine.vue-jour-mobile .bulle > .b-carte {
+    position: relative; flex: none; align-self: flex-start; box-sizing: border-box; min-width: 0;
+    height: var(--mob-carte-pers, auto); overflow: hidden; justify-content: flex-start;
   }
+  #racine.vue-jour-mobile :is(.bulle-jalon, .bulle-note) > .b-carte { height: var(--mob-carte-jal, auto); }
+  #racine.vue-jour-mobile :is(.bulle-jalon, .bulle-note) .b-txt { -webkit-line-clamp: var(--mob-lignes-jal, 1); line-clamp: var(--mob-lignes-jal, 1); }
+  #racine.vue-jour-mobile .bulle .b-carte .b-serie { display: none; }
+  #racine.vue-jour-mobile .bulle .b-carte .b-statut {
+    position: absolute; top: 4px; right: 4px; left: auto; width: 9px; height: 9px; padding: 0; margin: 0; gap: 0;
+    font-size: 0; border-radius: 50%; box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--surface-2) 85%, transparent), 0 0 0 2.5px color-mix(in srgb, var(--ink) 25%, transparent);
+  }
+  #racine.vue-jour-mobile .bulle .b-carte .b-statut .dot { display: none; }
+  /* Lignes de hauteur fixe (pistes posées par poserPistesFixes_) : cases,
+     noms et Jalons / Notes ne poussent plus leur ligne — plus de hauteur
+     minimale, le nom coupé s'il ne tient pas (le trait de 1 px au-dessus
+     et au-dessous de l'étiquette, ::before / ::after, reste visible). */
+  #racine.vue-jour-mobile .grille .cell { min-height: 0; overflow: hidden; }
+  #racine.vue-jour-mobile :is(.lbl-compacte, .lbl-speciale) { min-height: 0; padding-top: 2px; padding-bottom: 2px; overflow: clip; overflow-clip-margin: 1px; }
   .vue-jour-mobile .bulle > .b-carte .b-txt,
   .vue-jour-mobile .bulle > .b-carte .b-statut,
   .vue-jour-mobile .bulle > .b-carte .b-serie {
@@ -1751,7 +1742,7 @@
      tap au milieu, un appui+glisser la déplace. Une fois la bulle
      sélectionnée (entourée), ses poignées apparaissent : appui maintenu
      puis glisser pour étirer. Bulle hors du jour affiché (.hors-jour, posée
-     par ajusterLargeurBullesJourMobile) : jamais de poignée. Règles posées
+     par poserJourMobile_, suite 91) : jamais de poignée. Règles posées
      sur #racine.vue-jour-mobile (et plus .scroller.snap-jour-mobile) pour
      valoir aussi aux jalons et notes, dont la grille est hors de .scroller. */
   .vue-jour-mobile .bulle .poignee { width: 22px; pointer-events: none; }
@@ -1761,30 +1752,6 @@
   .vue-jour-mobile .bulle.selectionnee .poignee::after { opacity: .45; }
   .vue-jour-mobile .bulle .poignee.actif::after { opacity: .7; }
   .vue-jour-mobile .bulle.hors-jour .poignee { display: none; }
-  /* Vue « 1 jour » (round du 25.09.2026, suite 34 — Lionel : « éviter que
-     les hauteurs de cellules ne change pendant un changement de jour » ;
-     suite 35 : « la hauteur pourrait être calculée lors de la fixation du
-     jour ») : les lignes de la grille ont des hauteurs fixes, mesurées pour
-     le jour affiché par figerHauteursJourMobile (js/grille-rendu.js) et
-     reprises à chaque arrêt sur un autre jour. La carte remplit sa piste, et
-     coupe son texte au lieu d'agrandir la ligne quand le jour qui arrive en
-     plein glissement est plus chargé. */
-  .grille.hauteurs-figees .bulle > .b-carte { height: 100%; max-height: 100%; overflow: hidden; box-sizing: border-box; }
-  /* Suite 59 (round du 26.09.2026) — Lionel, capture à l'appui : « Certaines
-     bulles se distinguent derrière les bordures de la colonne nom. » Une
-     bulle d'un autre jour (ici la 2e bulle empilée de la veille) garde sa
-     hauteur de contenu dans une piste que le jour affiché a ramenée à
-     11 px : elle débordait sous la ligne suivante, et le trait de 1 px entre
-     deux noms (l'espace de la grille, que l'étiquette ne couvre pas) la
-     laissait voir. Bulle bornée à sa piste (3 px de marge pour l'anneau de
-     sélection et l'ombre, 2,5 et 3 px), et découpée à cette marge : jamais
-     plus bas que le bas de sa piste. */
-  .grille.hauteurs-figees .bulle { min-height: 0; max-height: calc(100% - 3px); clip-path: inset(-4px -4px -3px -4px); }
-  /* Suite 73 : bulle d'un autre jour sur une piste que le jour posé
-     ramène à 0 (pistes du jour seul, gabaritPistesDuJour_,
-     js/grille-rendu.js) — la marge de 3 px ci-dessus la ferait déborder dans
-     le trait entre deux noms : rognée entièrement (marquerPistesNulles_). */
-  .grille.hauteurs-figees .bulle.piste-nulle { clip-path: inset(0 0 100% 0); }
   /* Round du 27.09.2026 (suite 78) — Lionel, capture à l'appui : « Certaines
      bulle passent encore la colonne des en-têtes. Les séparations doivent
      être dessinée au dessus du planning car c'est des élément principaux. »
@@ -1796,12 +1763,10 @@
      Les séparations passent désormais par-dessus les bulles (z-index 3,
      sous l'espace entre semaines, 5) :
      - les bandes Personnel / Intervenants, partout ;
-     - en vue « 1 jour », le trait entre deux personnes : celui de chaque
-       étiquette (cf. suite 60 plus haut) est prolongé sur toute la largeur
-       de l'écran. Une bulle en transit passe dessous au lieu de le couvrir.
-       Prolongé par une ombre (100vw) rognée à sa hauteur de 1 px : une
-       ombre ne compte pas dans le débordement, ni l'étiquette ni le
-       défilement ne s'élargissent. */
+     - en vue « 1 jour », le trait entre deux personnes (suite 91 : plus
+       de bulle en transit, lignes de hauteur fixe — son prolongement
+       sur toute la largeur de l'écran, par une ombre de 100vw, a
+       disparu avec elles). */
   .section-row { position: relative; z-index: 3; }
   /* Suite 89 : bande collée sous l'en-tête pendant le défilement
      (placerSepCollantes_, grille-rendu.js) — au-dessus des noms qu'elle
@@ -1809,19 +1774,6 @@
      semaines (5), qui la coupe comme avant. */
   .section-row.section-collee { z-index: 4; }
   #racine.vue-jour-mobile .lbl, #racine.vue-jour-mobile .lbl-speciale { z-index: 3; }
-  #racine.vue-jour-mobile .lbl::before, #racine.vue-jour-mobile .lbl::after,
-  #racine.vue-jour-mobile .lbl-speciale::before, #racine.vue-jour-mobile .lbl-speciale::after { box-shadow: 0 0 0 100vw var(--border); clip-path: inset(0 -100vw 0 0); }
-  /* Suite 57 — Lionel : « La transition entre les jours en mobile me
-     dérange. » Au jour posé, les lignes glissent vers leurs nouvelles
-     hauteurs au lieu d'y sauter (figerHauteursJourMobile ne change la
-     valeur en place qu'à la fin d'un balayage ; une grille neuve arrive
-     directement à ses hauteurs). 220 ms comme DUREE_HAUTEURS_QUI_GLISSENT
-     (js/grille-rendu.js). « Réduire les animations » : ramenée à rien par
-     la règle générale prefers-reduced-motion en tête de fichier. */
-  .grille.hauteurs-figees { transition: grid-template-rows .22s ease-out; }
-  /* Suite 58 : pendant un glissement, la hauteur suit le doigt image par
-     image (suivreHauteursJourMobile, js/grille-rendu.js) — pas de retard. */
-  .grille.hauteurs-figees.hauteurs-suivies { transition: none; }
   .ghost { border: 1.5px dashed var(--border-strong); border-radius: 9px; opacity: .5; }
 
   .pop {

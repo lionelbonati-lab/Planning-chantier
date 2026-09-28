@@ -8,6 +8,12 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 // ajusterLargeurBullesJourMobile (js/grille-rendu.js) : les cartes de la
 // veille et du lendemain reçoivent leur largeur définitive dès que le jour
 // est posé, hors écran ; figerHauteursJourMobile les ignore.
+// Suite 91 (28.09.2026) — Lionel : « passer à des hauteur de ligne fixe sur
+// mobile. Plus de calculs de hauteur de ligne. » Chaque bulle a désormais
+// une carte par jour, posée à sa largeur dès le rendu, jamais masquée
+// (decouperBullesJourMobile_) ; la ligne de Lionel garde la même hauteur
+// quel que soit le jour posé ; « hors-jour » (poserJourMobile_) remplace
+// « jour-voisin ».
 //
 // Lancer : node test_suite41.js
 
@@ -44,12 +50,13 @@ const hauteurLionel = (page) => page.evaluate(() => {
     await page.waitForTimeout(400);
     const jour = await page.evaluate(() => Math.round(document.querySelector('.th[data-gi]').getBoundingClientRect().width));
     let c = await etatCartes(page);
-    verifier(!c.Coffrage.voisin && c.Coffrage.aEcran && c.Coffrage.l === Math.round((jour - 1) / 2), 'jeudi posé : Coffrage (jeudi matin) à l\'écran, demi-journée (' + c.Coffrage.l + ' px)');
-    verifier(!c.Béton.cachee && c.Béton.voisin && c.Béton.horsJour && !c.Béton.aEcran && c.Béton.l === c.Coffrage.l && !c.Evacuation.cachee && c.Evacuation.l === c.Coffrage.l,
+    verifier(!c.Coffrage.horsJour && c.Coffrage.aEcran && c.Coffrage.l === Math.round((jour - 1) / 2), 'jeudi posé : Coffrage (jeudi matin) à l\'écran, demi-journée (' + c.Coffrage.l + ' px)');
+    verifier(!c.Béton.cachee && c.Béton.horsJour && !c.Béton.aEcran && c.Béton.l === c.Coffrage.l && !c.Evacuation.cachee && c.Evacuation.l === c.Coffrage.l + 1,
       'lendemain (vendredi) : cartes déjà à leur largeur, hors écran, sans poignées (' + c.Béton.l + ' / ' + c.Evacuation.l + ' px)');
     verifier(c.Béton.lignes > 20, 'lendemain : texte déjà enroulé à sa largeur (' + c.Béton.lignes + ' px de haut)');
-    verifier(!c.Mercredi.cachee && c.Mercredi.voisin && c.Mercredi.l === c.Coffrage.l, 'veille (mercredi) : carte prête elle aussi (' + c.Mercredi.l + ' px)');
-    verifier(c.Mardi.cachee, '2 jours avant (mardi) : toujours masquée');
+    verifier(!c.Mercredi.cachee && c.Mercredi.horsJour && c.Mercredi.l === c.Coffrage.l, 'veille (mercredi) : carte prête elle aussi (' + c.Mercredi.l + ' px)');
+    // Suite 91 : plus de carte masquée, même 2 jours avant.
+    verifier(!c.Mardi.cachee && c.Mardi.horsJour && c.Mardi.l === c.Coffrage.l, '2 jours avant (mardi) : carte à sa largeur elle aussi, hors du jour posé (' + c.Mardi.l + ' px)');
     const hJeudi = await hauteurLionel(page);
 
     // Glissement vers vendredi, doigt posé : aucune carte du vendredi ne change.
@@ -66,7 +73,9 @@ const hauteurLionel = (page) => page.evaluate(() => {
       c = await etatCartes(page);
       largeurs.push([c.Béton.l, c.Béton2.l, c.Evacuation.l, c.Montage.l].join('/'));
     }
-    const attendu = [c.Coffrage.l, c.Coffrage.l, c.Coffrage.l, c.Coffrage.l].join('/');
+    // Suite 91 : une carte d'après-midi recule d'1 px sur le trait du matin
+    // (.demi-aprem) et s'élargit d'autant (decouperBullesJourMobile_).
+    const attendu = [c.Coffrage.l, c.Coffrage.l, c.Coffrage.l + 1, c.Coffrage.l + 1].join('/');
     verifier(largeurs.every((l) => l === attendu), 'glissement jeudi → vendredi : cartes du vendredi à leur largeur finale à 3, 10, 40 et 80 % (' + largeurs.join(' ; ') + ')');
     await page.evaluate(async ([s0, x]) => {
       const s = document.querySelector('.scroller'); s.scrollLeft = s0 + x;
@@ -74,11 +83,12 @@ const hauteurLionel = (page) => page.evaluate(() => {
     }, [s0, jour]);
     await page.waitForTimeout(700);
     c = await etatCartes(page);
-    verifier(!c.Béton.voisin && c.Béton.aEcran && c.Coffrage.voisin && !c.Coffrage.cachee && !c.Coffrage.aEcran && c.Mercredi.cachee,
-      'vendredi posé : jeudi devient la veille (prête), mercredi à nouveau masqué');
+    verifier(!c.Béton.horsJour && c.Béton.aEcran && c.Coffrage.horsJour && !c.Coffrage.cachee && !c.Coffrage.aEcran && !c.Mercredi.cachee,
+      'vendredi posé : jeudi devient la veille (prête, hors du jour posé), mercredi toujours prêt');
     verifier(c.Béton.l === c.Coffrage.l, 'vendredi posé : largeurs inchangées (' + c.Béton.l + ' px)');
     const hVendredi = await hauteurLionel(page);
-    verifier(hVendredi > hJeudi, 'hauteurs : la ligne de Lionel suit le jour posé — jeudi ' + hJeudi + ' px (la longue tâche du vendredi, déjà calculée, n\'y compte pas), vendredi ' + hVendredi + ' px');
+    // Suite 91 : hauteur fixe, la ligne ne suit plus le jour posé.
+    verifier(hVendredi === hJeudi, 'hauteurs : la ligne de Lionel garde sa hauteur fixe — jeudi ' + hJeudi + ' px, vendredi ' + hVendredi + ' px');
     toutesErreurs.push(...erreurs);
     await page.close();
   }
@@ -97,7 +107,7 @@ const hauteurLionel = (page) => page.evaluate(() => {
     await page.evaluate(() => document.body.classList.remove('en-glissement'));
     await page.waitForTimeout(700);
     const apres = await etatCartes(page);
-    verifier(pendant.Béton.voisin && !apres.Béton.voisin && apres.Coffrage.voisin, 'bulle tenue jusqu\'au vendredi : jour posé calculé une fois la bulle lâchée (' + JSON.stringify([pendant.Béton.voisin, apres.Béton.voisin, apres.Coffrage.voisin]) + ')');
+    verifier(pendant.Béton.horsJour && !apres.Béton.horsJour && apres.Coffrage.horsJour, 'bulle tenue jusqu\'au vendredi : jour posé calculé une fois la bulle lâchée (' + JSON.stringify([pendant.Béton.horsJour, apres.Béton.horsJour, apres.Coffrage.horsJour]) + ')');
     toutesErreurs.push(...erreurs);
     await page.close();
   }

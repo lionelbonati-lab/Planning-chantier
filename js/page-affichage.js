@@ -83,6 +83,8 @@
   var CLE_AFFICHAGE = "affichage", CLE_AFFICHAGE_LOCAL = "planning.affichage";
   // interrupteur : oui/non (case à cocher) ; sinon choix en pastilles.
   // css : posé en data-aff-<id> sur <html> quand ≠ défaut.
+  // profil : ligne montrée seulement pour ce jeu (« ordi » / « tel »,
+  // cf. majPageAffichage — suite 91, d'après la vue à l'ouverture).
   // alias : anciennes valeurs enregistrées -> valeur actuelle (suite 64).
   var OPTIONS_AFFICHAGE = [
     { id: "weekends", groupe: "Planning", nom: "Afficher les week-ends", aide: "Ajoute Samedi et Dimanche à la fin de chaque semaine, pour y poser une tâche ponctuelle.", interrupteur: true, defaut: "non" },
@@ -109,14 +111,25 @@
     { id: "coinAnnee", groupe: "Dates", nom: "Case de gauche : année", choix: [["complete", "2026"], ["courte", "26"], ["masquee", "Masquée"]], defaut: "complete" },
     { id: "texte", groupe: "Bulles", nom: "Taille du texte", choix: [["petit", "Petit"], ["normal", "Normal"], ["grand", "Grand"], ["tresgrand", "Très grand"]], defaut: "normal", css: true },
     { id: "lignes", groupe: "Bulles", nom: "Lignes de texte", aide: "Au-delà, le texte est coupé par « … ».", choix: [["1", "1"], ["2", "2"], ["3", "3"]], defaut: "2", css: true },
-    { id: "hauteur", groupe: "Bulles", nom: "Hauteur des lignes", aide: "Serrée : plus de personnes à l’écran. Aérée : plus lisible.", choix: [["serree", "Serrée"], ["normale", "Normale"], ["aeree", "Aérée"]], defaut: "normale", css: true },
+    { id: "hauteur", groupe: "Bulles", nom: "Hauteur des lignes", aide: "Serrée : plus de personnes à l’écran. Aérée : plus lisible.", choix: [["serree", "Serrée"], ["normale", "Normale"], ["aeree", "Aérée"]], defaut: "normale", css: true, profil: "ordi" },
+    // Round du 28.09.2026 (suite 91) — Lionel : « passer à des hauteur de
+    // ligne fixe sur mobile. […] Ajouter un réglage d'affichage mobile
+    // permettant de choisir sa hauteur de ligne. Réglage différents pour
+    // hauteurs des lignes jalons/notes. Pour un réglage de base partir sur
+    // une hauteur contenant 2 bulles de 2hauteurs de texte. » Téléphone
+    // seulement (`profil`, cf. majPageAffichage), en nombre de bulles : la
+    // hauteur d'une bulle suit « Lignes de texte » ; Jalons et Notes, 1 bulle
+    // d'1 ligne à l'origine. Au-delà, les bulles se chevauchent en cascade
+    // (cascaderBullesJourMobile_, js/grille-rendu.js).
+    { id: "lignesTel", groupe: "Bulles", nom: "Hauteur des lignes", aide: "La place de combien de bulles, l’une sous l’autre, par personne et par jour. Au-delà, elles se chevauchent en cascade.", choix: [["1", "1 bulle"], ["2", "2 bulles"], ["3", "3 bulles"], ["4", "4 bulles"]], defaut: "2", profil: "tel" },
+    { id: "jalonsTel", groupe: "Bulles", nom: "Lignes Jalons et Notes", aide: "Leur propre hauteur : combien de bulles, et combien de lignes de texte par bulle.", choix: [["1x1", "1 bulle d’1 ligne"], ["1x2", "1 bulle de 2 lignes"], ["2x1", "2 bulles d’1 ligne"], ["2x2", "2 bulles de 2 lignes"]], defaut: "1x1", profil: "tel" },
     { id: "coins", groupe: "Bulles", nom: "Coins des bulles arrondis", aide: "Éteint : coins droits.", interrupteur: ["arrondis", "droits"], defaut: "arrondis", css: true },
     { id: "statut", groupe: "Bulles", nom: "Statut", aide: "Badge : « Confirmé », « Réservé »… sous le texte. Pastille : un point de sa couleur dans le coin (le nom au survol).", choix: [["non", "Non"], ["pastille", "Pastille"], ["badge", "Badge"]], defaut: "badge", alias: { oui: "badge" }, css: true },
     { id: "police", groupe: "Police", nom: "Police de l’appli", aide: "Pour tout le document : planning, pages, fenêtres.", choix: [["archivo", "Archivo"], ["inter", "Inter"], ["roboto", "Roboto"], ["nunito", "Nunito"], ["sourcesans", "Source Sans"], ["systeme", "Système"]], defaut: "archivo", css: true },
     // Suite 84 — Lionel : « setup affichage, réglage à l'ouverture, manque
     // le mode jours voisins ». Les 3 modes du bouton de vue, dans son ordre.
-    { id: "vueOrdi", groupe: "À l’ouverture", nom: "Ordinateur, tablette", choix: [["1", "1 semaine"], ["bords", "Jours voisins"], ["2", "2 semaines"]], defaut: "1", commun: true },
-    { id: "vueTel", groupe: "À l’ouverture", nom: "Téléphone", choix: [["jour", "1 jour"], ["semaine", "1 semaine"]], defaut: "jour", commun: true }
+    { id: "vueOrdi", groupe: "À l’ouverture", nom: "Ordinateur, tablette", choix: [["1", "1 semaine"], ["bords", "Jours voisins"], ["2", "2 semaines"]], defaut: "1", commun: true, profil: "ordi" },
+    { id: "vueTel", groupe: "À l’ouverture", nom: "Téléphone", choix: [["jour", "1 jour"], ["semaine", "1 semaine"]], defaut: "jour", commun: true, profil: "tel" }
   ];
   // Gras / italique / taille par ligne d'en-tête (suite 67) : [ligne
   // parente, nom court de l'attribut]. Affichés en icônes à côté du nom
@@ -574,11 +587,13 @@
       b.classList.toggle("actif", actif);
       b.setAttribute("aria-checked", actif ? "true" : "false");
     });
-    // Vue à l'ouverture : seule celle du jeu montré.
-    var lignesVue = { vueOrdi: "ordi", vueTel: "tel" };
-    Object.keys(lignesVue).forEach(function (id) {
-      var l = page.querySelector('.reglage-ligne[data-option="' + id + '"]');
-      if (l) l.hidden = lignesVue[id] !== profil;
+    // Réglages d'un seul jeu (`profil`) : vue à l'ouverture ; suite 91,
+    // hauteur des lignes (« Serrée / Normale / Aérée » sur ordinateur, en
+    // nombre de bulles sur téléphone) et lignes Jalons / Notes du téléphone.
+    OPTIONS_AFFICHAGE.forEach(function (o) {
+      if (!o.profil) return;
+      var l = page.querySelector('.reglage-ligne[data-option="' + o.id + '"]');
+      if (l) l.hidden = o.profil !== profil;
     });
     // Suite 79 — Lionel : « Coin arrondi planning ne doit pas apparaître
     // aussi car la vue est bord à bord. » Ordinateur, jours voisins aux

@@ -199,7 +199,7 @@ const revenirJeudi = (page) => page.evaluate(() => {
     await page.close();
   }
 
-  // --- 5. Téléphone : hauteurs calculées pour le jour posé, figées pendant le glissement ---
+  // --- 5. Téléphone : hauteurs de ligne fixes (suite 91 ; avant : calculées pour le jour posé) ---
   {
     const TACHES = [
       T(1, 1, '2026-09-24', 'matin', 'Gabarits'), T(2, 1, '2026-09-24', 'aprem', 'Armature dalle'),
@@ -237,19 +237,27 @@ const revenirJeudi = (page) => page.evaluate(() => {
     };
     const jeudi = await hauteurs();
     verifier(jeudi.Mathis === jeudi.Lionel, 'jeudi posé : Mathis n\'a qu\'une bulle ce jour-là, sa ligne a la hauteur de celle de Lionel (' + jeudi.Mathis + ' / ' + jeudi.Lionel + ')');
-    // Suite 58 (round du 26.09.2026) — Lionel : « quand une hauteur de
-    // bulle change, il faudrait que ce soit progressif, durant le switch ».
-    // La ligne de Mathis grandit avec le geste au lieu d'attendre le lâcher.
+    // Suite 58 (round du 26.09.2026) — la ligne de Mathis grandissait avec
+    // le geste. Suite 91 (round du 28.09.2026) — Lionel : « passer à des
+    // hauteur de ligne fixe sur mobile. Plus de calculs de hauteur de
+    // ligne. » : elle a la place de 2 bulles tous les jours, et ne bouge
+    // plus du tout pendant le geste.
     const suite = [];
     for (const d of [-0.25, -0.5, -0.75, -1]) { await aller(d, true); const h = await hauteurs(); suite.push(h.Mathis); }
-    verifier(suite.every((h, i) => h > (i ? suite[i - 1] : jeudi.Mathis)), 'doigt posé, glissement vers mercredi : la ligne de Mathis grandit avec le geste (' + jeudi.Mathis + ' ' + suite.join(' ') + ')');
+    verifier(suite.every((h) => h === jeudi.Mathis), 'suite 91 : doigt posé, glissement vers mercredi, la ligne de Mathis garde sa hauteur fixe (' + jeudi.Mathis + ' ' + suite.join(' ') + ')');
     await lacher();
     const mercredi = await hauteurs();
-    verifier(mercredi.Mathis > jeudi.Mathis + 20 && mercredi.coupes === 0 && mercredi.Mathis === suite[3], 'mercredi posé : la ligne de Mathis a ses 2 bulles empilées, rien de coupé, rien ne bouge au lâcher (' + jeudi.Mathis + ' → ' + mercredi.Mathis + ')');
+    // Ses 2 bulles du mercredi l'une sous l'autre, entières, dans la ligne.
+    const empilees = await page.evaluate(() => {
+      const l = [...document.querySelectorAll('.scroller .lbl')].find((x) => x.textContent.trim() === 'Mathis').getBoundingClientRect();
+      const rs = [...document.querySelectorAll('.scroller .bulle .b-carte')].filter((c) => /Ouvertures|Contrôle/.test(c.textContent)).map((c) => c.getBoundingClientRect());
+      return rs.length === 2 && rs[0].bottom <= rs[1].top && rs.every((r) => r.top >= l.top && r.bottom <= l.bottom);
+    });
+    verifier(mercredi.Mathis === jeudi.Mathis && mercredi.coupes === 0 && empilees, 'mercredi posé : la ligne de Mathis a ses 2 bulles l\'une sous l\'autre dans sa hauteur fixe, rien de coupé (' + jeudi.Mathis + ' → ' + mercredi.Mathis + ')');
     await aller(-0.5, true);
     const miRetour = (await hauteurs()).Mathis;
     await aller(0, true);
-    verifier(miRetour < mercredi.Mathis && miRetour > jeudi.Mathis && (await hauteurs()).Mathis === jeudi.Mathis, 'retour vers jeudi, doigt posé : la hauteur redescend avec le geste (' + mercredi.Mathis + ' → ' + miRetour + ' → ' + jeudi.Mathis + ')');
+    verifier(miRetour === jeudi.Mathis && (await hauteurs()).Mathis === jeudi.Mathis, 'suite 91 : retour vers jeudi, doigt posé, la hauteur ne bouge pas (' + mercredi.Mathis + ' → ' + miRetour + ' → ' + jeudi.Mathis + ')');
     await lacher();
     verifier((await hauteurs()).Mathis === jeudi.Mathis, 'jeudi reposé : la ligne de Mathis reprend sa hauteur du jeudi');
     await page.evaluate(() => { niveauZoomPlanning = 80; render(false); });

@@ -50,14 +50,14 @@ const releve = () => {
   const sc = document.querySelector('.scroller'), rs = sc.getBoundingClientRect(), LN = largeurNoms();
   const lbl = sc.querySelector('.lbl-compacte'), rl = lbl.getBoundingClientRect();
   const o = { ligne: Math.round(rl.height) };
-  sc.querySelectorAll('.bulle').forEach((b) => {
-    // .piste-nulle : entièrement rognée, donc invisible (suite 73).
-    const c = b.querySelector('.b-carte'); if (!c || b.classList.contains('piste-nulle')) return;
+  // Suite 91 : une carte par jour couvert (decouperBullesJourMobile_),
+  // chacune relevée si elle est à l'écran ; clé = texte de la bulle.
+  sc.querySelectorAll('.bulle').forEach((b) => b.querySelectorAll(':scope > .b-carte').forEach((c) => {
     const r = c.getBoundingClientRect();
     if (r.top < rl.top - 1 || r.top > rl.bottom) return;
     const vis = Math.min(r.right, rs.right) - Math.max(r.left, rs.left + LN);
-    if (vis >= 20 && r.height >= 4) o[b.textContent.trim()] = Math.round((r.top - rl.top) * 10) / 10;
-  });
+    if (vis >= 20 && r.height >= 4) o[b.querySelector('.b-txt').textContent.trim()] = Math.round((r.top - rl.top) * 10) / 10;
+  }));
   return o;
 };
 const journaliser = (page) => page.evaluate((src) => {

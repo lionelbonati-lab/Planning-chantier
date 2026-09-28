@@ -1936,9 +1936,13 @@
     clearTimeout(minuteurTempsReel_);
     minuteurTempsReel_ = null;
     if (!syncBaseline || !racineEl) return;
-    // Page du jour tournée au doigt (suite 90, grille-interactions.js) : la
-    // grille reconstruite sous sa photo la couperait — relue plus tard.
-    if (syncEnCours || syncRelance || popFermerActuel || pageJourEnCours || document.body.classList.contains("en-glissement") || document.querySelector(".confirm-pop-serie")) {
+    // Round du 28.09.2026 (suite 91) : doigt qui fait défiler la grille
+    // (aimantation coupée, grille-interactions.js) ou glissement vers un
+    // jour en cours — la grille reconstruite en plein geste revenait au jour
+    // de départ ; relue plus tard, comme pendant un glissement de bulle.
+    var sc = racineEl.querySelector(".scroller");
+    var gesteEnCours = !!calageJourEnCours || !!(sc && sc.style.scrollSnapType === "none");
+    if (syncEnCours || syncRelance || popFermerActuel || gesteEnCours || document.body.classList.contains("en-glissement") || document.querySelector(".confirm-pop-serie")) {
       if (forcer) minuteurTempsReel_ = setTimeout(function () { relireFenetre_(true); }, 2000);
       return;
     }
