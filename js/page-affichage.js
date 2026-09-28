@@ -184,10 +184,20 @@
   // suit toujours le jeu de l'appareil.
   var profilEdite_ = null;
   function profilPage_() { return profilEdite_ || profilAppareil_(); }
+  // Round du 28.09.2026 (suite 89) — Lionel : « La page de setup affichage
+  // doit etre enregistré par l'appareil ». Chaque appareil garde ses
+  // propres réglages (localStorage), le compte ne les partage plus : la
+  // table `reglages` n'est plus écrite pour « affichage » /
+  // « affichage_tel ». Reprise une seule fois : un appareil qui n'a encore
+  // rien sur lui prend ceux que le compte avait (son apparence ne change
+  // pas au passage à cette version), puis ne les relit plus jamais.
   function lireJeu_(cle, cleLocale) {
-    var r = window.etat && etat.reglages, m = null;
-    if (r) m = r[cle];
-    else { try { m = JSON.parse(localStorage.getItem(cleLocale) || "null"); } catch (e) { m = null; } }
+    var m = null, local = null;
+    try { local = localStorage.getItem(cleLocale); m = JSON.parse(local || "null"); } catch (e) { m = null; }
+    if (local === null && window.etat && etat.reglages && etat.reglages[cle] && typeof etat.reglages[cle] === "object") {
+      m = etat.reglages[cle];
+      try { localStorage.setItem(cleLocale, JSON.stringify(m)); } catch (e) {}
+    }
     if (!m || typeof m !== "object") return null;
     // Suite 84 : ancien « bords » (jours voisins enregistrés par le bouton
     // de vue, suites 74 à 83) -> ouverture en jours voisins, sauf vue
@@ -219,19 +229,9 @@
   function affichageModifie_(profil) {
     return OPTIONS_AFFICHAGE.some(function (o) { return optionAffichage(o.id, profil) !== o.defaut; });
   }
-  var minuteursAffichage_ = {};
+  // Suite 89 : sur l'appareil seulement (cf. lireJeu_).
   function ecrireJeu_(cle, cleLocale, m) {
-    if (window.etat && etat.reglages) etat.reglages[cle] = m;
     try { localStorage.setItem(cleLocale, JSON.stringify(m)); } catch (e) {}
-    clearTimeout(minuteursAffichage_[cle]);
-    minuteursAffichage_[cle] = setTimeout(function () {
-      sbClient.from("reglages").upsert({ cle: cle, valeur: m, maj: new Date().toISOString() }, { onConflict: "cle" }).then(function (res) {
-        if (res.error) throw res.error;
-        if (window.etat && !etat.reglages) { etat.reglages = {}; etat.reglages[cle] = m; }
-      }).catch(function (err) {
-        toast("Affichage gardé sur cet appareil, mais pas enregistré sur le compte : " + (err && err.message ? err.message : err));
-      });
-    }, 400);
   }
   // m : tous les réglages du jeu `profil` (communs compris).
   function enregistrerModifsAffichage_(m, profil) {
@@ -618,8 +618,8 @@
     // Jeu de réglages montré (suite 67, suite 76).
     var tel = profil === "tel", jeu = document.getElementById("affichageJeu"), rep = document.getElementById("btnAffichageReprendre");
     if (jeu) jeu.textContent = tel
-      ? "Réglages des téléphones du compte (ordinateurs et tablettes ont les leurs)" + (telAReglagesPropres_() ? "." : " — pour l’instant ceux de l’ordinateur.")
-      : "Réglages des ordinateurs et tablettes du compte (les téléphones ont les leurs).";
+      ? "Réglages de cet appareil en taille téléphone (en taille ordinateur ou tablette, il a les siens)" + (telAReglagesPropres_() ? "." : " — pour l’instant ceux de l’ordinateur.")
+      : "Réglages de cet appareil en taille ordinateur ou tablette (en taille téléphone, il a les siens). Enregistrés sur cet appareil seulement.";
     if (rep) {
       rep.textContent = tel ? "Reprendre ceux de l’ordinateur" : "Reprendre ceux du téléphone";
       rep.hidden = !telAReglagesPropres_();

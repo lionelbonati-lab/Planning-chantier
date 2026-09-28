@@ -869,7 +869,17 @@
       if (!texte) { fermer(); return; }
       var important = state.important;
       var chantierSel2 = pop.querySelector(".f-chantier");
-      var chantier = chantierSel2 ? (chantierSel2.value || null) : (itemExisting ? itemExisting.chantier : null);
+      // chantierFourni (bug signalé par Lionel, 28.09.2026 — suite 89 : « une
+      // tâche ne veut pas prendre "aucun chantier" après enregistrement, je
+      // peux le sélectionner mais il ne s'enregistrera pas ») : distingue
+      // « champ absent de la fiche » (absence, sans sélecteur -> garder
+      // l'ancien chantier) de « champ présent, remis sur "Aucun chantier" »
+      // (chantier vaut alors null, mais DOIT écraser l'ancien) — avant,
+      // `chantier || itemExisting.chantier` et `if (chantier) …` traitaient
+      // ces deux cas de la même façon puisque null est aussi falsy que
+      // "absent".
+      var chantierFourni = !!chantierSel2;
+      var chantier = chantierFourni ? (chantierSel2.value || null) : (itemExisting ? itemExisting.chantier : null);
       var statutFinal = statutRow ? statutActuel : null;
       var giDebutFinal = state.giDebut, dureeFinal = state.giFin - state.giDebut + 1;
       var demiDebutFinal = state.demiDebut, demiFinFinal = state.demiFin;
@@ -895,7 +905,7 @@
           sauvegarderUndo();
           itemExisting.texte = texte;
           itemExisting.important = important;
-          if (chantier) itemExisting.chantier = chantier;
+          if (chantierFourni) itemExisting.chantier = chantier;
           if (statutRow) itemExisting.statut = statutActuel;
           // giDebut/duree/demiDebut/demiFin : mutation directe puis render()
           // — même trajet déjà emprunté par le glissement/redimensionnement
@@ -926,7 +936,7 @@
               return enregistrerTacheEnDatesServeur(ancreDe(itemExisting.personneId), r.lignes.map(function (l) { return l.id; }), [], {});
             }).then(function () {
               return creerSerieServeur(typeAffiche, [{ personne: itemExisting.personneId }], giDebutFinal, texte, important,
-                chantier || itemExisting.chantier, statutRow ? statutActuel : (itemExisting.statut || null), choixConversion, function () {},
+                chantierFourni ? chantier : itemExisting.chantier, statutRow ? statutActuel : (itemExisting.statut || null), choixConversion, function () {},
                 nbJoursOuvresEntre(isoDebutFinal, isoFinFinal), demiDebutFinal, demiFinFinal, isoDebutFinal);
             });
           }, "Série créée à partir de cette " + (typeAffiche === "absence" ? "absence." : "tâche."));
@@ -941,7 +951,7 @@
         if (itemExisting.serieId) {
           var apresSerie = Object.assign({}, itemExisting, {
             texte: texte, important: important,
-            chantier: chantier || itemExisting.chantier,
+            chantier: chantierFourni ? chantier : itemExisting.chantier,
             statut: statutRow ? statutActuel : (itemExisting.statut || null)
           });
           fermer();
@@ -954,7 +964,7 @@
         // Champs absents de la fiche (pas de sélecteur de statut pour un
         // salarié, pas de chantier pour une absence) : ceux de la tâche
         // d'origine, comme le fait appliquerModifUnique en ne les touchant pas.
-        champsTache.chantier = chantier || itemExisting.chantier;
+        champsTache.chantier = chantierFourni ? chantier : itemExisting.chantier;
         champsTache.statut = statutRow ? statutActuel : (itemExisting.statut || null);
         enregistrementEnCours = true;
         (horsFenetre ? (promesseOrigine || lignesTacheServeur(itemExisting)).then(function (r) { return r.lignes; }) : debordementOrigine()).then(function (lignes) {

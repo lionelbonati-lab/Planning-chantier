@@ -995,6 +995,15 @@
      JAMAIS verticalement lui-même, c'est #app qui fait défiler la page —
      affichait sa propre barre verticale, par-dessus les bulles de droite. */
   .scroller { overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; }
+  /* Round du 28.09.2026 (suite 89) — Lionel : « Bug en vue jours voisin sur
+     tablette ». En jours voisins, la vue tient juste dans l'écran et son
+     défilement est tenu (grille-rendu.js remet scrollLeft à sa place à
+     chaque « scroll ») : sous le doigt, le navigateur faisait défiler la
+     grille, le script la ramenait, image après image — la grille tremblait
+     pendant tout le balayage. Plus de défilement horizontal natif ici : le
+     doigt ne fait que changer de semaine (le script, lui, peut toujours
+     poser scrollLeft). */
+  #racine.vue-bords .scroller { overflow-x: hidden; touch-action: pan-y; }
   /* Round du 23.09.2026 (suite ×10) — Lionel, retour sur la vue mobile
      "1 jour" (§99) : « La case du jour doit être aimantée pour qu'elle
      rentre sur l'écran. A l'heure actuelle je peux afficher 2 demi journée
@@ -1097,38 +1106,14 @@
   #racine.vue-bords .bulle .b-carte > :is(.b-txt, .b-statut, .b-serie) { position: static; max-width: none; }
   #racine.vue-bords .bulle.bulle-morceaux { flex-direction: row; align-items: stretch; }
   #racine.vue-bords .bulle.bulle-morceaux > .b-carte { flex: none; box-sizing: border-box; min-width: 0; }
-  /* Round du 27.09.2026 (suite 72) — Lionel : « J'aimerai un effet
-     similaire sur ordinateur lors du passage d'une semaine à l'autre. »
-     Glissement de semaine (glisserVersSemaine_, js/grille-rendu.js, API View
-     Transitions) : html.vt-semaine le temps de l'effet. La grille
-     (« semaine ») : ancienne photo qui sort, nouvelle qui entre, jointives
-     (--vt-pas = largeur des jours seuls, --vt-dir = 1 vers la semaine
-     suivante, -1 vers la précédente), chacune rognée de sa colonne des noms
-     et la paire rognée à droite de la colonne fixe (--vt-noms), pour que les
-     jours passent sous elle sans la recouvrir. Cases de la colonne des noms
-     (vt-coin, vt-p12…) : ne bougent pas, passent seulement à leur nouvelle
-     hauteur, même durée, sans fondu (la nouvelle case d'emblée : 2 textes
-     superposés dans le coin « sept. » → « sept. – oct. » se lisaient mal).
-     Page autour (root) : pareil, aucun fondu. */
-  html.vt-semaine::view-transition-group(*) { animation-duration: .34s; animation-timing-function: cubic-bezier(.22, .61, .36, 1); }
-  html.vt-semaine::view-transition-old(*) { animation: none; opacity: 0; }
-  html.vt-semaine::view-transition-new(*) { animation: none; }
-  html.vt-semaine::view-transition-image-pair(semaine) { clip-path: inset(0 0 0 var(--vt-noms, 0px)); }
-  html.vt-semaine::view-transition-old(semaine), html.vt-semaine::view-transition-new(semaine) {
-    clip-path: inset(0 0 0 var(--vt-noms, 0px)); mix-blend-mode: normal; opacity: 1;
-    animation-duration: .34s; animation-timing-function: cubic-bezier(.22, .61, .36, 1); animation-fill-mode: both;
-  }
-  html.vt-semaine::view-transition-old(semaine) { animation-name: vt-semaine-sortie; }
-  html.vt-semaine::view-transition-new(semaine) { animation-name: vt-semaine-entree; }
-  @keyframes vt-semaine-sortie { from { transform: none; } to { transform: translateX(calc(var(--vt-dir, 1) * -1 * var(--vt-pas, 100%))); } }
-  @keyframes vt-semaine-entree { from { transform: translateX(calc(var(--vt-dir, 1) * var(--vt-pas, 100%))); } to { transform: none; } }
-  /* Jours voisins aux bords (suite 74, cf. glisserVersSemaine_) : chaque
-     photo son pas (--vt-sortie, --vt-entree) et ses parties gardées
-     (--vt-masque-ancien, --vt-masque-nouveau). */
-  html.vt-semaine.vt-bords::view-transition-old(semaine) { animation-name: vt-bords-sortie; -webkit-mask-image: var(--vt-masque-ancien); mask-image: var(--vt-masque-ancien); }
-  html.vt-semaine.vt-bords::view-transition-new(semaine) { animation-name: vt-bords-entree; -webkit-mask-image: var(--vt-masque-nouveau); mask-image: var(--vt-masque-nouveau); }
-  @keyframes vt-bords-sortie { from { transform: none; } to { transform: translateX(var(--vt-sortie, 0px)); } }
-  @keyframes vt-bords-entree { from { transform: translateX(var(--vt-entree, 0px)); } to { transform: none; } }
+  /* Glissement de semaine (suite 72, glisserVersSemaine_ dans
+     js/grille-rendu.js). Round du 28.09.2026 (suite 89) — Lionel : « Ne
+     faire bouger que la colonne d'entête […] ça évite de calculer les
+     déplacements de quadrillage et de bulles. » Plus de View Transitions
+     (ni html.vt-semaine, ni photos de toute la grille) : seules les lignes
+     des dates glissent, par animations Web posées en JS ; la copie de
+     l'ancienne ligne (.entete-glisse-ancien) reçoit sa place en style
+     direct et disparaît à la fin. Rien à déclarer ici. */
   /* Round du 24.09.2026 — Lionel : « ajoute un bordure à droite de la
      première colonne. » La colonne d'étiquette (116px, sticky left:0)
      n'avait pour seule séparation que le gap de grille de 1px habituel
@@ -1751,6 +1736,11 @@
        ombre ne compte pas dans le débordement, ni l'étiquette ni le
        défilement ne s'élargissent. */
   .section-row { position: relative; z-index: 3; }
+  /* Suite 89 : bande collée sous l'en-tête pendant le défilement
+     (placerSepCollantes_, grille-rendu.js) — au-dessus des noms qu'elle
+     recouvre (z-index 3 en vue « 1 jour »), toujours sous l'espace entre
+     semaines (5), qui la coupe comme avant. */
+  .section-row.section-collee { z-index: 4; }
   #racine.vue-jour-mobile .lbl, #racine.vue-jour-mobile .lbl-speciale { z-index: 3; }
   #racine.vue-jour-mobile .lbl::before, #racine.vue-jour-mobile .lbl::after,
   #racine.vue-jour-mobile .lbl-speciale::before, #racine.vue-jour-mobile .lbl-speciale::after { box-shadow: 0 0 0 100vw var(--border); clip-path: inset(0 -100vw 0 0); }
