@@ -9905,6 +9905,7 @@ Lionel :
   - ailleurs (le centre) : simple défilement, jamais de changement de semaine, même en butée. La petite zone cachée se voit donc sans changer de semaine.
 - **Jours voisins sur tablette** : plus de tremblement. La grille ne défile plus de côté (rien à y faire défiler) ; un balayage n'importe où change de semaine, comme avant.
 - **Tests** : tous les tests sont rangés dans `tests/` (94 tests, plus `aide_tests.js` et `lancer_tests.js`). La racine du dépôt ne garde que l'appli.
+- **Anciennes captures** (« Supprime les anciennes captures PNG à la racine ») : les 44 captures numérotées de la racine (`01-…png` à `33-…png`) disparaissent. `verify_webapp.js` écrit les siennes dans `screenshots/`. Les icônes `icon-*.png` restent.
 
 ### Fonctionnement
 - **sql/0024_temps_reel.sql** (appliquée) : ajoute `taches`, `jalons` et `notes` à la publication `supabase_realtime`, qui était vide. RLS s'applique aussi aux messages temps réel.
