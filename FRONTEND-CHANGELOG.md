@@ -10255,3 +10255,35 @@ Lionel :
   - ordinateur : pastille et étalement.
 - test_suite78.js : z-index attendu des noms 5.
 - Suite complète : 103/103.
+
+## 207. Round du 29.09.2026 (suite 99) — Découpage du planning, étape 1 : les fonctions sortent de construireGrille
+- « Ne serait-il pas plus judicieux de faire 2 application différente pour portable et pour deskop? »
+- Réponse proposée : une seule appli (connexion, données, hors ligne, formulaires communs), mais l'affichage du planning découpé en trois parties — commun, ordinateur, téléphone — en plusieurs étapes, chacune testée et fusionnée à part. Lionel : « Oui », puis « Allons-y ».
+
+### Pourquoi
+- `construireGrille` (js/grille-rendu.js) faisait à elle seule ~1 700 lignes sur 3 300 : la construction commune des lignes, la vue « 1 jour » du téléphone, les jours voisins et le balayage de semaine de l'ordinateur, les hauteurs fixes et la cascade, le tout en fonctions imbriquées qui lisaient les variables du rendu par fermeture. Impossible d'en sortir un morceau sans le reste.
+
+### Ce qui change
+- Rien à l'écran : le code est déplacé, pas réécrit.
+- Les fonctions imbriquées sortent au niveau du fichier, telles quelles, après `construireGrille` (dans l'ordre d'origine) :
+  - jours voisins : `poserGabaritJoursVoisins_` (nouveau nom du calcul du gabarit), `ajusterBullesJoursVoisins_` ;
+  - hauteurs fixes et cascade : `plageGrille_`, `reglagesLignesMobile_`, `hauteurCarteSonde_`, `mesurerHauteursMobile_`, `poserPistesFixes_`, `isoDeColonne_`, `cascaderBullesJourMobile_`, constantes `MARGE_MOB_`, `PAS_MINI_MOB_`, `VU_MINI_MOB_` ;
+  - vue « 1 jour » : `decouperBullesJourMobile_`, `majGeoGlisse_`, `poserJourMobile_`, `planifierMajCoinJourMobile_`, `majCoinJourMobile_`, `decalerSurColonne_`, et `cablerArretJourMobile_` (arrêt du défilement, recentrage de la plage de jours) ;
+  - balayage de semaine au doigt et à la molette : `cablerBalayageSemaine_` ;
+  - orchestration : `mettreEnPlaceJourMobile_`, `planifierDecoupeJourMobile_`.
+- `construireGrille` ne garde que la construction commune (en-têtes, Jalons / Notes, personnes, défilement de départ) : ~800 lignes.
+
+### Fonctionnement
+- **G**, créé à chaque rendu : les grilles, le `.scroller`, la largeur des noms, le nombre de jours, la vue « 1 jour »… et l'état tenu pendant la vie de la grille (mesures des hauteurs, cases étalées, case coin, images en attente), autrefois des variables locales du rendu. Chaque fonction sortie le reçoit en premier paramètre ; une minuterie ou un écouteur d'un ancien rendu garde son G, comme il gardait sa fermeture.
+- **grilleCourante_** : le G du dernier rendu. `majHauteursLignes`, `suivreDefilementJourMobile` et `reajusterBullesJourMobile`, appelées d'autres fichiers, étaient rebranchées à chaque rendu ; ce sont maintenant des fonctions qui agissent sur `grilleCourante_` (rien avant le premier rendu, comme avant).
+- Contrôle : mêmes noms non définis dans le fichier avant et après (analyse ESLint), aucune variable inutilisée.
+
+### Tests
+- test_suite99.js, 10/10 :
+  - `construireGrille` ne définit plus que `poserDans`, `poserPleineLargeurDans`, `nomJourHTML_`, `ligneSection`, `ligneGroupePersonnesCompact`, `ligneGroupePersonnes` ;
+  - téléphone : `grilleCourante_` suit chaque rendu, hauteurs remesurées, case coin suivie au jour suivant, autre `.scroller` ignoré, ancien G sans effet ;
+  - ordinateur : hors vue « 1 jour », hauteurs remesurées.
+- Suite complète : 104/104.
+
+### Étapes suivantes
+- 2 : hauteurs fixes et cascade dans js/grille-hauteurs.js (commun) ; 3 : vue « 1 jour » dans js/grille-telephone.js ; 4 : vue semaine dans js/grille-ordinateur.js ; 5 : styles ; 6 : gestes ; 7 : bilan.

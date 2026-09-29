@@ -1379,15 +1379,15 @@
     return true;
   }
   // reajusterBullesJourMobile() (suite 35) : recoupe, à l'image suivante,
-  // les cartes des bulles par jour en vue « 1 jour » (suite 91, cf.
-  // decouperBullesJourMobile_ dans construireGrille, qui la rebranche à
-  // chaque rendu) — pour l'aperçu d'une poignée, qui change la taille
-  // d'une bulle sans aucun rendu. Suite 84 : pareil en vue « Jours voisins ».
-  var reajusterBullesJourMobile = function () {};
-  // majHauteursLignes() (suite 92) : hauteurs des lignes remesurées d'après
-  // les réglages, sans nouveau rendu (curseurs) — rebranchée à chaque
-  // rendu par construireGrille. false : rien de mesurable.
-  var majHauteursLignes = function () { return false; };
+  // les cartes des bulles par jour en vue « 1 jour » (suite 91, cf.
+  // decouperBullesJourMobile_) — pour l'aperçu d'une poignée, qui change
+  // la taille d'une bulle sans aucun rendu. Suite 84 : pareil en vue
+  // « Jours voisins ». majHauteursLignes() (suite 92) : hauteurs des lignes
+  // remesurées d'après les réglages, sans nouveau rendu (curseurs) ; false :
+  // rien de mesurable. Suite 99 : l'une et l'autre, comme
+  // suivreDefilementJourMobile ci-dessous, sont des fonctions (plus loin,
+  // après construireGrille) qui agissent sur la grille du dernier rendu
+  // (grilleCourante_) — elles n'y sont plus rebranchées à chaque rendu.
   // Dernières mesures (suite 92) : { pers: {n, u, h}, jal: {n, u, h} } —
   // la hauteur en pixels affichée à côté des curseurs.
   var hauteursLignesMesurees = null;
@@ -1396,7 +1396,6 @@
   // dans la MÊME image qu'un défilement posé par le script
   // (defilerHorizontal_, grille-interactions.js) — par l'événement
   // « scroll », il n'arrivait qu'à l'image suivante.
-  var suivreDefilementJourMobile = function () {};
   // Taille de la fenêtre (round du 27.09.2026, suite 72) : les positions
   // mémorisées pour le glissement (geoGlisse_, construireGrille) ne valent
   // que pour la taille où elles ont été mesurées.
@@ -1608,6 +1607,20 @@
     racineEl.classList.toggle("vue-bords", vueBordsRendue_);
     scroller.classList.toggle("vue-bords", vueBordsRendue_);
     var labsRendus = labsRendusDernier = fenetreLabGs().join(",");
+    // G (suite 99) : ce que les morceaux sortis de construireGrille lisent
+    // de ce rendu, et l'état qu'ils tiennent pendant la vie de cette
+    // grille (cf. grilleCourante_).
+    var G = {
+      scroller: scroller, grilleCorps: grilleCorps, grilleEntete: grilleEntete, enteteScroll: enteteScroll,
+      LN: LN, n: n, nbSemainesAffichees: nbSemainesAffichees, enModeJourMobile: enModeJourMobile, labsRendus: labsRendus,
+      coin: null,            // case coin de la ligne des jours (posée plus bas)
+      isoCoinJour_: null,    // jour dont la case coin montre le mois (vue « 1 jour »)
+      mesuresMob_: null,     // { pers: {n, u, h}, jal: {n, u, h} } (mesurerHauteursMobile_)
+      geoGlisse_: null,      // colonnes des jours pour la case coin (majGeoGlisse_)
+      cascadesOuvertes_: {}, // clé de la case -> true : bulles étalées (pastille « +N », suite 98)
+      rafDecoupe_: null, rafCoinJour_: null, xCoin_: null,
+      xDejaSuivi: null       // position de défilement déjà suivie par le script
+    };
     // Round du 23.09.2026 (suite ×10) — cf. le commentaire de
     // .scroller.snap-jour-mobile dans style.css : le scroll-snap "1 jour"
     // (Lionel : « la case du jour doit être aimantée pour qu'elle rentre sur
@@ -1698,766 +1711,25 @@
     scroller.appendChild(grilleCorps);
     cadre.appendChild(scroller);
     racineEl.appendChild(cadre);
-    // Jours voisins aux bords (suite 74) — Lionel : « le vendredi de la
-    // semaine avant à gauche de l'écran et le lundi de la semaine suivante
-    // à droite, coller au bord de l'écran comme si la suite était cachée
-    // en dehors de l'écran. On retrouverai le petit espace entre les
-    // semaine. Les nom seraient affiché que sur la partie centrale. » De
-    // gauche à droite, à l'écran : un bord du vendredi d'avant (P), la
-    // bande entre semaines (.sep-semaines, 8 px à cheval sur la frontière),
-    // la colonne des noms, les jours de la (des) semaine(s) affichée(s), la
-    // bande, un bord du lundi d'après, aussi large que celui du vendredi.
-    // Les 3 (ou 4) semaines sont dans la grille en entier, en colonnes de
-    // largeur fixe calculées pour la largeur réelle du .scroller :
-    // le défilement horizontal, calé plus bas (cibleScrollLeft) et tenu
-    // (écouteur "scroll"), cache le reste. Bord : 40 % d'un jour, entre 24
-    // et 120 px. Round du 27.09.2026 (suite 82) — Lionel : « Jour voisins
-    // n'affichent qu'une demi journée. » Bord : un jour entier (matin et
-    // après-midi), exactement la largeur d'un jour de la semaine affichée.
     var geoBords = null;
-    if (vueBordsRendue_) {
-      var zB = (niveauZoomPlanning / 100) || 1, cpjB = colsParJour(), nbC = nbSemainesAffichees - 2;
-      var W = (scroller.clientWidth || (racineEl.clientWidth - 2) || 1200) / zB;
-      // Une semaine : 5 jours de cpj colonnes (+ 1 px d'écart chacune), et
-      // ses 2 colonnes de week-end de 46 px (+ 1).
-      var weB = afficherWeekends ? 2 * 47 : 0;
-      // 5 jours par semaine affichée + 2 jours entiers aux bords.
-      var colB = Math.max(20, (W - LN - 4 - nbC * weB) / (5 * nbC + 2) / cpjB - 1);
-      var P = Math.floor(cpjB * (colB + 1));
-      // Colonne vide : la bande couvre ses 3 premiers px (+ 4 du vendredi),
-      // les noms le reste, jusqu'au trait de 1 px avant le lundi.
-      //
-      // Round du 27.09.2026 (suite 75) — Lionel : « Pas de samedi-dimanche dans les
-      // semaines adjacentes. » Week-ends de la semaine d'avant et de celle
-      // d'après : colonnes de 0 px (leur contenu est masqué, cf.
-      // colsWeVoisins) ; le vendredi d'avant reste donc collé à la bande. Les
-      // 2 écarts de 1 px de ces colonnes sont repris sur la colonne vide :
-      // le lundi reste à la même distance du vendredi.
-      var espaceB = LN + 3 - (afficherWeekends ? 2 : 0);
-      var gabaritB = LN + "px", nbColsB = 1, nbWeB = 0;
-      for (var sB = 0; sB < nbSemainesAffichees; sB++) {
-        if (sB === 1) { gabaritB += " " + espaceB + "px"; nbColsB++; }
-        gabaritB += " repeat(" + (5 * cpjB) + ", " + colB + "px)"; nbColsB += 5 * cpjB;
-        if (afficherWeekends) {
-          var voisineB = sB === 0 || sB === nbSemainesAffichees - 1;
-          gabaritB += voisineB ? " repeat(2, 0px)" : " repeat(2, 46px)"; nbColsB += 2;
-          if (!voisineB) nbWeB++;
-        }
-      }
-      var totalB = LN + espaceB + nbSemainesAffichees * 5 * cpjB * colB + nbWeB * 92 + (nbColsB - 1);
-      grilleEntete.style.gridTemplateColumns = grilleCorps.style.gridTemplateColumns = gabaritB;
-      grilleEntete.style.minWidth = grilleCorps.style.minWidth = totalB + "px";
-      geoBords = { P: P, largeur: W, zoom: zB };
-      scroller.dataset.largeurBords = String(scroller.clientWidth);
-      racineEl.style.setProperty("--noms-gauche", (P + 4) + "px");
-      document.documentElement.style.setProperty("--largeur-visible-bulle", (W - 2 * P - LN - 20) + "px");
-    } else {
-      racineEl.style.removeProperty("--noms-gauche");
-    }
-    // Bulles des jours voisins (round du 27.09.2026, suite 84) — Lionel :
-    // « Si les bulles du jours de coté sont plus long elle n'apparaissent
-    // pas complètement. Le but est que je puisse voir ce qui sera fait le
-    // vendredi avant et le lundi après. il faut traiter ces jours de coté
-    // comme le mode 1 jour du mobile. bulle et texte affichés sur le jour
-    // même si la tâche est plus longue. » En vue « Jours voisins », l'écran
-    // montre 3 morceaux de la grille : le vendredi d'avant (A), la semaine
-    // (C, après la colonne des noms), le lundi d'après (B). Une bulle qui
-    // déborde d'un morceau (commencée plus tôt dans la semaine d'avant,
-    // finie plus tard dans celle d'après, ou à cheval sur la colonne des
-    // noms) avait une seule carte : texte hors de l'écran ou sous les noms,
-    // bout de carte vide de l'autre côté. Elle a désormais une carte par
-    // morceau visible, chacune à la largeur de sa part et avec son texte
-    // (.bulle-morceaux, style.css) : la carte d'origine pour la semaine
-    // (ou la seule part visible), des copies (.b-carte-voisin, placées par
-    // `order`) pour les jours voisins. La bulle elle-même (item de grille)
-    // ne change pas : clic, glisser et poignées comme avant.
-    function ajusterBullesJoursVoisins_() {
-      var bulles = [].slice.call(grilleCorps.querySelectorAll(".bulle")).concat([].slice.call(grilleEntete.querySelectorAll(".bulle")));
-      bulles.forEach(function (b) {
-        if (!b.classList.contains("bulle-morceaux")) return;
-        b.classList.remove("bulle-morceaux");
-        b.querySelectorAll(":scope > .b-carte-voisin").forEach(function (c) { c.remove(); });
-        var c0 = b.querySelector(":scope > .b-carte");
-        if (c0) c0.style.marginLeft = c0.style.width = c0.style.maxWidth = c0.style.order = "";
-      });
-      if (!vueBordsRendue_ || !scroller.getClientRects().length) return;
-      var zoom = (niveauZoomPlanning / 100) || 1;
-      var rS = scroller.getBoundingClientRect(), visG = rS.left + scroller.clientLeft, visD = visG + scroller.clientWidth;
-      // Morceaux visibles d'après les en-têtes de jours : semaine d'avant
-      // (0), semaine affichée (1), semaine d'après (2).
-      var zones = [null, null, null];
-      grilleEntete.querySelectorAll(".th[data-gi]").forEach(function (th) {
-        var gi = +th.dataset.gi, s = estGiWeekend(gi) ? semaineDuGiWeekend(gi) : Math.floor(gi / 5);
-        var k = s === 0 ? 0 : s >= nbSemainesAffichees - 1 ? 2 : 1;
-        var r = th.getBoundingClientRect(), g = Math.max(r.left, visG), d = Math.min(r.right, visD);
-        if (d - g < 1) return;
-        zones[k] = zones[k] ? [Math.min(zones[k][0], g), Math.max(zones[k][1], d)] : [g, d];
-      });
-      bulles.forEach(function (b) {
-        var carte = b.querySelector(":scope > .b-carte");
-        if (!carte) return;
-        var r = b.getBoundingClientRect();
-        if (r.width < 1) return;
-        var parts = [];
-        zones.forEach(function (z, k) {
-          if (!z) return;
-          var g = Math.max(r.left, z[0]), d = Math.min(r.right, z[1]);
-          if (d - g >= 1) parts.push({ g: g, d: d, k: k });
-        });
-        if (!parts.length || (parts.length === 1 && parts[0].g - r.left < 1 && r.right - parts[0].d < 1)) return;
-        b.classList.add("bulle-morceaux");
-        var principale = parts.filter(function (p) { return p.k === 1; })[0] || parts[0], x = r.left;
-        parts.forEach(function (p, i) {
-          var c = carte;
-          if (p !== principale) {
-            c = carte.cloneNode(true);
-            c.classList.add("b-carte-voisin");
-            c.setAttribute("aria-hidden", "true");
-            b.appendChild(c);
-          }
-          c.style.order = String(i);
-          c.style.marginLeft = ((p.g - x) / zoom) + "px";
-          c.style.width = c.style.maxWidth = ((p.d - p.g) / zoom) + "px";
-          x = p.d;
-        });
-      });
-    }
-    // ---- Vue « 1 jour » du téléphone : lignes de hauteur fixe -----------
-    // Round du 28.09.2026 (suite 91) — Lionel : « Je pense qu'il serait
-    // judicieux de passer à des hauteur de ligne fixe sur mobile. Plus de
-    // calculs de hauteur de ligne. Si pas assez de place les bulles se
-    // chevaucheront telle des post'it. Ajouter un réglage d'affichage mobile
-    // permettant de choisir sa hauteur de ligne. Réglage différents pour
-    // hauteurs des lignes jalons/notes. Pour un réglage de base partir sur
-    // une hauteur contenant 2 bulles de 2hauteurs de texte. » Puis, à nos
-    // questions : réglage « en nombre de bulles », chevauchement « en
-    // cascade », Jalons/Notes « 1 bulle d'1 ligne » par défaut, « téléphone
-    // seulement » (tablette et ordinateur gardent leurs hauteurs calculées).
-    //
-    // Tout ce qui s'était empilé depuis la suite 34 pour passer d'un jour à
-    // l'autre disparaît : largeurs des cartes recalculées pendant le geste
-    // (suites 37, 41, 42, 72), hauteurs de lignes mesurées pour le jour
-    // posé, glissées puis interpolées sous le doigt (suites 35, 57, 58),
-    // bulles tenues à leur place (suite 73), photos de la page (suite 90).
-    // Chacun remettait en page la grille entière, ou la faisait
-    // photographier, en plein geste. Désormais :
-    // - toutes les lignes de personnes ont la même hauteur, tous les jours :
-    //   la place de N bulles (réglage « Hauteur des lignes », page Affichage,
-    //   téléphone : 1 à 4, 2 à l'origine) de L lignes de texte (« Lignes de
-    //   texte », 2 à l'origine) ; Jalons et Notes, la leur (« Jalons et
-    //   Notes » : 1 ou 2 bulles d'1 ou 2 lignes, 1 bulle d'1 ligne à
-    //   l'origine). Hauteur d'une carte mesurée une fois au rendu, sur une
-    //   carte sonde (mesurerHauteursMobile_) ; pistes de la grille posées
-    //   une fois (poserPistesFixes_) ;
-    // - une bulle de plusieurs jours a une carte par jour couvert, chacune à
-    //   la largeur de sa part, texte au début (decouperBullesJourMobile_) :
-    //   plus de carte collée au bord de l'écran (sticky) à recalculer ;
-    // - les bulles d'une même personne et d'un même jour sont en cascade
-    //   (cascaderBullesJourMobile_) : l'une sous l'autre tant qu'il y a la
-    //   place, sinon chacune descend d'un pas régulier et recouvre le bas de
-    //   la précédente, le haut de chacune restant visible, comme des post-it.
-    //   Un appui sur une bulle la sélectionne et la passe devant (style.css) ;
-    // - changer de jour n'est plus qu'un défilement : rien à mesurer ni à
-    //   écrire pendant le geste, ni à l'arrêt.
-    var MARGE_MOB_ = 3;       // px : au-dessus, entre et sous les bulles d'une ligne
-    var PAS_MINI_MOB_ = 20;   // px : décalage minimal entre 2 bulles en cascade
-    var VU_MINI_MOB_ = 10;    // px : en dessous, une bulle de la cascade compte comme cachée (suite 98)
-    var cascadesOuvertes_ = {}; // clé de la case -> true : bulles étalées (pastille « +N », suite 98)
-    var mesuresMob_ = null;   // { pers: {n, u, h}, jal: {n, u, h} } (mesurerHauteursMobile_)
-    var geoGlisse_ = null;    // colonnes des jours pour la case coin (majGeoGlisse_)
-    // « 4 / span 2 » → [4, 2] ; « 4 » → [4, 1].
-    function plageGrille_(v) {
-      var m = /^(\d+)(?:\s*\/\s*span\s+(\d+))?/.exec(v || "");
-      return m ? [+m[1], m[2] ? +m[2] : 1] : null;
-    }
-    // Réglages de l'appareil (page Affichage) : bulles par ligne et lignes
-    // de texte par bulle, personnes et Jalons/Notes. Suite 92 : ordinateur
-    // et tablette ont les leurs, en curseur (nombre de bulles décimal, au
-    // pixel près : lignesOrdi, jalonsOrdi ; lignes de texte des Jalons /
-    // Notes : jalonsLignesOrdi).
-    function reglagesLignesMobile_() {
-      var l = Math.max(1, Math.min(3, +optionAffichage("lignes") || 2));
-      var borne = function (v, d) { v = parseFloat(v); return isFinite(v) ? Math.max(1, Math.min(4, v)) : d; };
-      if (profilAppareil_() === "ordi") {
-        return {
-          pers: { n: borne(optionAffichage("lignesOrdi"), 2), l: l },
-          jal: { n: borne(optionAffichage("jalonsOrdi"), 1), l: optionAffichage("jalonsLignesOrdi") === "2" ? 2 : 1 }
-        };
-      }
-      var jal = /^([12])x([12])$/.exec(optionAffichage("jalonsTel") || "") || [null, "1", "1"];
-      return {
-        pers: { n: Math.max(1, Math.min(4, +optionAffichage("lignesTel") || 2)), l: l },
-        jal: { n: +jal[1], l: +jal[2] }
-      };
-    }
-    // Hauteur d'une carte de `lignes` lignes de texte : une carte sonde,
-    // texte assez long pour remplir toutes ses lignes, posée invisible dans
-    // la grille (mêmes règles CSS que les vraies). Puis hauteur de ligne :
-    // N cartes et leurs marges. Posées en variables sur #racine
-    // (--mob-h-pers, --mob-carte-pers…, lues par style.css et par les
-    // pistes de poserPistesFixes_).
-    // Suite 92 : la sonde des personnes porte aussi un badge de statut —
-    // sur ordinateur, « Statut : Badge » ajoute sa ligne sous le texte
-    // (en pastille ou masqué, et toujours en vue « 1 jour », il ne prend
-    // aucune place : style.css).
-    function hauteurCarteSonde_(grille, classe, lignes, avecStatut) {
-      var b = document.createElement("div");
-      b.className = "bulle bulle-plage bulle-sonde " + classe;
-      b.setAttribute("aria-hidden", "true");
-      b.style.cssText = "position:absolute;left:0;top:0;width:44px;visibility:hidden;pointer-events:none";
-      b.innerHTML = '<div class="b-carte" style="height:auto;max-height:none;width:44px"><span class="b-txt"></span>' +
-        (avecStatut ? '<span class="b-statut"><span class="dot"></span>Statut</span>' : '') + '</div>';
-      var t = b.querySelector(".b-txt");
-      t.textContent = new Array(9).join("Mesure ");
-      t.style.webkitLineClamp = t.style.lineClamp = String(lignes);
-      grille.appendChild(b);
-      var h = b.firstChild.offsetHeight;
-      b.remove();
-      return h;
-    }
-    // Suite 92 : N peut être décimal (curseur de l'ordinateur) — H au
-    // pixel près, arrondi au dixième.
-    function mesurerHauteursMobile_() {
-      if (!scroller.getClientRects().length) return false;
-      var r = reglagesLignesMobile_(), m = MARGE_MOB_;
-      var mes = {};
-      [["pers", grilleCorps, "bulle-tache"], ["jal", grilleEntete, "bulle-note"]].forEach(function (d) {
-        var u = hauteurCarteSonde_(d[1], d[2], r[d[0]].l, d[0] === "pers"), n = r[d[0]].n;
-        mes[d[0]] = { n: n, u: u, h: Math.round((m + n * u + (n - 1) * m + m) * 10) / 10 };
-      });
-      if (!mes.pers.u) return false;
-      mesuresMob_ = hauteursLignesMesurees = mes;
-      racineEl.style.setProperty("--mob-carte-pers", mes.pers.u + "px");
-      racineEl.style.setProperty("--mob-h-pers", mes.pers.h + "px");
-      racineEl.style.setProperty("--mob-carte-jal", mes.jal.u + "px");
-      racineEl.style.setProperty("--mob-h-jal", mes.jal.h + "px");
-      racineEl.style.setProperty("--mob-lignes-jal", String(r.jal.l));
-      return true;
-    }
-    // Pistes de la grille : hauteur fixe pour les lignes de personnes
-    // (étiquette marquée data-h-mob="pers") et de Jalons/Notes ("jal"), à
-    // leur contenu pour le reste (dates, horaires, bandes Personnel /
-    // Intervenants). Une seule piste par personne en vue « 1 jour » (cf.
-    // ligneGroupePersonnesCompact) : la cascade remplace l'empilement.
-    function poserPistesFixes_() {
-      [grilleEntete, grilleCorps].forEach(function (g) {
-        var nb = 0, fixes = {};
-        [].forEach.call(g.children, function (el) {
-          var r = plageGrille_(el.style.gridRow);
-          if (!r) return;
-          nb = Math.max(nb, r[0] + r[1] - 1);
-          if (el.dataset.hMob) fixes[r[0]] = el.dataset.hMob;
-        });
-        var t = [];
-        for (var i = 1; i <= nb; i++) t.push(fixes[i] ? "var(--mob-h-" + fixes[i] + ")" : "auto");
-        g.style.gridTemplateRows = t.join(" ");
-        g._lignesMob = fixes;
-      });
-    }
-    // Une carte par jour couvert, chacune à la largeur de sa part (colonnes
-    // de la grille, lues une fois) — la 1re est la carte d'origine, les
-    // autres des copies (.b-carte-jour). data-jour : rang du jour (repères
-    // .snap-jour, un par jour). Refait au rendu et à l'aperçu d'une poignée
-    // (reajusterBullesJourMobile) ; jamais pendant un geste.
-    function decouperBullesJourMobile_() {
-      var jours = [].map.call(grilleCorps.querySelectorAll(".snap-jour"), function (el) {
-        var c = plageGrille_(el.style.gridColumn) || [0, 0];
-        return { col: c[0], fin: c[0] + c[1] };
-      }).sort(function (a, b) { return a.col - b.col; });
-      [grilleEntete, grilleCorps].forEach(function (g) {
-        var cs = getComputedStyle(g);
-        var ws = cs.gridTemplateColumns.split(" ").map(parseFloat), ecartC = parseFloat(cs.columnGap) || 0;
-        var gauche = [0];
-        for (var c = 0; c < ws.length; c++) gauche.push(gauche[c] + ws[c] + ecartC);
-        [].forEach.call(g.children, function (b) {
-          if (!b.classList.contains("bulle")) return;
-          b.querySelectorAll(":scope > .b-carte-jour").forEach(function (cj) { cj.remove(); });
-          var carte = b.querySelector(":scope > .b-carte"), cb = plageGrille_(b.style.gridColumn);
-          if (!carte || !cb) return;
-          var parts = [];
-          jours.forEach(function (d, j) {
-            var a = Math.max(cb[0], d.col), z = Math.min(cb[0] + cb[1], d.fin);
-            if (z > a && ws[z - 2] != null) parts.push({ j: j, g: gauche[a - 1], d: gauche[z - 2] + ws[z - 2] });
-          });
-          carte.dataset.jour = "-1";
-          // Bulle qui commence l'après-midi : la carte d'origine recule de
-          // 1 px sur le trait du matin (.demi-aprem, style.css) — elle
-          // s'élargit d'autant pour finir au même bord.
-          var x0 = gauche[cb[0] - 1], recul = b.classList.contains("demi-aprem") ? 1 : 0;
-          parts.forEach(function (p, n) {
-            var el = carte;
-            if (n > 0) {
-              el = carte.cloneNode(true);
-              el.classList.add("b-carte-jour");
-              el.setAttribute("aria-hidden", "true");
-              b.appendChild(el);
-            }
-            el.dataset.jour = String(p.j);
-            el.style.marginLeft = n > 0 ? (p.g - x0) + "px" : "";
-            el.style.width = (p.d - p.g + (n === 0 ? recul : 0)) + "px";
-            x0 = p.d;
-          });
-        });
-      });
-    }
-    // Cascade : pour chaque ligne (une personne, Jalons, Notes) et chaque
-    // jour, les bulles présentes ce jour-là sont rangées par piste
-    // (assignerPistesCompact, la même sur toute la fenêtre — deux bulles
-    // qui ne se chevauchent pas, matin et après-midi, restent côte à côte),
-    // pistes vides ce jour-là sautées. Rang k : k·(U + marge) sous la
-    // première tant que les n bulles tiennent dans la ligne (n ≤ N), sinon
-    // un pas régulier (H − 2·marge − U)/(n − 1) : la dernière finit pile au
-    // bas de la ligne, chacune recouvre le bas de la précédente. Pas jamais
-    // sous PAS_MINI_MOB_ (sinon, avec la place d'une seule bulle, toutes
-    // tombaient au même endroit) : le haut de chaque bulle reste visible,
-    // les dernières rognées au bas de la ligne (clip-path, style.css). Les bulles
-    // sont posées dans l'ordre des pistes (ligneGroupePersonnesCompact) :
-    // la suivante passe par-dessus la précédente. Décalage par `translate`
-    // sur chaque carte (et sur les poignées, comme leur carte) : rien n'est
-    // remis en page.
-    //
-    // Round du 29.09.2026 (suite 92) — hors de la vue « 1 jour » (ordinateur,
-    // tablette, téléphone en semaine), une bulle garde une seule carte, au
-    // même rang sur toute sa durée (Lionel, à notre question : « une seule
-    // bulle ») : les bulles d'une ligne sont regroupées en amas, de proche
-    // en proche tant qu'elles se chevauchent (colonnes de la grille) ; dans
-    // chaque amas, même rangement par piste et même pas que par jour
-    // ci-dessus. Une bulle seule dans son amas reste en haut de sa ligne.
-    //
-    // Round du 29.09.2026 (suite 98) — Lionel, capture à l'appui : « sur un
-    // demi jour je ne vois pas une bulle car la ligne est trop petite. J'ai
-    // une bulle verte cachée derrière la bulle bleu. » Puis, à notre
-    // question : « La pastille, mais un appuis sur la pastille montre les
-    // bulles du jour sans changer la hauteur des lignes. Un nouvel appuis
-    // replace les bulles. » Bulle de la cascade dont moins de VU_MINI_MOB_
-    // px dépassent au-dessus du bas de sa ligne : cachée. Une pastille
-    // « +N » (N bulles cachées) se pose dans le coin bas droit de la
-    // demi-journée de ces bulles. Un appui étale les bulles de la case
-    // (même ligne, même jour — hors vue « 1 jour » : même amas) : une
-    // hauteur de carte d'écart, sans chevauchement, par-dessus les lignes
-    // suivantes (la ligne garde sa hauteur ; remontées d'autant si elles
-    // dépassaient le bas du planning). La pastille devient « − » ; un nouvel
-    // appui les replace en cascade. Changer de jour les replace aussi.
-    function isoDeColonne_(col) {
-      var th = [].filter.call(grilleEntete.querySelectorAll(".th[data-gi]"), function (t) {
-        var c = plageGrille_(t.style.gridColumn);
-        return c && col >= c[0] && col < c[0] + c[1];
-      })[0];
-      return th ? isoDeGi(+th.dataset.gi) + ":" + (col - plageGrille_(th.style.gridColumn)[0]) : "c" + col;
-    }
-    function cascaderBullesJourMobile_() {
-      if (!mesuresMob_) return;
-      var joursCol = [].map.call(grilleCorps.querySelectorAll(".snap-jour"), function (el) {
-        var c = plageGrille_(el.style.gridColumn) || [0, 0];
-        return { col: c[0], fin: c[0] + c[1] };
-      }).sort(function (a, b) { return a.col - b.col; });
-      [grilleEntete, grilleCorps].forEach(function (g) {
-        var lignes = g._lignesMob || {}, parLigne = {};
-        g.querySelectorAll(":scope > .pastille-cachees").forEach(function (el) { el.remove(); });
-        g.querySelectorAll(":scope > .bulle.cascade-ouverte").forEach(function (b) { b.classList.remove("cascade-ouverte"); });
-        [].forEach.call(g.children, function (b) {
-          if (!b.classList.contains("bulle") || b.classList.contains("bulle-sonde")) return;
-          var r = plageGrille_(b.style.gridRow);
-          if (!r || !lignes[r[0]]) return;
-          (parLigne[r[0]] = parLigne[r[0]] || []).push(b);
-        });
-        Object.keys(parLigne).forEach(function (row) {
-          var mes = mesuresMob_[lignes[row]], m = MARGE_MOB_;
-          var groupes = [];
-          if (enModeJourMobile) {
-            var parJour = {};
-            parLigne[row].forEach(function (b) {
-              var piste = +b.dataset.piste || 0;
-              [].forEach.call(b.querySelectorAll(":scope > .b-carte"), function (c) {
-                (parJour[c.dataset.jour] = parJour[c.dataset.jour] || []).push({ c: c, piste: piste, b: b });
-              });
-            });
-            groupes = Object.keys(parJour).map(function (j) { parJour[j].jour = +j; return parJour[j]; });
-          } else {
-            var amas = null, fin = -1;
-            parLigne[row].map(function (b) { return { b: b, col: plageGrille_(b.style.gridColumn) || [0, 1] }; })
-              .sort(function (a, b) { return a.col[0] - b.col[0]; })
-              .forEach(function (x) {
-                if (!amas || x.col[0] >= fin) { amas = []; groupes.push(amas); fin = -1; }
-                fin = Math.max(fin, x.col[0] + x.col[1]);
-                var piste = +x.b.dataset.piste || 0;
-                [].forEach.call(x.b.querySelectorAll(":scope > .b-carte"), function (c) { amas.push({ c: c, piste: piste, b: x.b }); });
-              });
-          }
-          groupes.forEach(function (cartes) {
-            var pistes = [];
-            cartes.forEach(function (x) { if (pistes.indexOf(x.piste) < 0) pistes.push(x.piste); });
-            pistes.sort(function (a, b) { return a - b; });
-            var n = pistes.length;
-            var pas = n <= mes.n ? mes.u + m : Math.max(Math.min(PAS_MINI_MOB_, mes.u + m), (mes.h - 2 * m - mes.u) / (n - 1));
-            // Suite 98 : bulles cachées (colonnes de leur part de journée),
-            // pastille « +N », case étalée si elle est ouverte.
-            var cachees = [], c0 = Infinity, c1 = 0, d0 = Infinity;
-            cartes.forEach(function (x) {
-              var cb = plageGrille_(x.b.style.gridColumn) || [0, 1], a = cb[0], z = cb[0] + cb[1];
-              var jc = cartes.jour != null ? joursCol[cartes.jour] : null;
-              if (jc) { a = Math.max(a, jc.col); z = Math.min(z, jc.fin); }
-              d0 = Math.min(d0, a);
-              if (mes.h - (m + pistes.indexOf(x.piste) * pas) >= VU_MINI_MOB_) return;
-              if (cachees.indexOf(x.piste) < 0) cachees.push(x.piste);
-              c0 = Math.min(c0, a); c1 = Math.max(c1, z);
-            });
-            var cle = (g === grilleEntete ? "e" : "c") + row + "|" + isoDeColonne_(d0);
-            var ouverte = cachees.length > 0 && !!cascadesOuvertes_[cle], decale = 0;
-            if (ouverte) {
-              pas = mes.u + m;
-              var rG = g.getBoundingClientRect(), kz = g.offsetHeight ? rG.height / g.offsetHeight : 1;
-              var haut = (cartes[0].b.getBoundingClientRect().top - rG.top) / kz, bas = haut + m + (n - 1) * pas + mes.u + 2;
-              decale = Math.max(0, Math.min(haut, bas - g.offsetHeight));
-            }
-            if (cachees.length && c1 > c0) {
-              var pc = document.createElement("button");
-              pc.type = "button";
-              pc.className = "pastille-cachees" + (ouverte ? " ouverte" : "");
-              pc.textContent = ouverte ? "\u2212" : "+" + cachees.length;
-              pc.title = ouverte ? "Replacer les bulles" : cachees.length + (cachees.length > 1 ? " bulles cachées : les montrer" : " bulle cachée : la montrer");
-              pc.setAttribute("aria-label", pc.title);
-              pc.style.gridRow = row;
-              pc.style.gridColumn = c0 + " / " + c1;
-              pc.addEventListener("click", function (e) {
-                e.stopPropagation();
-                if (cascadesOuvertes_[cle]) delete cascadesOuvertes_[cle]; else cascadesOuvertes_[cle] = true;
-                cascaderBullesJourMobile_();
-              });
-              g.appendChild(pc);
-            }
-            cartes.forEach(function (x) {
-              var rang = pistes.indexOf(x.piste), y = m + rang * pas - decale;
-              if (ouverte) x.b.classList.add("cascade-ouverte");
-              x.c.style.translate = "0 " + Math.round(y * 10) / 10 + "px";
-              // Suite 94 : carte posée sur une autre de la pile (ombre et
-              // liseré en haut, style.css) — lisible même de même couleur.
-              x.c.toggleAttribute("data-empile", rang > 0);
-            });
-          });
-          parLigne[row].forEach(function (b) {
-            var cs = b.querySelectorAll(":scope > .b-carte");
-            if (!cs.length) return;
-            var pg = b.querySelector(":scope > .poignee-g"), pd = b.querySelector(":scope > .poignee-d");
-            if (pg) pg.style.translate = cs[0].style.translate;
-            if (pd) pd.style.translate = cs[cs.length - 1].style.translate;
-          });
-        });
-      });
-      remonterCartesSelection(); // suite 93
-    }
-    // Colonnes des jours, dans le repère du contenu défilé (suite 72) :
-    // lues au repos, pour la case coin pendant le glissement
-    // (majCoinJourMobile_) — aucune mesure à l'image.
-    function majGeoGlisse_() {
-      var rS = scroller.getBoundingClientRect();
-      if (!rS.width) { geoGlisse_ = null; return; }
-      var x = scroller.scrollLeft, zoom = (niveauZoomPlanning / 100) || 1;
-      var ths_ = [].slice.call(grilleEntete.querySelectorAll(".th[data-gi]"));
-      geoGlisse_ = {
-        taille: generationTaille_,
-        debut: rS.left + scroller.clientLeft + LN * zoom,
-        jours: ths_.map(function (th) { var r = th.getBoundingClientRect(); return [r.left + x, r.right + x]; }),
-        gis: ths_.map(function (th) { return +th.dataset.gi; })
-      };
-    }
-    // Jour posé (rendu, arrêt du défilement) : poignées des bulles absentes
-    // de ce jour masquées (.hors-jour, suite 37 — celles de la veille
-    // tombaient au bord de la colonne des noms).
-    function poserJourMobile_(thJour) {
-      if (!enModeJourMobile || !scroller.isConnected || !scroller.getClientRects().length) return;
-      if (!thJour) {
-        var ecart = Infinity;
-        grilleEntete.querySelectorAll(".th[data-gi]").forEach(function (th) {
-          var e = Math.abs(decalerSurColonne_(th) - scroller.scrollLeft);
-          if (e < ecart) { ecart = e; thJour = th; }
-        });
-      }
-      var c = thJour && plageGrille_(thJour.style.gridColumn);
-      if (!c) return;
-      [grilleEntete, grilleCorps].forEach(function (g) {
-        [].forEach.call(g.children, function (b) {
-          if (!b.classList.contains("bulle")) return;
-          var cb = plageGrille_(b.style.gridColumn);
-          var ici = !!cb && cb[0] < c[0] + c[1] && cb[0] + cb[1] > c[0];
-          if (b.classList.contains("hors-jour") === ici) b.classList.toggle("hors-jour", !ici);
-        });
-      });
-      if (!geoGlisse_ || geoGlisse_.taille !== generationTaille_) majGeoGlisse_();
-    }
-    // Tout, au rendu (et une fois les polices chargées : le texte n'occupe
-    // pas la même place). Suite 92 : partout (lignes de hauteur fixe sur
-    // ordinateur et tablette aussi) ; cartes par jour et jour posé, en vue
-    // « 1 jour » seulement.
-    function mettreEnPlaceJourMobile_() {
-      poserPistesFixes_();
-      mesurerHauteursMobile_();
-      if (enModeJourMobile) decouperBullesJourMobile_();
-      cascaderBullesJourMobile_();
-      if (!enModeJourMobile) return;
-      geoGlisse_ = null;
-      poserJourMobile_();
-    }
-    var rafDecoupe_ = null;
-    function planifierDecoupeJourMobile_() {
-      if (rafDecoupe_) return;
-      rafDecoupe_ = requestAnimationFrame(function () {
-        rafDecoupe_ = null;
-        if (!scroller.isConnected) return;
-        if (enModeJourMobile) decouperBullesJourMobile_();
-        cascaderBullesJourMobile_();
-        if (enModeJourMobile) poserJourMobile_();
-      });
-    }
-    // Curseurs de hauteur (suite 92, barre d'outils et page Affichage) :
-    // hauteurs remesurées et cascade refaite, sans nouveau rendu — les
-    // pistes suivent les variables (poserPistesFixes_). Grille masquée
-    // (page Affichage ouverte) : rien de mesurable, nouveau rendu au retour
-    // sur le planning (grilleRendueMasquee_, rendreSiRenduMasque). false :
-    // grille remplacée depuis, à rendre.
-    majHauteursLignes = function () {
-      if (!scroller.isConnected) return false;
-      if (!scroller.getClientRects().length) { grilleRendueMasquee_ = true; return true; }
-      if (!mesurerHauteursMobile_()) return false;
-      cascaderBullesJourMobile_();
-      return true;
-    };
-    // Défilement posé par le script (defilerHorizontal_, grille-interactions
-    // .js), `x` = sa position : espace entre semaines et case coin suivis
-    // dans la même image.
-    var xDejaSuivi = null;
-    suivreDefilementJourMobile = function (sc, x) {
-      if (sc !== scroller || !enModeJourMobile) return;
-      if (x == null) x = scroller.scrollLeft;
-      xDejaSuivi = x;
-      placerSepSemaines_(x);
-      majCoinJourMobile_(x);
-    };
+    if (vueBordsRendue_) geoBords = poserGabaritJoursVoisins_(G); // jours voisins aux bords (suite 74)
+    else racineEl.style.removeProperty("--noms-gauche");
+    // Points d'entrée (majHauteursLignes, suivreDefilementJourMobile,
+    // reajusterBullesJourMobile) branchés sur cette grille.
+    grilleCourante_ = G;
     // Défilement natif (ou posé autrement) : en-tête figé recalé, puis même
-    // suivi. Position déjà suivie par le script : rien à refaire.
+    // suivi (suivreDefilementJourMobile). Position déjà suivie par le
+    // script : rien à refaire.
     scroller.addEventListener("scroll", function () {
       var x = scroller.scrollLeft;
       if (enteteScroll.scrollLeft !== x) enteteScroll.scrollLeft = x;
-      if (x === xDejaSuivi) return;
-      xDejaSuivi = null;
-      placerSepSemaines_(x); planifierMajCoinJourMobile_(x);
+      if (x === G.xDejaSuivi) return;
+      G.xDejaSuivi = null;
+      placerSepSemaines_(x); planifierMajCoinJourMobile_(G, x);
     });
-    // Case coin en vue « 1 jour » (suite 70, cf. sa création plus bas) : le
-    // jour affiché est celui dont le bord gauche est le plus proche du bord
-    // de l'écran — même règle que l'arrêt du défilement (defilementArrete),
-    // la case bascule donc à mi-chemin, là où l'aimantation posera le jour.
-    // Une fois par image ; rien tant que la grille est masquée (tout y
-    // mesure 0).
-    var rafCoinJour_ = null, xCoin_ = null;
-    function planifierMajCoinJourMobile_(x) {
-      xCoin_ = x != null ? x : null;
-      if (!enModeJourMobile || rafCoinJour_) return;
-      rafCoinJour_ = requestAnimationFrame(function () { rafCoinJour_ = null; majCoinJourMobile_(xCoin_); });
-    }
-    // Suite 72 : colonnes lues dans les positions mémorisées du glissement
-    // (geoGlisse_) quand elles valent encore — aucune mesure à l'image.
-    function majCoinJourMobile_(xConnu) {
-      if (!enModeJourMobile || !coin || !scroller.isConnected) return;
-      var geo = geoGlisse_ && geoGlisse_.taille === generationTaille_ && geoGlisse_.gis.length ? geoGlisse_ : null;
-      if (!geo && !scroller.getClientRects().length) return;
-      var x = xConnu != null ? xConnu : scroller.scrollLeft;
-      var gi = null, ecart = Infinity;
-      if (geo) {
-        geo.jours.forEach(function (c, j) {
-          var e = Math.abs(Math.max(0, Math.round(c[0] - geo.debut)) - x);
-          if (e < ecart) { ecart = e; gi = geo.gis[j]; }
-        });
-      } else {
-        grilleEntete.querySelectorAll(".th[data-gi]").forEach(function (th) {
-          var e = Math.abs(decalerSurColonne_(th) - x);
-          if (e < ecart) { ecart = e; gi = +th.dataset.gi; }
-        });
-      }
-      var iso = gi !== null ? isoDeGi(gi) : null;
-      if (!iso || iso === isoCoinJour_) return;
-      var avant = isoCoinJour_;
-      isoCoinJour_ = iso;
-      // Même mois, même année : rien à réécrire.
-      if (avant && avant.slice(0, 7) === iso.slice(0, 7)) return;
-      coin.innerHTML = htmlCoinMoisAnnee([iso]);
-    }
-    // Suite 84 : en vue « Jours voisins », l'aperçu d'une poignée recoupe
-    // aussi les cartes par morceau (ajusterBullesJoursVoisins_).
-    // Suite 91 : en vue « 1 jour », cartes recoupées par jour et cascade.
-    // Suite 92 : cascade refaite partout (l'amas d'une bulle étirée change).
-    reajusterBullesJourMobile = function () { if (vueBordsRendue_) ajusterBullesJoursVoisins_(); planifierDecoupeJourMobile_(); };
-    // Round du 23.09.2026 (suite 5) — Lionel : « Swipper un vendredi permet
-    // de passer au lundi de la semaine suivante ? ». Réattaché à chaque
-    // rendu (comme le mirroir de scroll juste au-dessus) puisque .scroller
-    // est recréé à chaque fois. On ne s'appuie PAS sur le rebond élastique
-    // natif du défilement (scrollLeft qui dépasserait 0/scrollWidth-
-    // clientWidth pendant l'effet ressort iOS) : ce rebond n'existe pas
-    // partout (Android/Chrome "colle" simplement au bord, sans dépassement
-    // mesurable), ce qui laisserait le geste sans effet sur une partie des
-    // téléphones. On mesure donc le déplacement RÉEL du doigt (touchmove),
-    // indépendamment de scrollLeft, et on ne déclenche le changement de
-    // semaine qu'au relâchement (touchend) si le doigt a continué à glisser
-    // d'au moins seuilBordSemaine px au-delà du bord ALORS QUE le défilement,
-    // lui, est déjà à sa butée — identique sur les 2 plateformes.
-    //
-    // Round du 24.09.2026 — Lionel : « le changement de semaine en suivant
-    // gauche/droite ne fonctionne pas sur ordinateur et tablettes,
-    // fonctionne sur mobile. » Ce détecteur était réservé au mode "1 jour"
-    // mobile (enModeJourMobile) : le raisonnement de la suite ×11 ci-dessous
-    // supposait qu'un écran plus large que 600px (tablette/desktop) dispose
-    // toujours d'une molette/trackpad pour l'équivalent — faux pour une
-    // tablette purement tactile (iPad sans trackpad, écran tactile de
-    // bureau) : là, un doigt qui glisse ne déclenche aucun événement
-    // "wheel", et le swipe restait donc sans effet en vue "1 semaine"/"2
-    // semaines". Le détecteur tactile n'a lui-même aucune raison d'être
-    // limité au mode "1 jour" : il ne regarde que le déplacement réel du
-    // doigt et la butée de scroll, peu importe combien de jours sont
-    // affichés — actif dans tous les modes désormais, en plus (jamais à la
-    // place) du détecteur "wheel" ci-dessous qui reste nécessaire pour les
-    // dispositifs à souris/trackpad sans écran tactile.
-    //
-    // Garde-fou "en-glissement" (ajouté avec cette généralisation) : en vue
-    // "1 semaine"/"2 semaines", une tâche peut s'étaler sur plusieurs jours
-    // ENTIERS déjà tous visibles à l'écran (donc maxScroll=0, "à la butée"
-    // en permanence des DEUX côtés à la fois) — un glissé de sélection
-    // multi-jours tout à fait normal (ex. Lundi -> Vendredi pour poser une
-    // tâche sur la semaine) dépasse alors très facilement seuilBordSemaine
-    // en déplacement horizontal brut, et aurait donc, sans ce garde-fou,
-    // déclenché un changement de semaine EN PLUS de la sélection au
-    // relâchement. document.body.classList "en-glissement" est déjà posée
-    // par cablerAjoutCellule/onPointerDownGroupeSelection/cablerPoigneeRedim
-    // dès qu'un geste est reconnu comme une sélection/un redimensionnement/
-    // un déplacement de bulle (jamais pour un panoramique — cf. leurs
-    // commentaires respectifs) : un signal déjà fiable pour distinguer "ce
-    // doigt est en train de faire autre chose" d'un vrai swipe de
-    // navigation, sans dupliquer leur propre logique de détection ici.
-    //
-    // toucheDebutY/toucheAxe (round du 25.09.2026, suite 26) — Lionel :
-    // « Améliore le défilement tactile latéral et horizontal pour qu'il
-    // n'agisse que dans un sens à la fois. » Même règle que le défilement
-    // manuel (axeDuGeste, core.js, décidé une fois le doigt parti de
-    // SEUIL_DEFILEMENT) : un geste reconnu VERTICAL ne peut plus changer de
-    // semaine, même si le doigt a dérivé de plus de seuilBordSemaine de
-    // côté pendant un long défilement vers le bas.
-    // Round du 28.09.2026 (suite 89) — Lionel : « sur tablette une petite
-    // Zone n'est pas visible, il faut légèrement balayer l'écran, ce qui fait
-    // changer la semaine. idée: balayage depuis coté droit avance une
-    // semaine, depuis côté gauche recule une semaine. défilement au centre ».
-    // Avant, TOUT balayage qui continuait au-delà de la butée changeait de
-    // semaine : pour voir les quelques pixels cachés d'une grille à peine
-    // plus large que l'écran, le doigt arrivait en butée presque aussitôt.
-    // Désormais, c'est l'endroit où le doigt se pose qui décide :
-    // - dans la bande du bord droit (zoneBordSemaine_) et vers la gauche :
-    //   semaine suivante ; bande du bord gauche et vers la droite :
-    //   précédente — où que soit le défilement, sans faire défiler ;
-    // - ailleurs (le centre) : défilement seul, jamais de changement de
-    //   semaine.
-    function zoneBordSemaine_() {
-      var r = scroller.getBoundingClientRect();
-      var g = Math.max(r.left, 0), d = Math.min(r.right, window.innerWidth);
-      return { g: g, d: d, largeur: Math.max(48, Math.min(120, (d - g) * .12)) };
-    }
-    var seuilBordSemaine = 46, toucheDebutX = null, toucheDebutY = null, toucheAxe = null, toucheBord = null, toucheZone = null;
-    scroller.addEventListener("touchstart", function (e) {
-      toucheDebutX = (e.touches.length === 1) ? e.touches[0].clientX : null;
-      toucheDebutY = (e.touches.length === 1) ? e.touches[0].clientY : null;
-      toucheAxe = null;
-      toucheBord = null;
-      toucheZone = null;
-      if (toucheDebutX !== null) {
-        var z = zoneBordSemaine_();
-        toucheZone = toucheDebutX <= z.g + z.largeur ? "gauche" : toucheDebutX >= z.d - z.largeur ? "droite" : "centre";
-      }
-    }, { passive: true });
-    scroller.addEventListener("touchmove", function (e) {
-      // Vue "1 jour" téléphone : plus de bord de semaine à franchir, le
-      // défilement est continu (round du 24.09.2026, suite 6 — cf.
-      // fenetreLabGs, core.js) ; ce détecteur ne sert plus qu'aux autres vues.
-      if (enModeJourMobile) return;
-      if (toucheDebutX === null || e.touches.length !== 1) return;
-      if (document.body.classList.contains("en-glissement")) { toucheBord = null; return; }
-      var dx = e.touches[0].clientX - toucheDebutX;
-      var dy = e.touches[0].clientY - toucheDebutY;
-      // Jours voisins aux bords : rien à faire défiler (la vue tient juste
-      // dans l'écran), le balayage change de semaine partout, comme avant.
-      var zone = vueBordsRendue_ ? (dx < 0 ? "droite" : "gauche") : toucheZone;
-      // Chrome ne laisse annuler que les premiers déplacements, avant que la
-      // page ne défile : un départ franchement horizontal depuis un bord est
-      // retenu tout de suite.
-      if (!toucheAxe && zone !== "centre" && Math.abs(dx) > Math.abs(dy) && e.cancelable) e.preventDefault();
-      if (!toucheAxe && Math.abs(dx) + Math.abs(dy) > SEUIL_DEFILEMENT) toucheAxe = axeDuGeste(dx, dy);
-      if (toucheAxe !== "x" || zone === "centre") { toucheBord = null; return; }
-      toucheZone = zone;
-      // Balayage parti d'un bord : il tourne la page, la grille ne défile pas.
-      if (e.cancelable) e.preventDefault();
-      if (toucheZone === "gauche" && dx > seuilBordSemaine) toucheBord = "debut";
-      else if (toucheZone === "droite" && dx < -seuilBordSemaine) toucheBord = "fin";
-      else toucheBord = null;
-    }, { passive: false });
-    scroller.addEventListener("touchend", function () {
-      if (document.body.classList.contains("en-glissement")) { toucheDebutX = null; toucheBord = null; return; }
-      if (toucheBord === "debut") naviguerSemaineDepuisBordJour(-1);
-      else if (toucheBord === "fin") naviguerSemaineDepuisBordJour(1);
-      toucheDebutX = null; toucheDebutY = null; toucheAxe = null; toucheBord = null;
-    }, { passive: true });
+    // Changement de semaine par balayage au doigt ou à la molette.
+    cablerBalayageSemaine_(G);
 
-    // Round du 23.09.2026 (suite ×11) — Lionel : « L'action de swiper d'une
-    // semaine à l'autre est intéressante et pourrait être portée aux
-    // versions tablette et desktop. » Équivalent du détecteur tactile
-    // ci-dessus pour un dispositif à molette/trackpad — désormais actif EN
-    // PLUS du détecteur tactile (round du 24.09.2026, cf. son commentaire
-    // plus haut), pas à sa place : un ordinateur/une tablette à trackpad
-    // profite de celui-ci, un écran tactile sans trackpad profite de
-    // l'autre, les deux peuvent coexister sur un même appareil hybride sans
-    // se marcher dessus (deux gestes différents). Toujours inerte en mode
-    // "1 jour" mobile (enModeJourMobile→return) : là, seul le détecteur
-    // tactile agit. deltaX (molette horizontale native, trackpad) OU deltaY
-    // avec Maj enfoncée (convention historique du défilement horizontal à
-    // la molette verticale, cf. la plupart des tableurs/calendriers web) —
-    // jamais les deux à la fois : on prend le plus significatif des deux
-    // pour éviter qu'un simple défilement vertical de la page (deltaY sans
-    // Maj) ne déclenche quoi que ce soit ici.
-    // Cumul (accumulMolette) plutôt qu'un seul événement : un trackpad émet
-    // de nombreux petits événements "wheel" pendant un seul geste physique
-    // (parfois quelques unités chacun) — un seuil unitaire les raterait
-    // presque tous. Remis à zéro après un silence (resetAccumulMolette,
-    // 400ms) ou dès que le défilement s'écarte du bord concerné — un simple
-    // aller-retour de la molette sans rester au bord ne doit rien
-    // déclencher.
-    //
-    // Round du 24.09.2026 — Lionel : « ne fonctionne pas sur ordinateur ».
-    // e.preventDefault() se déclenchait auparavant seulement au moment du
-    // franchissement du seuil, pas à chaque événement "wheel" reçu à la
-    // butée pendant l'accumulation. Or Chrome/Edge interprètent un swipe
-    // horizontal à 2 doigts qui dépasse la butée d'un conteneur SANS
-    // preventDefault() comme un geste de navigation d'historique (retour
-    // page précédente/suivante, avec son animation) — le trackpad ne
-    // produit alors plus d'événements "wheel" pour la suite du geste,
-    // l'accumulation n'atteint jamais seuilMolette et la semaine ne change
-    // jamais (symptôme exact de Lionel : ça ne marche que sur mobile, où le
-    // détecteur tactile ci-dessus n'a pas ce problème). Corrigé en appelant
-    // preventDefault() dès qu'on est à la butée dans le sens du geste,
-    // avant même de savoir si le seuil sera atteint — sans incidence sur le
-    // défilement normal (loin de la butée, on retourne avant d'y arriver).
-    // Complété côté CSS par overscroll-behavior-x:contain sur .scroller
-    // (cf. style.css) en filet de sécurité supplémentaire.
-    var seuilMolette = 60, accumulMolette = 0, resetAccumulMolette = null;
-    scroller.addEventListener("wheel", function (e) {
-      if (enModeJourMobile) return;
-      var dx = Math.abs(e.deltaX) >= Math.abs(e.deltaY) ? e.deltaX : (e.shiftKey ? e.deltaY : 0);
-      if (!dx) return;
-      var maxScrollW = scroller.scrollWidth - scroller.clientWidth;
-      var auDebut = scroller.scrollLeft <= 1, aLaFin = scroller.scrollLeft >= maxScrollW - 1;
-      // Jours voisins aux bords (suite 74) : défilement tenu, toujours « en
-      // butée » des deux côtés — le geste change de semaine.
-      if (!vueBordsRendue_ && (dx < 0 ? !auDebut : !aLaFin)) { accumulMolette = 0; return; }
-      e.preventDefault();
-      accumulMolette += dx;
-      clearTimeout(resetAccumulMolette);
-      resetAccumulMolette = setTimeout(function () { accumulMolette = 0; }, 400);
-      if (accumulMolette <= -seuilMolette) { accumulMolette = 0; naviguerSemaineDepuisBordJour(-1); }
-      else if (accumulMolette >= seuilMolette) { accumulMolette = 0; naviguerSemaineDepuisBordJour(1); }
-    }, { passive: false });
 
     // Jours voisins aux bords (suite 75) : week-ends des
     // semaines d'avant et d'après, colonnes de 0 px (cf. gabaritB) — tout ce
@@ -2525,8 +1797,9 @@
     // occupe l'écran.
     var coin = document.createElement("div"); coin.className = "th coin";
     coin.dataset.vt = "coin"; // glissement de semaine (suite 72, rétabli suite 90) et page du jour (suite 90)
-    var isoCoinJour_ = enModeJourMobile ? jourMobileCourant() : null;
-    coin.innerHTML = isoCoinJour_ ? htmlCoinMoisAnnee([isoCoinJour_]) : htmlCoinPlanning(n);
+    G.coin = coin;
+    G.isoCoinJour_ = enModeJourMobile ? jourMobileCourant() : null;
+    coin.innerHTML = G.isoCoinJour_ ? htmlCoinMoisAnnee([G.isoCoinJour_]) : htmlCoinPlanning(n);
     poser(coin, 1, row);
     for (var gi = 0; gi < n; gi++) {
       var th = document.createElement("div");
@@ -2940,11 +2213,6 @@
     // cibleApresRendu), la position de défilement de l'utilisateur est
     // préservée comme avant.
     var cibleScrollLeft = 0;
-    function decalerSurColonne_(th) {
-      if (!th) return 0;
-      var rGrilleEntete = grilleEntete.getBoundingClientRect(), rTh = th.getBoundingClientRect();
-      return Math.max(0, Math.round((rTh.left - rGrilleEntete.left) - LN));
-    }
     if (geoBords) {
       // Jours voisins aux bords (suite 74) : toujours le 1er lundi affiché
       // en entier juste après la colonne des noms (bord du vendredi, bande,
@@ -2967,7 +2235,7 @@
       // re-rendu après modification. Remplace l'ancien scrollLeftPrecedent,
       // qui ne désigne plus le même jour dès que la fenêtre a glissé.
       cibleApresRendu = null;
-      cibleScrollLeft = decalerSurColonne_(grilleEntete.querySelector('.th[data-gi="' + giDepuisIso(jourMobileCourant()) + '"]'));
+      cibleScrollLeft = decalerSurColonne_(G, grilleEntete.querySelector('.th[data-gi="' + giDepuisIso(jourMobileCourant()) + '"]'));
     } else if (cibleApresRendu === "aujourdhui") {
       cibleApresRendu = null;
     } else if (cibleApresRendu === "debut") {
@@ -2999,17 +2267,17 @@
     // instant les mauvaises colonnes après un changement de semaine/mode qui
     // conserve le défilement horizontal.
     enteteScroll.scrollLeft = cibleScrollLeft;
-    ajusterBullesJoursVoisins_(); // vue « Jours voisins » (suite 84)
+    ajusterBullesJoursVoisins_(G); // vue « Jours voisins » (suite 84)
     planifierSepCollantes_(); // séparations Personnel / Intervenants (suite 89)
     // Vue « 1 jour » (suite 91) : pistes fixes, hauteurs des cartes, cartes
     // par jour et cascade. Si les polices ne sont pas encore chargées
     // (premier affichage), refait une fois qu'elles le sont : le texte
     // n'occupe pas la même place.
-    mettreEnPlaceJourMobile_();
+    mettreEnPlaceJourMobile_(G);
     if (document.fonts && document.fonts.status !== "loaded") {
       document.fonts.ready.then(function () {
         if (!scroller.isConnected) return;
-        mettreEnPlaceJourMobile_();
+        mettreEnPlaceJourMobile_(G);
         if (typeof majPanneauHauteurs === "function") majPanneauHauteurs();
       });
     }
@@ -3027,121 +2295,7 @@
     // casserait le geste en cours (cf. differerSiEnGlissement) ; à l'arrêt,
     // le jour affiché est déjà aligné (aimantation) et la grille reconstruite
     // le remet exactement à la même place — rien ne bouge à l'écran.
-    if (enModeJourMobile) {
-      var minuteurArret = null, doigtsPoses = 0;
-      var programmerArret = function () { clearTimeout(minuteurArret); minuteurArret = setTimeout(defilementArrete, 200); };
-      scroller.addEventListener("touchstart", function (e) { doigtsPoses = e.touches.length; clearTimeout(minuteurArret); }, { passive: true });
-      scroller.addEventListener("touchend", function (e) { doigtsPoses = e.touches.length; programmerArret(); }, { passive: true });
-      scroller.addEventListener("touchcancel", function (e) { doigtsPoses = e.touches.length; programmerArret(); }, { passive: true });
-      scroller.addEventListener("scroll", programmerArret, { passive: true });
-      // Fin d'un glissement de page (suite 57, glisserVersJour dans
-      // grille-interactions.js) : le jour est posé tout de suite, sans les
-      // 200 ms d'attente d'un défilement natif (colonne des noms, bulle
-      // amenée au bord), dont on ne connaît pas la fin autrement.
-      scroller.addEventListener("jour-cale", function () { clearTimeout(minuteurArret); defilementArrete(); });
-      var minuteurRecentrage = null;
-      var defilementArrete = function () {
-        if (!scroller.isConnected || doigtsPoses > 0) return;
-        // Glissement de page encore en cours : il pose le jour à sa fin.
-        if (calageJourEnCours) return;
-        // Bulle tenue au doigt (changement de jour en l'amenant au bord,
-        // suite 26) : jour posé repris une fois la bulle lâchée (suite 41 —
-        // l'arrêt était abandonné jusqu'ici, et avec lui le calcul des
-        // largeurs du jour atteint si plus aucun défilement ne suivait).
-        if (syncEnCours || document.body.classList.contains("en-glissement")) { minuteurArret = setTimeout(defilementArrete, 400); return; }
-        var thJour = null, ecart = Infinity;
-        grilleEntete.querySelectorAll(".th[data-gi]").forEach(function (th) {
-          var e = Math.abs(decalerSurColonne_(th) - scroller.scrollLeft);
-          if (e < ecart) { ecart = e; thJour = th; }
-        });
-        if (!thJour) return;
-        poserJourMobile_(thJour); // poignées du jour posé (suite 91)
-        var giJour = +thJour.dataset.gi, isoJour = isoDeGi(giJour);
-        if (!isoJour) return;
-        // Suite 97 — Lionel : « en sélection simple, quand on change de
-        // jour, la case est désélectionnée. Et en multiple, la case reste
-        // sélectionnée. » Nouveau jour posé, sélection simple (ni plusieurs
-        // bulles, ni mode multiple : body.selection-multiple) dont la bulle
-        // n'est plus sur ce jour (.hors-jour, ou plus dans la grille) : la
-        // sélection est vidée. Une bulle encore là (tâche de plusieurs
-        // jours, bulle amenée au bord ou étirée jusqu'au nouveau jour)
-        // reste sélectionnée.
-        // Suite 98 : cases étalées (pastille « +N ») replacées au nouveau jour.
-        if (isoJour !== jourMobileIso && Object.keys(cascadesOuvertes_).length) { cascadesOuvertes_ = {}; cascaderBullesJourMobile_(); }
-        if (isoJour !== jourMobileIso && !document.body.classList.contains("selection-multiple")) {
-          var idsSel = Object.keys(bullesSelectionnees);
-          if (idsSel.length && idsSel.every(function (id) {
-            return [].every.call(racineEl.querySelectorAll('.bulle[data-id="' + id + '"]'), function (b) { return b.classList.contains("hors-jour"); });
-          })) quitterModeSelection();
-        }
-        jourMobileIso = isoJour;
-        for (var iSem = 0; iSem < etat.semaines.length; iSem++) {
-          var sem = etat.semaines[iSem];
-          if (isoJour >= sem.debut && isoJour <= sem.fin) {
-            etat.indexSemaine = iSem;
-            break;
-          }
-        }
-        // Pilule Sem. N et, depuis la suite 15, date du jour du menu ⋮ :
-        // à chaque arrêt, plus seulement au changement de semaine.
-        majSemaineAffichage();
-        var rangJour = estGiWeekend(giJour) ? semaineDuGiWeekend(giJour) * 5 + 4 : giJour;
-        if (rangJour >= 2 && rangJour <= n - 3) return;
-        // Pas tout de suite (round du 27.09.2026, suite 72) : la
-        // reconstruction de la grille (quelques dizaines de ms sur un
-        // téléphone) tombait dans la dernière image du glissement, qui
-        // arrivait donc en retard, d'un coup. Minuterie posée depuis cette
-        // image : elle part une fois l'image affichée — le jour arrive,
-        // puis la grille se reconstruit à l'identique sous le doigt levé.
-        // Doigt reposé ou glissement de page entre-temps : son propre arrêt
-        // s'en chargera ; synchro ou bulle tenue : on réessaie plus tard,
-        // comme l'arrêt lui-même.
-        clearTimeout(minuteurRecentrage);
-        var recentrerApresGlissement = function () {
-          if (!scroller.isConnected || doigtsPoses > 0 || calageJourEnCours) return;
-          if (syncEnCours || document.body.classList.contains("en-glissement")) { minuteurRecentrage = setTimeout(recentrerApresGlissement, 400); return; }
-          recentrerFenetreJourMobile();
-        };
-        minuteurRecentrage = setTimeout(recentrerApresGlissement, 0);
-      };
-      // Recentrage : la fenêtre est recalculée autour du jour affiché
-      // (debutFenetreMobile = null -> debutFenetreJourMobile_, core.js) ;
-      // rien à faire si elle ne peut pas bouger (tout début/fin des semaines
-      // du planning). Semaine voisine en principe déjà en cache
-      // (prechargerVoisinesJourMobile) : reconstruction immédiate.
-      var recentrerFenetreJourMobile = function () {
-        // Suite 97 — Lionel : « en multiple, la case reste sélectionnée »
-        // au changement de jour. La sélection était vidée d'office au
-        // recentrage : les id des bulles et leurs colonnes (giDebut) sont
-        // refaits avec la fenêtre. Chaque bulle sélectionnée est donc
-        // notée par son contenu (cleBulle_) et sa DATE de début, puis
-        // retrouvée dans la nouvelle fenêtre (la bulle de même contenu qui
-        // couvre cette date) ; celles qui en sortent sont désélectionnées.
-        // (La sélection simple d'une bulle absente du jour a déjà été
-        // vidée à l'arrêt, plus haut.)
-        var selAvant = [];
-        Object.keys(bullesSelectionnees).forEach(function (id) {
-          var p = itemParId(id), iso = p && isoDeGi(p.item.giDebut);
-          if (iso) selAvant.push({ cle: cleBulle_(p.item), iso: iso });
-        });
-        debutFenetreMobile = null;
-        if (fenetreLabGs().join(",") === labsRendus) return;
-        bullesSelectionnees = {};
-        assurerFenetreChargee(function () {
-          construireVueDepuisCache();
-          var toutes = TACHES.concat(JALONS, NOTES);
-          selAvant.forEach(function (sel) {
-            var gi = giDepuisIso(sel.iso);
-            if (gi == null) return;
-            var it = toutes.filter(function (x) { return !bullesSelectionnees[x.id] && cleBulle_(x) === sel.cle && gi >= x.giDebut && gi < x.giDebut + x.duree; })[0];
-            if (it) bullesSelectionnees[it.id] = true;
-          });
-          if (!Object.keys(bullesSelectionnees).length) { modeSelectionMultiple = false; copieSelectionActive = false; }
-          render(false); majBarreSelection();
-        });
-      };
-      prechargerVoisinesJourMobile();
-    }
+    if (enModeJourMobile) cablerArretJourMobile_(G);
     majBoutonsUndo();
     majBarreSelection();
     majControlesAffichage();
@@ -3151,6 +2305,921 @@
     ajusterEnteteFixe();
     poserSepSemaines_(enModeJourMobile, enteteFigee, enteteScroll, grilleEntete, cadre, scroller);
   }
+
+  // ==== Grille : morceaux sortis de construireGrille =====================
+  // Round du 29.09.2026 (suite 99) — Lionel, à propos du code du planning :
+  // « Ne serait-il pas plus judicieux de faire 2 application différente
+  // pour portable et pour deskop? », puis « Allons-y » au plan proposé
+  // (une seule appli, l'affichage du planning découpé en commun /
+  // ordinateur / téléphone). Étape 1 : les fonctions imbriquées dans
+  // construireGrille en sortent, telles quelles. Ce qu'elles lisaient
+  // par fermeture (grilles, .scroller, largeur des noms, vue « 1 jour »…)
+  // leur arrive dans G, l'objet du rendu qui les a posées (cf.
+  // construireGrille) ; l'état tenu d'un appel à l'autre pendant la vie
+  // d'une grille (mesures, cases étalées, case coin…) y est aussi. Une
+  // minuterie ou un écouteur d'un ancien rendu garde donc SON G, comme
+  // avant sa fermeture. grilleCourante_ : le G du dernier rendu, pour
+  // les points d'entrée appelés d'ailleurs (majHauteursLignes,
+  // suivreDefilementJourMobile, reajusterBullesJourMobile).
+  var grilleCourante_ = null;
+
+  // Jours voisins aux bords (suite 74) — Lionel : « le vendredi de la
+  // semaine avant à gauche de l'écran et le lundi de la semaine suivante
+  // à droite, coller au bord de l'écran comme si la suite était cachée
+  // en dehors de l'écran. On retrouverai le petit espace entre les
+  // semaine. Les nom seraient affiché que sur la partie centrale. » De
+  // gauche à droite, à l'écran : un bord du vendredi d'avant (P), la
+  // bande entre semaines (.sep-semaines, 8 px à cheval sur la frontière),
+  // la colonne des noms, les jours de la (des) semaine(s) affichée(s), la
+  // bande, un bord du lundi d'après, aussi large que celui du vendredi.
+  // Les 3 (ou 4) semaines sont dans la grille en entier, en colonnes de
+  // largeur fixe calculées pour la largeur réelle du .scroller :
+  // le défilement horizontal, calé plus bas (cibleScrollLeft) et tenu
+  // (écouteur "scroll"), cache le reste. Bord : 40 % d'un jour, entre 24
+  // et 120 px. Round du 27.09.2026 (suite 82) — Lionel : « Jour voisins
+  // n'affichent qu'une demi journée. » Bord : un jour entier (matin et
+  // après-midi), exactement la largeur d'un jour de la semaine affichée.
+  function poserGabaritJoursVoisins_(G) {
+    var scroller = G.scroller, grilleEntete = G.grilleEntete, grilleCorps = G.grilleCorps, LN = G.LN, nbSemainesAffichees = G.nbSemainesAffichees;
+    var zB = (niveauZoomPlanning / 100) || 1, cpjB = colsParJour(), nbC = nbSemainesAffichees - 2;
+    var W = (scroller.clientWidth || (racineEl.clientWidth - 2) || 1200) / zB;
+    // Une semaine : 5 jours de cpj colonnes (+ 1 px d'écart chacune), et
+    // ses 2 colonnes de week-end de 46 px (+ 1).
+    var weB = afficherWeekends ? 2 * 47 : 0;
+    // 5 jours par semaine affichée + 2 jours entiers aux bords.
+    var colB = Math.max(20, (W - LN - 4 - nbC * weB) / (5 * nbC + 2) / cpjB - 1);
+    var P = Math.floor(cpjB * (colB + 1));
+    // Colonne vide : la bande couvre ses 3 premiers px (+ 4 du vendredi),
+    // les noms le reste, jusqu'au trait de 1 px avant le lundi.
+    //
+    // Round du 27.09.2026 (suite 75) — Lionel : « Pas de samedi-dimanche dans les
+    // semaines adjacentes. » Week-ends de la semaine d'avant et de celle
+    // d'après : colonnes de 0 px (leur contenu est masqué, cf.
+    // colsWeVoisins) ; le vendredi d'avant reste donc collé à la bande. Les
+    // 2 écarts de 1 px de ces colonnes sont repris sur la colonne vide :
+    // le lundi reste à la même distance du vendredi.
+    var espaceB = LN + 3 - (afficherWeekends ? 2 : 0);
+    var gabaritB = LN + "px", nbColsB = 1, nbWeB = 0;
+    for (var sB = 0; sB < nbSemainesAffichees; sB++) {
+      if (sB === 1) { gabaritB += " " + espaceB + "px"; nbColsB++; }
+      gabaritB += " repeat(" + (5 * cpjB) + ", " + colB + "px)"; nbColsB += 5 * cpjB;
+      if (afficherWeekends) {
+        var voisineB = sB === 0 || sB === nbSemainesAffichees - 1;
+        gabaritB += voisineB ? " repeat(2, 0px)" : " repeat(2, 46px)"; nbColsB += 2;
+        if (!voisineB) nbWeB++;
+      }
+    }
+    var totalB = LN + espaceB + nbSemainesAffichees * 5 * cpjB * colB + nbWeB * 92 + (nbColsB - 1);
+    grilleEntete.style.gridTemplateColumns = grilleCorps.style.gridTemplateColumns = gabaritB;
+    grilleEntete.style.minWidth = grilleCorps.style.minWidth = totalB + "px";
+    scroller.dataset.largeurBords = String(scroller.clientWidth);
+    racineEl.style.setProperty("--noms-gauche", (P + 4) + "px");
+    document.documentElement.style.setProperty("--largeur-visible-bulle", (W - 2 * P - LN - 20) + "px");
+    return { P: P, largeur: W, zoom: zB };
+  }
+
+  // Bulles des jours voisins (round du 27.09.2026, suite 84) — Lionel :
+  // « Si les bulles du jours de coté sont plus long elle n'apparaissent
+  // pas complètement. Le but est que je puisse voir ce qui sera fait le
+  // vendredi avant et le lundi après. il faut traiter ces jours de coté
+  // comme le mode 1 jour du mobile. bulle et texte affichés sur le jour
+  // même si la tâche est plus longue. » En vue « Jours voisins », l'écran
+  // montre 3 morceaux de la grille : le vendredi d'avant (A), la semaine
+  // (C, après la colonne des noms), le lundi d'après (B). Une bulle qui
+  // déborde d'un morceau (commencée plus tôt dans la semaine d'avant,
+  // finie plus tard dans celle d'après, ou à cheval sur la colonne des
+  // noms) avait une seule carte : texte hors de l'écran ou sous les noms,
+  // bout de carte vide de l'autre côté. Elle a désormais une carte par
+  // morceau visible, chacune à la largeur de sa part et avec son texte
+  // (.bulle-morceaux, style.css) : la carte d'origine pour la semaine
+  // (ou la seule part visible), des copies (.b-carte-voisin, placées par
+  // `order`) pour les jours voisins. La bulle elle-même (item de grille)
+  // ne change pas : clic, glisser et poignées comme avant.
+  function ajusterBullesJoursVoisins_(G) {
+    var grilleCorps = G.grilleCorps, grilleEntete = G.grilleEntete, scroller = G.scroller, nbSemainesAffichees = G.nbSemainesAffichees;
+    var bulles = [].slice.call(grilleCorps.querySelectorAll(".bulle")).concat([].slice.call(grilleEntete.querySelectorAll(".bulle")));
+    bulles.forEach(function (b) {
+      if (!b.classList.contains("bulle-morceaux")) return;
+      b.classList.remove("bulle-morceaux");
+      b.querySelectorAll(":scope > .b-carte-voisin").forEach(function (c) { c.remove(); });
+      var c0 = b.querySelector(":scope > .b-carte");
+      if (c0) c0.style.marginLeft = c0.style.width = c0.style.maxWidth = c0.style.order = "";
+    });
+    if (!vueBordsRendue_ || !scroller.getClientRects().length) return;
+    var zoom = (niveauZoomPlanning / 100) || 1;
+    var rS = scroller.getBoundingClientRect(), visG = rS.left + scroller.clientLeft, visD = visG + scroller.clientWidth;
+    // Morceaux visibles d'après les en-têtes de jours : semaine d'avant
+    // (0), semaine affichée (1), semaine d'après (2).
+    var zones = [null, null, null];
+    grilleEntete.querySelectorAll(".th[data-gi]").forEach(function (th) {
+      var gi = +th.dataset.gi, s = estGiWeekend(gi) ? semaineDuGiWeekend(gi) : Math.floor(gi / 5);
+      var k = s === 0 ? 0 : s >= nbSemainesAffichees - 1 ? 2 : 1;
+      var r = th.getBoundingClientRect(), g = Math.max(r.left, visG), d = Math.min(r.right, visD);
+      if (d - g < 1) return;
+      zones[k] = zones[k] ? [Math.min(zones[k][0], g), Math.max(zones[k][1], d)] : [g, d];
+    });
+    bulles.forEach(function (b) {
+      var carte = b.querySelector(":scope > .b-carte");
+      if (!carte) return;
+      var r = b.getBoundingClientRect();
+      if (r.width < 1) return;
+      var parts = [];
+      zones.forEach(function (z, k) {
+        if (!z) return;
+        var g = Math.max(r.left, z[0]), d = Math.min(r.right, z[1]);
+        if (d - g >= 1) parts.push({ g: g, d: d, k: k });
+      });
+      if (!parts.length || (parts.length === 1 && parts[0].g - r.left < 1 && r.right - parts[0].d < 1)) return;
+      b.classList.add("bulle-morceaux");
+      var principale = parts.filter(function (p) { return p.k === 1; })[0] || parts[0], x = r.left;
+      parts.forEach(function (p, i) {
+        var c = carte;
+        if (p !== principale) {
+          c = carte.cloneNode(true);
+          c.classList.add("b-carte-voisin");
+          c.setAttribute("aria-hidden", "true");
+          b.appendChild(c);
+        }
+        c.style.order = String(i);
+        c.style.marginLeft = ((p.g - x) / zoom) + "px";
+        c.style.width = c.style.maxWidth = ((p.d - p.g) / zoom) + "px";
+        x = p.d;
+      });
+    });
+  }
+
+  // ---- Vue « 1 jour » du téléphone : lignes de hauteur fixe -----------
+  // Round du 28.09.2026 (suite 91) — Lionel : « Je pense qu'il serait
+  // judicieux de passer à des hauteur de ligne fixe sur mobile. Plus de
+  // calculs de hauteur de ligne. Si pas assez de place les bulles se
+  // chevaucheront telle des post'it. Ajouter un réglage d'affichage mobile
+  // permettant de choisir sa hauteur de ligne. Réglage différents pour
+  // hauteurs des lignes jalons/notes. Pour un réglage de base partir sur
+  // une hauteur contenant 2 bulles de 2hauteurs de texte. » Puis, à nos
+  // questions : réglage « en nombre de bulles », chevauchement « en
+  // cascade », Jalons/Notes « 1 bulle d'1 ligne » par défaut, « téléphone
+  // seulement » (tablette et ordinateur gardent leurs hauteurs calculées).
+  //
+  // Tout ce qui s'était empilé depuis la suite 34 pour passer d'un jour à
+  // l'autre disparaît : largeurs des cartes recalculées pendant le geste
+  // (suites 37, 41, 42, 72), hauteurs de lignes mesurées pour le jour
+  // posé, glissées puis interpolées sous le doigt (suites 35, 57, 58),
+  // bulles tenues à leur place (suite 73), photos de la page (suite 90).
+  // Chacun remettait en page la grille entière, ou la faisait
+  // photographier, en plein geste. Désormais :
+  // - toutes les lignes de personnes ont la même hauteur, tous les jours :
+  //   la place de N bulles (réglage « Hauteur des lignes », page Affichage,
+  //   téléphone : 1 à 4, 2 à l'origine) de L lignes de texte (« Lignes de
+  //   texte », 2 à l'origine) ; Jalons et Notes, la leur (« Jalons et
+  //   Notes » : 1 ou 2 bulles d'1 ou 2 lignes, 1 bulle d'1 ligne à
+  //   l'origine). Hauteur d'une carte mesurée une fois au rendu, sur une
+  //   carte sonde (mesurerHauteursMobile_) ; pistes de la grille posées
+  //   une fois (poserPistesFixes_) ;
+  // - une bulle de plusieurs jours a une carte par jour couvert, chacune à
+  //   la largeur de sa part, texte au début (decouperBullesJourMobile_) :
+  //   plus de carte collée au bord de l'écran (sticky) à recalculer ;
+  // - les bulles d'une même personne et d'un même jour sont en cascade
+  //   (cascaderBullesJourMobile_) : l'une sous l'autre tant qu'il y a la
+  //   place, sinon chacune descend d'un pas régulier et recouvre le bas de
+  //   la précédente, le haut de chacune restant visible, comme des post-it.
+  //   Un appui sur une bulle la sélectionne et la passe devant (style.css) ;
+  // - changer de jour n'est plus qu'un défilement : rien à mesurer ni à
+  //   écrire pendant le geste, ni à l'arrêt.
+  var MARGE_MOB_ = 3;       // px : au-dessus, entre et sous les bulles d'une ligne
+  var PAS_MINI_MOB_ = 20;   // px : décalage minimal entre 2 bulles en cascade
+  var VU_MINI_MOB_ = 10;    // px : en dessous, une bulle de la cascade compte comme cachée (suite 98)
+  // « 4 / span 2 » → [4, 2] ; « 4 » → [4, 1].
+  function plageGrille_(v) {
+    var m = /^(\d+)(?:\s*\/\s*span\s+(\d+))?/.exec(v || "");
+    return m ? [+m[1], m[2] ? +m[2] : 1] : null;
+  }
+  // Réglages de l'appareil (page Affichage) : bulles par ligne et lignes
+  // de texte par bulle, personnes et Jalons/Notes. Suite 92 : ordinateur
+  // et tablette ont les leurs, en curseur (nombre de bulles décimal, au
+  // pixel près : lignesOrdi, jalonsOrdi ; lignes de texte des Jalons /
+  // Notes : jalonsLignesOrdi).
+  function reglagesLignesMobile_() {
+    var l = Math.max(1, Math.min(3, +optionAffichage("lignes") || 2));
+    var borne = function (v, d) { v = parseFloat(v); return isFinite(v) ? Math.max(1, Math.min(4, v)) : d; };
+    if (profilAppareil_() === "ordi") {
+      return {
+        pers: { n: borne(optionAffichage("lignesOrdi"), 2), l: l },
+        jal: { n: borne(optionAffichage("jalonsOrdi"), 1), l: optionAffichage("jalonsLignesOrdi") === "2" ? 2 : 1 }
+      };
+    }
+    var jal = /^([12])x([12])$/.exec(optionAffichage("jalonsTel") || "") || [null, "1", "1"];
+    return {
+      pers: { n: Math.max(1, Math.min(4, +optionAffichage("lignesTel") || 2)), l: l },
+      jal: { n: +jal[1], l: +jal[2] }
+    };
+  }
+  // Hauteur d'une carte de `lignes` lignes de texte : une carte sonde,
+  // texte assez long pour remplir toutes ses lignes, posée invisible dans
+  // la grille (mêmes règles CSS que les vraies). Puis hauteur de ligne :
+  // N cartes et leurs marges. Posées en variables sur #racine
+  // (--mob-h-pers, --mob-carte-pers…, lues par style.css et par les
+  // pistes de poserPistesFixes_).
+  // Suite 92 : la sonde des personnes porte aussi un badge de statut —
+  // sur ordinateur, « Statut : Badge » ajoute sa ligne sous le texte
+  // (en pastille ou masqué, et toujours en vue « 1 jour », il ne prend
+  // aucune place : style.css).
+  function hauteurCarteSonde_(grille, classe, lignes, avecStatut) {
+    var b = document.createElement("div");
+    b.className = "bulle bulle-plage bulle-sonde " + classe;
+    b.setAttribute("aria-hidden", "true");
+    b.style.cssText = "position:absolute;left:0;top:0;width:44px;visibility:hidden;pointer-events:none";
+    b.innerHTML = '<div class="b-carte" style="height:auto;max-height:none;width:44px"><span class="b-txt"></span>' +
+      (avecStatut ? '<span class="b-statut"><span class="dot"></span>Statut</span>' : '') + '</div>';
+    var t = b.querySelector(".b-txt");
+    t.textContent = new Array(9).join("Mesure ");
+    t.style.webkitLineClamp = t.style.lineClamp = String(lignes);
+    grille.appendChild(b);
+    var h = b.firstChild.offsetHeight;
+    b.remove();
+    return h;
+  }
+  // Suite 92 : N peut être décimal (curseur de l'ordinateur) — H au
+  // pixel près, arrondi au dixième.
+  function mesurerHauteursMobile_(G) {
+    var scroller = G.scroller, grilleCorps = G.grilleCorps, grilleEntete = G.grilleEntete;
+    if (!scroller.getClientRects().length) return false;
+    var r = reglagesLignesMobile_(), m = MARGE_MOB_;
+    var mes = {};
+    [["pers", grilleCorps, "bulle-tache"], ["jal", grilleEntete, "bulle-note"]].forEach(function (d) {
+      var u = hauteurCarteSonde_(d[1], d[2], r[d[0]].l, d[0] === "pers"), n = r[d[0]].n;
+      mes[d[0]] = { n: n, u: u, h: Math.round((m + n * u + (n - 1) * m + m) * 10) / 10 };
+    });
+    if (!mes.pers.u) return false;
+    G.mesuresMob_ = hauteursLignesMesurees = mes;
+    racineEl.style.setProperty("--mob-carte-pers", mes.pers.u + "px");
+    racineEl.style.setProperty("--mob-h-pers", mes.pers.h + "px");
+    racineEl.style.setProperty("--mob-carte-jal", mes.jal.u + "px");
+    racineEl.style.setProperty("--mob-h-jal", mes.jal.h + "px");
+    racineEl.style.setProperty("--mob-lignes-jal", String(r.jal.l));
+    return true;
+  }
+  // Pistes de la grille : hauteur fixe pour les lignes de personnes
+  // (étiquette marquée data-h-mob="pers") et de Jalons/Notes ("jal"), à
+  // leur contenu pour le reste (dates, horaires, bandes Personnel /
+  // Intervenants). Une seule piste par personne en vue « 1 jour » (cf.
+  // ligneGroupePersonnesCompact) : la cascade remplace l'empilement.
+  function poserPistesFixes_(G) {
+    var grilleEntete = G.grilleEntete, grilleCorps = G.grilleCorps;
+    [grilleEntete, grilleCorps].forEach(function (g) {
+      var nb = 0, fixes = {};
+      [].forEach.call(g.children, function (el) {
+        var r = plageGrille_(el.style.gridRow);
+        if (!r) return;
+        nb = Math.max(nb, r[0] + r[1] - 1);
+        if (el.dataset.hMob) fixes[r[0]] = el.dataset.hMob;
+      });
+      var t = [];
+      for (var i = 1; i <= nb; i++) t.push(fixes[i] ? "var(--mob-h-" + fixes[i] + ")" : "auto");
+      g.style.gridTemplateRows = t.join(" ");
+      g._lignesMob = fixes;
+    });
+  }
+  // Une carte par jour couvert, chacune à la largeur de sa part (colonnes
+  // de la grille, lues une fois) — la 1re est la carte d'origine, les
+  // autres des copies (.b-carte-jour). data-jour : rang du jour (repères
+  // .snap-jour, un par jour). Refait au rendu et à l'aperçu d'une poignée
+  // (reajusterBullesJourMobile) ; jamais pendant un geste.
+  function decouperBullesJourMobile_(G) {
+    var grilleCorps = G.grilleCorps, grilleEntete = G.grilleEntete;
+    var jours = [].map.call(grilleCorps.querySelectorAll(".snap-jour"), function (el) {
+      var c = plageGrille_(el.style.gridColumn) || [0, 0];
+      return { col: c[0], fin: c[0] + c[1] };
+    }).sort(function (a, b) { return a.col - b.col; });
+    [grilleEntete, grilleCorps].forEach(function (g) {
+      var cs = getComputedStyle(g);
+      var ws = cs.gridTemplateColumns.split(" ").map(parseFloat), ecartC = parseFloat(cs.columnGap) || 0;
+      var gauche = [0];
+      for (var c = 0; c < ws.length; c++) gauche.push(gauche[c] + ws[c] + ecartC);
+      [].forEach.call(g.children, function (b) {
+        if (!b.classList.contains("bulle")) return;
+        b.querySelectorAll(":scope > .b-carte-jour").forEach(function (cj) { cj.remove(); });
+        var carte = b.querySelector(":scope > .b-carte"), cb = plageGrille_(b.style.gridColumn);
+        if (!carte || !cb) return;
+        var parts = [];
+        jours.forEach(function (d, j) {
+          var a = Math.max(cb[0], d.col), z = Math.min(cb[0] + cb[1], d.fin);
+          if (z > a && ws[z - 2] != null) parts.push({ j: j, g: gauche[a - 1], d: gauche[z - 2] + ws[z - 2] });
+        });
+        carte.dataset.jour = "-1";
+        // Bulle qui commence l'après-midi : la carte d'origine recule de
+        // 1 px sur le trait du matin (.demi-aprem, style.css) — elle
+        // s'élargit d'autant pour finir au même bord.
+        var x0 = gauche[cb[0] - 1], recul = b.classList.contains("demi-aprem") ? 1 : 0;
+        parts.forEach(function (p, n) {
+          var el = carte;
+          if (n > 0) {
+            el = carte.cloneNode(true);
+            el.classList.add("b-carte-jour");
+            el.setAttribute("aria-hidden", "true");
+            b.appendChild(el);
+          }
+          el.dataset.jour = String(p.j);
+          el.style.marginLeft = n > 0 ? (p.g - x0) + "px" : "";
+          el.style.width = (p.d - p.g + (n === 0 ? recul : 0)) + "px";
+          x0 = p.d;
+        });
+      });
+    });
+  }
+  // Cascade : pour chaque ligne (une personne, Jalons, Notes) et chaque
+  // jour, les bulles présentes ce jour-là sont rangées par piste
+  // (assignerPistesCompact, la même sur toute la fenêtre — deux bulles
+  // qui ne se chevauchent pas, matin et après-midi, restent côte à côte),
+  // pistes vides ce jour-là sautées. Rang k : k·(U + marge) sous la
+  // première tant que les n bulles tiennent dans la ligne (n ≤ N), sinon
+  // un pas régulier (H − 2·marge − U)/(n − 1) : la dernière finit pile au
+  // bas de la ligne, chacune recouvre le bas de la précédente. Pas jamais
+  // sous PAS_MINI_MOB_ (sinon, avec la place d'une seule bulle, toutes
+  // tombaient au même endroit) : le haut de chaque bulle reste visible,
+  // les dernières rognées au bas de la ligne (clip-path, style.css). Les bulles
+  // sont posées dans l'ordre des pistes (ligneGroupePersonnesCompact) :
+  // la suivante passe par-dessus la précédente. Décalage par `translate`
+  // sur chaque carte (et sur les poignées, comme leur carte) : rien n'est
+  // remis en page.
+  //
+  // Round du 29.09.2026 (suite 92) — hors de la vue « 1 jour » (ordinateur,
+  // tablette, téléphone en semaine), une bulle garde une seule carte, au
+  // même rang sur toute sa durée (Lionel, à notre question : « une seule
+  // bulle ») : les bulles d'une ligne sont regroupées en amas, de proche
+  // en proche tant qu'elles se chevauchent (colonnes de la grille) ; dans
+  // chaque amas, même rangement par piste et même pas que par jour
+  // ci-dessus. Une bulle seule dans son amas reste en haut de sa ligne.
+  //
+  // Round du 29.09.2026 (suite 98) — Lionel, capture à l'appui : « sur un
+  // demi jour je ne vois pas une bulle car la ligne est trop petite. J'ai
+  // une bulle verte cachée derrière la bulle bleu. » Puis, à notre
+  // question : « La pastille, mais un appuis sur la pastille montre les
+  // bulles du jour sans changer la hauteur des lignes. Un nouvel appuis
+  // replace les bulles. » Bulle de la cascade dont moins de VU_MINI_MOB_
+  // px dépassent au-dessus du bas de sa ligne : cachée. Une pastille
+  // « +N » (N bulles cachées) se pose dans le coin bas droit de la
+  // demi-journée de ces bulles. Un appui étale les bulles de la case
+  // (même ligne, même jour — hors vue « 1 jour » : même amas) : une
+  // hauteur de carte d'écart, sans chevauchement, par-dessus les lignes
+  // suivantes (la ligne garde sa hauteur ; remontées d'autant si elles
+  // dépassaient le bas du planning). La pastille devient « − » ; un nouvel
+  // appui les replace en cascade. Changer de jour les replace aussi.
+  function isoDeColonne_(G, col) {
+    var grilleEntete = G.grilleEntete;
+    var th = [].filter.call(grilleEntete.querySelectorAll(".th[data-gi]"), function (t) {
+      var c = plageGrille_(t.style.gridColumn);
+      return c && col >= c[0] && col < c[0] + c[1];
+    })[0];
+    return th ? isoDeGi(+th.dataset.gi) + ":" + (col - plageGrille_(th.style.gridColumn)[0]) : "c" + col;
+  }
+  function cascaderBullesJourMobile_(G) {
+    var grilleCorps = G.grilleCorps, grilleEntete = G.grilleEntete, enModeJourMobile = G.enModeJourMobile;
+    if (!G.mesuresMob_) return;
+    var joursCol = [].map.call(grilleCorps.querySelectorAll(".snap-jour"), function (el) {
+      var c = plageGrille_(el.style.gridColumn) || [0, 0];
+      return { col: c[0], fin: c[0] + c[1] };
+    }).sort(function (a, b) { return a.col - b.col; });
+    [grilleEntete, grilleCorps].forEach(function (g) {
+      var lignes = g._lignesMob || {}, parLigne = {};
+      g.querySelectorAll(":scope > .pastille-cachees").forEach(function (el) { el.remove(); });
+      g.querySelectorAll(":scope > .bulle.cascade-ouverte").forEach(function (b) { b.classList.remove("cascade-ouverte"); });
+      [].forEach.call(g.children, function (b) {
+        if (!b.classList.contains("bulle") || b.classList.contains("bulle-sonde")) return;
+        var r = plageGrille_(b.style.gridRow);
+        if (!r || !lignes[r[0]]) return;
+        (parLigne[r[0]] = parLigne[r[0]] || []).push(b);
+      });
+      Object.keys(parLigne).forEach(function (row) {
+        var mes = G.mesuresMob_[lignes[row]], m = MARGE_MOB_;
+        var groupes = [];
+        if (enModeJourMobile) {
+          var parJour = {};
+          parLigne[row].forEach(function (b) {
+            var piste = +b.dataset.piste || 0;
+            [].forEach.call(b.querySelectorAll(":scope > .b-carte"), function (c) {
+              (parJour[c.dataset.jour] = parJour[c.dataset.jour] || []).push({ c: c, piste: piste, b: b });
+            });
+          });
+          groupes = Object.keys(parJour).map(function (j) { parJour[j].jour = +j; return parJour[j]; });
+        } else {
+          var amas = null, fin = -1;
+          parLigne[row].map(function (b) { return { b: b, col: plageGrille_(b.style.gridColumn) || [0, 1] }; })
+            .sort(function (a, b) { return a.col[0] - b.col[0]; })
+            .forEach(function (x) {
+              if (!amas || x.col[0] >= fin) { amas = []; groupes.push(amas); fin = -1; }
+              fin = Math.max(fin, x.col[0] + x.col[1]);
+              var piste = +x.b.dataset.piste || 0;
+              [].forEach.call(x.b.querySelectorAll(":scope > .b-carte"), function (c) { amas.push({ c: c, piste: piste, b: x.b }); });
+            });
+        }
+        groupes.forEach(function (cartes) {
+          var pistes = [];
+          cartes.forEach(function (x) { if (pistes.indexOf(x.piste) < 0) pistes.push(x.piste); });
+          pistes.sort(function (a, b) { return a - b; });
+          var n = pistes.length;
+          var pas = n <= mes.n ? mes.u + m : Math.max(Math.min(PAS_MINI_MOB_, mes.u + m), (mes.h - 2 * m - mes.u) / (n - 1));
+          // Suite 98 : bulles cachées (colonnes de leur part de journée),
+          // pastille « +N », case étalée si elle est ouverte.
+          var cachees = [], c0 = Infinity, c1 = 0, d0 = Infinity;
+          cartes.forEach(function (x) {
+            var cb = plageGrille_(x.b.style.gridColumn) || [0, 1], a = cb[0], z = cb[0] + cb[1];
+            var jc = cartes.jour != null ? joursCol[cartes.jour] : null;
+            if (jc) { a = Math.max(a, jc.col); z = Math.min(z, jc.fin); }
+            d0 = Math.min(d0, a);
+            if (mes.h - (m + pistes.indexOf(x.piste) * pas) >= VU_MINI_MOB_) return;
+            if (cachees.indexOf(x.piste) < 0) cachees.push(x.piste);
+            c0 = Math.min(c0, a); c1 = Math.max(c1, z);
+          });
+          var cle = (g === grilleEntete ? "e" : "c") + row + "|" + isoDeColonne_(G, d0);
+          var ouverte = cachees.length > 0 && !!G.cascadesOuvertes_[cle], decale = 0;
+          if (ouverte) {
+            pas = mes.u + m;
+            var rG = g.getBoundingClientRect(), kz = g.offsetHeight ? rG.height / g.offsetHeight : 1;
+            var haut = (cartes[0].b.getBoundingClientRect().top - rG.top) / kz, bas = haut + m + (n - 1) * pas + mes.u + 2;
+            decale = Math.max(0, Math.min(haut, bas - g.offsetHeight));
+          }
+          if (cachees.length && c1 > c0) {
+            var pc = document.createElement("button");
+            pc.type = "button";
+            pc.className = "pastille-cachees" + (ouverte ? " ouverte" : "");
+            pc.textContent = ouverte ? "\u2212" : "+" + cachees.length;
+            pc.title = ouverte ? "Replacer les bulles" : cachees.length + (cachees.length > 1 ? " bulles cachées : les montrer" : " bulle cachée : la montrer");
+            pc.setAttribute("aria-label", pc.title);
+            pc.style.gridRow = row;
+            pc.style.gridColumn = c0 + " / " + c1;
+            pc.addEventListener("click", function (e) {
+              e.stopPropagation();
+              if (G.cascadesOuvertes_[cle]) delete G.cascadesOuvertes_[cle]; else G.cascadesOuvertes_[cle] = true;
+              cascaderBullesJourMobile_(G);
+            });
+            g.appendChild(pc);
+          }
+          cartes.forEach(function (x) {
+            var rang = pistes.indexOf(x.piste), y = m + rang * pas - decale;
+            if (ouverte) x.b.classList.add("cascade-ouverte");
+            x.c.style.translate = "0 " + Math.round(y * 10) / 10 + "px";
+            // Suite 94 : carte posée sur une autre de la pile (ombre et
+            // liseré en haut, style.css) — lisible même de même couleur.
+            x.c.toggleAttribute("data-empile", rang > 0);
+          });
+        });
+        parLigne[row].forEach(function (b) {
+          var cs = b.querySelectorAll(":scope > .b-carte");
+          if (!cs.length) return;
+          var pg = b.querySelector(":scope > .poignee-g"), pd = b.querySelector(":scope > .poignee-d");
+          if (pg) pg.style.translate = cs[0].style.translate;
+          if (pd) pd.style.translate = cs[cs.length - 1].style.translate;
+        });
+      });
+    });
+    remonterCartesSelection(); // suite 93
+  }
+  // Colonnes des jours, dans le repère du contenu défilé (suite 72) :
+  // lues au repos, pour la case coin pendant le glissement
+  // (majCoinJourMobile_) — aucune mesure à l'image.
+  function majGeoGlisse_(G) {
+    var scroller = G.scroller, grilleEntete = G.grilleEntete, LN = G.LN;
+    var rS = scroller.getBoundingClientRect();
+    if (!rS.width) { G.geoGlisse_ = null; return; }
+    var x = scroller.scrollLeft, zoom = (niveauZoomPlanning / 100) || 1;
+    var ths_ = [].slice.call(grilleEntete.querySelectorAll(".th[data-gi]"));
+    G.geoGlisse_ = {
+      taille: generationTaille_,
+      debut: rS.left + scroller.clientLeft + LN * zoom,
+      jours: ths_.map(function (th) { var r = th.getBoundingClientRect(); return [r.left + x, r.right + x]; }),
+      gis: ths_.map(function (th) { return +th.dataset.gi; })
+    };
+  }
+  // Jour posé (rendu, arrêt du défilement) : poignées des bulles absentes
+  // de ce jour masquées (.hors-jour, suite 37 — celles de la veille
+  // tombaient au bord de la colonne des noms).
+  function poserJourMobile_(G, thJour) {
+    var enModeJourMobile = G.enModeJourMobile, scroller = G.scroller, grilleEntete = G.grilleEntete, grilleCorps = G.grilleCorps;
+    if (!enModeJourMobile || !scroller.isConnected || !scroller.getClientRects().length) return;
+    if (!thJour) {
+      var ecart = Infinity;
+      grilleEntete.querySelectorAll(".th[data-gi]").forEach(function (th) {
+        var e = Math.abs(decalerSurColonne_(G, th) - scroller.scrollLeft);
+        if (e < ecart) { ecart = e; thJour = th; }
+      });
+    }
+    var c = thJour && plageGrille_(thJour.style.gridColumn);
+    if (!c) return;
+    [grilleEntete, grilleCorps].forEach(function (g) {
+      [].forEach.call(g.children, function (b) {
+        if (!b.classList.contains("bulle")) return;
+        var cb = plageGrille_(b.style.gridColumn);
+        var ici = !!cb && cb[0] < c[0] + c[1] && cb[0] + cb[1] > c[0];
+        if (b.classList.contains("hors-jour") === ici) b.classList.toggle("hors-jour", !ici);
+      });
+    });
+    if (!G.geoGlisse_ || G.geoGlisse_.taille !== generationTaille_) majGeoGlisse_(G);
+  }
+  // Tout, au rendu (et une fois les polices chargées : le texte n'occupe
+  // pas la même place). Suite 92 : partout (lignes de hauteur fixe sur
+  // ordinateur et tablette aussi) ; cartes par jour et jour posé, en vue
+  // « 1 jour » seulement.
+  function mettreEnPlaceJourMobile_(G) {
+    var enModeJourMobile = G.enModeJourMobile;
+    poserPistesFixes_(G);
+    mesurerHauteursMobile_(G);
+    if (enModeJourMobile) decouperBullesJourMobile_(G);
+    cascaderBullesJourMobile_(G);
+    if (!enModeJourMobile) return;
+    G.geoGlisse_ = null;
+    poserJourMobile_(G);
+  }
+  function planifierDecoupeJourMobile_(G) {
+    var scroller = G.scroller, enModeJourMobile = G.enModeJourMobile;
+    if (G.rafDecoupe_) return;
+    G.rafDecoupe_ = requestAnimationFrame(function () {
+      G.rafDecoupe_ = null;
+      if (!scroller.isConnected) return;
+      if (enModeJourMobile) decouperBullesJourMobile_(G);
+      cascaderBullesJourMobile_(G);
+      if (enModeJourMobile) poserJourMobile_(G);
+    });
+  }
+  // Curseurs de hauteur (suite 92, barre d'outils et page Affichage) :
+  // hauteurs remesurées et cascade refaite, sans nouveau rendu — les
+  // pistes suivent les variables (poserPistesFixes_). Grille masquée
+  // (page Affichage ouverte) : rien de mesurable, nouveau rendu au retour
+  // sur le planning (grilleRendueMasquee_, rendreSiRenduMasque). false :
+  // grille remplacée depuis, à rendre. Avant tout rendu : false.
+  function majHauteursLignes() {
+    var G = grilleCourante_;
+    if (!G) return false;
+    var scroller = G.scroller;
+    if (!scroller.isConnected) return false;
+    if (!scroller.getClientRects().length) { grilleRendueMasquee_ = true; return true; }
+    if (!mesurerHauteursMobile_(G)) return false;
+    cascaderBullesJourMobile_(G);
+    return true;
+  }
+  // Défilement posé par le script (defilerHorizontal_, grille-interactions
+  // .js), `x` = sa position : espace entre semaines et case coin suivis
+  // dans la même image. Avant tout rendu : rien.
+  function suivreDefilementJourMobile(sc, x) {
+    var G = grilleCourante_;
+    if (!G || sc !== G.scroller || !G.enModeJourMobile) return;
+    if (x == null) x = G.scroller.scrollLeft;
+    G.xDejaSuivi = x;
+    placerSepSemaines_(x);
+    majCoinJourMobile_(G, x);
+  }
+  // Case coin en vue « 1 jour » (suite 70, cf. sa création plus bas) : le
+  // jour affiché est celui dont le bord gauche est le plus proche du bord
+  // de l'écran — même règle que l'arrêt du défilement (defilementArrete),
+  // la case bascule donc à mi-chemin, là où l'aimantation posera le jour.
+  // Une fois par image ; rien tant que la grille est masquée (tout y
+  // mesure 0).
+  function planifierMajCoinJourMobile_(G, x) {
+    var enModeJourMobile = G.enModeJourMobile;
+    G.xCoin_ = x != null ? x : null;
+    if (!enModeJourMobile || G.rafCoinJour_) return;
+    G.rafCoinJour_ = requestAnimationFrame(function () { G.rafCoinJour_ = null; majCoinJourMobile_(G, G.xCoin_); });
+  }
+  // Suite 72 : colonnes lues dans les positions mémorisées du glissement
+  // (G.geoGlisse_) quand elles valent encore — aucune mesure à l'image.
+  function majCoinJourMobile_(G, xConnu) {
+    var enModeJourMobile = G.enModeJourMobile, coin = G.coin, scroller = G.scroller, grilleEntete = G.grilleEntete;
+    if (!enModeJourMobile || !coin || !scroller.isConnected) return;
+    var geo = G.geoGlisse_ && G.geoGlisse_.taille === generationTaille_ && G.geoGlisse_.gis.length ? G.geoGlisse_ : null;
+    if (!geo && !scroller.getClientRects().length) return;
+    var x = xConnu != null ? xConnu : scroller.scrollLeft;
+    var gi = null, ecart = Infinity;
+    if (geo) {
+      geo.jours.forEach(function (c, j) {
+        var e = Math.abs(Math.max(0, Math.round(c[0] - geo.debut)) - x);
+        if (e < ecart) { ecart = e; gi = geo.gis[j]; }
+      });
+    } else {
+      grilleEntete.querySelectorAll(".th[data-gi]").forEach(function (th) {
+        var e = Math.abs(decalerSurColonne_(G, th) - x);
+        if (e < ecart) { ecart = e; gi = +th.dataset.gi; }
+      });
+    }
+    var iso = gi !== null ? isoDeGi(gi) : null;
+    if (!iso || iso === G.isoCoinJour_) return;
+    var avant = G.isoCoinJour_;
+    G.isoCoinJour_ = iso;
+    // Même mois, même année : rien à réécrire.
+    if (avant && avant.slice(0, 7) === iso.slice(0, 7)) return;
+    coin.innerHTML = htmlCoinMoisAnnee([iso]);
+  }
+  // Suite 84 : en vue « Jours voisins », l'aperçu d'une poignée recoupe
+  // aussi les cartes par morceau (ajusterBullesJoursVoisins_).
+  // Suite 91 : en vue « 1 jour », cartes recoupées par jour et cascade.
+  // Suite 92 : cascade refaite partout (l'amas d'une bulle étirée change).
+  // Avant tout rendu : rien.
+  function reajusterBullesJourMobile() {
+    var G = grilleCourante_;
+    if (!G) return;
+    if (vueBordsRendue_) ajusterBullesJoursVoisins_(G);
+    planifierDecoupeJourMobile_(G);
+  }
+
+  function decalerSurColonne_(G, th) {
+    var grilleEntete = G.grilleEntete, LN = G.LN;
+    if (!th) return 0;
+    var rGrilleEntete = grilleEntete.getBoundingClientRect(), rTh = th.getBoundingClientRect();
+    return Math.max(0, Math.round((rTh.left - rGrilleEntete.left) - LN));
+  }
+
+  // Round du 23.09.2026 (suite 5) — Lionel : « Swipper un vendredi permet
+  // de passer au lundi de la semaine suivante ? ». Réattaché à chaque
+  // rendu (comme le mirroir de scroll juste au-dessus) puisque .scroller
+  // est recréé à chaque fois. On ne s'appuie PAS sur le rebond élastique
+  // natif du défilement (scrollLeft qui dépasserait 0/scrollWidth-
+  // clientWidth pendant l'effet ressort iOS) : ce rebond n'existe pas
+  // partout (Android/Chrome "colle" simplement au bord, sans dépassement
+  // mesurable), ce qui laisserait le geste sans effet sur une partie des
+  // téléphones. On mesure donc le déplacement RÉEL du doigt (touchmove),
+  // indépendamment de scrollLeft, et on ne déclenche le changement de
+  // semaine qu'au relâchement (touchend) si le doigt a continué à glisser
+  // d'au moins seuilBordSemaine px au-delà du bord ALORS QUE le défilement,
+  // lui, est déjà à sa butée — identique sur les 2 plateformes.
+  //
+  // Round du 24.09.2026 — Lionel : « le changement de semaine en suivant
+  // gauche/droite ne fonctionne pas sur ordinateur et tablettes,
+  // fonctionne sur mobile. » Ce détecteur était réservé au mode "1 jour"
+  // mobile (enModeJourMobile) : le raisonnement de la suite ×11 ci-dessous
+  // supposait qu'un écran plus large que 600px (tablette/desktop) dispose
+  // toujours d'une molette/trackpad pour l'équivalent — faux pour une
+  // tablette purement tactile (iPad sans trackpad, écran tactile de
+  // bureau) : là, un doigt qui glisse ne déclenche aucun événement
+  // "wheel", et le swipe restait donc sans effet en vue "1 semaine"/"2
+  // semaines". Le détecteur tactile n'a lui-même aucune raison d'être
+  // limité au mode "1 jour" : il ne regarde que le déplacement réel du
+  // doigt et la butée de scroll, peu importe combien de jours sont
+  // affichés — actif dans tous les modes désormais, en plus (jamais à la
+  // place) du détecteur "wheel" ci-dessous qui reste nécessaire pour les
+  // dispositifs à souris/trackpad sans écran tactile.
+  //
+  // Garde-fou "en-glissement" (ajouté avec cette généralisation) : en vue
+  // "1 semaine"/"2 semaines", une tâche peut s'étaler sur plusieurs jours
+  // ENTIERS déjà tous visibles à l'écran (donc maxScroll=0, "à la butée"
+  // en permanence des DEUX côtés à la fois) — un glissé de sélection
+  // multi-jours tout à fait normal (ex. Lundi -> Vendredi pour poser une
+  // tâche sur la semaine) dépasse alors très facilement seuilBordSemaine
+  // en déplacement horizontal brut, et aurait donc, sans ce garde-fou,
+  // déclenché un changement de semaine EN PLUS de la sélection au
+  // relâchement. document.body.classList "en-glissement" est déjà posée
+  // par cablerAjoutCellule/onPointerDownGroupeSelection/cablerPoigneeRedim
+  // dès qu'un geste est reconnu comme une sélection/un redimensionnement/
+  // un déplacement de bulle (jamais pour un panoramique — cf. leurs
+  // commentaires respectifs) : un signal déjà fiable pour distinguer "ce
+  // doigt est en train de faire autre chose" d'un vrai swipe de
+  // navigation, sans dupliquer leur propre logique de détection ici.
+  //
+  // toucheDebutY/toucheAxe (round du 25.09.2026, suite 26) — Lionel :
+  // « Améliore le défilement tactile latéral et horizontal pour qu'il
+  // n'agisse que dans un sens à la fois. » Même règle que le défilement
+  // manuel (axeDuGeste, core.js, décidé une fois le doigt parti de
+  // SEUIL_DEFILEMENT) : un geste reconnu VERTICAL ne peut plus changer de
+  // semaine, même si le doigt a dérivé de plus de seuilBordSemaine de
+  // côté pendant un long défilement vers le bas.
+  // Round du 28.09.2026 (suite 89) — Lionel : « sur tablette une petite
+  // Zone n'est pas visible, il faut légèrement balayer l'écran, ce qui fait
+  // changer la semaine. idée: balayage depuis coté droit avance une
+  // semaine, depuis côté gauche recule une semaine. défilement au centre ».
+  // Avant, TOUT balayage qui continuait au-delà de la butée changeait de
+  // semaine : pour voir les quelques pixels cachés d'une grille à peine
+  // plus large que l'écran, le doigt arrivait en butée presque aussitôt.
+  // Désormais, c'est l'endroit où le doigt se pose qui décide :
+  // - dans la bande du bord droit (zoneBordSemaine_) et vers la gauche :
+  //   semaine suivante ; bande du bord gauche et vers la droite :
+  //   précédente — où que soit le défilement, sans faire défiler ;
+  // - ailleurs (le centre) : défilement seul, jamais de changement de
+  //   semaine.
+  function cablerBalayageSemaine_(G) {
+    var scroller = G.scroller, enModeJourMobile = G.enModeJourMobile;
+    function zoneBordSemaine_() {
+      var r = scroller.getBoundingClientRect();
+      var g = Math.max(r.left, 0), d = Math.min(r.right, window.innerWidth);
+      return { g: g, d: d, largeur: Math.max(48, Math.min(120, (d - g) * .12)) };
+    }
+    var seuilBordSemaine = 46, toucheDebutX = null, toucheDebutY = null, toucheAxe = null, toucheBord = null, toucheZone = null;
+    scroller.addEventListener("touchstart", function (e) {
+      toucheDebutX = (e.touches.length === 1) ? e.touches[0].clientX : null;
+      toucheDebutY = (e.touches.length === 1) ? e.touches[0].clientY : null;
+      toucheAxe = null;
+      toucheBord = null;
+      toucheZone = null;
+      if (toucheDebutX !== null) {
+        var z = zoneBordSemaine_();
+        toucheZone = toucheDebutX <= z.g + z.largeur ? "gauche" : toucheDebutX >= z.d - z.largeur ? "droite" : "centre";
+      }
+    }, { passive: true });
+    scroller.addEventListener("touchmove", function (e) {
+      // Vue "1 jour" téléphone : plus de bord de semaine à franchir, le
+      // défilement est continu (round du 24.09.2026, suite 6 — cf.
+      // fenetreLabGs, core.js) ; ce détecteur ne sert plus qu'aux autres vues.
+      if (enModeJourMobile) return;
+      if (toucheDebutX === null || e.touches.length !== 1) return;
+      if (document.body.classList.contains("en-glissement")) { toucheBord = null; return; }
+      var dx = e.touches[0].clientX - toucheDebutX;
+      var dy = e.touches[0].clientY - toucheDebutY;
+      // Jours voisins aux bords : rien à faire défiler (la vue tient juste
+      // dans l'écran), le balayage change de semaine partout, comme avant.
+      var zone = vueBordsRendue_ ? (dx < 0 ? "droite" : "gauche") : toucheZone;
+      // Chrome ne laisse annuler que les premiers déplacements, avant que la
+      // page ne défile : un départ franchement horizontal depuis un bord est
+      // retenu tout de suite.
+      if (!toucheAxe && zone !== "centre" && Math.abs(dx) > Math.abs(dy) && e.cancelable) e.preventDefault();
+      if (!toucheAxe && Math.abs(dx) + Math.abs(dy) > SEUIL_DEFILEMENT) toucheAxe = axeDuGeste(dx, dy);
+      if (toucheAxe !== "x" || zone === "centre") { toucheBord = null; return; }
+      toucheZone = zone;
+      // Balayage parti d'un bord : il tourne la page, la grille ne défile pas.
+      if (e.cancelable) e.preventDefault();
+      if (toucheZone === "gauche" && dx > seuilBordSemaine) toucheBord = "debut";
+      else if (toucheZone === "droite" && dx < -seuilBordSemaine) toucheBord = "fin";
+      else toucheBord = null;
+    }, { passive: false });
+    scroller.addEventListener("touchend", function () {
+      if (document.body.classList.contains("en-glissement")) { toucheDebutX = null; toucheBord = null; return; }
+      if (toucheBord === "debut") naviguerSemaineDepuisBordJour(-1);
+      else if (toucheBord === "fin") naviguerSemaineDepuisBordJour(1);
+      toucheDebutX = null; toucheDebutY = null; toucheAxe = null; toucheBord = null;
+    }, { passive: true });
+
+    // Round du 23.09.2026 (suite ×11) — Lionel : « L'action de swiper d'une
+    // semaine à l'autre est intéressante et pourrait être portée aux
+    // versions tablette et desktop. » Équivalent du détecteur tactile
+    // ci-dessus pour un dispositif à molette/trackpad — désormais actif EN
+    // PLUS du détecteur tactile (round du 24.09.2026, cf. son commentaire
+    // plus haut), pas à sa place : un ordinateur/une tablette à trackpad
+    // profite de celui-ci, un écran tactile sans trackpad profite de
+    // l'autre, les deux peuvent coexister sur un même appareil hybride sans
+    // se marcher dessus (deux gestes différents). Toujours inerte en mode
+    // "1 jour" mobile (enModeJourMobile→return) : là, seul le détecteur
+    // tactile agit. deltaX (molette horizontale native, trackpad) OU deltaY
+    // avec Maj enfoncée (convention historique du défilement horizontal à
+    // la molette verticale, cf. la plupart des tableurs/calendriers web) —
+    // jamais les deux à la fois : on prend le plus significatif des deux
+    // pour éviter qu'un simple défilement vertical de la page (deltaY sans
+    // Maj) ne déclenche quoi que ce soit ici.
+    // Cumul (accumulMolette) plutôt qu'un seul événement : un trackpad émet
+    // de nombreux petits événements "wheel" pendant un seul geste physique
+    // (parfois quelques unités chacun) — un seuil unitaire les raterait
+    // presque tous. Remis à zéro après un silence (resetAccumulMolette,
+    // 400ms) ou dès que le défilement s'écarte du bord concerné — un simple
+    // aller-retour de la molette sans rester au bord ne doit rien
+    // déclencher.
+    //
+    // Round du 24.09.2026 — Lionel : « ne fonctionne pas sur ordinateur ».
+    // e.preventDefault() se déclenchait auparavant seulement au moment du
+    // franchissement du seuil, pas à chaque événement "wheel" reçu à la
+    // butée pendant l'accumulation. Or Chrome/Edge interprètent un swipe
+    // horizontal à 2 doigts qui dépasse la butée d'un conteneur SANS
+    // preventDefault() comme un geste de navigation d'historique (retour
+    // page précédente/suivante, avec son animation) — le trackpad ne
+    // produit alors plus d'événements "wheel" pour la suite du geste,
+    // l'accumulation n'atteint jamais seuilMolette et la semaine ne change
+    // jamais (symptôme exact de Lionel : ça ne marche que sur mobile, où le
+    // détecteur tactile ci-dessus n'a pas ce problème). Corrigé en appelant
+    // preventDefault() dès qu'on est à la butée dans le sens du geste,
+    // avant même de savoir si le seuil sera atteint — sans incidence sur le
+    // défilement normal (loin de la butée, on retourne avant d'y arriver).
+    // Complété côté CSS par overscroll-behavior-x:contain sur .scroller
+    // (cf. style.css) en filet de sécurité supplémentaire.
+    var seuilMolette = 60, accumulMolette = 0, resetAccumulMolette = null;
+    scroller.addEventListener("wheel", function (e) {
+      if (enModeJourMobile) return;
+      var dx = Math.abs(e.deltaX) >= Math.abs(e.deltaY) ? e.deltaX : (e.shiftKey ? e.deltaY : 0);
+      if (!dx) return;
+      var maxScrollW = scroller.scrollWidth - scroller.clientWidth;
+      var auDebut = scroller.scrollLeft <= 1, aLaFin = scroller.scrollLeft >= maxScrollW - 1;
+      // Jours voisins aux bords (suite 74) : défilement tenu, toujours « en
+      // butée » des deux côtés — le geste change de semaine.
+      if (!vueBordsRendue_ && (dx < 0 ? !auDebut : !aLaFin)) { accumulMolette = 0; return; }
+      e.preventDefault();
+      accumulMolette += dx;
+      clearTimeout(resetAccumulMolette);
+      resetAccumulMolette = setTimeout(function () { accumulMolette = 0; }, 400);
+      if (accumulMolette <= -seuilMolette) { accumulMolette = 0; naviguerSemaineDepuisBordJour(-1); }
+      else if (accumulMolette >= seuilMolette) { accumulMolette = 0; naviguerSemaineDepuisBordJour(1); }
+    }, { passive: false });
+  }
+
+  // Arrêt du défilement en vue « 1 jour » (cf. son appel, construireGrille).
+  function cablerArretJourMobile_(G) {
+    var scroller = G.scroller, grilleEntete = G.grilleEntete, n = G.n, labsRendus = G.labsRendus;
+    var minuteurArret = null, doigtsPoses = 0;
+    var programmerArret = function () { clearTimeout(minuteurArret); minuteurArret = setTimeout(defilementArrete, 200); };
+    scroller.addEventListener("touchstart", function (e) { doigtsPoses = e.touches.length; clearTimeout(minuteurArret); }, { passive: true });
+    scroller.addEventListener("touchend", function (e) { doigtsPoses = e.touches.length; programmerArret(); }, { passive: true });
+    scroller.addEventListener("touchcancel", function (e) { doigtsPoses = e.touches.length; programmerArret(); }, { passive: true });
+    scroller.addEventListener("scroll", programmerArret, { passive: true });
+    // Fin d'un glissement de page (suite 57, glisserVersJour dans
+    // grille-interactions.js) : le jour est posé tout de suite, sans les
+    // 200 ms d'attente d'un défilement natif (colonne des noms, bulle
+    // amenée au bord), dont on ne connaît pas la fin autrement.
+    scroller.addEventListener("jour-cale", function () { clearTimeout(minuteurArret); defilementArrete(); });
+    var minuteurRecentrage = null;
+    var defilementArrete = function () {
+      if (!scroller.isConnected || doigtsPoses > 0) return;
+      // Glissement de page encore en cours : il pose le jour à sa fin.
+      if (calageJourEnCours) return;
+      // Bulle tenue au doigt (changement de jour en l'amenant au bord,
+      // suite 26) : jour posé repris une fois la bulle lâchée (suite 41 —
+      // l'arrêt était abandonné jusqu'ici, et avec lui le calcul des
+      // largeurs du jour atteint si plus aucun défilement ne suivait).
+      if (syncEnCours || document.body.classList.contains("en-glissement")) { minuteurArret = setTimeout(defilementArrete, 400); return; }
+      var thJour = null, ecart = Infinity;
+      grilleEntete.querySelectorAll(".th[data-gi]").forEach(function (th) {
+        var e = Math.abs(decalerSurColonne_(G, th) - scroller.scrollLeft);
+        if (e < ecart) { ecart = e; thJour = th; }
+      });
+      if (!thJour) return;
+      poserJourMobile_(G, thJour); // poignées du jour posé (suite 91)
+      var giJour = +thJour.dataset.gi, isoJour = isoDeGi(giJour);
+      if (!isoJour) return;
+      // Suite 97 — Lionel : « en sélection simple, quand on change de
+      // jour, la case est désélectionnée. Et en multiple, la case reste
+      // sélectionnée. » Nouveau jour posé, sélection simple (ni plusieurs
+      // bulles, ni mode multiple : body.selection-multiple) dont la bulle
+      // n'est plus sur ce jour (.hors-jour, ou plus dans la grille) : la
+      // sélection est vidée. Une bulle encore là (tâche de plusieurs
+      // jours, bulle amenée au bord ou étirée jusqu'au nouveau jour)
+      // reste sélectionnée.
+      // Suite 98 : cases étalées (pastille « +N ») replacées au nouveau jour.
+      if (isoJour !== jourMobileIso && Object.keys(G.cascadesOuvertes_).length) { G.cascadesOuvertes_ = {}; cascaderBullesJourMobile_(G); }
+      if (isoJour !== jourMobileIso && !document.body.classList.contains("selection-multiple")) {
+        var idsSel = Object.keys(bullesSelectionnees);
+        if (idsSel.length && idsSel.every(function (id) {
+          return [].every.call(racineEl.querySelectorAll('.bulle[data-id="' + id + '"]'), function (b) { return b.classList.contains("hors-jour"); });
+        })) quitterModeSelection();
+      }
+      jourMobileIso = isoJour;
+      for (var iSem = 0; iSem < etat.semaines.length; iSem++) {
+        var sem = etat.semaines[iSem];
+        if (isoJour >= sem.debut && isoJour <= sem.fin) {
+          etat.indexSemaine = iSem;
+          break;
+        }
+      }
+      // Pilule Sem. N et, depuis la suite 15, date du jour du menu ⋮ :
+      // à chaque arrêt, plus seulement au changement de semaine.
+      majSemaineAffichage();
+      var rangJour = estGiWeekend(giJour) ? semaineDuGiWeekend(giJour) * 5 + 4 : giJour;
+      if (rangJour >= 2 && rangJour <= n - 3) return;
+      // Pas tout de suite (round du 27.09.2026, suite 72) : la
+      // reconstruction de la grille (quelques dizaines de ms sur un
+      // téléphone) tombait dans la dernière image du glissement, qui
+      // arrivait donc en retard, d'un coup. Minuterie posée depuis cette
+      // image : elle part une fois l'image affichée — le jour arrive,
+      // puis la grille se reconstruit à l'identique sous le doigt levé.
+      // Doigt reposé ou glissement de page entre-temps : son propre arrêt
+      // s'en chargera ; synchro ou bulle tenue : on réessaie plus tard,
+      // comme l'arrêt lui-même.
+      clearTimeout(minuteurRecentrage);
+      var recentrerApresGlissement = function () {
+        if (!scroller.isConnected || doigtsPoses > 0 || calageJourEnCours) return;
+        if (syncEnCours || document.body.classList.contains("en-glissement")) { minuteurRecentrage = setTimeout(recentrerApresGlissement, 400); return; }
+        recentrerFenetreJourMobile();
+      };
+      minuteurRecentrage = setTimeout(recentrerApresGlissement, 0);
+    };
+    // Recentrage : la fenêtre est recalculée autour du jour affiché
+    // (debutFenetreMobile = null -> debutFenetreJourMobile_, core.js) ;
+    // rien à faire si elle ne peut pas bouger (tout début/fin des semaines
+    // du planning). Semaine voisine en principe déjà en cache
+    // (prechargerVoisinesJourMobile) : reconstruction immédiate.
+    var recentrerFenetreJourMobile = function () {
+      // Suite 97 — Lionel : « en multiple, la case reste sélectionnée »
+      // au changement de jour. La sélection était vidée d'office au
+      // recentrage : les id des bulles et leurs colonnes (giDebut) sont
+      // refaits avec la fenêtre. Chaque bulle sélectionnée est donc
+      // notée par son contenu (cleBulle_) et sa DATE de début, puis
+      // retrouvée dans la nouvelle fenêtre (la bulle de même contenu qui
+      // couvre cette date) ; celles qui en sortent sont désélectionnées.
+      // (La sélection simple d'une bulle absente du jour a déjà été
+      // vidée à l'arrêt, plus haut.)
+      var selAvant = [];
+      Object.keys(bullesSelectionnees).forEach(function (id) {
+        var p = itemParId(id), iso = p && isoDeGi(p.item.giDebut);
+        if (iso) selAvant.push({ cle: cleBulle_(p.item), iso: iso });
+      });
+      debutFenetreMobile = null;
+      if (fenetreLabGs().join(",") === labsRendus) return;
+      bullesSelectionnees = {};
+      assurerFenetreChargee(function () {
+        construireVueDepuisCache();
+        var toutes = TACHES.concat(JALONS, NOTES);
+        selAvant.forEach(function (sel) {
+          var gi = giDepuisIso(sel.iso);
+          if (gi == null) return;
+          var it = toutes.filter(function (x) { return !bullesSelectionnees[x.id] && cleBulle_(x) === sel.cle && gi >= x.giDebut && gi < x.giDebut + x.duree; })[0];
+          if (it) bullesSelectionnees[it.id] = true;
+        });
+        if (!Object.keys(bullesSelectionnees).length) { modeSelectionMultiple = false; copieSelectionActive = false; }
+        render(false); majBarreSelection();
+      });
+    };
+    prechargerVoisinesJourMobile();
+  }
+
 
   /* Espace entre deux semaines — round du 26.09.2026 (suite 61). Lionel :
      « Entre 2 semaines, il y a une bordure épaisse. A remplacer par un
