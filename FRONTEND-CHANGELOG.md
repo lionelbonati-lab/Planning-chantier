@@ -10287,3 +10287,30 @@ Lionel :
 
 ### Étapes suivantes
 - 2 : hauteurs fixes et cascade dans js/grille-hauteurs.js (commun) ; 3 : vue « 1 jour » dans js/grille-telephone.js ; 4 : vue semaine dans js/grille-ordinateur.js ; 5 : styles ; 6 : gestes ; 7 : bilan.
+
+
+## 208. Round du 29.09.2026 (suite 99) — Découpage du planning, étape 2 : hauteurs fixes et cascade dans js/grille-hauteurs.js
+- Suite du plan validé par Lionel (« Allons-y ») : chaque étape testée et fusionnée à part.
+
+### Ce qui change
+- Rien à l'écran : le code est déplacé, pas réécrit.
+- Nouveau fichier **js/grille-hauteurs.js** (commun ordinateur / téléphone), chargé par index.html juste après js/grille-rendu.js :
+  - bulle sélectionnée dépliée : `ELARGI_SEL_`, `remonterCartesSelection`, `placerPoigneesCartes_` ;
+  - hauteurs fixes des lignes : `MARGE_MOB_`, `PAS_MINI_MOB_`, `VU_MINI_MOB_`, `plageGrille_`, `reglagesLignesMobile_`, `hauteurCarteSonde_`, `mesurerHauteursMobile_`, `poserPistesFixes_` ;
+  - cascade des bulles et pastille « +N » : `isoDeColonne_`, `cascaderBullesJourMobile_` ;
+  - point d'entrée `majHauteursLignes()`.
+- js/grille-rendu.js : ~2 990 lignes au lieu de ~3 420.
+- Contrôle : mêmes noms non définis dans les deux fichiers réunis qu'avant dans grille-rendu.js seul (analyse ESLint), aucune variable inutilisée.
+
+### Service worker (sw.js) : fichier ajouté, hors ligne
+- Risque trouvé en préparant l'étape : l'installation copie tout ce que charge index.html, mais une mise à jour déjà installée ne recopiait que les fichiers déjà en copie. Un fichier js ajouté (comme grille-hauteurs.js) n'était copié qu'au premier chargement en ligne qui le demandait ; ouvert sans réseau juste après, le planning ne l'aurait pas trouvé.
+- Maintenant, chaque fois qu'index.html est revalidé, `copierFichiersManquants` lit les fichiers qu'il charge (`fichiersDePage`, même lecture qu'à l'installation) et copie d'avance ceux qui manquent. Même nom de copie (planning-appli-v2).
+
+### Tests
+- test_suite99.js, 14/14 :
+  - répartition : les fonctions de grille-hauteurs.js y sont, et plus dans grille-rendu.js ; index.html le charge après grille-rendu.js ;
+  - service worker : grille-hauteurs.js copié à l'installation ; index.html publié qui charge un fichier de plus : ce fichier est copié d'avance (le test échoue avec l'ancien sw.js).
+- Suite complète : 104/104.
+
+### Étapes suivantes
+- 3 : vue « 1 jour » dans js/grille-telephone.js ; 4 : vue semaine dans js/grille-ordinateur.js ; 5 : styles ; 6 : gestes ; 7 : bilan.
