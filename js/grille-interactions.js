@@ -1901,7 +1901,21 @@
 
   function selectionnerDepuisCellules(cells) {
     if (!cells.length) return;
-    var gisParCle = {};
+    Object.assign(bullesSelectionnees, idsDepuisCellules(cells));
+    var n = Object.keys(bullesSelectionnees).length;
+    // Une sélection par zone est une sélection MULTIPLE par nature (round du
+    // 24.09.2026, suite 7) : elle allume le mode, pour que les clics suivants
+    // s'y ajoutent et que la barre « ‹ › » soit disponible.
+    if (n) modeSelectionMultiple = true;
+    render(false);
+    majBarreSelection();
+    toast(n ? ("Sélectionné (" + n + ").") : "Rien à sélectionner dans cette zone.");
+  }
+  // Bulles présentes dans ces cases ({id: true}), sans rien sélectionner :
+  // sert aussi à la sélection de lignes et de colonnes (suite 105,
+  // grille-hauteurs.js).
+  function idsDepuisCellules(cells) {
+    var ids = {}, gisParCle = {};
     cells.forEach(function (c) {
       var cle = c.dataset.kind === "personne" ? ("personne|" + c.dataset.personne + "|" + c.dataset.demi) : c.dataset.kind;
       if (!gisParCle[cle]) gisParCle[cle] = {};
@@ -1912,7 +1926,7 @@
         if (it.personneId === undefined) {
           var gis = gisParCle[it.type];
           if (!gis) return;
-          for (var g in gis) { var gi = +g; if (gi >= it.giDebut && gi < it.giDebut + it.duree) { bullesSelectionnees[it.id] = true; break; } }
+          for (var g in gis) { var gi = +g; if (gi >= it.giDebut && gi < it.giDebut + it.duree) { ids[it.id] = true; break; } }
           return;
         }
         // Tâche/absence (§49) : le(s) demi(s) occupé(s) peu(ven)t varier
@@ -1926,19 +1940,12 @@
             var gisT = gisParCle["personne|" + it.personneId + "|" + d];
             return gisT && gisT[gT];
           });
-          if (trouveT) { bullesSelectionnees[it.id] = true; break; }
+          if (trouveT) { ids[it.id] = true; break; }
         }
       });
     }
     ramasser(TACHES); ramasser(JALONS); ramasser(NOTES);
-    var n = Object.keys(bullesSelectionnees).length;
-    // Une sélection par zone est une sélection MULTIPLE par nature (round du
-    // 24.09.2026, suite 7) : elle allume le mode, pour que les clics suivants
-    // s'y ajoutent et que la barre « ‹ › » soit disponible.
-    if (n) modeSelectionMultiple = true;
-    render(false);
-    majBarreSelection();
-    toast(n ? ("Sélectionné (" + n + ").") : "Rien à sélectionner dans cette zone.");
+    return ids;
   }
 
   // Round du 12.09.2026 — Lionel : « En mode sélection, sortir du mode

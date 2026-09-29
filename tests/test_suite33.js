@@ -102,9 +102,9 @@ const etiquettes = (page) => page.evaluate(() => [...document.querySelectorAll('
     await page.waitForTimeout(150);
 
     // --- 3. Composition : « cette semaine » ---
-    // Suite 104 : le clic sur le nom ouvre le menu de la ligne, qui propose
-    // « Composition de l'équipe… ».
-    await page.evaluate(() => document.querySelector('.lbl-equipe[data-equipe="10"] b').click());
+    // Suite 104 : le menu de la ligne propose « Composition de l'équipe… » ;
+    // suite 106 : il s'ouvre au clic droit.
+    await page.evaluate(() => document.querySelector('.lbl-equipe[data-equipe="10"] b').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 60, clientY: 300 })));
     await page.waitForTimeout(150);
     await page.click('.menu-hauteur-ligne [data-a="composition"]');
     await page.waitForTimeout(150);
