@@ -30,6 +30,8 @@ const { FAUX_SUPABASE, ouvrirPlanning, verificateur, lancerNavigateur } = requir
 //      l'ouverture suivante, le planning le trouve).
 // Étape 3 : vue « 1 jour » du téléphone dans js/grille-telephone.js
 //   (répartition vérifiée en 5).
+// Étape 4 : vue semaine (glissement de semaine, mode de vue, jours
+//   voisins, balayage) dans js/grille-ordinateur.js (vérifiée en 5).
 //
 // Lancer : node test_suite99.js
 
@@ -39,7 +41,9 @@ const REPARTITION = {
     'mesurerHauteursMobile_', 'poserPistesFixes_', 'isoDeColonne_', 'cascaderBullesJourMobile_', 'majHauteursLignes'],
   'grille-telephone.js': ['basculerVueJourMobile', 'jourOuvreLePlusProche_', 'caleJourMobileSurJourOuvre_', 'prechargerVoisinesJourMobile',
     'decouperBullesJourMobile_', 'majGeoGlisse_', 'poserJourMobile_', 'suivreDefilementJourMobile', 'planifierMajCoinJourMobile_',
-    'majCoinJourMobile_', 'decalerSurColonne_', 'cablerArretJourMobile_']
+    'majCoinJourMobile_', 'decalerSurColonne_', 'cablerArretJourMobile_'],
+  'grille-ordinateur.js': ['nommerColonneNoms_', 'glisserVersSemaine_', 'basculerDeuxSemaines', 'modeVueCourant', 'basculerModeVue',
+    'naviguerSemaineDepuisBordJour', 'poserGabaritJoursVoisins_', 'ajusterBullesJoursVoisins_', 'cablerBalayageSemaine_']
 };
 const RACINE = path.join(__dirname, '..');
 const lire = (f) => fs.readFileSync(path.join(RACINE, 'js', f), 'utf8');

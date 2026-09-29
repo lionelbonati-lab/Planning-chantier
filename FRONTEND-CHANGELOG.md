@@ -10335,3 +10335,26 @@ Lionel :
 
 ### Étapes suivantes
 - 4 : vue semaine et jours voisins dans js/grille-ordinateur.js ; 5 : styles ; 6 : gestes ; 7 : bilan.
+
+
+## 210. Round du 29.09.2026 (suite 99) — Découpage du planning, étape 4 : vue semaine dans js/grille-ordinateur.js
+- Suite du plan validé par Lionel (« Allons-y »).
+
+### Ce qui change
+- Rien à l'écran : le code est déplacé, pas réécrit.
+- Nouveau fichier **js/grille-ordinateur.js**, chargé par index.html après js/grille-telephone.js : tout ce qui ne sert qu'aux vues « 1 semaine », « Jours voisins » et « 2 semaines » (ordinateur, tablette).
+  - changement de semaine : glissement animé (`glisserVersSemaine_`, `nommerColonneNoms_`), `naviguerSemaineDepuisBordJour` (balayage depuis un bord, molette) ;
+  - mode de vue : `MODES_VUE`, `modeVueCourant`, `basculerModeVue`, `basculerDeuxSemaines` ;
+  - jours voisins aux bords : `poserGabaritJoursVoisins_`, `ajusterBullesJoursVoisins_`, gabarit refait au redimensionnement ;
+  - balayage de semaine au doigt et à la molette : `cablerBalayageSemaine_`.
+- Restent dans grille-rendu.js, car communs : `naviguerSemaine` (‹ ›), `allerAujourdhui`, les bandes Personnel / Intervenants collées sous l'en-tête, l'espace entre semaines.
+- Bilan du découpage de l'affichage : js/grille-rendu.js passe de ~3 420 à ~2 180 lignes (construction commune de la grille, bulles, rendu) ; js/grille-hauteurs.js ~430, js/grille-telephone.js ~360, js/grille-ordinateur.js ~510.
+- Contrôle : mêmes noms non définis dans les quatre fichiers réunis qu'avant dans grille-rendu.js seul (analyse ESLint).
+- Relevé en passant : `basculerDeuxSemaines` n'est plus appelée nulle part depuis le bouton unique de mode de vue (suite 82). Déplacée telle quelle, à retirer au bilan (étape 7).
+
+### Tests
+- test_suite99.js, 16/16 : répartition de grille-ordinateur.js (9 fonctions, plus dans grille-rendu.js).
+- Suite complète : 104/104.
+
+### Étapes suivantes
+- 5 : styles (règles du téléphone vers style-mobile.css) ; 6 : gestes (seulement si utile) ; 7 : bilan.
