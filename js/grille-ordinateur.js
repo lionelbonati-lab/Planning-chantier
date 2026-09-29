@@ -231,9 +231,16 @@
     var W = (scroller.clientWidth || (racineEl.clientWidth - 2) || 1200) / zB;
     // Une semaine : 5 jours de cpj colonnes (+ 1 px d'écart chacune), et
     // ses 2 colonnes de week-end de 46 px (+ 1).
-    var weB = afficherWeekends ? 2 * 47 : 0;
-    // 5 jours par semaine affichée + 2 jours entiers aux bords.
-    var colB = Math.max(20, (W - LN - 4 - nbC * weB) / (5 * nbC + 2) / cpjB - 1);
+    // Suite 117 : chaque jour à sa largeur — poids pJ[d] du lundi (0) au
+    // vendredi (4), part de la largeur ; week-end en px (largeurWeekEnd_).
+    // Poids tous à 1 : exactement le calcul d'avant.
+    var pJ = [0, 1, 2, 3, 4].map(poidsJour_), sommeJ = pJ.reduce(function (a, b) { return a + b; }, 0);
+    var weB = afficherWeekends ? largeurWeekEnd_(5) + largeurWeekEnd_(6) + 2 : 0;
+    // 5 jours par semaine affichée + 2 jours entiers aux bords (vendredi
+    // d'avant, lundi d'après).
+    var partB = (W - LN - 4 - nbC * weB) / (nbC * sommeJ + pJ[4] + pJ[0]) / cpjB;
+    var colsB = pJ.map(function (p) { return Math.max(20, partB * p - 1); });
+    var colB = colsB[4];
     var P = Math.floor(cpjB * (colB + 1));
     // Colonne vide : la bande couvre ses 3 premiers px (+ 4 du vendredi),
     // les noms le reste, jusqu'au trait de 1 px avant le lundi.
@@ -248,14 +255,15 @@
     var gabaritB = LN + "px", nbColsB = 1, nbWeB = 0;
     for (var sB = 0; sB < nbSemainesAffichees; sB++) {
       if (sB === 1) { gabaritB += " " + espaceB + "px"; nbColsB++; }
-      gabaritB += " repeat(" + (5 * cpjB) + ", " + colB + "px)"; nbColsB += 5 * cpjB;
+      colsB.forEach(function (c) { gabaritB += " repeat(" + cpjB + ", " + c + "px)"; }); nbColsB += 5 * cpjB;
       if (afficherWeekends) {
         var voisineB = sB === 0 || sB === nbSemainesAffichees - 1;
-        gabaritB += voisineB ? " repeat(2, 0px)" : " repeat(2, 46px)"; nbColsB += 2;
+        gabaritB += voisineB ? " repeat(2, 0px)" : " " + largeurWeekEnd_(5) + "px " + largeurWeekEnd_(6) + "px"; nbColsB += 2;
         if (!voisineB) nbWeB++;
       }
     }
-    var totalB = LN + espaceB + nbSemainesAffichees * 5 * cpjB * colB + nbWeB * 92 + (nbColsB - 1);
+    var semB = cpjB * colsB.reduce(function (a, b) { return a + b; }, 0);
+    var totalB = LN + espaceB + nbSemainesAffichees * semB + nbWeB * (weB - 2) + (nbColsB - 1);
     grilleEntete.style.gridTemplateColumns = grilleCorps.style.gridTemplateColumns = gabaritB;
     grilleEntete.style.minWidth = grilleCorps.style.minWidth = totalB + "px";
     scroller.dataset.largeurBords = String(scroller.clientWidth);
@@ -263,6 +271,138 @@
     document.documentElement.style.setProperty("--largeur-visible-bulle", (W - 2 * P - LN - 20) + "px");
     return { P: P, largeur: W, zoom: zB };
   }
+
+  /* ============ LARGEUR DES JOURS (round du 29.09.2026, suite 117) ============
+     Lionel : « Continue avec replier les lignes et la largeur des jours »
+     (notre idée façon tableur : « Largeur des jours avec la même poignée,
+     entre deux en-têtes de jour »). Glisser le bord droit de l'en-tête
+     d'un jour (.poignee-jour) : un trait suit le pointeur avec la largeur en
+     px, la grille est refaite au relâchement ; double-clic sur ce bord :
+     largeur par défaut. La largeur vaut pour ce jour de la semaine (tous
+     les lundis…), retenue par l'appareil (ordinateur/tablette, téléphone
+     en vue semaine ; pas en vue « 1 jour », où le jour prend l'écran).
+     - lundi à vendredi : un poids (1 par défaut), part de la largeur de la
+       semaine — « 1 semaine » : minmax(58px, poids·fr) ; jours voisins :
+       part de la largeur visible ;
+     - samedi et dimanche : un poids aussi, sur leurs 46 px d'avant. */
+  var LARGEUR_WE_ = 46;
+  function cleLargeursJours_() { return profilAppareil_() === "tel" ? "planning.largeursJours.tel" : "planning.largeursJours"; }
+  function largeursJours_() {
+    try {
+      var o = JSON.parse(localStorage.getItem(cleLargeursJours_()) || "{}");
+      return o && typeof o === "object" ? o : {};
+    } catch (e) { return {}; }
+  }
+  function poidsJour_(d) { var v = +largeursJours_()[d]; return v > 0 ? v : 1; }
+  function largeurWeekEnd_(d) { return Math.round(LARGEUR_WE_ * poidsJour_(d)); }
+  // Poids null : largeur par défaut.
+  function changerLargeurJour(d, poids) {
+    var o = largeursJours_();
+    if (poids == null || Math.abs(poids - 1) < 0.01) delete o[d];
+    else o[d] = Math.round(poids * 100) / 100;
+    try { localStorage.setItem(cleLargeursJours_(), JSON.stringify(o)); } catch (e) {}
+    render(false);
+  }
+  // Colonnes d'une semaine en vue « 1 semaine » (grille-rendu.js).
+  function gabaritSemaineJours_(largeurMin) {
+    var cpj = colsParJour(), t = "";
+    for (var d = 0; d < 5; d++) t += " repeat(" + cpj + ", minmax(" + largeurMin + "px, " + poidsJour_(d) + "fr))";
+    if (afficherWeekends) t += " " + largeurWeekEnd_(5) + "px " + largeurWeekEnd_(6) + "px";
+    return t;
+  }
+  function jourSemaineTh_(th) {
+    var iso = isoDeGi(+th.dataset.gi);
+    return iso ? (new Date(iso + "T00:00:00Z").getUTCDay() + 6) % 7 : -1;
+  }
+  function ajouterPoigneeJour_(th) {
+    var pg = document.createElement("span");
+    pg.className = "poignee-jour";
+    pg.title = "Glisser : largeur du jour — double-clic : largeur par défaut";
+    th.appendChild(pg);
+  }
+  var clicJourIgnoreT_ = -1e9;
+  document.addEventListener("pointerdown", function (e) {
+    var pg = e.target.closest && e.target.closest(".poignee-jour");
+    if (!pg || (e.pointerType !== "touch" && e.button !== 0)) return;
+    var th = pg.parentNode, d = jourSemaineTh_(th);
+    if (d < 0) return;
+    e.preventDefault(); e.stopPropagation();
+    var pointerId = e.pointerId, x0 = e.clientX, r0 = th.getBoundingClientRect();
+    var k = th.offsetWidth ? r0.width / th.offsetWidth : 1, w0 = th.offsetWidth, wCourant = w0, bouge = false;
+    // Lundi à vendredi : les 5 en-têtes de la semaine de ce jour (poids
+    // exact en « 1 semaine », où les autres jours rétrécissent d'autant).
+    var lundi = isoDeGi(+th.dataset.gi) ? lundiDeIso_(isoDeGi(+th.dataset.gi)) : null;
+    var semaine = [].filter.call(th.parentNode.querySelectorAll(".th[data-gi]:not(.th-demi):not(.th-weekend)"), function (t) {
+      var iso = isoDeGi(+t.dataset.gi);
+      return iso && lundiDeIso_(iso) === lundi;
+    });
+    var bas = (document.querySelector("#racine .scroller") || th).getBoundingClientRect().bottom;
+    var trait = document.createElement("div"), info = document.createElement("div");
+    trait.className = "trait-largeur-jour"; info.className = "info-hauteur-ligne";
+    trait.style.top = r0.top + "px"; trait.style.height = Math.max(0, bas - r0.top) + "px";
+    document.body.appendChild(trait); document.body.appendChild(info);
+    document.body.classList.add("en-redim-jour");
+    function montrer(x, y) {
+      trait.style.left = (r0.left + wCourant * k - 1) + "px";
+      info.textContent = Math.round(wCourant) + " px";
+      info.style.left = (x + 14) + "px"; info.style.top = (y - 30) + "px";
+    }
+    montrer(e.clientX, e.clientY);
+    function onMove(e2) {
+      if (e2.pointerId !== pointerId) return;
+      if (Math.abs(e2.clientX - x0) > 2) bouge = true;
+      if (!bouge) return;
+      wCourant = Math.max(d >= 5 ? 20 : 40, w0 + (e2.clientX - x0) / k);
+      montrer(e2.clientX, e2.clientY);
+    }
+    function fin(e2) {
+      if (e2.pointerId !== pointerId) return;
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", fin);
+      document.removeEventListener("pointercancel", fin);
+      trait.remove(); info.remove();
+      document.body.classList.remove("en-redim-jour");
+      clicJourIgnoreT_ = performance.now();
+      if (!bouge) return;
+      changerLargeurJour(d, poidsDepuisLargeur_(d, wCourant, semaine));
+    }
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", fin);
+    document.addEventListener("pointercancel", fin);
+  }, true);
+  // Poids qui donne au jour d la largeur w. Week-end : w / 46. Lundi à
+  // vendredi : parmi les 5 jours de sa semaine (somme F fixe), le jour vaut
+  // F·p/(p + Σ autres) → p = w·Σ autres/(F − w) ; semaine incomplète à
+  // l'écran (bord des jours voisins) : en proportion de sa largeur.
+  function poidsDepuisLargeur_(d, w, semaine) {
+    if (d >= 5) return Math.max(0.4, Math.min(6, w / LARGEUR_WE_));
+    var p = poidsJour_(d), th = semaine.filter(function (t) { return jourSemaineTh_(t) === d; })[0];
+    var brut;
+    if (semaine.length === 5) {
+      var F = 0, autres = 0;
+      semaine.forEach(function (t) { F += t.offsetWidth; var j = jourSemaineTh_(t); if (j !== d) autres += poidsJour_(j); });
+      brut = F - w > 20 ? w * autres / (F - w) : 4;
+    } else brut = th && th.offsetWidth ? p * w / th.offsetWidth : p;
+    return Math.max(0.25, Math.min(4, brut));
+  }
+  function lundiDeIso_(iso) {
+    var dt = new Date(iso + "T00:00:00Z");
+    dt.setUTCDate(dt.getUTCDate() - (dt.getUTCDay() + 6) % 7);
+    return dt.toISOString().slice(0, 10);
+  }
+  document.addEventListener("dblclick", function (e) {
+    var pg = e.target.closest && e.target.closest(".poignee-jour");
+    if (!pg) return;
+    e.preventDefault(); e.stopPropagation();
+    var d = jourSemaineTh_(pg.parentNode);
+    if (d >= 0) changerLargeurJour(d, null);
+  }, true);
+  // Le clic qui termine le geste ne choisit pas le jour (suite 105) ; un
+  // nouvel appui efface la consigne.
+  document.addEventListener("pointerdown", function () { clicJourIgnoreT_ = -1e9; }, true);
+  document.addEventListener("click", function (e) {
+    if (performance.now() - clicJourIgnoreT_ < 800) { clicJourIgnoreT_ = -1e9; e.preventDefault(); e.stopPropagation(); }
+  }, true);
 
   // Bulles des jours voisins (round du 27.09.2026, suite 84) — Lionel :
   // « Si les bulles du jours de coté sont plus long elle n'apparaissent

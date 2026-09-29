@@ -197,7 +197,9 @@
     { combo: "Clic droit", nom: "Sur un nom : menu de la ligne (hauteur, composition d’une équipe…)" },
     { combo: "Glisser", nom: "Sur le trait sous un nom : hauteur de la ligne (double-clic : ajuster au contenu)" },
     // Suite 115 : ordre des noms.
-    { combo: "Glisser", nom: "Sur un nom : changer l’ordre des lignes (doigt : Monter / Descendre dans son menu)" }
+    { combo: "Glisser", nom: "Sur un nom : changer l’ordre des lignes (doigt : Monter / Descendre dans son menu)" },
+    // Suite 117 : largeur des jours.
+    { combo: "Glisser", nom: "Sur le bord droit d’un jour : largeur du jour (double-clic : largeur par défaut)" }
   ];
   function actionClavierParId_(id) { return ACTIONS_CLAVIER.filter(function (a) { return a.id === id; })[0] || null; }
 

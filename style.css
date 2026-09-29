@@ -1102,6 +1102,25 @@
   body.glisse-ligne, body.glisse-ligne * { cursor: grabbing !important; user-select: none; }
   .trait-ordre-ligne { position: fixed; z-index: 90; height: 3px; border-radius: 2px; background: var(--accent); pointer-events: none; }
   #racine .grille > .ligne-deplacee { opacity: .45; }
+  /* Suite 116 : ligne repliée en fine bande — nom sur une ligne, bulles
+     cachées, fond hachuré ; clic sur le nom : la déplier. */
+  #racine .grille > .lbl.ligne-repliee {
+    padding-top: 0; padding-bottom: 0; flex-direction: row; justify-content: flex-start; align-items: center;
+    overflow: hidden; white-space: nowrap; cursor: pointer; font-size: 10.5px;
+    background: repeating-linear-gradient(135deg, var(--surface-2) 0 4px, var(--surface) 4px 8px);
+  }
+  #racine .grille > .lbl.ligne-repliee b { font-size: 10.5px; line-height: 1; }
+  #racine .grille > .lbl.ligne-repliee br, #racine .grille > .lbl.ligne-repliee .equipe-membres,
+  #racine .grille > .lbl.ligne-repliee > .poignee-ligne { display: none; }
+  #racine .grille > .bulle.en-ligne-repliee { display: none; }
+  #racine .grille > .cell.en-ligne-repliee { background: repeating-linear-gradient(135deg, var(--surface-2) 0 4px, transparent 4px 8px); }
+  /* Suite 117 : largeur des jours — poignée au bord droit de l'en-tête
+     d'un jour, trait qui suit le pointeur pendant le geste. */
+  #racine .th[data-gi]:not(.th-demi) { position: relative; }
+  .poignee-jour { position: absolute; top: 0; bottom: 0; right: 0; width: 6px; cursor: col-resize; touch-action: none; z-index: 3; }
+  @media (hover: hover) and (pointer: fine) { .poignee-jour:hover { background: var(--accent); opacity: .5; } }
+  body.en-redim-jour, body.en-redim-jour * { cursor: col-resize !important; user-select: none; }
+  .trait-largeur-jour { position: fixed; z-index: 90; width: 2px; background: var(--accent); pointer-events: none; }
   /* Menus du clic droit (suite 114) : séparateur entre les groupes. */
   .menu-pop .mc-sep { height: 1px; margin: 4px 2px; background: var(--border); }
   .menu-hauteur-ligne .mhl-valeur { display: flex; align-items: center; gap: 6px; }

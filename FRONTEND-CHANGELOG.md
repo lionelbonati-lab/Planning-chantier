@@ -10721,3 +10721,33 @@ Lionel :
 ### Tests
 - Nouveau : tests/test_suite115.js (14 vérifications), ordinateur et téléphone.
 - Suites 61 et 64 : 1 geste de souris de plus.
+
+## 229. Round du 29.09.2026 (suite 116) — Replier une ligne
+- Lionel : « Continue avec replier les lignes et la largeur des jours ».
+- Menu du nom (clic droit, ou appui long au doigt) : « Replier la ligne ».
+  - La ligne devient une fine bande hachurée de 18 px : le nom sur une ligne, les bulles cachées.
+  - Utile pour mettre de côté quelqu'un d'absent sans le retirer du planning.
+  - Marche pour les personnes, les équipes, et les lignes Jalons et Notes.
+  - Avec plusieurs lignes sélectionnées : « Replier les N lignes ».
+- Pour déplier : un clic (ou un toucher) sur le nom de la ligne repliée, ou « Déplier la ligne » dans son menu.
+- « Déplier toutes les lignes (N) » dans le menu du nom quand d'autres lignes sont repliées.
+- Retenu par l'appareil, comme les hauteurs de lignes : ordinateur/tablette d'un côté, téléphone de l'autre.
+- Le dépliage des membres d'une équipe (▸ / ▾) reste inchangé.
+
+### Tests
+- Nouveau : tests/test_suite116.js (10 vérifications), ordinateur et téléphone.
+
+## 230. Round du 29.09.2026 (suite 117) — Largeur des jours
+- Lionel : « Continue avec replier les lignes et la largeur des jours ».
+- Glisser le bord droit de l'en-tête d'un jour change sa largeur, comme dans un tableur.
+  - Pendant le geste, un trait suit le pointeur et la largeur s'affiche en px ; la grille est refaite au relâchement.
+  - Double-clic sur ce bord : largeur par défaut.
+  - Le clic qui termine le geste ne sélectionne pas le jour.
+- La largeur vaut pour ce jour de la semaine (tous les lundis, par exemple), retenue par l'appareil.
+- Lundi à vendredi : les autres jours rétrécissent d'autant, la semaine garde sa largeur. Samedi et dimanche : largeur en px à partir des 46 px d'avant.
+- Marche en « 1 semaine » et en « Jours voisins » (vendredi d'avant et lundi d'après restent aux bords). Pas en vue « 1 jour » du téléphone, où le jour prend tout l'écran.
+- Page Raccourcis : geste « Glisser — Sur le bord droit d'un jour ».
+
+### Tests
+- Nouveau : tests/test_suite117.js (10 vérifications).
+- Suites 61 et 64 : 1 geste de souris de plus.
