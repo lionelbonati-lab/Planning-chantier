@@ -128,7 +128,8 @@ async function imagePng(page) {
       refaire: [...document.querySelectorAll('.ligne-raccourci[data-action="refaire"] .rc-combo')].map((c) => c.textContent.replace('×', '')).join(' / '),
       fixes: document.querySelectorAll('.rc-fixe').length, resetCache: document.getElementById('btnRaccourcisDefaut').hidden
     }));
-    verifier(liste.groupes === 'Modifier|Naviguer|Afficher|Pages|Touches fixes|Souris' && liste.suivante === 'S Souris suivant' && liste.refaire === 'Ctrl+Y / Ctrl+Maj+Z' && liste.fixes === 11 && liste.resetCache,
+    // Suite 102 : un geste souris de plus (glisser = sélection en mode sélection).
+    verifier(liste.groupes === 'Modifier|Naviguer|Afficher|Pages|Touches fixes|Souris' && liste.suivante === 'S Souris suivant' && liste.refaire === 'Ctrl+Y / Ctrl+Maj+Z' && liste.fixes === 12 && liste.resetCache,
       'page Raccourcis : groupes, touches affichées, touches fixes, « Tout rétablir » caché (' + JSON.stringify(liste) + ')');
 
     // Ajouter N à « Semaine suivante ».

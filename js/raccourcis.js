@@ -181,8 +181,10 @@
     { combo: "Glisser", nom: "Déplacer une bulle (ou la sélection)" },
     { combo: "Maj+Glisser", nom: "Copier une bulle (ou la sélection) en la déposant" },
     { combo: "Glisser", nom: "Sur le bord d’une bulle : l’allonger ou la raccourcir" },
-    { combo: "Clic", nom: "Sur une case vide : ajouter une tâche" },
-    { combo: "Glisser", nom: "Sur des cases vides : ajouter sur plusieurs demi-journées ou personnes" },
+    // Suite 102 : sur les cases vides, le geste dépend du « + » (mode ajout).
+    { combo: "Glisser", nom: "Sur les cases : sélectionner toutes les bulles d’une zone (Ctrl : les ajouter)" },
+    { combo: "Clic", nom: "« + » appuyé, sur une case vide : ajouter une tâche" },
+    { combo: "Glisser", nom: "« + » appuyé, sur des cases vides : ajouter sur plusieurs demi-journées ou personnes" },
     { combo: "Clic droit+Glisser", nom: "Sur les cases : sélectionner toutes les bulles d’une zone" },
     { combo: "Maj+Molette", nom: "Au bout du planning : semaine précédente ou suivante" }
   ];

@@ -932,6 +932,15 @@
   // l'équivalent de Maj+glisser, sans clavier. Se remet à zéro une fois la
   // copie faite, ou quand la sélection est vidée.
   var copieSelectionActive = false;
+  // modeAjoutPlanning (round du 29.09.2026, suite 102) — Lionel : « un
+  // appuis sur le bouton met le planning en mode ajout au lieu de sélection
+  // (ancien clic souris gauche). Bouton non appuyer mode sélection ».
+  // Allumé par le « + » de la barre (#btnAjoutElement, plus de menu) : une
+  // case vide se comporte comme avant (clic = popup d'ajout, glisser =
+  // ajout sur une plage). Éteint (défaut) : le même geste SÉLECTIONNE les
+  // bulles de la zone (cf. cablerAjoutCellule, grille-interactions.js).
+  // Retenu par l'appareil (localStorage), comme les réglages d'affichage.
+  var modeAjoutPlanning = (function () { try { return localStorage.getItem("planning.modeAjout") === "1"; } catch (e) { return false; } })();
   var pressePapier = [];
   var pileUndo = [], pileRedo = [];
   var LIMITE_UNDO = 50;

@@ -233,6 +233,9 @@
   // sélectionner la date du jour actif dans les formulaire à l'ajout par
   // la touche "+". » Vue « 1 jour » : le jour affiché (jourMobileIso),
   // plus aujourd'hui ; ailleurs, aujourd'hui s'il est dans la semaine.
+  // Suite 102 : le « + » n'ouvre plus de menu (interrupteur du mode ajout,
+  // cf. modeAjoutPlanning) — ces 2 fonctions ne sont plus appelées par la
+  // barre, gardées pour un futur raccourci et testées par la suite 95.
   function giPourAjoutBarre() {
     var n = nbJoursAffiches();
     var cible = (typeof modeJourMobileActif === "function" && modeJourMobileActif() && jourMobileIso) || etat.aujourdhui;

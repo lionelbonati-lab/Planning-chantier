@@ -126,7 +126,9 @@ const SEMAINE2 = ['2026-09-28', '2026-09-29', '2026-09-30', '2026-10-01', '2026-
   await page.clock.setFixedTime(new Date('2026-09-24T10:00:00'));
   await page.route(/fonts\.googleapis|fonts\.gstatic/, (r) => r.abort());
   await page.route(/supabase-js/, (r) => r.fulfill({ contentType: 'application/javascript', body: FAUX_SUPABASE }));
-  await page.addInitScript((d) => { window.__TACHES_INITIALES = d.taches; window.__NOTES_INITIALES = d.notes; window.__JALONS_INITIALES = d.jalons; }, {
+  // Suite 102 : le clic sur une case vide n'ouvre le popup d'ajout qu'en
+  // mode ajout (« + » appuyé) — ce test démarre donc dans ce mode.
+  await page.addInitScript((d) => { window.__TACHES_INITIALES = d.taches; window.__NOTES_INITIALES = d.notes; window.__JALONS_INITIALES = d.jalons; try { localStorage.setItem('planning.modeAjout', '1'); } catch (e) {} }, {
     taches: [].concat(journee('2026-09-21', 'Décoffrage'),
       ...SEMAINE1.concat(SEMAINE2).map((d) => journee(d, 'Hebdo', { personne_id: 2, serie_id: 2 }))),
     notes: SEMAINE1.map((d) => ({ date: d, texte: 'Quotidien', important: false, serie_id: 1, demi: null }))

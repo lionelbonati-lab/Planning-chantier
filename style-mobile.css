@@ -166,7 +166,9 @@
        gauche de son bouton (left:0, cf. style.css) — correct quand le
        bouton est en milieu de barre, mais depuis que .toolbar-groupe-droite
        le pousse à l'extrémité droite de l'écran (règle ci-dessus), ce
-       panneau de 190px de large débordait hors du viewport à droite. */
+       panneau de 190px de large débordait hors du viewport à droite.
+       (Suite 102 : le « + » n'a plus de menu ; la règle sert au panneau
+       de tout autre .outil-menu rangé à droite.) */
     .toolbar-groupe-droite .outil-menu-panneau { left: auto; right: 0; }
     /* Pilule de sélection sur téléphone (round du 24.09.2026, suite 8 —
        Lionel : « Sur mobile une pilule vient remplacer la barre d'onglet en
