@@ -481,10 +481,32 @@
             '</div>' +
           '</div>' +
         '</div>' +
+        // Round du 29.09.2026 (suite 112). Lionel : « Le bouton "+" doit
+        // revenir un ajout rapide comme avant, mais ajoute une nouvelle
+        // icone pour ce mode ajout. dans la tool-bar, pas important, peut
+        // disparaitre en mode portable car moins utile. » Le « + » retrouve
+        // son menu (suite 102 l'avait remplacé par l'interrupteur) ; le mode
+        // ajout passe sur sa propre icône, #btnModeAjout, juste avant.
+        // Groupe à part (#groupeModeAjout), repliable dans « ⋮ » (cf.
+        // REPLIS_ORDRE, grille-rendu.js) : sinon ses 32 px chassaient la
+        // navigation dans « ⋮ » dès 820 px (test_suite47).
+        '<div class="toolbar-groupe" id="groupeModeAjout" data-rang="75" data-rang-menu="45">' +
+          '<button type="button" class="toolbar-btn" id="btnModeAjout" aria-pressed="false" title="Mode ajout">' + ICONS.modeAjout + '<span class="toolbar-btn-label">Mode ajout</span></button>' +
+        '</div>' +
         '<div class="toolbar-groupe toolbar-groupe-droite" id="groupeAjoutElement" data-rang="80">' +
-          // Suite 102 : plus de menu — le « + » est un interrupteur (mode
-          // ajout appuyé / mode sélection relâché), cf. modeAjoutPlanning.
-          '<button type="button" class="toolbar-btn" id="btnAjoutElement" aria-pressed="false" title="Mode ajout">' + ICONS.plus + '</button>' +
+          '<div class="outil-menu" id="menuAjoutElement">' +
+            '<button type="button" class="toolbar-btn" id="btnAjoutElement" title="Ajouter un élément au planning">' + ICONS.plus + '</button>' +
+            '<div class="outil-menu-panneau">' +
+              '<div class="outil-menu-page" data-page="choix">' +
+                '<div class="outil-menu-titre">Ajouter au planning</div>' +
+                '<button type="button" class="outil-menu-item" data-type="tache">' + ICONS.tache + 'Tâche</button>' +
+                '<button type="button" class="outil-menu-item" data-type="absence">' + ICONS.absence + 'Absence</button>' +
+                '<button type="button" class="outil-menu-item" data-type="note">' + ICONS.note + 'Note</button>' +
+                '<button type="button" class="outil-menu-item" data-type="jalon">' + ICONS.flag + 'Jalon</button>' +
+              '</div>' +
+              '<div class="outil-menu-page" data-page="personne" id="pageAjoutPersonne" hidden></div>' +
+            '</div>' +
+          '</div>' +
         '</div>' +
         // Masquages : icônes seules partout, y compris dans le panneau où
         // elles restent sur UNE ligne (Lionel : « 4 icones sur la même ligne
@@ -917,14 +939,28 @@
     // #selectChantier et les 3 nouveaux .outil-menu (zoom, ligne+, +) restent
     // mutuellement exclusifs : un seul panneau ouvert à la fois dans cette
     // barre.
-    // (Suite 102 : menuAjoutElement et sa 2e page « pour qui ? » ont
-    // disparu avec le menu du « + ».)
+    // (Suite 112 : menuAjoutElement et sa 2e page « pour qui ? » sont de
+    // retour, retirés par la suite 102.)
+    var menuAjoutElement = document.getElementById("menuAjoutElement");
+    var pageAjoutPersonne = document.getElementById("pageAjoutPersonne");
+    var typeAjoutBarreEnCours = null;
+    function reinitialiserMenuAjoutElement() {
+      if (!menuAjoutElement) return;
+      var pageChoix = menuAjoutElement.querySelector('[data-page="choix"]');
+      if (pageChoix) pageChoix.hidden = false;
+      if (pageAjoutPersonne) pageAjoutPersonne.hidden = true;
+      typeAjoutBarreEnCours = null;
+    }
     // Ferme tout ce qui peut être ouvert dans cette barre SAUF `sauf` (un des
-    // .outil-menu, ou null pour tout fermer).
+    // .outil-menu, ou null pour tout fermer) — réinitialise au passage
+    // #menuAjoutElement sur sa page "choix" dès qu'il fait partie de ce qui
+    // se ferme, pour ne jamais le rouvrir plus tard sur l'étape "pour qui ?"
+    // d'un ajout précédent abandonné en cours de route.
     function fermerAutresMenusOutils(sauf) {
       document.querySelectorAll(".outil-menu.ouvert").forEach(function (m) {
         if (m === sauf) return;
         m.classList.remove("ouvert");
+        if (m === menuAjoutElement) reinitialiserMenuAjoutElement();
       });
       if (selectChantier) selectChantier.classList.remove("ouvert");
       // §91 — #toolbarSecondaire (panneau "⋮" téléphone) rejoint ce même
@@ -994,6 +1030,7 @@
         fermerAutresMenusOutils(menu);
         var maintenantOuvert = !etaitOuvert;
         menu.classList.toggle("ouvert", maintenantOuvert);
+        if (menu === menuAjoutElement && !maintenantOuvert) reinitialiserMenuAjoutElement();
       });
     });
     // Un clic À L'INTÉRIEUR d'un panneau ne doit pas remonter jusqu'au
@@ -1027,13 +1064,52 @@
       });
     }
 
-    // ---- "+" : interrupteur mode ajout / mode sélection (round du
-    // 29.09.2026, suite 102). Lionel : « plus de menu mais un appuis sur le
-    // bouton met le planning en mode ajout au lieu de sélection (ancien clic
-    // souris gauche). Bouton non appuyer mode sélection. » L'ancien menu
-    // Tâche/Absence/Note/Jalon (+ page « pour qui ? ») a disparu : en mode
-    // ajout, le clic sur une case ouvre déjà le même choix, à la bonne date.
-    var btnModeAjout = document.getElementById("btnAjoutElement");
+    // ---- "+" (ajout d'élément) : Tâche/Absence/Note/Jalon. Note/Jalon
+    // s'ouvrent directement (ouvrirAjoutElementBarre, cf. son commentaire).
+    // Tâche/Absence affichent d'abord la 2e page "pour qui ?" — liste
+    // reconstruite à l'ouverture depuis PERSONNES (ordre affiché) — Absence
+    // exclut les intervenants, même règle que le clic sur une case. Retiré
+    // par la suite 102, rétabli par la suite 112 (« ajout rapide comme avant »).
+    if (menuAjoutElement && pageAjoutPersonne) {
+      var pageChoixAjout = menuAjoutElement.querySelector('[data-page="choix"]');
+      pageChoixAjout.querySelectorAll("[data-type]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var type = btn.dataset.type;
+          if (type !== "tache" && type !== "absence") {
+            menuAjoutElement.classList.remove("ouvert");
+            ouvrirAjoutElementBarre(type, null);
+            reinitialiserMenuAjoutElement();
+            return;
+          }
+          typeAjoutBarreEnCours = type;
+          pageAjoutPersonne.innerHTML =
+            '<button type="button" class="outil-menu-retour">‹ Retour</button>' +
+            '<div class="outil-menu-titre">Pour qui — ' + (type === "tache" ? "Tâche" : "Absence") + '</div>';
+          // Ordre affiché (suite 33) ; pas d'absence pour une équipe.
+          var liste = type === "absence" ? personnesAffichees("personnel").filter(function (p) { return !p.equipe; }) : personnesAfficheesToutes();
+          liste.forEach(function (p) {
+            var it = document.createElement("button");
+            it.type = "button";
+            it.className = "outil-menu-item";
+            it.dataset.personne = p.id;
+            it.textContent = p.nom;
+            it.addEventListener("click", function () {
+              menuAjoutElement.classList.remove("ouvert");
+              ouvrirAjoutElementBarre(typeAjoutBarreEnCours, p.id);
+              reinitialiserMenuAjoutElement();
+            });
+            pageAjoutPersonne.appendChild(it);
+          });
+          pageAjoutPersonne.querySelector(".outil-menu-retour").addEventListener("click", reinitialiserMenuAjoutElement);
+          pageChoixAjout.hidden = true;
+          pageAjoutPersonne.hidden = false;
+        });
+      });
+    }
+
+    // ---- Mode ajout / mode sélection (suite 102), sur sa propre icône
+    // depuis la suite 112 (#btnModeAjout ; avant, le « + » lui-même).
+    var btnModeAjout = document.getElementById("btnModeAjout");
     if (btnModeAjout) {
       majBoutonModeAjout();
       btnModeAjout.addEventListener("click", function () {

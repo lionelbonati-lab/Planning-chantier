@@ -13,6 +13,9 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //      rien de sélectionné ;
 //   5. mode sélection : le clic sur un nom et sur un jour choisit toujours.
 //
+// Suite 112 : le mode ajout a sa propre icône, #btnModeAjout ; le « + »
+// (#btnAjoutElement) est redevenu le menu d'ajout rapide.
+//
 // Lancer : node test_suite109.js
 
 const PERS = [1, 2].map((id) => ({ id, nom: 'Personne ' + id, sous_traitant: false, ordre: id, actif: true }));
@@ -97,7 +100,7 @@ const fermer = (page) => page.evaluate(() => document.querySelectorAll('.menu-ha
     verifier(rien(e) && !pop, 'mode ajout : clic droit + glisser sur les cases : rien de sélectionné ni ouvert ' + JSON.stringify(e));
 
     // 5. Mode sélection : les en-têtes choisissent toujours.
-    await page.click('#btnAjoutElement');
+    await page.click('#btnModeAjout');
     await page.waitForTimeout(450);
     await page.mouse.click(n1.x, n1.y);
     await page.waitForTimeout(150);

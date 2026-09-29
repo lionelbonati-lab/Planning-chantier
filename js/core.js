@@ -243,6 +243,9 @@
     // ici, cohérentes avec le reste (checklist = tâche, calendrier barré =
     // absence).
     ajoutLigne: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="2.3" y="4.2" width="10.4" height="3.2" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="2.3" y="9.6" width="10.4" height="3.2" rx="1" stroke="currentColor" stroke-width="1.4" stroke-dasharray="2.2 1.8"/><path d="M15.6 10.4v5.2M13 13h5.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
+    // Suite 112 : icône du mode ajout (pointeur + « + »), le « + » seul
+    // redevenant l'ajout rapide.
+    modeAjout: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M3.5 2.5l9 4.2-3.9 1.3-1.4 3.9z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8.8 8.3l3.4 3.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M15 11.5v6M12 14.5h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
     plus: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M10 3.3v13.4M3.3 10h13.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
     tache: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" rx="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M6.3 10.2l2.1 2.1 4.3-4.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     absence: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><rect x="2.5" y="4" width="15" height="13" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 8h15" stroke="currentColor" stroke-width="1.5"/><path d="M6 2.5v3M14 2.5v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M7.3 11.3l5.4 4.4M12.7 11.3l-5.4 4.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
@@ -935,7 +938,7 @@
   // modeAjoutPlanning (round du 29.09.2026, suite 102) — Lionel : « un
   // appuis sur le bouton met le planning en mode ajout au lieu de sélection
   // (ancien clic souris gauche). Bouton non appuyer mode sélection ».
-  // Allumé par le « + » de la barre (#btnAjoutElement, plus de menu) : une
+  // Allumé par l'icône du mode ajout (#btnModeAjout, suite 112 ; avant, le « + ») : une
   // case vide se comporte comme avant (clic = popup d'ajout, glisser =
   // ajout sur une plage). Éteint (défaut) : le même geste SÉLECTIONNE les
   // bulles de la zone (cf. cablerAjoutCellule, grille-interactions.js).

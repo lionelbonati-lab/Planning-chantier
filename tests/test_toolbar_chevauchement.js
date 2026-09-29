@@ -107,7 +107,8 @@ function mesurer() {
   // Suite 83 : Notifications ne se replie plus (toujours dans la barre) ;
   // « Ajouter une ligne » se replie à sa place.
   // Suite 92 : « Hauteur des lignes » (#groupeHauteurs) juste après le zoom.
-  const ORDRE_REPLI = ['groupeZoom', 'groupeHauteurs', 'controlesAffichage', 'groupeAjoutLigne', 'groupeNavSemaine', 'groupeImprimer'];
+  // Suite 112 : icône du mode ajout juste avant « Ajouter une ligne ».
+  const ORDRE_REPLI = ['groupeZoom', 'groupeHauteurs', 'controlesAffichage', 'groupeModeAjout', 'groupeAjoutLigne', 'groupeNavSemaine', 'groupeImprimer'];
   const TOUJOURS_BARRE = ['groupeAnnulerRefaire', 'groupeChantier', 'groupeAujourdhui', 'groupeAjoutElement'];
   let largeursOk = 0, nbLargeurs = 0, replis = [], ordreRespecte = true, toujoursLa = true;
   for (let w = 1400; w >= 320; w -= 10) {
@@ -132,7 +133,7 @@ function mesurer() {
   //    Chantier | navigation semaines | Zoom | Insertions | Masquages ».
   await largeur(1400);
   let e = await etatBarre();
-  verifier(JSON.stringify(e.barre) === JSON.stringify(['groupeAnnulerRefaire', 'groupeImprimer', 'groupeChantier', 'groupeAujourdhui', 'groupeNavSemaine', 'groupeZoom', 'groupeHauteurs', 'groupeAjoutLigne', 'groupeAjoutElement', 'controlesAffichage']) && e.menu.length === 0,
+  verifier(JSON.stringify(e.barre) === JSON.stringify(['groupeAnnulerRefaire', 'groupeImprimer', 'groupeChantier', 'groupeAujourdhui', 'groupeNavSemaine', 'groupeZoom', 'groupeHauteurs', 'groupeAjoutLigne', 'groupeModeAjout', 'groupeAjoutElement', 'controlesAffichage']) && e.menu.length === 0,
     'barre complète dans l\'ordre demandé, menu vide : ' + e.barre);
   verifier(await page.evaluate(() => getComputedStyle(document.getElementById('btnPlusOutils')).display === 'none'), '"⋮" masqué quand rien n\'est replié');
 
@@ -150,7 +151,8 @@ function mesurer() {
   e = await etatBarre();
   // Suite 79 : « Jours voisins aux bords » juste après la navigation.
   // Suite 83 : « Ajouter une ligne » entre la navigation et les masquages.
-  verifier(JSON.stringify(e.menu) === JSON.stringify(['groupeZoom', 'groupeHauteurs', 'groupeNavSemaine', 'groupeAjoutLigne', 'controlesAffichage']), 'ordre du menu à 700px (« Ajouter une ligne » replié, suite 83) : ' + e.menu);
+  // Suite 112 : icône du mode ajout (#groupeModeAjout) après « Ajouter une ligne ».
+  verifier(JSON.stringify(e.menu) === JSON.stringify(['groupeZoom', 'groupeHauteurs', 'groupeNavSemaine', 'groupeAjoutLigne', 'groupeModeAjout', 'controlesAffichage']), 'ordre du menu à 700px (« Ajouter une ligne » replié, suite 83) : ' + e.menu);
   await page.click('#btnPlusOutils');
   await page.waitForTimeout(100);
   const lignes = await page.evaluate(() => {
@@ -204,7 +206,8 @@ function mesurer() {
       .sort((a, c) => a.getBoundingClientRect().left - c.getBoundingClientRect().left).map((c) => c.id);
   });
   verifier(JSON.stringify(ordreVisuel) === JSON.stringify(['groupeAnnulerRefaire', 'groupeAujourdhui', 'groupeChantier', 'groupeAjoutElement', 'btnPlusOutils']), 'barre téléphone inchangée : ' + ordreVisuel);
-  verifier(JSON.stringify(e.menu) === JSON.stringify(['groupeImprimer', 'groupeZoom', 'groupeHauteurs', 'groupeNavSemaine', 'groupeAjoutLigne', 'controlesAffichage']), 'menu téléphone : ' + e.menu);
+  // Suite 112 : #groupeModeAjout rangé dans « ⋮ » (masqué hors mode ajout).
+  verifier(JSON.stringify(e.menu) === JSON.stringify(['groupeImprimer', 'groupeZoom', 'groupeHauteurs', 'groupeNavSemaine', 'groupeAjoutLigne', 'groupeModeAjout', 'controlesAffichage']), 'menu téléphone : ' + e.menu);
   // Imprimer et Ajouter une ligne referment le menu (Lionel : « Bonne idée
   // de fermer le menu avec imprimé et ajouter ligne »). Clics via le DOM :
   // la fenêtre ouverte par chacun recouvre ensuite l'écran.
