@@ -624,6 +624,11 @@
     var double = e.detail >= 2 || (tactile && dernierToucherNom_.id === id && t - dernierToucherNom_.t < 400);
     dernierToucherNom_ = double ? { id: null, t: -1e9 } : { id: id, t: t };
     if (double && !e.ctrlKey && !e.metaKey && !e.shiftKey) { modifierNomLigne_(lbl); return; }
+    // Round du 29.09.2026 (suite 109). Lionel : « la sélection en mode ajout
+    // est encore possible en appuyant sur les en-têtes de colonnes et de
+    // lignes, ainsi qu'en clic droit avec la souris ». En mode ajout, un nom
+    // ou un jour ne se choisit plus (modifier le nom et le menu restent).
+    if (modeAjoutPlanning) return;
     if (e.ctrlKey || e.metaKey) choisirLigne_(id, "basculer");
     else if (e.shiftKey) choisirLigne_(id, ancreLigne_ != null ? "plage" : "basculer");
     else if (tactile && lignesChoisies_.length) choisirLigne_(id, "basculer");
@@ -692,11 +697,23 @@
     thsJours_().forEach(function (th) { var iso = isoDeGi(+th.dataset.gi); if (iso && vus.indexOf(iso) < 0) vus.push(iso); });
     return vus.sort();
   }
+  // Round du 29.09.2026 (suite 110). Lionel : « sur portable la selection de
+  // ligne selectionne toute la semaine, elle ne doit selectionner que ce
+  // qu'il y a à l'ecran » ; « en mode jour voisin elle sélectionne les 3
+  // semaines. » Une ligne choisie ne ramasse que ses cases à l'écran : milieu
+  // de la case entre la colonne des noms et le bord droit de sa grille.
+  function caseALEcran_(c) {
+    if (!c.offsetWidth) return false;
+    var sc = c.closest(".scroller");
+    if (!sc) return true;
+    var r = sc.getBoundingClientRect(), rc = c.getBoundingClientRect(), x = (rc.left + rc.right) / 2;
+    return x >= r.left + largeurNoms() && x <= r.right;
+  }
   function cellulesChoix_() {
     var cells = [];
     lignesChoisies_.forEach(function (id) {
       var sel = /^p/.test(id) ? '.cell[data-kind="personne"][data-personne="' + id.slice(1) + '"]' : '.cell[data-kind="' + id + '"]';
-      cells = cells.concat([].slice.call(document.querySelectorAll("#racine " + sel)));
+      cells = cells.concat([].filter.call(document.querySelectorAll("#racine " + sel), caseALEcran_));
     });
     thsJours_().forEach(function (th) {
       if (joursChoisis_.indexOf(isoDeGi(+th.dataset.gi)) >= 0) cells = cells.concat([].slice.call(document.querySelectorAll('#racine .cell[data-jour="' + th.dataset.gi + '"]')));
@@ -763,7 +780,7 @@
   }
   document.addEventListener("click", function (e) {
     var th = e.target.closest && e.target.closest("#racine .entete-planning-figee .th[data-gi]:not(.th-demi)");
-    if (!th || e.button !== 0) return;
+    if (!th || e.button !== 0 || modeAjoutPlanning) return;
     var iso = isoDeGi(+th.dataset.gi);
     if (!iso) return;
     if (e.ctrlKey || e.metaKey) choisirJour_(iso, "basculer");
@@ -783,7 +800,8 @@
     pop.className = "pop menu-pop menu-hauteur-ligne";
     // Suite 104 : en tête, modifier le nom (et la composition d'une équipe).
     var idP = groupe ? null : idPersonneLigne_(lbl), equipe = lbl.classList.contains("lbl-equipe");
-    var bChoix = '<button type="button" data-a="choix">' + (choisie ? "Désélectionner la ligne" : "Sélectionner la ligne") + '</button>';
+    // Suite 109 : pas de « Sélectionner la ligne » en mode ajout.
+    var bChoix = modeAjoutPlanning ? '' : '<button type="button" data-a="choix">' + (choisie ? "Désélectionner la ligne" : "Sélectionner la ligne") + '</button>';
     pop.innerHTML = (groupe ? '<div class="cp-titre">' + ids.length + ' lignes sélectionnées</div>' + bChoix :
       idP != null ? '<div class="cp-titre">' + esc(nom) + '</div>' +
       '<button type="button" data-a="nom">Modifier le nom…</button>' +

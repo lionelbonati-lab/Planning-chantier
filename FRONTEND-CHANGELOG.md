@@ -10613,3 +10613,39 @@ Lionel :
 - Nouveau : tests/test_suite107.js (7 vérifications), ordinateur et téléphone.
 - Les tests démarrent désormais en mode sélection (tests/aide_tests.js) ; la suite 33 passe en mode ajout pour ajouter par une case vide.
 - Suite complète : 111/111.
+
+## 221. Round du 29.09.2026 (suite 108) — Fenêtre de sélection libre
+- Lionel : « Pour éviter une sélection indésirable de bulles, on pourrait faire une fenêtre de sélection plutôt qu'une sélection par case, comme les rectangles bleus qu'on fait actuellement. »
+- Sélection par zone (glisser en mode sélection, clic droit + glisser, appui long + glisser au doigt) : un rectangle bleu libre, tracé du point d'appui au pointeur.
+  - Seules les bulles que le rectangle touche sont sélectionnées, plus toutes celles des cases traversées.
+  - Les cases ne sont plus surlignées pendant le geste.
+  - Le rectangle suit le contenu si la grille défile pendant le geste (défilement automatique au bord compris).
+- Inchangé : Ctrl/Maj ajoute, glisser seul remplace, simple clic vide la sélection ; clic droit ou double toucher sans glisser sélectionnent toujours la case.
+
+### Tests
+- Nouveau : tests/test_suite108.js (11 vérifications), ordinateur et téléphone.
+- Suite 102 : les glissers finissent au centre de la bulle visée (la fenêtre doit la toucher).
+- Suite complète : 112/112.
+
+## 222. Round du 29.09.2026 (suite 109) — Mode ajout : plus aucune sélection
+- Lionel : « la sélection en mode ajout est encore possible en appuyant sur les en-têtes de colonnes et de lignes, ainsi qu'en clic droit avec la souris »
+- « + » appuyé (mode ajout) :
+  - clic (ou toucher) sur un nom ou sur un jour : rien n'est choisi ; le double-clic sur un nom modifie toujours le nom ;
+  - le menu du nom (clic droit, appui long) n'a plus « Sélectionner la ligne » ; la hauteur se règle toujours ;
+  - clic droit + glisser sur les cases, double toucher : plus de sélection par zone ;
+  - curseur normal sur les jours.
+- Mode sélection : rien ne change.
+
+### Tests
+- Nouveau : tests/test_suite109.js (11 vérifications), ordinateur et téléphone.
+- Suite 102 : en mode ajout, le clic droit + glisser ne sélectionne plus rien.
+
+## 223. Round du 29.09.2026 (suite 110) — Ligne choisie : seulement ce qui est à l'écran
+- Lionel : « sur portable la selection de ligne selectionne toute la semaine, elle ne doit selectionner que ce qu'il y a à l'ecran » ; « en mode jour voisin elle sélectionne les 3 semaines. »
+- Choisir une ligne (nom) ne sélectionne que les bulles de ses cases visibles à l'écran :
+  - téléphone : le jour affiché ;
+  - « Jours voisins » : la semaine à l'écran (et les jours voisins visibles aux bords), plus les semaines d'avant et d'après ;
+  - « 1 semaine » : toute la semaine, comme avant.
+
+### Tests
+- Nouveau : tests/test_suite110.js (3 vérifications), qui échoue sans le correctif.

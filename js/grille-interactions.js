@@ -1664,13 +1664,18 @@
   //  - dans les 2 modes : glisser au clic DROIT et double-tap = sélection
   //    par zone, comme avant (même geste quel que soit le mode, pour ne pas
   //    avoir à y penser).
+  //  - Suite 109 (round du 29.09.2026) — Lionel : « la sélection en mode
+  //    ajout est encore possible en appuyant sur les en-têtes de colonnes et
+  //    de lignes, ainsi qu'en clic droit avec la souris ». En mode ajout, le
+  //    clic droit et le double-tap ne sélectionnent plus rien (le double-tap
+  //    retombe sur le geste d'ajout / de défilement).
   var dernierTapCellule = null, dernierTapTemps = 0;
   function cablerAjoutCellule(cell) {
     cell.addEventListener("contextmenu", function (e) { e.preventDefault(); });
     cell.addEventListener("pointerdown", function (e) {
       if (e.target !== cell) return;
-      if (e.pointerType !== "touch" && e.button === 2) { e.preventDefault(); demarrerSelectionRapide(e, cell); return; }
-      if (e.pointerType === "touch") {
+      if (e.pointerType !== "touch" && e.button === 2) { e.preventDefault(); if (!modeAjoutPlanning) demarrerSelectionRapide(e, cell); return; }
+      if (e.pointerType === "touch" && !modeAjoutPlanning) {
         var maintenant = Date.now();
         var estDoubleTap = dernierTapCellule === cell && (maintenant - dernierTapTemps) < 400;
         dernierTapCellule = cell; dernierTapTemps = maintenant;
@@ -1821,6 +1826,18 @@
   // (< 5 px) ne sélectionne rien et vide la sélection en cours, comme un
   // clic à côté d'une bulle ; remplacer = la zone remplace la sélection au
   // lieu de s'y ajouter (glisser sans Ctrl/Maj).
+  //
+  // Round du 29.09.2026 (suite 108). Lionel : « Pour éviter une sélection
+  // indésirable de bulles, on pourrait faire une fenêtre de sélection
+  // plutôt qu'une sélection par case, comme les rectangles bleus qu'on fait
+  // actuellement. » La zone n'est plus un bloc de cases (demi-journées ×
+  // lignes, qui ramassait TOUTES les bulles de ces cases, même celles que
+  // le geste n'avait pas visées) : c'est un rectangle libre, au pixel,
+  // tracé du point d'appui au pointeur (#selection-overlay). Seules les
+  // bulles dont une carte visible touche ce rectangle sont sélectionnées.
+  // Le rectangle est accroché au contenu : si la grille (ou la page) défile
+  // pendant le geste — défilement automatique au bord compris — son coin de
+  // départ suit les bulles qu'il désignait.
   function demarrerSelectionRapide(e, celluleDebut, opts) {
     opts = opts || {};
     var pointerId = e.pointerId;
@@ -1828,40 +1845,28 @@
     var scroller = trouverScroller(celluleDebut);
     var derniereMove = null;
     var autoDefil = creerAutoDefilement(scroller, function () { if (derniereMove) onMove(derniereMove); });
-    var kind = celluleDebut.dataset.kind;
-    // Même modèle "case par case" que cablerAjoutCellule (round du
-    // 12.09.2026) : demi-slot de départ + personne de départ (au lieu d'une
-    // "ligne" personne+demi figée).
-    var halfDebut = demiSlotCellule(kind, celluleDebut, e.clientX);
-    var halfCourant = halfDebut;
-    var personnesListe = kind === "personne" ? personnesSecteurListe(secteurPersonne(celluleDebut.dataset.personne)) : null;
-    var pIndexDebut = kind === "personne" ? personnesListe.indexOf(celluleDebut.dataset.personne) : 0;
-    var pIndexCourant = pIndexDebut;
+    function defil() { return { x: scroller ? scroller.scrollLeft : 0, y: (scroller ? scroller.scrollTop : 0) + (window.scrollY || 0) }; }
+    var defil0 = defil();
+    var fenetre = null;
     document.body.classList.add("en-glissement");
-    if (kind === "personne") surlignerPlagePersonnes(personnesListe, pIndexDebut, pIndexDebut, halfDebut, halfDebut);
-    else surlignerPlageJalonNote(kind, halfDebut, halfDebut);
+    // Rectangle courant, en coordonnées écran (celles de getBoundingClientRect).
+    function rectangle(x, y) {
+      var d = defil(), ax = sx0 - (d.x - defil0.x), ay = sy0 - (d.y - defil0.y);
+      return { left: Math.min(ax, x), top: Math.min(ay, y), right: Math.max(ax, x), bottom: Math.max(ay, y) };
+    }
     function onMove(e2) {
       if (e2.pointerId !== pointerId) return;
       derniereMove = e2;
       if (Math.abs(e2.clientX - sx0) + Math.abs(e2.clientY - sy0) > 4) bouge = true;
-      var xCible = xDansJourVisible_(scroller, e2.clientX);
-      var sous = document.elementFromPoint(xCible, e2.clientY);
-      var c2 = sous && sous.closest(".cell");
-      if (c2 && c2.dataset.kind === kind) {
-        var giCandidat = +c2.dataset.jour;
-        if (!estGiWeekend(giCandidat)) {
-          var halfCandidat = demiSlotCellule(kind, c2, xCible);
-          if (kind === "personne") {
-            var pIdxCandidat = personnesListe.indexOf(c2.dataset.personne);
-            if (pIdxCandidat !== -1) {
-              pIndexCourant = pIdxCandidat; halfCourant = halfCandidat;
-              surlignerPlagePersonnes(personnesListe, pIndexDebut, pIndexCourant, halfDebut, halfCourant);
-            }
-          } else {
-            halfCourant = halfCandidat;
-            surlignerPlageJalonNote(kind, halfDebut, halfCourant);
-          }
-        }
+      if (bouge) {
+        fenetre = rectangle(e2.clientX, e2.clientY);
+        var ov = selectionOverlay();
+        ov.className = "actif-defaut";
+        ov.style.left = fenetre.left + "px";
+        ov.style.top = fenetre.top + "px";
+        ov.style.width = (fenetre.right - fenetre.left) + "px";
+        ov.style.height = (fenetre.bottom - fenetre.top) + "px";
+        ov.style.display = "block";
       }
       autoDefil.maj(e2.clientX);
     }
@@ -1875,25 +1880,17 @@
     }
     function onUp(e2) {
       if (e2.pointerId !== pointerId) return;
-      var bornes = bornesDepuisDemiSlots(Math.min(halfDebut, halfCourant), Math.max(halfDebut, halfCourant));
+      if (bouge) fenetre = rectangle(e2.clientX, e2.clientY);
       detacher(); effacerSurlignage();
       if (opts.clicSimple && !bouge) {
         if (Object.keys(bullesSelectionnees).length) { quitterModeSelection(); render(false); }
         return;
       }
+      // Clic droit ou double toucher SANS glisser : la case d'appui, comme
+      // avant (pas de rectangle à tracer).
+      if (!bouge) { selectionnerDepuisCellules([celluleDebut]); return; }
       if (opts.remplacer && Object.keys(bullesSelectionnees).length) quitterModeSelection();
-      var cells = [];
-      if (kind === "personne") {
-        var pMin = Math.min(pIndexDebut, pIndexCourant), pMax = Math.max(pIndexDebut, pIndexCourant);
-        for (var pi = pMin; pi <= pMax; pi++) cells = cells.concat(cellulesPersonnePourDemis(personnesListe[pi], Math.min(halfDebut, halfCourant), Math.max(halfDebut, halfCourant)));
-      } else {
-        // Jalon/note : la sélection d'un item EXISTANT reste par JOUR (cf.
-        // selectionnerDepuisCellules/ramasser, qui ne distingue pas de demi
-        // pour ces 2 types) — seule la surbrillance pendant le geste est
-        // désormais demi-précise (surlignerPlageJalonNote ci-dessus).
-        cells = trouverCellules(kind, {}, bornes.giDebut, bornes.giDebut + bornes.duree - 1);
-      }
-      selectionnerDepuisCellules(cells);
+      selectionnerDansFenetre(fenetre);
     }
     function onCancel(e2) { if (e2.pointerId !== pointerId) return; detacher(); effacerSurlignage(); }
     try { celluleDebut.setPointerCapture(pointerId); } catch (ex) {}
@@ -1903,9 +1900,30 @@
     document.addEventListener("pointercancel", onCancel);
   }
 
+  // Suite 108 : bulles dont une carte visible (copies .b-carte-voisin /
+  // .b-carte-jour comprises) touche le rectangle `r` (coordonnées écran).
+  function idsDansFenetre(r) {
+    var ids = {};
+    document.querySelectorAll("#racine .bulle[data-id]:not(.fantome-glisse)").forEach(function (b) {
+      var touche = [].some.call(b.querySelectorAll(":scope > .b-carte"), function (c) {
+        if (!c.offsetWidth || !c.offsetHeight) return false;
+        var rc = c.getBoundingClientRect();
+        return rc.left <= r.right && rc.right >= r.left && rc.top <= r.bottom && rc.bottom >= r.top;
+      });
+      if (touche) ids[b.dataset.id] = true;
+    });
+    return ids;
+  }
+  function selectionnerDansFenetre(r) {
+    Object.assign(bullesSelectionnees, idsDansFenetre(r));
+    finirSelectionZone();
+  }
   function selectionnerDepuisCellules(cells) {
     if (!cells.length) return;
     Object.assign(bullesSelectionnees, idsDepuisCellules(cells));
+    finirSelectionZone();
+  }
+  function finirSelectionZone() {
     var n = Object.keys(bullesSelectionnees).length;
     // Une sélection par zone est une sélection MULTIPLE par nature (round du
     // 24.09.2026, suite 7) : elle allume le mode, pour que les clics suivants
