@@ -10529,3 +10529,22 @@ Lionel :
 ### Tests
 - Nouveau : tests/test_suite103.js (20 vérifications), ordinateur et téléphone.
 - Suite complète : 108/108.
+
+
+## 217. Round du 29.09.2026 (suite 104) — Clic droit sur un nom : le modifier
+- Lionel : « Clic droit sur le nom modifier le nom. Clic gauche pour le menu ».
+
+### Gestes sur un nom
+| Geste | Effet |
+|---|---|
+| Clic droit (appui long au doigt) | fenêtre « Modifier » : le nom de la personne, prérempli |
+| Clic gauche (toucher au doigt) | menu de la ligne : « Modifier le nom… », « Composition de l'équipe… » pour une équipe, puis la hauteur |
+
+- Le clic sur une équipe ouvre ce menu : la composition y est proposée (avant, le clic l'ouvrait directement).
+- Clic droit sur Jalons ou Notes : rien (pas de nom à modifier) ; leur hauteur se règle au clic gauche.
+- Le clic qui termine un trait glissé, ou un appui long, n'ouvre pas le menu en plus.
+
+### Tests
+- Nouveau : tests/test_suite104.js (9 vérifications), ordinateur et téléphone.
+- Suites 33 et 103 : clic gauche au lieu du clic droit, choix « Composition de l'équipe… » dans le menu.
+- Suite complète : 109/109.
