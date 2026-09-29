@@ -467,8 +467,15 @@
      - glisser le trait sous le nom (.poignee-ligne) : hauteur de la ligne ;
      - double-clic sur ce trait : ajustée au contenu (toutes ses bulles
        l'une sous l'autre, sans cascade) ;
-     - clic droit sur le nom (appui long au doigt) : menu « Hauteur » —
-       valeur en pixels, « Ajuster au contenu », « Hauteur par défaut ». */
+     - clic droit sur le nom (appui long au doigt) : menu « Hauteur » —
+       valeur en pixels, « Ajuster au contenu », « Hauteur par défaut ».
+     Round du 29.09.2026 (suite 104) — Lionel : « Clic droit sur le nom
+     modifier le nom. Clic gauche pour le menu. » Clic (toucher) sur un
+     nom : ce menu (plus « Modifier le nom… », et « Composition de
+     l'équipe… » pour une équipe, qui l'ouvrait jusqu'ici au clic) ; clic
+     droit (appui long au doigt) : modifier le nom (ouvrirModifierPersonne,
+     la même fenêtre que la page Personnel). Jalons / Notes n'ont pas de
+     nom à modifier : clic droit sans effet. */
   var HAUTEUR_LIGNE_MIN_ = 20, HAUTEUR_LIGNE_MAX_ = 400;
   function cleHauteursLignes_() { return profilAppareil_() === "tel" ? "planning.hauteursLignes.tel" : "planning.hauteursLignes"; }
   function hauteursLignesPerso_() {
@@ -549,7 +556,7 @@
       document.removeEventListener("pointercancel", fin);
       info.remove();
       document.body.classList.remove("en-redim-ligne");
-      if (bouge) changerHauteursLignes([id], hCourant);
+      if (bouge) { clicLigneIgnoreT_ = performance.now(); changerHauteursLignes([id], hCourant); }
     }
     document.addEventListener("pointermove", onMove);
     document.addEventListener("pointerup", fin);
@@ -563,16 +570,27 @@
     if (lbl) ajusterLigneAuContenu_(lbl);
   }, true);
 
-  // Menu du nom : clic droit, ou appui long au doigt (sans bouger). Le
-  // clic qui suit un appui long n'ouvre pas en plus la fiche d'une équipe
-  // (equipes.js) ; le « contextmenu » natif d'Android, qui suit aussi
-  // l'appui long, n'ouvre pas un 2e menu. Temps : performance.now().
-  var menuLigneTactileT_ = -1e9;
+  // Suite 104 : clic (toucher) = menu, clic droit (appui long au doigt) =
+  // modifier le nom. Le clic qui suit un appui long ou un trait glissé
+  // n'ouvre pas en plus le menu ; le « contextmenu » natif d'Android, qui
+  // suit aussi l'appui long, n'ouvre pas une 2e fenêtre. Temps :
+  // performance.now() (l'horloge des tests fige Date.now()).
+  var clicLigneIgnoreT_ = -1e9;
+  function idPersonneLigne_(lbl) { return /^p\d+$/.test(lbl.dataset.ligne) ? +lbl.dataset.ligne.slice(1) : null; }
+  function modifierNomLigne_(lbl) {
+    var id = idPersonneLigne_(lbl);
+    if (id != null && typeof ouvrirModifierPersonne === "function") ouvrirModifierPersonne(id, function () {});
+  }
   document.addEventListener("contextmenu", function (e) {
     var lbl = etiquetteLigne_(e.target);
     if (!lbl) return;
     e.preventDefault();
-    if (performance.now() - menuLigneTactileT_ < 1000) return;
+    if (performance.now() - clicLigneIgnoreT_ < 1000) return;
+    modifierNomLigne_(lbl);
+  });
+  document.addEventListener("click", function (e) {
+    var lbl = etiquetteLigne_(e.target);
+    if (!lbl || e.button !== 0 || e.target.closest(".poignee-ligne")) return;
     ouvrirMenuHauteurLigne(lbl, e.clientX, e.clientY);
   });
   document.addEventListener("pointerdown", function (e) {
@@ -582,8 +600,8 @@
     var pointerId = e.pointerId, x0 = e.clientX, y0 = e.clientY;
     var minuteur = setTimeout(function () {
       detacher();
-      menuLigneTactileT_ = performance.now();
-      ouvrirMenuHauteurLigne(lbl, x0, y0);
+      clicLigneIgnoreT_ = performance.now();
+      modifierNomLigne_(lbl);
     }, DELAI_APPUI_LONG + 50);
     function onMove(e2) { if (e2.pointerId === pointerId && Math.abs(e2.clientX - x0) + Math.abs(e2.clientY - y0) > 8) detacher(); }
     function onFin(e2) { if (e2.pointerId === pointerId) detacher(); }
@@ -597,17 +615,25 @@
     document.addEventListener("pointerup", onFin);
     document.addEventListener("pointercancel", onFin);
   });
+  // Un seul clic avalé (celui qui termine le geste), jamais les suivants :
+  // tout nouvel appui efface la consigne, posée seulement après lui.
+  document.addEventListener("pointerdown", function () { clicLigneIgnoreT_ = -1e9; }, true);
   document.addEventListener("click", function (e) {
-    if (performance.now() - menuLigneTactileT_ < 800 && etiquetteLigne_(e.target)) { e.preventDefault(); e.stopPropagation(); }
+    if (performance.now() - clicLigneIgnoreT_ < 800 && etiquetteLigne_(e.target)) { clicLigneIgnoreT_ = -1e9; e.preventDefault(); e.stopPropagation(); }
   }, true);
 
   function ouvrirMenuHauteurLigne(lbl, x, y) {
     var id = lbl.dataset.ligne;
-    var nom = lbl.title || (lbl.querySelector("b") || lbl).textContent.trim();
+    var nom = (lbl.querySelector("b") || lbl).textContent.trim() || lbl.title;
     var perso = hauteursLignesPerso_()[id] > 0;
     var pop = document.createElement("div");
     pop.className = "pop menu-pop menu-hauteur-ligne";
-    pop.innerHTML = '<div class="cp-titre">Hauteur de la ligne — ' + esc(nom) + '</div>' +
+    // Suite 104 : en tête, modifier le nom (et la composition d'une équipe).
+    var idP = idPersonneLigne_(lbl), equipe = lbl.classList.contains("lbl-equipe");
+    pop.innerHTML = (idP != null ? '<div class="cp-titre">' + esc(nom) + '</div>' +
+      '<button type="button" data-a="nom">Modifier le nom…</button>' +
+      (equipe ? '<button type="button" data-a="composition">Composition de l’équipe…</button>' : '') : '') +
+      '<div class="cp-titre">Hauteur de la ligne' + (idP != null ? '' : ' — ' + esc(nom)) + '</div>' +
       '<div class="mhl-valeur"><input type="number" inputmode="numeric" min="' + HAUTEUR_LIGNE_MIN_ + '" max="' + HAUTEUR_LIGNE_MAX_ + '" step="1" value="' + Math.round(lbl.offsetHeight) + '" aria-label="Hauteur en pixels"><span>px</span>' +
       '<button type="button" class="btn-primaire" data-a="ok">OK</button></div>' +
       '<button type="button" data-a="contenu">Ajuster au contenu</button>' +
@@ -625,4 +651,7 @@
     pop.querySelector('[data-a="ok"]').addEventListener("click", valider);
     pop.querySelector('[data-a="contenu"]').addEventListener("click", function () { fermer(); ajusterLigneAuContenu_(lbl); });
     pop.querySelector('[data-a="defaut"]').addEventListener("click", function () { fermer(); changerHauteursLignes([id], null); });
+    var bNom = pop.querySelector('[data-a="nom"]'), bCompo = pop.querySelector('[data-a="composition"]');
+    if (bNom) bNom.addEventListener("click", function () { fermer(); modifierNomLigne_(lbl); });
+    if (bCompo) bCompo.addEventListener("click", function () { fermer(); ouvrirCompositionEquipe(idP); });
   }
