@@ -766,6 +766,9 @@
       var ids = profil === "ordi" ? ["hauteurLigneOrdi", "hauteurJalOrdi", "lignes", "lignesJal"] : ["hauteurLigneTel", "hauteurJalTel", "lignes", "lignesJal"];
       p.innerHTML = '<div class="outil-menu-titre">Hauteur des lignes</div>' +
         ids.map(function (id) { return htmlLigneOption_(optionAffichageParId_(id)); }).join("") +
+        // Suite 103 : lignes réglées à part (trait sous le nom) — toutes
+        // rendues à la hauteur commune d'un coup.
+        '<button type="button" class="outil-menu-item hauteurs-retablir" hidden></button>' +
         '<button type="button" class="outil-menu-item hauteurs-tous" data-page-affichage>Tous les réglages d’affichage</button>';
       // Identifiants des noms (aria-labelledby) : propres au panneau, la page
       // Affichage a les siens.
@@ -782,6 +785,7 @@
       p.addEventListener("click", function (e) {
         var b = e.target.closest(".choix-pastille");
         if (b) { changerOptionAffichage(b.dataset.option, b.dataset.valeur, profilAppareil_(), true); return; }
+        if (e.target.closest(".hauteurs-retablir")) { changerHauteursLignes(Object.keys(hauteursLignesPerso_()), null); return; }
         if (e.target.closest("[data-page-affichage]")) {
           var m = document.getElementById("menuHauteurs");
           if (m) m.classList.remove("ouvert");
@@ -790,6 +794,12 @@
       });
     }
     majValeursOptions_(p, profil);
+    var nPerso = typeof hauteursLignesPerso_ === "function" ? Object.keys(hauteursLignesPerso_()).length : 0;
+    var br = p.querySelector(".hauteurs-retablir");
+    if (br) {
+      br.hidden = !nPerso;
+      br.textContent = nPerso > 1 ? "Rétablir les " + nPerso + " lignes réglées à part" : "Rétablir la ligne réglée à part";
+    }
   }
 
   // Ouverture de la page (afficherPage, js/coquille.js) : « la vue par

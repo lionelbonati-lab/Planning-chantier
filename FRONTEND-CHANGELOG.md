@@ -10507,3 +10507,25 @@ Lionel :
 - Les tests écrits avant démarrent en mode ajout : tests/aide_tests.js (ouvrirPlanning) et tests/test_suite24.js.
 - Suites 61 et 64 : un geste souris de plus dans la page Raccourcis.
 - Suite complète : 107/107.
+
+
+## 216. Round du 29.09.2026 (suite 103) — Hauteur de chaque ligne, comme dans un tableur
+- Lionel : « pour plus de maniabilité j'aimerai pouvoir changer chaques hauteurs de ligne séparément. [...] excel est un bon exemple », puis, à notre question : « Hauteur sur chaque appareil ».
+
+### Gestes
+| Geste | Effet |
+|---|---|
+| Glisser le trait sous un nom (souris ou doigt) | hauteur de cette ligne seule ; la valeur en pixels s'affiche pendant le geste |
+| Double-clic sur ce trait | ligne ajustée au contenu : toutes ses bulles l'une sous l'autre |
+| Clic droit sur un nom (appui long au doigt) | menu « Hauteur » : valeur en pixels, « Ajuster au contenu », « Hauteur par défaut » |
+
+- Valable pour chaque personne, et pour les lignes Jalons et Notes.
+- Chaque appareil garde ses hauteurs : ordinateur et tablette d'un côté, téléphone de l'autre.
+- Les autres lignes gardent la hauteur commune (page Affichage, bouton « Hauteur des lignes »).
+- Une ligne réglée à part porte un petit repère bleu à gauche de son trait.
+- Le panneau « Hauteur des lignes » propose « Rétablir les N lignes réglées à part ».
+- Hauteur entre 20 et 400 px.
+
+### Tests
+- Nouveau : tests/test_suite103.js (20 vérifications), ordinateur et téléphone.
+- Suite complète : 108/108.
