@@ -10063,3 +10063,21 @@ Lionel :
 ### Tests
 - test_suite93.js, 9/9 : ordinateur — bulle longue coupée puis dépliée (plus de « … », devant la cascade, sans rognage), repliée par Échap ; dernière bulle d'une cascade sur la dernière ligne, dépliée et remontée dans la grille, remise en place par Échap ; multi-sélection ; jalon long ; téléphone, carte du jour dépliée.
 - Suite complète : 98/98.
+
+## 202. Round du 29.09.2026 (suite 94) — Bulles empilées : ombre et liseré pour les distinguer
+- « Ajoute une ombre ou quelque chose d'autre qui permet de mieux voir 2 bulles empilé de la même couleurs. »
+
+### Ce qui change
+- Dans une pile de bulles (cascade des lignes de hauteur fixe, suites 91-92), chaque bulle posée sur une autre porte maintenant :
+  - une ombre portée vers le haut, projetée sur le bas de la bulle d'au-dessus ;
+  - un fin liseré sombre le long de son bord haut, qui suit ses coins arrondis.
+- Deux bulles du même chantier, donc de la même couleur, se distinguent ainsi nettement, même quand elles se recouvrent presque entièrement. La première bulle de la pile et les bulles seules ne changent pas.
+- Partout : ordinateur, tablette, téléphone (vue « 1 jour »), thème clair et sombre (l'ombre suit `--shadow-lg`). Pendant un glisser, la bulle déplacée garde sa grande ombre habituelle.
+
+### Fonctionnement
+- **js/grille-rendu.js** : `cascaderBullesJourMobile_` pose `data-empile` sur chaque carte de rang > 0 dans sa pile (et le retire des autres), à chaque cascade (rendu, polices chargées, curseurs de hauteur).
+- **style.css** : `#racine.hauteurs-fixes .bulle > .b-carte[data-empile]` — `filter: drop-shadow(0 -2px 2px var(--shadow-lg))`, qui s'ajoute aux `box-shadow` de sélection sans les réécrire ; `::before` absolu, `border-radius: inherit`, `box-shadow: inset 0 1.5px 0` couleur d'encre à 30 % ; pas de `filter` sur une bulle en cours de glisser.
+
+### Tests
+- test_suite94.js, 4/4 : ordinateur et téléphone — cartes posées sur une autre marquées, ombrées et liserées ; la première de la pile et une bulle seule sans ; marques identiques après le curseur à 3 bulles.
+- Suite complète : 99/99.
