@@ -528,6 +528,14 @@
   .select-chantier-item.actif { font-weight: 700; color: var(--accent); }
   .select-chantier-item .coche { margin-left: auto; color: var(--accent); font-size: 12px; visibility: hidden; }
   .select-chantier-item.actif .coche { visibility: visible; }
+  /* Suite 92 : tâches sélectionnées — la case montre leur chantier (cerne
+     accent), son panneau le change (titre, « Aucun chantier » en tête). */
+  .select-chantier.mode-selection .select-chantier-btn { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .select-chantier-titre {
+    font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--ink-faint); padding: 6px 8px 4px;
+  }
+  .select-chantier-item .swatch.swatch-vide { background: transparent; border: 1.5px dashed var(--ink-faint); box-sizing: border-box; }
   /* "+ Ajouter un chantier" (round du 22.09.2026, suite ×4) — dernier
      élément du panneau, cf. construireSelectChantier (grille-rendu.js).
      Même gabarit que .select-chantier-item (hérité), teinté accent + séparé
@@ -1688,25 +1696,58 @@
      dessinées, reçoivent les appuis. Sélectionnée,
      elle passe devant les autres (Lionel : un appui sur une bulle la passe
      devant). Statut en pastille dans le coin (la carte n'a que la place de
-     son texte) ; « série » masqué. */
-  #racine.vue-jour-mobile .bulle { flex-direction: row; pointer-events: none; }
-  #racine.vue-jour-mobile .bulle-plage { margin: 0; }
-  #racine.vue-jour-mobile .bulle > .b-carte { pointer-events: auto; }
-  #racine.vue-jour-mobile .bulle.selectionnee { z-index: 2; }
+     son texte) ; « série » masqué.
+     Round du 29.09.2026 (suite 92) — Lionel : « La hauteur de ligne est
+     fixe aussi sur ordinateur. » Les règles communes passent sous
+     #racine.hauteurs-fixes (posée à chaque rendu, sur tous les appareils) ;
+     restent propres à la vue « 1 jour » : les cartes côte à côte (une par
+     jour), le statut forcé en pastille et les poignées inactives tant que
+     la bulle n'est pas sélectionnée. Sur ordinateur, une bulle garde une
+     carte étirée sur toute sa largeur (texte collant comme avant) ; ses
+     poignées reçoivent la souris ; « ↻ série » devient un petit ↻ dans le
+     coin bas de la carte, partout. */
+  #racine.hauteurs-fixes .bulle { pointer-events: none; }
+  #racine.vue-jour-mobile .bulle { flex-direction: row; }
+  #racine.hauteurs-fixes .bulle-plage { margin: 0; }
+  #racine.hauteurs-fixes .bulle > .b-carte { pointer-events: auto; }
+  #racine.hauteurs-fixes:not(.vue-jour-mobile) .bulle > .poignee { pointer-events: auto; }
+  /* Pendant un glisser (body.en-glissement), cartes et poignées des autres
+     bulles redeviennent transparentes au pointeur, comme la bulle entière
+     l'était avant : elementFromPoint doit trouver la case visée sous une
+     carte, sinon le dépôt n'a pas de cible et rien ne bouge (glisser
+     groupé après un appui long, test_selection_bulles). */
+  body.en-glissement #racine.hauteurs-fixes .bulle:not(.dragging) > :is(.b-carte, .poignee) { pointer-events: none; }
   /* Rognée au bas de sa ligne (hauteur H ; la bulle, elle, fait la hauteur
      U d'une carte) : les dernières bulles d'une cascade trop chargée ne
      débordent pas sur la ligne suivante. Côtés et haut : la place de
      l'anneau de sélection et de l'ombre. */
-  #racine.vue-jour-mobile .bulle { clip-path: inset(-4px -6px calc(var(--mob-carte-pers, 0px) - var(--mob-h-pers, 0px)) -6px); }
-  #racine.vue-jour-mobile :is(.bulle-jalon, .bulle-note) { clip-path: inset(-4px -6px calc(var(--mob-carte-jal, 0px) - var(--mob-h-jal, 0px)) -6px); }
-  #racine.vue-jour-mobile .bulle.dragging { clip-path: none; }
-  #racine.vue-jour-mobile .bulle > .b-carte {
-    position: relative; flex: none; align-self: flex-start; box-sizing: border-box; min-width: 0;
-    height: var(--mob-carte-pers, auto); overflow: hidden; justify-content: flex-start;
+  #racine.hauteurs-fixes .bulle { clip-path: inset(-4px -6px calc(var(--mob-carte-pers, 0px) - var(--mob-h-pers, 0px)) -6px); }
+  #racine.hauteurs-fixes :is(.bulle-jalon, .bulle-note) { clip-path: inset(-4px -6px calc(var(--mob-carte-jal, 0px) - var(--mob-h-jal, 0px)) -6px); }
+  #racine.hauteurs-fixes .bulle.dragging { clip-path: none; }
+  /* overflow: clip (et non hidden) : la carte ne devient pas un conteneur
+     de défilement, le texte collant de l'ordinateur (plus haut) colle
+     toujours au bord de l'écran. */
+  #racine.hauteurs-fixes .bulle > .b-carte {
+    position: relative; flex: none; box-sizing: border-box;
+    height: var(--mob-carte-pers, auto); overflow: clip; justify-content: flex-start;
   }
-  #racine.vue-jour-mobile :is(.bulle-jalon, .bulle-note) > .b-carte { height: var(--mob-carte-jal, auto); }
-  #racine.vue-jour-mobile :is(.bulle-jalon, .bulle-note) .b-txt { -webkit-line-clamp: var(--mob-lignes-jal, 1); line-clamp: var(--mob-lignes-jal, 1); }
-  #racine.vue-jour-mobile .bulle .b-carte .b-serie { display: none; }
+  #racine.vue-jour-mobile .bulle > .b-carte { align-self: flex-start; min-width: 0; }
+  #racine.hauteurs-fixes :is(.bulle-jalon, .bulle-note) > .b-carte { height: var(--mob-carte-jal, auto); }
+  #racine.hauteurs-fixes :is(.bulle-jalon, .bulle-note) .b-txt { -webkit-line-clamp: var(--mob-lignes-jal, 1); line-clamp: var(--mob-lignes-jal, 1); }
+  #racine.hauteurs-fixes .bulle .b-carte .b-serie { position: absolute; left: auto; right: 5px; bottom: 2px; font-size: 0; line-height: 1; }
+  #racine.hauteurs-fixes .bulle .b-carte .b-serie::before { content: "↻"; font-size: 10px; }
+  /* Round du 29.09.2026 (suite 93) — Lionel : « Sélectionner une bulle
+     fait apparaître son texte en entier ainsi que sa hauteur de bulle
+     complète si tronquée. » Bulle sélectionnée : plus de rognage au bas de
+     la ligne (clip-path), carte à la hauteur de son contenu (au moins sa
+     hauteur fixe), texte sans limite de lignes ; elle passe devant les
+     bulles de la cascade et déborde sur la ligne suivante le temps de la
+     sélection. Vaut pour toutes les cartes de la bulle (une par jour sur
+     le téléphone, copies des jours voisins). */
+  #racine.hauteurs-fixes .bulle.selectionnee { clip-path: none; z-index: 3; }
+  #racine.hauteurs-fixes .bulle.selectionnee > .b-carte { height: auto; min-height: var(--mob-carte-pers, auto); overflow: visible; }
+  #racine.hauteurs-fixes :is(.bulle-jalon, .bulle-note).selectionnee > .b-carte { min-height: var(--mob-carte-jal, auto); }
+  #racine.hauteurs-fixes .bulle.selectionnee .b-txt { -webkit-line-clamp: none; line-clamp: none; overflow: visible; }
   #racine.vue-jour-mobile .bulle .b-carte .b-statut {
     position: absolute; top: 4px; right: 4px; left: auto; width: 9px; height: 9px; padding: 0; margin: 0; gap: 0;
     font-size: 0; border-radius: 50%; box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--surface-2) 85%, transparent), 0 0 0 2.5px color-mix(in srgb, var(--ink) 25%, transparent);
@@ -1716,8 +1757,8 @@
      noms et Jalons / Notes ne poussent plus leur ligne — plus de hauteur
      minimale, le nom coupé s'il ne tient pas (le trait de 1 px au-dessus
      et au-dessous de l'étiquette, ::before / ::after, reste visible). */
-  #racine.vue-jour-mobile .grille .cell { min-height: 0; overflow: hidden; }
-  #racine.vue-jour-mobile :is(.lbl-compacte, .lbl-speciale) { min-height: 0; padding-top: 2px; padding-bottom: 2px; overflow: clip; overflow-clip-margin: 1px; }
+  #racine.hauteurs-fixes .grille .cell { min-height: 0; overflow: hidden; }
+  #racine.hauteurs-fixes :is(.lbl-compacte, .lbl-speciale) { min-height: 0; padding-top: 2px; padding-bottom: 2px; overflow: clip; overflow-clip-margin: 1px; }
   .vue-jour-mobile .bulle > .b-carte .b-txt,
   .vue-jour-mobile .bulle > .b-carte .b-statut,
   .vue-jour-mobile .bulle > .b-carte .b-serie {
@@ -3514,16 +3555,9 @@
   /* Lignes de texte (origine : 2). */
   html[data-aff-lignes="1"] :is(.b-txt, .aa-txt) { -webkit-line-clamp: 1; line-clamp: 1; }
   html[data-aff-lignes="3"] :is(.b-txt, .aa-txt) { -webkit-line-clamp: 3; line-clamp: 3; }
-  /* Hauteur des lignes (origine : cases de 52px, cartes 6px en haut/bas,
-     étiquettes de nom 9px). */
-  html[data-aff-hauteur="serree"] :is(.b-carte, .aa-carte) { padding-top: 3px; padding-bottom: 3px; }
-  html[data-aff-hauteur="serree"] :is(.cell.cell-personne, .aa-cell) { min-height: 34px; }
-  html[data-aff-hauteur="serree"] .cell.cell-personne { padding-top: 3px; padding-bottom: 3px; }
-  html[data-aff-hauteur="serree"] .lbl-compacte { padding-top: 4px; padding-bottom: 4px; }
-  html[data-aff-hauteur="aeree"] :is(.b-carte, .aa-carte) { padding-top: 9px; padding-bottom: 9px; }
-  html[data-aff-hauteur="aeree"] :is(.cell.cell-personne, .aa-cell) { min-height: 66px; }
-  html[data-aff-hauteur="aeree"] .cell.cell-personne { padding-top: 9px; padding-bottom: 9px; }
-  html[data-aff-hauteur="aeree"] .lbl-compacte { padding-top: 13px; padding-bottom: 13px; }
+  /* Hauteur des lignes : « Serrée / Normale / Aérée » (data-aff-hauteur)
+     retiré à la suite 92 — curseurs lignesOrdi / jalonsOrdi (lignes de
+     hauteur fixe, js/grille-rendu.js). */
   /* Coins (origine : arrondis 9px). */
   html[data-aff-coins="droits"] :is(.b-carte, .aa-carte) { border-radius: 2px; }
   /* Statut dans la bulle (origine : affiché). */
@@ -3616,6 +3650,23 @@
   /* Suite 64 : 4 à 6 pastilles (police, format de date) ne tiennent plus
      sur une ligne de téléphone — elles passent à la ligne dans leur cadre. */
   .choix-pastilles { flex-wrap: wrap; max-width: 100%; min-width: 0; }
+  /* Curseur (suite 92 — Lionel : « Passer hauteur de ligne à un curseur
+     sur ordinateur », « continu, au pixel ») : réglette, puis la valeur en
+     bulles et en pixels. Page Affichage et panneau « Hauteur des lignes »
+     de la barre d'outils (#panneauHauteurs, sans les aides, lignes
+     serrées). */
+  .reglage-curseur { cursor: default; flex-wrap: wrap; row-gap: 10px; }
+  .reglage-curseur .reglage-texte { flex: 1 1 220px; min-width: 0; }
+  .curseur-bloc { display: flex; flex-direction: column; align-items: stretch; gap: 3px; flex: 1 1 180px; min-width: 150px; max-width: 240px; }
+  .curseur-option { width: 100%; margin: 0; accent-color: var(--accent); cursor: pointer; }
+  .curseur-valeur { font-family: var(--police-mono); font-size: 11px; font-weight: 600; color: var(--ink-muted); text-align: right; white-space: nowrap; }
+  .hauteurs-panneau { width: 270px; max-width: calc(100vw - 24px); box-sizing: border-box; }
+  .hauteurs-panneau .reglage-ligne { max-width: none; margin: 0 0 4px; padding: 8px 8px; border: none; background: none; gap: 8px; }
+  .hauteurs-panneau .reglage-texte > span:not(.reglage-nom) { display: none; }
+  .hauteurs-panneau .reglage-texte b { font-size: 12.5px; }
+  .hauteurs-panneau .curseur-bloc { flex-basis: 100%; max-width: none; }
+  .hauteurs-panneau .choix-pastille { padding: 5px 9px; font-size: 12px; }
+  .hauteurs-panneau .hauteurs-tous { color: var(--accent); font-weight: 600; }
 
   /* Mise en page : aperçu à droite (collé en haut au défilement) sur
      écran large, au-dessus des réglages sur téléphone. */

@@ -61,7 +61,9 @@ const style = (page, sel, prop) => page.evaluate(([s, p]) => { const e = documen
       auj: document.querySelectorAll('.cell.cell-auj').length, fondAuj: getComputedStyle(document.querySelector('.cell.cell-auj')).backgroundImage,
       alt: getComputedStyle(document.querySelector('.cell.ligne-alt')).backgroundImage, we: afficherWeekends
     }));
-    verifier((await attrs(page)) === '' && origine.txt === '12px' && origine.rayon === '9px' && origine.haut === '52px' && origine.statut !== 'none' &&
+    // Suite 92 : lignes de hauteur fixe sur ordinateur, les cases n'ont plus
+    // de hauteur minimale (52 px avant).
+    verifier((await attrs(page)) === '' && origine.txt === '12px' && origine.rayon === '9px' && origine.haut === '0px' && origine.statut !== 'none' &&
       origine.fondAuj === 'none' && origine.alt === 'none' && !origine.we, 'à l\'origine : aucun attribut, planning inchangé (' + JSON.stringify(origine) + ')');
     await page.evaluate(() => {
       afficherPage('affichage');
@@ -80,9 +82,11 @@ const style = (page, sel, prop) => page.evaluate(([s, p]) => { const e = documen
       seps: [...document.querySelectorAll('#apercuAffichage .sep-semaines')].filter((s) => !s.hidden).length
     }));
     // Suite 91 : + lignesTel et jalonsTel (hauteurs fixes du téléphone).
-    verifier(page0.options === 'weekends,auj,zebre,teinte,separation,cadre,noms,jourSemaine,formatDate,heures,ligneDemi,coinMois,coinAnnee,texte,lignes,hauteur,lignesTel,jalonsTel,coins,statut,police,vueOrdi,vueTel',
-      'page Affichage : les 23 réglages (suite 91 : hauteurs des lignes du téléphone) (suite 83 : mois et année de la case de gauche) (bords : suite 74, dans la barre d\'outils depuis la suite 79) (' + page0.options + ')');
-    verifier(page0.actifs === 'teinte=aprem,noms=normal,jourSemaine=abrege,formatDate=numero,ligneDemi=horaires,coinMois=abrege,coinAnnee=complete,texte=normal,lignes=2,hauteur=normale,lignesTel=2,jalonsTel=1x1,statut=badge,police=archivo,vueOrdi=1,vueTel=jour' && page0.inter === 'separation,cadre,coins' && !page0.we && page0.statut && page0.reset,
+    // Suite 92 : « hauteur » (Serrée / Normale / Aérée) remplacé par les
+    // curseurs lignesOrdi, jalonsOrdi et les lignes de texte jalonsLignesOrdi.
+    verifier(page0.options === 'weekends,auj,zebre,teinte,separation,cadre,noms,jourSemaine,formatDate,heures,ligneDemi,coinMois,coinAnnee,texte,lignes,lignesTel,jalonsTel,lignesOrdi,jalonsOrdi,jalonsLignesOrdi,coins,statut,police,vueOrdi,vueTel',
+      'page Affichage : les 25 réglages (suite 92 : curseurs de l\'ordinateur) (suite 91 : hauteurs des lignes du téléphone) (suite 83 : mois et année de la case de gauche) (bords : suite 74, dans la barre d\'outils depuis la suite 79) (' + page0.options + ')');
+    verifier(page0.actifs === 'teinte=aprem,noms=normal,jourSemaine=abrege,formatDate=numero,ligneDemi=horaires,coinMois=abrege,coinAnnee=complete,texte=normal,lignes=2,lignesTel=2,jalonsTel=1x1,jalonsLignesOrdi=1,statut=badge,police=archivo,vueOrdi=1,vueTel=jour' && page0.inter === 'separation,cadre,coins' && !page0.we && page0.statut && page0.reset,
       'valeurs d\'origine affichées, « Tout rétablir » caché (' + page0.actifs + ')');
     verifier(page0.noms === 'Lionel,Mathis,Antoine' && page0.jours === 'Jeu 24,Ven 25,Lun 28,Mar 29' && page0.seps === 2,
       'aperçu : 3 personnes, Jeu Ven | Lun Mar, espace entre les semaines (' + JSON.stringify(page0) + ')');
@@ -105,12 +109,15 @@ const style = (page, sel, prop) => page.evaluate(([s, p]) => { const e = documen
     await pastille(page, 'lignes', '3'); await page.waitForTimeout(150);
     const l3 = await page.evaluate(() => vuPlanning(() => ({ p: getComputedStyle([...document.querySelectorAll('.bulle .b-txt')].find((e) => e.textContent.indexOf('Bétonnage') === 0)).webkitLineClamp, h: [...document.querySelectorAll('.bulle .b-txt')].find((e) => e.textContent.indexOf('Bétonnage') === 0).getBoundingClientRect().height })));
     verifier(l1.p === '1' && l1.a === '1' && l3.p === '3' && l3.h > l1.h * 2, 'lignes de texte 1 puis 3 : le long texte passe de 1 à 3 lignes (' + JSON.stringify([l1, l3]) + ')');
-    // Hauteur des lignes
-    await pastille(page, 'hauteur', 'serree'); await page.waitForTimeout(250);
-    const hs = await page.evaluate(() => vuPlanning(() => ({ c: getComputedStyle(document.querySelector('.cell.cell-personne')).minHeight, a: getComputedStyle(document.querySelector('#apercuAffichage .aa-cell')).minHeight, lbl: document.querySelector('.lbl-compacte').getBoundingClientRect().height })));
-    await pastille(page, 'hauteur', 'aeree'); await page.waitForTimeout(250);
-    const ha = await page.evaluate(() => vuPlanning(() => ({ c: getComputedStyle(document.querySelector('.cell.cell-personne')).minHeight, a: getComputedStyle(document.querySelector('#apercuAffichage .aa-cell')).minHeight, lbl: document.querySelector('.lbl-compacte').getBoundingClientRect().height })));
-    verifier(hs.c === '34px' && hs.a === '34px' && ha.c === '66px' && ha.a === '66px' && ha.lbl > hs.lbl, 'hauteur serrée puis aérée : cases 34 puis 66 px, planning et aperçu (' + JSON.stringify([hs, ha]) + ')');
+    // Hauteur des lignes — suite 92 : un curseur (nombre de bulles) au lieu
+    // de « Serrée / Normale / Aérée » ; ligne = N·(U + 3) + 3.
+    const curseur = (id, v) => page.evaluate(([id, v]) => { const c = document.querySelector('#page-affichage .curseur-option[data-option="' + id + '"]'); c.value = v; c.dispatchEvent(new Event('input', { bubbles: true })); }, [id, v]);
+    const hauteurLigne = () => page.evaluate(() => vuPlanning(() => ({ lbl: Math.round(document.querySelector('.lbl-compacte').getBoundingClientRect().height * 10) / 10, u: parseFloat(getComputedStyle(racineEl).getPropertyValue('--mob-carte-pers')) })));
+    await curseur('lignesOrdi', '1'); await page.waitForTimeout(250);
+    const hs = await hauteurLigne();
+    await curseur('lignesOrdi', '3'); await page.waitForTimeout(250);
+    const ha = await hauteurLigne();
+    verifier(Math.abs(hs.lbl - (hs.u + 6)) <= 1 && Math.abs(ha.lbl - (3 * ha.u + 12)) <= 1, 'hauteur des lignes 1 puis 3 bulles : lignes de U + 6 puis 3·U + 12 px (' + JSON.stringify([hs, ha]) + ')');
     // Coins
     await basculer(page, 'coins'); await page.waitForTimeout(150);
     verifier((await style(page, '.bulle .b-carte', 'borderTopLeftRadius')) === '2px' && (await style(page, '#apercuAffichage .aa-carte', 'borderTopLeftRadius')) === '2px', 'coins droits : planning et aperçu');
@@ -159,7 +166,7 @@ const style = (page, sel, prop) => page.evaluate(([s, p]) => { const e = documen
     await page.click('#page-affichage .bascule-profil[data-profil="tel"]'); await pastille(page, 'vueTel', 'semaine');
     await page.click('#page-affichage .bascule-profil[data-profil="ordi"]');
     await page.waitForTimeout(700);
-    const attendu = { texte: 'petit', lignes: '3', hauteur: 'aeree', coins: 'droits', statut: 'non', auj: 'oui', zebre: 'oui', weekends: 'oui', vueOrdi: '2', vueTel: 'semaine' };
+    const attendu = { texte: 'petit', lignes: '3', lignesOrdi: '3', coins: 'droits', statut: 'non', auj: 'oui', zebre: 'oui', weekends: 'oui', vueOrdi: '2', vueTel: 'semaine' };
     const bd = await reglageBd(page), lc = await local(page);
     verifier(JSON.stringify(bd) === JSON.stringify(attendu) && JSON.stringify(lc) === JSON.stringify(attendu),
       'enregistré sur l\'appareil, seulement ce qui change (' + JSON.stringify(bd) + ')');

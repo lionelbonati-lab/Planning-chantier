@@ -270,6 +270,9 @@
     pencil: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M3.5 16.5l3.6-.8 8.6-8.6a1.6 1.6 0 0 0 0-2.3l-.5-.5a1.6 1.6 0 0 0-2.3 0L4.3 12.9l-.8 3.6z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M11.8 5.4l2.8 2.8" stroke="currentColor" stroke-width="1.5"/></svg>',
     copy: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="7" y="7" width="10" height="10" rx="1.8" stroke="currentColor" stroke-width="1.5"/><path d="M13 7V4.8A1.8 1.8 0 0 0 11.2 3H4.8A1.8 1.8 0 0 0 3 4.8v6.4A1.8 1.8 0 0 0 4.8 13H7" stroke="currentColor" stroke-width="1.5"/></svg>',
     aujourdhui: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="2.5" y="3.5" width="15" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 7.5h15" stroke="currentColor" stroke-width="1.5"/><path d="M6 2v3M14 2v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="10" cy="12.6" r="2" fill="currentColor"/></svg>',
+    // Suite 92 — hauteur des lignes (barre d'outils) : deux lignes et une
+    // flèche verticale à double pointe.
+    hauteurLignes: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M9 4.5h8.5M9 15.5h8.5M9 10h8.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M4.5 3v14M2.3 5.3L4.5 3l2.2 2.3M2.3 14.7L4.5 17l2.2-2.3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     deuxSemaines: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="2" y="4" width="7" height="12" rx="1.3" stroke="currentColor" stroke-width="1.5"/><rect x="11" y="4" width="7" height="12" rx="1.3" stroke="currentColor" stroke-width="1.5"/></svg>',
     // Suite 79 — jours voisins aux bords : la semaine au milieu, un bout de
     // la précédente et de la suivante, ouverts vers le bord.

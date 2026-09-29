@@ -111,7 +111,6 @@
     { id: "coinAnnee", groupe: "Dates", nom: "Case de gauche : année", choix: [["complete", "2026"], ["courte", "26"], ["masquee", "Masquée"]], defaut: "complete" },
     { id: "texte", groupe: "Bulles", nom: "Taille du texte", choix: [["petit", "Petit"], ["normal", "Normal"], ["grand", "Grand"], ["tresgrand", "Très grand"]], defaut: "normal", css: true },
     { id: "lignes", groupe: "Bulles", nom: "Lignes de texte", aide: "Au-delà, le texte est coupé par « … ».", choix: [["1", "1"], ["2", "2"], ["3", "3"]], defaut: "2", css: true },
-    { id: "hauteur", groupe: "Bulles", nom: "Hauteur des lignes", aide: "Serrée : plus de personnes à l’écran. Aérée : plus lisible.", choix: [["serree", "Serrée"], ["normale", "Normale"], ["aeree", "Aérée"]], defaut: "normale", css: true, profil: "ordi" },
     // Round du 28.09.2026 (suite 91) — Lionel : « passer à des hauteur de
     // ligne fixe sur mobile. […] Ajouter un réglage d'affichage mobile
     // permettant de choisir sa hauteur de ligne. Réglage différents pour
@@ -123,6 +122,17 @@
     // (cascaderBullesJourMobile_, js/grille-rendu.js).
     { id: "lignesTel", groupe: "Bulles", nom: "Hauteur des lignes", aide: "La place de combien de bulles, l’une sous l’autre, par personne et par jour. Au-delà, elles se chevauchent en cascade.", choix: [["1", "1 bulle"], ["2", "2 bulles"], ["3", "3 bulles"], ["4", "4 bulles"]], defaut: "2", profil: "tel" },
     { id: "jalonsTel", groupe: "Bulles", nom: "Lignes Jalons et Notes", aide: "Leur propre hauteur : combien de bulles, et combien de lignes de texte par bulle.", choix: [["1x1", "1 bulle d’1 ligne"], ["1x2", "1 bulle de 2 lignes"], ["2x1", "2 bulles d’1 ligne"], ["2x2", "2 bulles de 2 lignes"]], defaut: "1x1", profil: "tel" },
+    // Round du 29.09.2026 (suite 92) — Lionel : « La hauteur de ligne est
+    // fixe aussi sur ordinateur. Proposer les même réglage que sur
+    // portable. […] Passer hauteur de ligne à un curseur sur ordinateur. »
+    // Puis, à nos questions : curseur « continu, au pixel », tablette
+    // « comme l'ordinateur ». Remplacent « Serrée / Normale / Aérée »
+    // (`hauteur`, retiré) : un nombre de bulles décimal (pas de 0,01 : moins
+    // d'un pixel), mêmes origines que le téléphone ; lignes de texte des
+    // Jalons / Notes à part (le téléphone les a dans jalonsTel).
+    { id: "lignesOrdi", groupe: "Bulles", nom: "Hauteur des lignes", aide: "La place de combien de bulles, l’une sous l’autre, par personne. Au-delà, elles se chevauchent en cascade.", curseur: [1, 4, 0.01], defaut: "2", profil: "ordi" },
+    { id: "jalonsOrdi", groupe: "Bulles", nom: "Hauteur Jalons et Notes", aide: "La place de combien de bulles dans les lignes Jalons et Notes.", curseur: [1, 4, 0.01], defaut: "1", profil: "ordi" },
+    { id: "jalonsLignesOrdi", groupe: "Bulles", nom: "Lignes de texte Jalons et Notes", choix: [["1", "1"], ["2", "2"]], defaut: "1", profil: "ordi" },
     { id: "coins", groupe: "Bulles", nom: "Coins des bulles arrondis", aide: "Éteint : coins droits.", interrupteur: ["arrondis", "droits"], defaut: "arrondis", css: true },
     { id: "statut", groupe: "Bulles", nom: "Statut", aide: "Badge : « Confirmé », « Réservé »… sous le texte. Pastille : un point de sa couleur dans le coin (le nom au survol).", choix: [["non", "Non"], ["pastille", "Pastille"], ["badge", "Badge"]], defaut: "badge", alias: { oui: "badge" }, css: true },
     { id: "police", groupe: "Police", nom: "Police de l’appli", aide: "Pour tout le document : planning, pages, fenêtres.", choix: [["archivo", "Archivo"], ["inter", "Inter"], ["roboto", "Roboto"], ["nunito", "Nunito"], ["sourcesans", "Source Sans"], ["systeme", "Système"]], defaut: "archivo", css: true },
@@ -168,6 +178,8 @@
   function valeursInterrupteur_(o) { return Array.isArray(o.interrupteur) ? o.interrupteur : ["oui", "non"]; }
   function valeurPermise_(o, v) {
     if (typeof v !== "string") return false;
+    // Curseur (suite 92) : un nombre entre ses bornes.
+    if (o.curseur) return /^\d+(\.\d+)?$/.test(v) && +v >= o.curseur[0] && +v <= o.curseur[1];
     return o.interrupteur ? valeursInterrupteur_(o).indexOf(v) >= 0 : o.choix.some(function (c) { return c[0] === v; });
   }
 
@@ -350,18 +362,24 @@
   // profil (suite 76) : jeu modifié — celui de l'appareil par défaut (touche
   // W, tests), celui montré par la page pour ses propres réglages. L'autre
   // jeu ne change pas le planning de cet appareil : seulement l'aperçu.
-  function changerOptionAffichage(id, valeur, profil) {
+  // leger (suite 92) : curseur de hauteur qui glisse — hauteurs remesurées
+  // sans nouveau rendu (majHauteursLignes, js/grille-rendu.js).
+  function changerOptionAffichage(id, valeur, profil, leger) {
     var o = optionAffichageParId_(id);
+    // Curseur : arrondi au pas (2.00 -> « 2 », l'origine).
+    if (o && o.curseur && valeur != null) valeur = String(Math.round(parseFloat(valeur) * 100) / 100);
     if (!o || !valeurPermise_(o, valeur)) return;
     profil = profil || profilAppareil_();
     var m = JSON.parse(JSON.stringify(modifsAffichage_(profil)));
     m[id] = valeur;
     enregistrerModifsAffichage_(m, profil);
-    if (profil === profilAppareil_()) appliquerEffetOption_(id);
+    if (profil === profilAppareil_()) appliquerEffetOption_(id, leger);
     majPageAffichage();
+    majPanneauHauteurs();
   }
-  function appliquerEffetOption_(id) {
+  function appliquerEffetOption_(id, leger) {
     appliquerStyleAffichage_();
+    if (leger && typeof majHauteursLignes === "function" && majHauteursLignes()) return;
     if (id === "weekends") {
       afficherWeekends = optionAffichage("weekends") === "oui";
       var chk = document.getElementById("chkWeekends");
@@ -409,6 +427,9 @@
   }
   function htmlLigneOption_(o) {
     var aide = o.aide ? '<span>' + esc(o.aide) + '</span>' : '';
+    if (o.curseur) {
+      return '<div class="reglage-ligne reglage-curseur" data-option="' + o.id + '"><span class="reglage-texte"><span class="reglage-nom"><b id="nomAff-' + o.id + '">' + esc(o.nom) + '</b></span>' + aide + '</span>' + htmlCurseur_(o) + '</div>';
+    }
     if (o.interrupteur) {
       // « Afficher les week-ends » garde son id d'origine (#chkWeekends) :
       // la touche W et les tests le cochent.
@@ -425,6 +446,19 @@
         var style = o.id === "police" ? ' style="font-family:' + FAMILLES_POLICES_[c[0]].replace(/'/g, "&#39;") + '"' : "";
         return '<button type="button" role="radio" class="choix-pastille" data-option="' + o.id + '" data-valeur="' + c[0] + '" aria-checked="false"' + style + '>' + esc(c[1]) + '</button>';
       }).join("") + '</span></div>';
+  }
+  // Curseur (suite 92) : la valeur en bulles et, pour le jeu de cet
+  // appareil, la hauteur de ligne qu'elle donne (dernières mesures du
+  // planning, hauteursLignesMesurees — H = N·(U + 3) + 3).
+  function libelleCurseur_(o, v, profil) {
+    var n = parseFloat(v), txt = String(Math.round(n * 100) / 100).replace(".", ",") + (n < 2 ? " bulle" : " bulles");
+    var mes = profil === profilAppareil_() && typeof hauteursLignesMesurees !== "undefined" && hauteursLignesMesurees;
+    var u = mes && mes[o.id === "jalonsOrdi" ? "jal" : "pers"].u;
+    return u ? txt + " · " + Math.round(n * (u + 3) + 3) + " px" : txt;
+  }
+  function htmlCurseur_(o) {
+    return '<span class="curseur-bloc"><input type="range" class="curseur-option" data-option="' + o.id + '" min="' + o.curseur[0] + '" max="' + o.curseur[1] + '" step="' + o.curseur[2] + '" aria-labelledby="nomAff-' + o.id + '">' +
+      '<output class="curseur-valeur" data-pour="' + o.id + '"></output></span>';
   }
   var ICONE_ORDI_ = '<svg width="15" height="15" viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="2.5" y="3.5" width="15" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M7 17h6M10 13.5V17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
   var ICONE_TEL_ = '<svg width="15" height="15" viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="5.5" y="2" width="9" height="16" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M9 15h2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
@@ -572,6 +606,41 @@
   }
   var roApercu_ = null;
 
+  // Valeurs des réglages de `profil` dans `racine` (page Affichage ; suite
+  // 92 : aussi le panneau des hauteurs de la barre d'outils).
+  function majValeursOptions_(racine, profil) {
+    OPTIONS_AFFICHAGE.forEach(function (o) {
+      var v = optionAffichage(o.id, profil);
+      if (o.curseur) {
+        racine.querySelectorAll('.curseur-option[data-option="' + o.id + '"]').forEach(function (c) {
+          if (c.value !== v && document.activeElement !== c) c.value = v;
+          c.setAttribute("aria-valuetext", libelleCurseur_(o, v, profil));
+        });
+        racine.querySelectorAll('.curseur-valeur[data-pour="' + o.id + '"]').forEach(function (out) { out.textContent = libelleCurseur_(o, v, profil); });
+        return;
+      }
+      if (o.sousLigne) {
+        racine.querySelectorAll('.style-icone[data-option="' + o.id + '"]').forEach(function (sb) {
+          var actif = o.interrupteur ? v === "oui" : sb.dataset.valeur === v;
+          sb.classList.toggle("actif", actif);
+          sb.setAttribute(o.interrupteur ? "aria-pressed" : "aria-checked", actif ? "true" : "false");
+        });
+        return;
+      }
+      if (o.interrupteur) {
+        var chk = racine.querySelector('input[data-option="' + o.id + '"]');
+        if (chk) chk.checked = v === valeursInterrupteur_(o)[0];
+        return;
+      }
+      racine.querySelectorAll('.choix-pastille[data-option="' + o.id + '"]').forEach(function (b) {
+        var actif = b.dataset.valeur === v;
+        b.classList.toggle("actif", actif);
+        b.setAttribute("aria-checked", actif ? "true" : "false");
+        b.tabIndex = actif ? 0 : -1;
+      });
+    });
+  }
+
   function majPageAffichage() {
     var page = document.getElementById("page-affichage");
     if (!page) return;
@@ -600,28 +669,7 @@
     // bords allumés : planning de bord à bord, sans coin (suite 75).
     var ligneCadre = page.querySelector('.reglage-ligne[data-option="cadre"]');
     if (ligneCadre) ligneCadre.hidden = profil === "ordi" && vueBords && !deuxSemaines; // suite 82 : 2 semaines = pas de bords ; suite 84 : vueBords
-    OPTIONS_AFFICHAGE.forEach(function (o) {
-      var v = optionAffichage(o.id, profil);
-      if (o.sousLigne) {
-        page.querySelectorAll('.style-icone[data-option="' + o.id + '"]').forEach(function (sb) {
-          var actif = o.interrupteur ? v === "oui" : sb.dataset.valeur === v;
-          sb.classList.toggle("actif", actif);
-          sb.setAttribute(o.interrupteur ? "aria-pressed" : "aria-checked", actif ? "true" : "false");
-        });
-        return;
-      }
-      if (o.interrupteur) {
-        var chk = page.querySelector('input[data-option="' + o.id + '"]');
-        if (chk) chk.checked = v === valeursInterrupteur_(o)[0];
-        return;
-      }
-      page.querySelectorAll('.choix-pastille[data-option="' + o.id + '"]').forEach(function (b) {
-        var actif = b.dataset.valeur === v;
-        b.classList.toggle("actif", actif);
-        b.setAttribute("aria-checked", actif ? "true" : "false");
-        b.tabIndex = actif ? 0 : -1;
-      });
-    });
+    majValeursOptions_(page, profil);
     // Icônes de style d'une ligne masquée : sans objet, cachées.
     // Suite 84 : + mois et année de la case de gauche (suite 83).
     var masquees = { jourSemaine: "masque", heures: "non", ligneDemi: "masquee", coinMois: "masque", coinAnnee: "masquee" };
@@ -647,6 +695,46 @@
     if (!roApercu_ && window.ResizeObserver) { roApercu_ = new ResizeObserver(placerSepApercu_); roApercu_.observe(ap); }
   }
 
+  // Panneau « Hauteur des lignes » de la barre d'outils (suite 92, cf.
+  // #menuHauteurs dans js/coquille.js) : les réglages de hauteur du jeu de
+  // l'appareil — curseurs sur ordinateur et tablette, pastilles sur
+  // téléphone —, écrits comme ceux de la page (htmlLigneOption_), sans
+  // leur aide. Reconstruit au passage d'un jeu à l'autre ; valeurs remises
+  // à jour à chaque rendu (hauteur en pixels) et à chaque réglage.
+  function majPanneauHauteurs() {
+    var p = document.getElementById("panneauHauteurs");
+    if (!p) return;
+    var profil = profilAppareil_();
+    if (p.dataset.profil !== profil) {
+      var ids = profil === "ordi" ? ["lignesOrdi", "jalonsOrdi", "jalonsLignesOrdi"] : ["lignesTel", "jalonsTel"];
+      p.innerHTML = '<div class="outil-menu-titre">Hauteur des lignes</div>' +
+        ids.map(function (id) { return htmlLigneOption_(optionAffichageParId_(id)); }).join("") +
+        '<button type="button" class="outil-menu-item hauteurs-tous" data-page-affichage>Tous les réglages d’affichage</button>';
+      // Identifiants des noms (aria-labelledby) : propres au panneau, la page
+      // Affichage a les siens.
+      p.querySelectorAll("[id^='nomAff-']").forEach(function (b) { b.id = b.id.replace("nomAff-", "nomHaut-"); });
+      p.querySelectorAll("[aria-labelledby^='nomAff-']").forEach(function (el) { el.setAttribute("aria-labelledby", el.getAttribute("aria-labelledby").replace("nomAff-", "nomHaut-")); });
+      p.dataset.profil = profil;
+    }
+    if (!p._cable) {
+      p._cable = true;
+      p.addEventListener("input", function (e) {
+        var c = e.target.closest(".curseur-option");
+        if (c) changerOptionAffichage(c.dataset.option, c.value, profilAppareil_(), true);
+      });
+      p.addEventListener("click", function (e) {
+        var b = e.target.closest(".choix-pastille");
+        if (b) { changerOptionAffichage(b.dataset.option, b.dataset.valeur, profilAppareil_(), true); return; }
+        if (e.target.closest("[data-page-affichage]")) {
+          var m = document.getElementById("menuHauteurs");
+          if (m) m.classList.remove("ouvert");
+          if (typeof afficherPage === "function") afficherPage("affichage");
+        }
+      });
+    }
+    majValeursOptions_(p, profil);
+  }
+
   // Ouverture de la page (afficherPage, js/coquille.js) : « la vue par
   // défaut est celle où l'on est » (suite 76). Sortie : le style revient au
   // jeu de l'appareil (celui de l'autre a pu être posé pour l'aperçu).
@@ -661,6 +749,11 @@
   function initPageAffichage() {
     var page = document.getElementById("page-affichage");
     if (!page) return;
+    // Curseurs (suite 92) : suivis pendant le glissement, sans nouveau rendu.
+    page.addEventListener("input", function (e) {
+      var c = e.target.closest(".curseur-option");
+      if (c) changerOptionAffichage(c.dataset.option, c.value, profilPage_(), true);
+    });
     page.addEventListener("change", function (e) {
       var chk = e.target.closest('input[type="checkbox"][data-option]');
       var o = chk && optionAffichageParId_(chk.dataset.option);
@@ -697,6 +790,7 @@
     // Passage téléphone <-> écran large (rotation) : colonnes de l'aperçu.
     var mq = typeof window.matchMedia === "function" ? window.matchMedia("(max-width: 600px)") : null;
     // Suite 67 : l'appareil change de jeu de réglages en passant le seuil.
-    if (mq && mq.addEventListener) mq.addEventListener("change", function () { appliquerEffetOption_("weekends"); majPageAffichage(); });
+    if (mq && mq.addEventListener) mq.addEventListener("change", function () { appliquerEffetOption_("weekends"); majPageAffichage(); majPanneauHauteurs(); });
     majPageAffichage();
+    majPanneauHauteurs();
   }

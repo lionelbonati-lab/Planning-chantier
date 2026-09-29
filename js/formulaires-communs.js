@@ -152,6 +152,11 @@
       if (btnStatut.hidden || !n) fermerMenuStatutSelection_();
       else majMenuStatutSelection_();
     }
+    // Case chantier de la barre d'outils (suite 92) : le chantier de la
+    // sélection, ou le chantier par défaut quand elle est vide.
+    if (typeof majChantierSelection === "function") majChantierSelection();
+    // Bulle sélectionnée dépliée au bas du planning : remontée (suite 93).
+    if (typeof remonterCartesSelection === "function") remonterCartesSelection();
   }
   // ---- Statut depuis la pilule (round du 26.09.2026, suite 69) ----------
   // Lionel : « Possibilité de changer le statut d'une tâche plus rapidement

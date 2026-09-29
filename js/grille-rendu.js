@@ -53,6 +53,84 @@
   // reconstruit le panneau déroulant (liste des chantiers actifs) ET
   // l'apparence du bouton (swatch + nom du chantier par défaut, ou un
   // repli neutre "Chantier" si aucun n'est choisi).
+  // ---- Chantier de la sélection (round du 29.09.2026, suite 92) --------
+  // Lionel : « Quand une bulle est sélectionnée, synchroniser la case
+  // chantier de la toolbar afin de pouvoir changer de chantier sans entrer
+  // dans l'édition de formulaire, fonctionne en multi-selection tous les
+  // chantier selectionné prendront le chantier. Si chantier différent lors
+  // de la multiselection mettre la case sur aucun chantier. une foit
+  // terminé le chantier par défaut reviens comme il était avant
+  // l'édition. » Tant qu'une tâche est sélectionnée, la case montre le
+  // chantier des tâches sélectionnées (« Aucun chantier » s'ils diffèrent
+  // ou s'il n'y en a pas) et son panneau le change pour toutes ; le
+  // chantier par défaut des formulaires (chantierParDefaut) n'est pas
+  // touché et revient dès que la sélection est vide. Seules les tâches
+  // portent un chantier modifiable depuis la grille : les absences n'en
+  // ont pas, les notes non plus, celui d'un jalon se règle sur la page
+  // Jalons (la grille ne l'envoie pas, cf. diffsJalons).
+  function tachesChantierSelection_() {
+    var out = [];
+    Object.keys(bullesSelectionnees).forEach(function (id) {
+      var p = itemParId(id);
+      if (p && p.item.type === "tache") out.push(p);
+    });
+    return out;
+  }
+  function chantierValide_(k) { return k && CHANTIERS[k] ? k : null; }
+  // Chantier commun aux tâches `plages`, sinon null.
+  function chantierCommunSelection_(plages) {
+    var k = chantierValide_(plages[0].item.chantier);
+    return plages.every(function (p) { return chantierValide_(p.item.chantier) === k; }) ? k : null;
+  }
+  function appliquerChantierSelection(k) {
+    var plages = tachesChantierSelection_();
+    if (!plages.length) return;
+    k = chantierValide_(k);
+    if (plages.every(function (p) { return chantierValide_(p.item.chantier) === k; })) return;
+    var autres = Object.keys(bullesSelectionnees).length - plages.length;
+    sauvegarderUndo();
+    plages.forEach(function (p) { p.item.chantier = k; });
+    var msg = (k ? "Chantier « " + CHANTIERS[k].nom + " » (" : "Aucun chantier (") + plages.length + ")" +
+      (autres ? " — " + autres + " bulle(s) sans chantier modifiable ici laissée(s) telle(s) quelle(s)." : ".");
+    var enAttente = rendreAvecPorteeSerie("modifier", msg);
+    majBarreSelection();
+    if (!enAttente) toast(msg);
+  }
+  // Appelée par majBarreSelection (chaque changement de sélection, chaque
+  // rendu) : la case n'est reconstruite que si ce qu'elle montre change.
+  var etatSelectChantier_ = null;
+  function signatureSelectChantier_() {
+    var plages = tachesChantierSelection_();
+    if (!plages.length) return "defaut";
+    // Chantiers différents et « tous sans chantier » ont le même commun
+    // (null) : la signature les distingue, sinon la case gardait « (différents) ».
+    var k = chantierCommunSelection_(plages), mixte = plages.some(function (p) { return chantierValide_(p.item.chantier) !== k; });
+    return "sel:" + k + ":" + plages.length + (mixte ? ":mixte" : "");
+  }
+  // ---- Bulle sélectionnée dépliée (round du 29.09.2026, suite 93) -----
+  // Lionel : « Sélectionner une bulle fait apparaître son texte en entier
+  // ainsi que sa hauteur de bulle complète si tronquée. » Le dépliage
+  // lui-même est en CSS (.bulle.selectionnee, style.css). Ici : une carte
+  // dépliée qui dépasserait le bas de sa grille (dernière ligne du
+  // planning) serait coupée par .scroller (overflow-y: hidden) ; elle
+  // remonte d'autant (transform, qui s'ajoute au translate de la
+  // cascade), sans passer au-dessus du haut de la grille. Appelée à chaque
+  // changement de sélection (majBarreSelection) et après chaque cascade.
+  function remonterCartesSelection() {
+    document.querySelectorAll("#racine .bulle > .b-carte[data-remonte]").forEach(function (c) {
+      c.style.transform = ""; delete c.dataset.remonte;
+    });
+    document.querySelectorAll("#racine .scroller .bulle.selectionnee > .b-carte").forEach(function (c) {
+      var g = c.closest(".grille");
+      if (!g) return;
+      var rg = g.getBoundingClientRect(), r = c.getBoundingClientRect();
+      var d = Math.min(r.bottom - rg.bottom + 2, r.top - rg.top);
+      if (d > 0.5) { c.style.transform = "translateY(" + (-Math.round(d)) + "px)"; c.dataset.remonte = "1"; }
+    });
+  }
+  function majChantierSelection() {
+    if (signatureSelectChantier_() !== etatSelectChantier_) construireSelectChantier();
+  }
   function construireSelectChantier() {
     var btn = document.getElementById("btnSelectChantier");
     var panneau = document.getElementById("panneauChantier");
@@ -60,6 +138,43 @@
     var defautActuel = chantierParDefautValide();
     var swatchBtn = btn.querySelector(".swatch");
     var nomBtn = btn.querySelector(".nom-chantier");
+    // Suite 92 : sélection en cours -> son chantier (cf. plus haut).
+    etatSelectChantier_ = signatureSelectChantier_();
+    var plagesSel = tachesChantierSelection_(), enSelection = plagesSel.length > 0;
+    var selectChantierEl = document.getElementById("selectChantier");
+    if (selectChantierEl) selectChantierEl.classList.toggle("mode-selection", enSelection);
+    if (enSelection) {
+      var kSel = chantierCommunSelection_(plagesSel), nSel = plagesSel.length;
+      var mixte = plagesSel.some(function (p) { return chantierValide_(p.item.chantier) !== kSel; });
+      var quoi = nSel > 1 ? "des " + nSel + " tâches sélectionnées" : "de la tâche sélectionnée";
+      swatchBtn.classList.toggle("swatch-vide", !kSel);
+      swatchBtn.style.background = kSel ? CHANTIERS[kSel].couleur : "";
+      nomBtn.textContent = kSel ? CHANTIERS[kSel].nom : "Aucun chantier";
+      btn.title = "Chantier " + quoi + " — cliquer pour changer (le chantier par défaut des formulaires revient à la fin de la sélection)";
+      panneau.innerHTML = "";
+      var titre = document.createElement("div");
+      titre.className = "select-chantier-titre";
+      titre.textContent = nSel > 1 ? "Chantier des " + nSel + " tâches" + (mixte ? " (différents)" : "") : "Chantier de la tâche";
+      panneau.appendChild(titre);
+      [null].concat(Object.keys(CHANTIERS).filter(function (k) { return CHANTIERS[k].actif !== false || k === kSel; })).forEach(function (k) {
+        var it = document.createElement("button");
+        it.type = "button";
+        // Chantiers différents : « Aucun chantier » sur la case, rien de coché.
+        it.className = "select-chantier-item" + (k === kSel && !mixte ? " actif" : "") + (k ? "" : " select-chantier-aucun");
+        it.dataset.chantier = k || "";
+        it.innerHTML = (k ? '<span class="swatch" style="background:' + CHANTIERS[k].couleur + '"></span>' + esc(CHANTIERS[k].nom)
+          : '<span class="swatch swatch-vide"></span>Aucun chantier') + '<span class="coche">✓</span>';
+        it.addEventListener("click", function () {
+          var sel = document.getElementById("selectChantier");
+          if (sel) sel.classList.remove("ouvert");
+          appliquerChantierSelection(k);
+        });
+        panneau.appendChild(it);
+      });
+      ajusterDebordementToolbar();
+      ajusterEnteteFixe();
+      return;
+    }
     // Aucun chantier : pastille vide en pointillés (.swatch-vide, suite 55)
     // plutôt qu'un carré var(--border), qui devenait un bloc noir sur la case
     // blanche en mode sombre et se fondait dans la barre sur téléphone.
@@ -233,7 +348,8 @@
   // dans le menu 3points si manque de place. » La cloche quitte l'ordre de
   // repli (toujours dans la barre, entre Annuler/Refaire et Imprimer) ;
   // « Ajouter une ligne » y entre à sa place.
-  var REPLIS_ORDRE = ["groupeZoom", "controlesAffichage", "groupeAjoutLigne", "groupeNavSemaine", "groupeImprimer"];
+  // Suite 92 : hauteur des lignes, repliée juste après le zoom.
+  var REPLIS_ORDRE = ["groupeZoom", "groupeHauteurs", "controlesAffichage", "groupeAjoutLigne", "groupeNavSemaine", "groupeImprimer"];
   // Téléphone : tout ce qui se replie va dans « ⋮ » ; la cloche est dans la
   // barre du bas (#btnNotificationsNavBas), masquée dans celle-ci.
   var REPLIS_TELEPHONE = REPLIS_ORDRE;
@@ -1170,6 +1286,13 @@
   // chaque rendu) — pour l'aperçu d'une poignée, qui change la taille
   // d'une bulle sans aucun rendu. Suite 84 : pareil en vue « Jours voisins ».
   var reajusterBullesJourMobile = function () {};
+  // majHauteursLignes() (suite 92) : hauteurs des lignes remesurées d'après
+  // les réglages, sans nouveau rendu (curseurs) — rebranchée à chaque
+  // rendu par construireGrille. false : rien de mesurable.
+  var majHauteursLignes = function () { return false; };
+  // Dernières mesures (suite 92) : { pers: {n, u, h}, jal: {n, u, h} } —
+  // la hauteur en pixels affichée à côté des curseurs.
+  var hauteursLignesMesurees = null;
   // suivreDefilementJourMobile(scroller, x) (suite 58) : ce qui suit le
   // défilement en vue « 1 jour » (espace entre semaines, case coin), recalé
   // dans la MÊME image qu'un défilement posé par le script
@@ -1397,6 +1520,9 @@
     // (grilleEntete, hors de .scroller) suivent la même règle d'affichage
     // que celles des tâches (style.css, « Poignées en vue 1 jour »).
     racineEl.classList.toggle("vue-jour-mobile", enModeJourMobile);
+    // Lignes de hauteur fixe partout à l'écran (suite 92, cf.
+    // mettreEnPlaceJourMobile_) : repère des règles communes de style.css.
+    racineEl.classList.add("hauteurs-fixes");
     // Round du 23.09.2026 (suite 15) — Lionel : « La case jour ne fait pas
     // la largeur de l'écran mais déborde à droite ». Avant ce correctif, la
     // largeur de colonne ci-dessous se calculait avec l'unité CSS `100vw` —
@@ -1644,12 +1770,23 @@
       var m = /^(\d+)(?:\s*\/\s*span\s+(\d+))?/.exec(v || "");
       return m ? [+m[1], m[2] ? +m[2] : 1] : null;
     }
-    // Réglages du téléphone (page Affichage) : bulles par ligne et lignes
-    // de texte par bulle, personnes et Jalons/Notes.
+    // Réglages de l'appareil (page Affichage) : bulles par ligne et lignes
+    // de texte par bulle, personnes et Jalons/Notes. Suite 92 : ordinateur
+    // et tablette ont les leurs, en curseur (nombre de bulles décimal, au
+    // pixel près : lignesOrdi, jalonsOrdi ; lignes de texte des Jalons /
+    // Notes : jalonsLignesOrdi).
     function reglagesLignesMobile_() {
+      var l = Math.max(1, Math.min(3, +optionAffichage("lignes") || 2));
+      var borne = function (v, d) { v = parseFloat(v); return isFinite(v) ? Math.max(1, Math.min(4, v)) : d; };
+      if (profilAppareil_() === "ordi") {
+        return {
+          pers: { n: borne(optionAffichage("lignesOrdi"), 2), l: l },
+          jal: { n: borne(optionAffichage("jalonsOrdi"), 1), l: optionAffichage("jalonsLignesOrdi") === "2" ? 2 : 1 }
+        };
+      }
       var jal = /^([12])x([12])$/.exec(optionAffichage("jalonsTel") || "") || [null, "1", "1"];
       return {
-        pers: { n: Math.max(1, Math.min(4, +optionAffichage("lignesTel") || 2)), l: Math.max(1, Math.min(3, +optionAffichage("lignes") || 2)) },
+        pers: { n: Math.max(1, Math.min(4, +optionAffichage("lignesTel") || 2)), l: l },
         jal: { n: +jal[1], l: +jal[2] }
       };
     }
@@ -1659,12 +1796,17 @@
     // N cartes et leurs marges. Posées en variables sur #racine
     // (--mob-h-pers, --mob-carte-pers…, lues par style.css et par les
     // pistes de poserPistesFixes_).
-    function hauteurCarteSonde_(grille, classe, lignes) {
+    // Suite 92 : la sonde des personnes porte aussi un badge de statut —
+    // sur ordinateur, « Statut : Badge » ajoute sa ligne sous le texte
+    // (en pastille ou masqué, et toujours en vue « 1 jour », il ne prend
+    // aucune place : style.css).
+    function hauteurCarteSonde_(grille, classe, lignes, avecStatut) {
       var b = document.createElement("div");
       b.className = "bulle bulle-plage bulle-sonde " + classe;
       b.setAttribute("aria-hidden", "true");
       b.style.cssText = "position:absolute;left:0;top:0;width:44px;visibility:hidden;pointer-events:none";
-      b.innerHTML = '<div class="b-carte" style="height:auto;max-height:none;width:44px"><span class="b-txt"></span></div>';
+      b.innerHTML = '<div class="b-carte" style="height:auto;max-height:none;width:44px"><span class="b-txt"></span>' +
+        (avecStatut ? '<span class="b-statut"><span class="dot"></span>Statut</span>' : '') + '</div>';
       var t = b.querySelector(".b-txt");
       t.textContent = new Array(9).join("Mesure ");
       t.style.webkitLineClamp = t.style.lineClamp = String(lignes);
@@ -1673,16 +1815,18 @@
       b.remove();
       return h;
     }
+    // Suite 92 : N peut être décimal (curseur de l'ordinateur) — H au
+    // pixel près, arrondi au dixième.
     function mesurerHauteursMobile_() {
-      if (!enModeJourMobile || !scroller.getClientRects().length) return false;
+      if (!scroller.getClientRects().length) return false;
       var r = reglagesLignesMobile_(), m = MARGE_MOB_;
       var mes = {};
       [["pers", grilleCorps, "bulle-tache"], ["jal", grilleEntete, "bulle-note"]].forEach(function (d) {
-        var u = hauteurCarteSonde_(d[1], d[2], r[d[0]].l), n = r[d[0]].n;
-        mes[d[0]] = { n: n, u: u, h: m + n * u + (n - 1) * m + m };
+        var u = hauteurCarteSonde_(d[1], d[2], r[d[0]].l, d[0] === "pers"), n = r[d[0]].n;
+        mes[d[0]] = { n: n, u: u, h: Math.round((m + n * u + (n - 1) * m + m) * 10) / 10 };
       });
       if (!mes.pers.u) return false;
-      mesuresMob_ = mes;
+      mesuresMob_ = hauteursLignesMesurees = mes;
       racineEl.style.setProperty("--mob-carte-pers", mes.pers.u + "px");
       racineEl.style.setProperty("--mob-h-pers", mes.pers.h + "px");
       racineEl.style.setProperty("--mob-carte-jal", mes.jal.u + "px");
@@ -1771,6 +1915,14 @@
     // la suivante passe par-dessus la précédente. Décalage par `translate`
     // sur chaque carte (et sur les poignées, comme leur carte) : rien n'est
     // remis en page.
+    //
+    // Round du 29.09.2026 (suite 92) — hors de la vue « 1 jour » (ordinateur,
+    // tablette, téléphone en semaine), une bulle garde une seule carte, au
+    // même rang sur toute sa durée (Lionel, à notre question : « une seule
+    // bulle ») : les bulles d'une ligne sont regroupées en amas, de proche
+    // en proche tant qu'elles se chevauchent (colonnes de la grille) ; dans
+    // chaque amas, même rangement par piste et même pas que par jour
+    // ci-dessus. Une bulle seule dans son amas reste en haut de sa ligne.
     function cascaderBullesJourMobile_() {
       if (!mesuresMob_) return;
       [grilleEntete, grilleCorps].forEach(function (g) {
@@ -1783,15 +1935,29 @@
         });
         Object.keys(parLigne).forEach(function (row) {
           var mes = mesuresMob_[lignes[row]], m = MARGE_MOB_;
-          var parJour = {};
-          parLigne[row].forEach(function (b) {
-            var piste = +b.dataset.piste || 0;
-            [].forEach.call(b.querySelectorAll(":scope > .b-carte"), function (c) {
-              (parJour[c.dataset.jour] = parJour[c.dataset.jour] || []).push({ c: c, piste: piste });
+          var groupes = [];
+          if (enModeJourMobile) {
+            var parJour = {};
+            parLigne[row].forEach(function (b) {
+              var piste = +b.dataset.piste || 0;
+              [].forEach.call(b.querySelectorAll(":scope > .b-carte"), function (c) {
+                (parJour[c.dataset.jour] = parJour[c.dataset.jour] || []).push({ c: c, piste: piste });
+              });
             });
-          });
-          Object.keys(parJour).forEach(function (j) {
-            var cartes = parJour[j], pistes = [];
+            groupes = Object.keys(parJour).map(function (j) { return parJour[j]; });
+          } else {
+            var amas = null, fin = -1;
+            parLigne[row].map(function (b) { return { b: b, col: plageGrille_(b.style.gridColumn) || [0, 1] }; })
+              .sort(function (a, b) { return a.col[0] - b.col[0]; })
+              .forEach(function (x) {
+                if (!amas || x.col[0] >= fin) { amas = []; groupes.push(amas); fin = -1; }
+                fin = Math.max(fin, x.col[0] + x.col[1]);
+                var piste = +x.b.dataset.piste || 0;
+                [].forEach.call(x.b.querySelectorAll(":scope > .b-carte"), function (c) { amas.push({ c: c, piste: piste }); });
+              });
+          }
+          groupes.forEach(function (cartes) {
+            var pistes = [];
             cartes.forEach(function (x) { if (pistes.indexOf(x.piste) < 0) pistes.push(x.piste); });
             pistes.sort(function (a, b) { return a - b; });
             var n = pistes.length;
@@ -1810,6 +1976,7 @@
           });
         });
       });
+      remonterCartesSelection(); // suite 93
     }
     // Colonnes des jours, dans le repère du contenu défilé (suite 72) :
     // lues au repos, pour la case coin pendant le glissement
@@ -1851,25 +2018,42 @@
       if (!geoGlisse_ || geoGlisse_.taille !== generationTaille_) majGeoGlisse_();
     }
     // Tout, au rendu (et une fois les polices chargées : le texte n'occupe
-    // pas la même place).
+    // pas la même place). Suite 92 : partout (lignes de hauteur fixe sur
+    // ordinateur et tablette aussi) ; cartes par jour et jour posé, en vue
+    // « 1 jour » seulement.
     function mettreEnPlaceJourMobile_() {
-      if (!enModeJourMobile) return;
       poserPistesFixes_();
       mesurerHauteursMobile_();
-      decouperBullesJourMobile_();
+      if (enModeJourMobile) decouperBullesJourMobile_();
       cascaderBullesJourMobile_();
+      if (!enModeJourMobile) return;
       geoGlisse_ = null;
       poserJourMobile_();
     }
     var rafDecoupe_ = null;
     function planifierDecoupeJourMobile_() {
-      if (rafDecoupe_ || !enModeJourMobile) return;
+      if (rafDecoupe_) return;
       rafDecoupe_ = requestAnimationFrame(function () {
         rafDecoupe_ = null;
         if (!scroller.isConnected) return;
-        decouperBullesJourMobile_(); cascaderBullesJourMobile_(); poserJourMobile_();
+        if (enModeJourMobile) decouperBullesJourMobile_();
+        cascaderBullesJourMobile_();
+        if (enModeJourMobile) poserJourMobile_();
       });
     }
+    // Curseurs de hauteur (suite 92, barre d'outils et page Affichage) :
+    // hauteurs remesurées et cascade refaite, sans nouveau rendu — les
+    // pistes suivent les variables (poserPistesFixes_). Grille masquée
+    // (page Affichage ouverte) : rien de mesurable, nouveau rendu au retour
+    // sur le planning (grilleRendueMasquee_, rendreSiRenduMasque). false :
+    // grille remplacée depuis, à rendre.
+    majHauteursLignes = function () {
+      if (!scroller.isConnected) return false;
+      if (!scroller.getClientRects().length) { grilleRendueMasquee_ = true; return true; }
+      if (!mesurerHauteursMobile_()) return false;
+      cascaderBullesJourMobile_();
+      return true;
+    };
     // Défilement posé par le script (defilerHorizontal_, grille-interactions
     // .js), `x` = sa position : espace entre semaines et case coin suivis
     // dans la même image.
@@ -1932,7 +2116,8 @@
     // Suite 84 : en vue « Jours voisins », l'aperçu d'une poignée recoupe
     // aussi les cartes par morceau (ajusterBullesJoursVoisins_).
     // Suite 91 : en vue « 1 jour », cartes recoupées par jour et cascade.
-    reajusterBullesJourMobile = function () { if (vueBordsRendue_) ajusterBullesJoursVoisins_(); else planifierDecoupeJourMobile_(); };
+    // Suite 92 : cascade refaite partout (l'amas d'une bulle étirée change).
+    reajusterBullesJourMobile = function () { if (vueBordsRendue_) ajusterBullesJoursVoisins_(); planifierDecoupeJourMobile_(); };
     // Round du 23.09.2026 (suite 5) — Lionel : « Swipper un vendredi permet
     // de passer au lundi de la semaine suivante ? ». Réattaché à chaque
     // rendu (comme le mirroir de scroll juste au-dessus) puisque .scroller
@@ -2300,13 +2485,13 @@
       // tombaient pourtant sur 2 lignes l'une sous l'autre, en escalier.
       // Même empilement que les lignes de personnes en compact : deux notes ne
       // se gênent que si elles occupent une même demi-journée.
-      var nbPistes = Math.max(1, assignerPistesCompact(visibles));
-      // Vue « 1 jour » du téléphone (suite 91) : une seule piste de grille,
-      // de hauteur fixe (data-h-mob, poserPistesFixes_) ; les pistes
-      // d'assignerPistesCompact rangent les bulles en cascade
-      // (cascaderBullesJourMobile_), posées dans leur ordre.
-      var pistesGrille = enModeJourMobile ? 1 : nbPistes;
-      if (enModeJourMobile) visibles = pistesDansLOrdre_(visibles);
+      assignerPistesCompact(visibles);
+      // Vue « 1 jour » du téléphone (suite 91), puis partout (suite 92) :
+      // une seule piste de grille, de hauteur fixe (data-h-mob,
+      // poserPistesFixes_) ; les pistes d'assignerPistesCompact rangent les
+      // bulles en cascade (cascaderBullesJourMobile_), posées dans leur ordre.
+      var pistesGrille = 1;
+      visibles = pistesDansLOrdre_(visibles);
       // Titre de ligne ("Jalons"/"Notes") : retiré le 02.09.2026 (retour de
       // Lionel : "on peut réduire les hauteurs de ligne en enlevant... les
       // titres notes et jalons. on a déjà une légende"), puis REMIS le
@@ -2321,7 +2506,7 @@
       lbl.dataset.vt = "s-" + kind;
       lbl.innerHTML = "<b>" + esc(label) + "</b>";
       lbl.title = label;
-      if (enModeJourMobile) lbl.dataset.hMob = "jal";
+      lbl.dataset.hMob = "jal";
       poser(lbl, 1, row, null, pistesGrille);
       for (var g = 0; g < n; g++) {
         // Jalons et notes restent des objets à la JOURNÉE (ligne 4 et 5 de la
@@ -2367,7 +2552,7 @@
         // .une-case (suite 25) : poignées étroites, cf. son commentaire CSS.
         if (csStatique[1] === 1) b.classList.add("une-case");
         b.dataset.piste = String(it._piste);
-        poser(b, csStatique[0], row + (enModeJourMobile ? 0 : it._piste), csStatique[1]);
+        poser(b, csStatique[0], row, csStatique[1]);
       });
       row += pistesGrille;
     });
@@ -2471,10 +2656,11 @@
     function ligneGroupePersonnesCompact(groupe) {
       groupe.forEach(function (p, iP) {
         var itemsLigne = TACHES.filter(function (it) { return it.personneId === p.id && giVisible(it.giDebut, n); });
-        var nbPistes = Math.max(1, assignerPistesCompact(itemsLigne));
-        // Vue « 1 jour » (suite 91) : cf. les lignes Jalons / Notes.
-        var pistesGrille = enModeJourMobile ? 1 : nbPistes;
-        if (enModeJourMobile) itemsLigne = pistesDansLOrdre_(itemsLigne);
+        assignerPistesCompact(itemsLigne);
+        // Une seule piste de grille (suites 91 et 92) : cf. les lignes
+        // Jalons / Notes.
+        var pistesGrille = 1;
+        itemsLigne = pistesDansLOrdre_(itemsLigne);
         // Lignes alternées (suite 62, page Affichage) : une personne sur
         // deux de chaque groupe porte .ligne-alt (étiquette et cases),
         // teintée seulement si l'option est choisie (html[data-aff-zebre]).
@@ -2489,7 +2675,7 @@
         lbl.innerHTML = "<b>" + nomSurDeuxLignes(p.nom) + "</b>";
         lbl.title = p.nom;
         remplirEtiquetteEquipe(lbl, p);
-        if (enModeJourMobile) lbl.dataset.hMob = "pers";
+        lbl.dataset.hMob = "pers";
         poser(lbl, 1, row, null, pistesGrille);
         for (var gi4 = 0; gi4 < n; gi4++) {
           DEMIS.forEach(function (demi) {
@@ -2518,7 +2704,7 @@
           }
         }
         itemsLigne.forEach(function (it) {
-          var b = bulleEl(it), piste = enModeJourMobile ? 0 : it._piste;
+          var b = bulleEl(it), piste = 0;
           b.dataset.piste = String(it._piste);
           if (estGiWeekend(it.giDebut)) { poser(b, colonneGrille(it.giDebut), row + piste, 1); return; }
           var dureeVisible = Math.max(1, Math.min(it.duree, n - it.giDebut));
@@ -2652,12 +2838,15 @@
     // (premier affichage), refait une fois qu'elles le sont : le texte
     // n'occupe pas la même place.
     mettreEnPlaceJourMobile_();
-    if (enModeJourMobile && document.fonts && document.fonts.status !== "loaded") {
+    if (document.fonts && document.fonts.status !== "loaded") {
       document.fonts.ready.then(function () {
         if (!scroller.isConnected) return;
         mettreEnPlaceJourMobile_();
+        if (typeof majPanneauHauteurs === "function") majPanneauHauteurs();
       });
     }
+    // Hauteur en pixels à côté des curseurs de la barre (suite 92).
+    if (typeof majPanneauHauteurs === "function") majPanneauHauteurs();
     // Round du 24.09.2026 (suite 6) — défilement "infini" de la vue "1 jour"
     // (cf. fenetreLabGs, core.js). Une fois le défilement ARRÊTÉ (plus
     // d'événement "scroll" depuis 200ms, aucun doigt posé, aucun glisser de
