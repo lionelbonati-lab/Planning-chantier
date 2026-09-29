@@ -8,14 +8,17 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 // Vérifie :
 //   1. Ctrl+clic sur un nom : ligne choisie, ses bulles sélectionnées, pas
 //      de menu ; Maj+clic : plage ; Ctrl+clic sur une ligne choisie : retirée ;
-//   2. clic sur une ligne choisie : menu « 2 lignes sélectionnées », la
-//      hauteur saisie vaut pour les 2 ; le trait d'une ligne choisie aussi ;
-//   3. clic sur une ligne non choisie : choix défait, menu de cette ligne,
-//      « Sélectionner la ligne » ; Échap défait tout ;
+//   2. clic droit sur une ligne choisie : menu « 2 lignes sélectionnées »,
+//      la hauteur saisie vaut pour les 2 ; le trait d'une ligne choisie aussi ;
+//   3. clic simple sur un nom : cette ligne seule ; clic droit sur une ligne
+//      non choisie : son menu, « Sélectionner la ligne » ; Échap défait tout ;
+//   (suite 106 — Lionel : « touche ou clic gauche simple pour sélection »,
+//   clic droit / appui long pour le menu : assertions adaptées)
 //   4. clic sur un jour : ce jour et ses bulles ; Ctrl+clic ajoute, Maj+clic
 //      plage ; lignes et jours ensemble au Ctrl ; clic dans une case : défait ;
-//   5. téléphone : toucher un jour le choisit ; « Sélectionner la ligne »
-//      du menu, puis toucher un autre nom l'ajoute (sans menu).
+//   5. téléphone : toucher un jour le choisit ; toucher un nom le choisit,
+//      toucher un autre nom l'ajoute (sans menu) ; appui long sur une ligne
+//      choisie : menu des lignes choisies.
 //
 // Lancer : node test_suite105.js
 
@@ -32,10 +35,10 @@ const jour = async (page, iso) => {
   const gi = await page.evaluate((iso) => [...document.querySelectorAll('#racine .entete-planning-figee .th[data-gi]:not(.th-demi)')].map((t) => t.dataset.gi).find((g) => isoDeGi(+g) === iso), iso);
   return '#racine .entete-planning-figee .th[data-gi="' + gi + '"]:not(.th-demi)';
 };
-const clic = async (page, sel, mods) => {
+const clic = async (page, sel, mods, bouton) => {
   const p = await pt(page, sel);
   for (const m of mods || []) await page.keyboard.down(m);
-  await page.mouse.click(p.x, p.y);
+  await page.mouse.click(p.x, p.y, { button: bouton || 'left' });
   for (const m of mods || []) await page.keyboard.up(m);
   await page.waitForTimeout(150);
 };
@@ -71,9 +74,9 @@ const hauteur = (page, id) => page.evaluate((id) => document.querySelector('#rac
     verifier(e.lignes === 'p1,p3' && e.bulles === 'ABC', 'Ctrl+clic sur une ligne choisie : retirée, sa bulle aussi ' + JSON.stringify(e));
 
     // 2. même hauteur pour les lignes choisies
-    await clic(page, nom('p1'));
+    await clic(page, nom('p1'), [], 'right');
     e = await etat(page);
-    verifier(e.menu === '2 lignes sélectionnées' && e.lignes === 'p1,p3', 'clic sur une ligne choisie : menu des 2 lignes ' + JSON.stringify(e));
+    verifier(e.menu === '2 lignes sélectionnées' && e.lignes === 'p1,p3', 'clic droit sur une ligne choisie : menu des 2 lignes ' + JSON.stringify(e));
     await page.fill('.menu-hauteur-ligne input', '60');
     await page.press('.menu-hauteur-ligne input', 'Enter');
     await page.waitForTimeout(150);
@@ -91,15 +94,18 @@ const hauteur = (page, id) => page.evaluate((id) => document.querySelector('#rac
     e = await etat(page);
     verifier(e.lignes === 'p1,p3' && e.menu === null, 'après le trait : choix gardé, pas de menu ' + JSON.stringify(e));
 
-    // 3. clic sur une ligne non choisie
+    // 3. clic simple : cette ligne seule ; clic droit : menu
     await clic(page, nom('p2'));
     e = await etat(page);
+    verifier(e.lignes === 'p2' && e.bulles === 'E' && e.menu === null, 'clic simple sur un nom : cette ligne seule, sa bulle, pas de menu ' + JSON.stringify(e));
+    await clic(page, nom('p3'), [], 'right');
+    e = await etat(page);
     const bouton = await page.evaluate(() => { const b = document.querySelector('.menu-hauteur-ligne [data-a="choix"]'); return b && b.textContent; });
-    verifier(e.lignes === '' && e.bulles === '' && e.menu === 'Personne 2' && bouton === 'Sélectionner la ligne', 'clic sur une ligne non choisie : choix défait, son menu ' + JSON.stringify(e) + ' ' + bouton);
+    verifier(e.menu === 'Personne 3' && bouton === 'Sélectionner la ligne', 'clic droit sur une ligne non choisie : son menu ' + JSON.stringify(e) + ' ' + bouton);
     await page.click('.menu-hauteur-ligne [data-a="choix"]');
     await page.waitForTimeout(150);
     e = await etat(page);
-    verifier(e.lignes === 'p2' && e.bulles === 'E' && e.menu === null, '« Sélectionner la ligne » : la ligne et sa bulle ' + JSON.stringify(e));
+    verifier(e.lignes === 'p3' && e.bulles === 'C' && e.menu === null, '« Sélectionner la ligne » : cette ligne seule et sa bulle ' + JSON.stringify(e));
     await page.keyboard.press('Escape');
     await page.waitForTimeout(150);
     e = await etat(page);
@@ -149,14 +155,16 @@ const hauteur = (page, id) => page.evaluate((id) => document.querySelector('#rac
     await page.keyboard.press('Escape');
     await page.waitForTimeout(150);
     await toucher(nom('p1'));
-    await page.click('.menu-hauteur-ligne [data-a="choix"]');
-    await page.waitForTimeout(150);
     await toucher(nom('p3'));
     e = await etat(page);
-    verifier(e.lignes === 'p1,p3' && e.menu === null, 'téléphone : « Sélectionner la ligne », puis toucher un autre nom l\'ajoute sans menu ' + JSON.stringify(e));
-    await toucher(nom('p3'));
+    verifier(e.lignes === 'p1,p3' && e.menu === null, 'téléphone : toucher un nom le choisit, toucher un autre nom l\'ajoute, sans menu ' + JSON.stringify(e));
+    const p3 = await pt(page, nom('p3'));
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: p3.x, y: p3.y }] });
+    await page.waitForTimeout(700);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await page.waitForTimeout(300);
     e = await etat(page);
-    verifier(e.menu === '2 lignes sélectionnées', 'téléphone : toucher une ligne choisie = menu des lignes choisies ' + JSON.stringify(e));
+    verifier(e.menu === '2 lignes sélectionnées' && e.lignes === 'p1,p3', 'téléphone : appui long sur une ligne choisie = menu des lignes choisies ' + JSON.stringify(e));
     await fermerMenu(page);
     await cdp.detach();
     toutesErreurs.push(...erreurs);

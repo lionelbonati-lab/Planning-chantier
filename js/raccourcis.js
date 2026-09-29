@@ -186,7 +186,12 @@
     { combo: "Clic", nom: "« + » appuyé, sur une case vide : ajouter une tâche" },
     { combo: "Glisser", nom: "« + » appuyé, sur des cases vides : ajouter sur plusieurs demi-journées ou personnes" },
     { combo: "Clic droit+Glisser", nom: "Sur les cases : sélectionner toutes les bulles d’une zone" },
-    { combo: "Maj+Molette", nom: "Au bout du planning : semaine précédente ou suivante" }
+    { combo: "Maj+Molette", nom: "Au bout du planning : semaine précédente ou suivante" },
+    // Suites 105-106 : noms et jours, comme les en-têtes d'un tableur.
+    { combo: "Clic", nom: "Sur un nom ou un jour : sélectionner la ligne ou la colonne (Ctrl : ajouter, Maj : jusqu’à celle-ci)" },
+    { combo: "Double-clic", nom: "Sur un nom : le modifier" },
+    { combo: "Clic droit", nom: "Sur un nom : menu de la ligne (hauteur, composition d’une équipe…)" },
+    { combo: "Glisser", nom: "Sur le trait sous un nom : hauteur de la ligne (double-clic : ajuster au contenu)" }
   ];
   function actionClavierParId_(id) { return ACTIONS_CLAVIER.filter(function (a) { return a.id === id; })[0] || null; }
 

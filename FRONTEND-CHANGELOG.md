@@ -10578,3 +10578,23 @@ Lionel :
 ### Tests
 - Nouveau : tests/test_suite105.js (19 vérifications), ordinateur et téléphone.
 - Suite complète : 110/110.
+
+
+## 219. Round du 29.09.2026 (suite 106) — Noms : clic = sélection, double-clic = nom, clic droit = menu
+- Lionel : « Clic double clique gauche sur le nom modifier le nom (double touch). Clic droit pour le menu (touche long). touche ou clic gauche simple pour sélection. »
+- Puis : « enlève la petite barre qui indique que la hauteur de ligne à bougé ».
+
+### Gestes sur un nom
+| Ordinateur | Doigt | Effet |
+|---|---|---|
+| Clic | Toucher | sélectionne la ligne (Ctrl : ajoute ou retire, Maj : plage) ; au doigt, avec des lignes déjà choisies : ajoute ou retire |
+| Double-clic | Double toucher | fenêtre « Modifier » du nom |
+| Clic droit | Appui long | menu de la ligne (modifier le nom, composition d'une équipe, sélection, hauteur) |
+
+- Les suites 104 et 105 faisaient l'inverse (clic = menu, clic droit ou appui long = modifier le nom).
+- Plus de petit repère bleu sur une ligne dont la hauteur a été réglée à part.
+- La page Raccourcis liste les nouveaux gestes (4 lignes de plus sous « Souris »).
+
+### Tests
+- Suites 33, 103, 104, 105 : gestes adaptés ; suites 61 et 64 : 4 gestes souris de plus.
+- Suite complète : 110/110.

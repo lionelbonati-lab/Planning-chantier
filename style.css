@@ -1079,11 +1079,11 @@
   /* Suite 103 (round du 29.09.2026) : trait sous le nom, à glisser pour
      régler la hauteur de la ligne (cf. poserPistesFixes_ et
      grille-hauteurs.js) ; double-clic = ajustée au contenu. Visible au
-     survol (souris), toujours saisissable au doigt. Ligne réglée à part :
-     petit repère à gauche du trait (.ligne-perso). */
+     survol (souris), toujours saisissable au doigt. Suite 106 — Lionel :
+     « enlève la petite barre qui indique que la hauteur de ligne à bougé » :
+     plus de repère sur une ligne réglée à part (.ligne-perso reste posée). */
   .poignee-ligne { position: absolute; left: 0; right: 0; bottom: -3px; height: 7px; cursor: row-resize; touch-action: none; z-index: 3; }
   .poignee-ligne::after { content: ""; position: absolute; left: 0; right: 0; top: 3px; height: 1px; background: transparent; }
-  .lbl.ligne-perso .poignee-ligne::after, .lbl-speciale.ligne-perso .poignee-ligne::after { left: 0; right: auto; width: 10px; background: var(--accent); }
   @media (hover: hover) and (pointer: fine) { .poignee-ligne:hover::after { left: 0; right: 0; width: auto; height: 2px; top: 2.5px; background: var(--accent); } }
   /* Suite 105 : lignes (noms) et colonnes (jours) choisies, comme les
      en-têtes d'un tableur ; Maj + clic ne sélectionne pas de texte. */

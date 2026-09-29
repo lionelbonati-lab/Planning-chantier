@@ -227,9 +227,9 @@
       var ouverte = !!equipesDepliees[p.id];
       lbl.classList.add("lbl-equipe");
       lbl.dataset.equipe = p.id;
-      // Suite 104 : le clic sur le nom ouvre le menu de la ligne
-      // (grille-hauteurs.js), qui propose « Composition de l'équipe… ».
-      lbl.title = p.nom + (noms.length ? " — " + noms.join(", ") : "") + "\nCliquer : composition de la semaine, hauteur de la ligne";
+      // Suite 104 : le menu de la ligne (grille-hauteurs.js) propose
+      // « Composition de l'équipe… » ; suite 106 : il s'ouvre au clic droit.
+      lbl.title = p.nom + (noms.length ? " — " + noms.join(", ") : "") + "\nClic droit : composition de la semaine, hauteur de la ligne";
       lbl.innerHTML =
         '<div class="equipe-titre"><button type="button" class="equipe-repli" aria-expanded="' + ouverte + '" title="' + (ouverte ? "Replier les membres" : "Déplier les membres") + '">' + (ouverte ? "▾" : "▸") + "</button>" +
         "<b>" + nomSurDeuxLignes(p.nom) + "</b></div>" +

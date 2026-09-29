@@ -10,12 +10,12 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //      retenue par l'appareil (planning.hauteursLignes) ;
 //   2. double-clic sur le trait : ligne ajustée au contenu, ses 4 bulles
 //      l'une sous l'autre sans chevauchement ;
-//   3. clic sur un nom (clic droit jusqu'à la suite 104) : menu « Hauteur » — valeur en pixels,
+//   3. clic droit sur un nom (clic gauche aux suites 104-105) : menu « Hauteur » — valeur en pixels,
 //      « Hauteur par défaut » (grisé tant que la ligne n'est pas réglée) ;
 //      ligne Jalons réglée de même ;
 //   4. rouvert : hauteurs gardées ; téléphone : ses propres hauteurs
-//      (planning.hauteursLignes.tel), toucher un nom = menu (appui long
-//      jusqu'à la suite 104), trait
+//      (planning.hauteursLignes.tel), appui long sur un nom = menu (simple
+//      toucher aux suites 104-105), trait
 //      glissé au doigt ;
 //   5. panneau « Hauteur des lignes » : « Rétablir les N lignes réglées à
 //      part ».
@@ -83,18 +83,18 @@ const nom = (page, id) => page.evaluate((id) => { const r = document.querySelect
 
     // 3. menu du nom
     const n3 = await nom(page, 'p3');
-    // Suite 104 : le menu s'ouvre au clic gauche (le clic droit modifie le nom).
-    await page.mouse.click(n3.x, n3.y);
+    // Suite 106 : le menu s'ouvre au clic droit (suite 104 : clic gauche).
+    await page.mouse.click(n3.x, n3.y, { button: 'right' });
     await page.waitForTimeout(150);
     const m = await page.evaluate(() => { const p = document.querySelector('.menu-hauteur-ligne'); return p && { titre: p.querySelector('.cp-titre').textContent, val: p.querySelector('input').value, defaut: p.querySelector('[data-a="defaut"]').disabled }; });
-    verifier(m && /Personne 3/.test(m.titre) && m.val === '117' && m.defaut, 'clic : menu Hauteur (valeur 117, « par défaut » grisé) ' + JSON.stringify(m));
+    verifier(m && /Personne 3/.test(m.titre) && m.val === '117' && m.defaut, 'clic droit : menu Hauteur (valeur 117, « par défaut » grisé) ' + JSON.stringify(m));
     await page.fill('.menu-hauteur-ligne input', '60');
     await page.keyboard.press('Enter');
     await page.waitForTimeout(150);
     verifier(await hauteur(page, 'p3') === 60 && !(await page.$('.menu-hauteur-ligne')), 'valeur saisie (Entrée) : ligne à 60 px, menu fermé');
 
     const n2 = await nom(page, 'p2');
-    await page.mouse.click(n2.x, n2.y);
+    await page.mouse.click(n2.x, n2.y, { button: 'right' });
     await page.waitForTimeout(150);
     await page.click('.menu-hauteur-ligne [data-a="defaut"]');
     await page.waitForTimeout(150);
@@ -102,7 +102,7 @@ const nom = (page, id) => page.evaluate((id) => { const r = document.querySelect
     verifier(await hauteur(page, 'p2') === 117 && !('p2' in lsApres), '« Hauteur par défaut » : retour à la hauteur commune ' + JSON.stringify(lsApres));
 
     const nj = await nom(page, 'jalon');
-    await page.mouse.click(nj.x, nj.y);
+    await page.mouse.click(nj.x, nj.y, { button: 'right' });
     await page.waitForTimeout(150);
     await page.fill('.menu-hauteur-ligne input', '50');
     await page.click('.menu-hauteur-ligne [data-a="ok"]');
@@ -140,11 +140,11 @@ const nom = (page, id) => page.evaluate((id) => { const r = document.querySelect
     const n2 = await nom(page, 'p2');
     const cdp = await page.context().newCDPSession(page);
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: n2.x, y: n2.y }] });
-    // Suite 104 : un simple toucher ouvre le menu (l'appui long modifie le nom).
-    await page.waitForTimeout(60);
+    // Suite 106 : l'appui long ouvre le menu (suite 104 : le simple toucher).
+    await page.waitForTimeout(700);
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     await page.waitForTimeout(300);
-    verifier(!!(await page.$('.menu-hauteur-ligne')), 'toucher un nom : menu Hauteur');
+    verifier(!!(await page.$('.menu-hauteur-ligne')), 'appui long sur un nom : menu Hauteur');
     await page.keyboard.press('Escape');
     await page.evaluate(() => document.querySelectorAll('.menu-hauteur-ligne').forEach((p) => p.remove()));
 

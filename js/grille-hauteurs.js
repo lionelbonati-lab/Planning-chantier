@@ -590,11 +590,15 @@
     if (lbl) ajusterLignesAuContenu_(lignesDuGeste_(lbl.dataset.ligne));
   }, true);
 
-  // Suite 104 : clic (toucher) = menu, clic droit (appui long au doigt) =
-  // modifier le nom. Le clic qui suit un appui long ou un trait glissé
-  // n'ouvre pas en plus le menu ; le « contextmenu » natif d'Android, qui
-  // suit aussi l'appui long, n'ouvre pas une 2e fenêtre. Temps :
-  // performance.now() (l'horloge des tests fige Date.now()).
+  // Suite 106 — Lionel : « Clic double clique gauche sur le nom modifier le
+  // nom. Clic droit pour le menu » (la suite 104 faisait l'inverse). Donc :
+  // clic droit (appui long au doigt) = menu de la ligne ; double-clic
+  // (double toucher) = modifier le nom ; clic simple (toucher) = choisir la
+  // ligne, comme l'en-tête de ligne d'un tableur (suite 105). Le clic qui
+  // suit un appui long ou un trait glissé n'agit pas en plus ; le
+  // « contextmenu » natif d'Android, qui suit aussi l'appui long, n'ouvre
+  // pas un 2e menu. Temps : performance.now() (l'horloge des tests fige
+  // Date.now()).
   var clicLigneIgnoreT_ = -1e9;
   function idPersonneLigne_(lbl) { return /^p\d+$/.test(lbl.dataset.ligne) ? +lbl.dataset.ligne.slice(1) : null; }
   function modifierNomLigne_(lbl) {
@@ -606,24 +610,24 @@
     if (!lbl) return;
     e.preventDefault();
     if (performance.now() - clicLigneIgnoreT_ < 1000) return;
-    modifierNomLigne_(lbl);
+    ouvrirMenuHauteurLigne(lbl, e.clientX, e.clientY);
   });
-  // Suite 105 : Ctrl (Cmd) / Maj + clic = choisir des lignes ; au doigt,
-  // tant que des lignes sont choisies, toucher un autre nom l'ajoute. Un
-  // clic simple sur une ligne non choisie défait le choix, puis ouvre son
-  // menu ; sur une ligne choisie : le menu de toutes les lignes choisies.
+  // Clic : Ctrl (Cmd) = ajouter / retirer la ligne, Maj = plage, simple =
+  // cette ligne seule (au doigt, tant que des lignes sont choisies : ajouter
+  // ou retirer). 2e clic rapproché (e.detail, ou 2e toucher du même nom en
+  // moins de 400 ms) : modifier le nom.
+  var dernierToucherNom_ = { id: null, t: -1e9 };
   document.addEventListener("click", function (e) {
     var lbl = etiquetteLigne_(e.target);
     if (!lbl || e.button !== 0 || e.target.closest(".poignee-ligne")) return;
-    var id = lbl.dataset.ligne;
-    if (e.ctrlKey || e.metaKey) { choisirLigne_(id, "basculer"); return; }
-    if (e.shiftKey) { choisirLigne_(id, ancreLigne_ != null ? "plage" : "basculer"); return; }
-    if (lignesChoisies_.length && lignesChoisies_.indexOf(id) < 0) {
-      if (dernierPointeur_ === "touch") { choisirLigne_(id, "basculer"); return; }
-      quitterModeSelection(); render(false);
-      lbl = etiquetteParId_(id) || lbl;
-    }
-    ouvrirMenuHauteurLigne(lbl, e.clientX, e.clientY);
+    var id = lbl.dataset.ligne, tactile = dernierPointeur_ === "touch", t = performance.now();
+    var double = e.detail >= 2 || (tactile && dernierToucherNom_.id === id && t - dernierToucherNom_.t < 400);
+    dernierToucherNom_ = double ? { id: null, t: -1e9 } : { id: id, t: t };
+    if (double && !e.ctrlKey && !e.metaKey && !e.shiftKey) { modifierNomLigne_(lbl); return; }
+    if (e.ctrlKey || e.metaKey) choisirLigne_(id, "basculer");
+    else if (e.shiftKey) choisirLigne_(id, ancreLigne_ != null ? "plage" : "basculer");
+    else if (tactile && lignesChoisies_.length) choisirLigne_(id, "basculer");
+    else choisirLigne_(id, "seul");
   });
   document.addEventListener("pointerdown", function (e) {
     if (e.pointerType !== "touch") return;
@@ -633,7 +637,7 @@
     var minuteur = setTimeout(function () {
       detacher();
       clicLigneIgnoreT_ = performance.now();
-      modifierNomLigne_(lbl);
+      ouvrirMenuHauteurLigne(lbl, x0, y0);
     }, DELAI_APPUI_LONG + 50);
     function onMove(e2) { if (e2.pointerId === pointerId && Math.abs(e2.clientX - x0) + Math.abs(e2.clientY - y0) > 8) detacher(); }
     function onFin(e2) { if (e2.pointerId === pointerId) detacher(); }
@@ -658,12 +662,13 @@
      Lionel, « Oui » à notre proposition : choisir des lignes par les noms
      (Ctrl / Maj), des colonnes par les jours, comme dans un tableur ; les
      lignes choisies prennent la même hauteur.
-     - ordinateur : clic sur un jour = ce jour seul ; Ctrl (Cmd) + clic sur
-       un nom ou un jour = l'ajoute ou le retire ; Maj + clic = de la
+     - ordinateur : clic sur un nom ou un jour = cette ligne ou ce jour
+       seul (suite 106 ; avant, le clic sur un nom ouvrait son menu) ;
+       Ctrl (Cmd) + clic = l'ajoute ou le retire ; Maj + clic = de la
        dernière ligne (du dernier jour) cliquée jusqu'à celle-ci ;
-     - doigt : « Sélectionner la ligne » dans le menu du nom, toucher un
-       jour le choisit ; tant que des lignes (des jours) sont choisies,
-       toucher un autre nom (jour) l'ajoute ou le retire ;
+     - doigt : toucher un nom ou un jour le choisit (aussi « Sélectionner
+       la ligne » dans le menu du nom) ; tant que des lignes (des jours)
+       sont choisies, toucher un autre nom (jour) l'ajoute ou le retire ;
      - les bulles de ces lignes et de ces jours (semaine affichée) sont
        sélectionnées : la pilule de sélection agit sur elles ;
      - hauteur : le trait (glisser, double-clic) et le menu d'une ligne
