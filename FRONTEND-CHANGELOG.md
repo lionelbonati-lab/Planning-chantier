@@ -10216,3 +10216,42 @@ Lionel :
   - Sans la correction des poignées et des noms, les 8 vérifications d'origine échouaient.
 - test_suite78.js : z-index attendu des noms 4 au lieu de 3 (téléphone) et 2 (ordinateur).
 - Suite complète : 102/102.
+
+## 206. Round du 29.09.2026 (suite 98) — Bulles cachées dans une case : pastille « +N » qui les étale
+- « Sur portable, J'ai un cas particulier ou sur un demi jour je ne vois pas une bulle car la ligne est trop petite. J'ai une bulle verte cachée derrière la bulle bleu. As-tu une solution à me proposer? » (capture)
+- Puis, à notre question : « La pastille, mais un appuis sur la pastille montre les bulles du jour sans changer la hauteur des lignes. Un nouvel appuis replace les bulles. »
+
+### Cause
+- Une ligne a la hauteur réglée (« Bulles par ligne », ici 1). Au-delà, les bulles se chevauchent en cascade avec au moins 20 px d'écart, et ce qui passe sous le bas de la ligne est rogné : chez François, la 3e bulle de l'après-midi tombait entièrement sous la ligne.
+
+### Ce qui change
+- Une bulle dont moins de 10 px dépassent au-dessus du bas de sa ligne compte comme cachée. Une pastille « +N » (N bulles cachées) se pose dans le coin bas droit de sa demi-journée.
+- Un appui sur la pastille étale les bulles de la case, sur une hauteur de carte chacune et sans chevauchement :
+  - la case, c'est la même ligne et le même jour sur le téléphone, le même amas de bulles sur l'ordinateur ;
+  - les bulles étalées passent par-dessus les lignes suivantes et devant les bandes Personnel / Intervenants, mais toujours sous la colonne des noms ;
+  - la ligne garde sa hauteur ;
+  - au bas du planning, les bulles remontent juste assez pour rester visibles.
+- La pastille devient « − » ; un nouvel appui replace les bulles. Changer de jour les replace aussi.
+- Les bulles étalées se sélectionnent normalement, à leur place.
+- Téléphone et ordinateur.
+
+### Fonctionnement
+- **js/grille-rendu.js** — `cascaderBullesJourMobile_` :
+  - par case, les bulles cachées et leurs colonnes (sur le téléphone, la part du jour affiché) sont relevées ;
+  - bouton `.pastille-cachees` posé dans la grille (même ligne, colonnes des bulles cachées) ;
+  - case ouverte (`cascadesOuvertes_`, clé : grille, ligne, date et demi-journée) : écart d'une carte, décalage vers le haut au bas de la grille, bulles marquées `.cascade-ouverte`.
+- `remonterCartesSelection` : une bulle sélectionnée d'une case étalée n'est plus remontée dans sa ligne.
+- Arrêt du défilement sur un nouveau jour : cases refermées.
+- **style.css** :
+  - `.pastille-cachees` (« − » en couleur d'accent) ;
+  - `.bulle.cascade-ouverte` : sans rognage, z-index 4 ;
+  - noms et case coin à 5, bande collée à 6, espace entre semaines à 7 (un cran de plus chacun).
+
+### Tests
+- test_suite98.js, 11/11 :
+  - téléphone, 1 bulle par ligne : « +2 » au coin bas droit de l'après-midi de François, aucune ailleurs ; appui : 3 bulles étalées, visibles, ligne inchangée, « − », aucun formulaire ;
+  - appui sur une bulle étalée : sélectionnée à sa place ; nouvel appui sur la pastille : cascade et « +2 » ; changement de jour : replacées ;
+  - dernière ligne : remontées dans le planning ;
+  - ordinateur : pastille et étalement.
+- test_suite78.js : z-index attendu des noms 5.
+- Suite complète : 103/103.
