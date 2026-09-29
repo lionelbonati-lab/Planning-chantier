@@ -107,6 +107,27 @@
     var k = chantierCommunSelection_(plages), mixte = plages.some(function (p) { return chantierValide_(p.item.chantier) !== k; });
     return "sel:" + k + ":" + plages.length + (mixte ? ":mixte" : "");
   }
+  // ---- Bulle sélectionnée dépliée (round du 29.09.2026, suite 93) -----
+  // Lionel : « Sélectionner une bulle fait apparaître son texte en entier
+  // ainsi que sa hauteur de bulle complète si tronquée. » Le dépliage
+  // lui-même est en CSS (.bulle.selectionnee, style.css). Ici : une carte
+  // dépliée qui dépasserait le bas de sa grille (dernière ligne du
+  // planning) serait coupée par .scroller (overflow-y: hidden) ; elle
+  // remonte d'autant (transform, qui s'ajoute au translate de la
+  // cascade), sans passer au-dessus du haut de la grille. Appelée à chaque
+  // changement de sélection (majBarreSelection) et après chaque cascade.
+  function remonterCartesSelection() {
+    document.querySelectorAll("#racine .bulle > .b-carte[data-remonte]").forEach(function (c) {
+      c.style.transform = ""; delete c.dataset.remonte;
+    });
+    document.querySelectorAll("#racine .scroller .bulle.selectionnee > .b-carte").forEach(function (c) {
+      var g = c.closest(".grille");
+      if (!g) return;
+      var rg = g.getBoundingClientRect(), r = c.getBoundingClientRect();
+      var d = Math.min(r.bottom - rg.bottom + 2, r.top - rg.top);
+      if (d > 0.5) { c.style.transform = "translateY(" + (-Math.round(d)) + "px)"; c.dataset.remonte = "1"; }
+    });
+  }
   function majChantierSelection() {
     if (signatureSelectChantier_() !== etatSelectChantier_) construireSelectChantier();
   }
@@ -1955,6 +1976,7 @@
           });
         });
       });
+      remonterCartesSelection(); // suite 93
     }
     // Colonnes des jours, dans le repère du contenu défilé (suite 72) :
     // lues au repos, pour la case coin pendant le glissement

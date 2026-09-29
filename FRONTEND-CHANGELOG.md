@@ -10047,3 +10047,19 @@ Lionel :
 - test_suite92.js, 28/28 : ordinateur — lignes toutes à 2 bulles, Jalons à 1, B sous A, 4 bulles en cascade régulière, bulles seules d'un autre jour en haut, tâche de 3 jours en une carte, petit ↻ ; bouton et panneau (curseurs, libellé en px), curseur à 3 puis 1,5 sans reconstruire la grille, cascade refaite, Jalons à 2, page Affichage à la même valeur sans l'ancien réglage, hauteur gardée au retour ; case chantier : tâche seule, deux chantiers différents, Padel pour les deux (enregistré), « Aucun chantier », chantier par défaut intact et réaffiché après Échap, Ctrl+Z, jalon seul ; tablette à hauteurs fixes.
 - Adaptés (commentaire « Suite 92 » dans chacun) : test_toolbar_chevauchement (nouveau groupe de la barre), test_suite34 (l'ordinateur a aussi ses lignes en `var(--mob-h-…)`), test_suite35 (ligne d'une note = une seule piste), test_suite62 (réglages de la page Affichage, curseur au lieu de Serrée/Normale/Aérée), test_suite91 (ordinateur et tablette à hauteurs fixes).
 - Suite complète : 97/97.
+
+## 201. Round du 29.09.2026 (suite 93) — Bulle sélectionnée dépliée : texte entier, hauteur complète
+- « Sélectionner une bulle fait apparaître son texte en entier ainsi que sa hauteur de bulle complète si tronquée. »
+
+### Ce qui change
+- Une bulle sélectionnée (clic, appui, multi-sélection) se déplie : sa carte prend la hauteur de tout son texte (au moins sa hauteur fixe), sans « … », et n'est plus rognée au bas de sa ligne (dernières bulles d'une cascade). Elle passe devant les bulles voisines et déborde sur la ligne suivante le temps de la sélection ; elle se replie dès qu'elle n'est plus sélectionnée (Échap…).
+- Vaut partout : ordinateur, tablette, téléphone (la carte du jour en vue « 1 jour »), tâches, absences, jalons et notes (le texte d'un jalon limité à 1 ligne s'affiche en entier).
+- Sur la dernière ligne du planning, la carte dépliée remonte juste assez pour tenir au-dessus du bas de la grille (sinon la zone du planning la coupait).
+
+### Fonctionnement
+- **style.css** : `#racine.hauteurs-fixes .bulle.selectionnee` — `clip-path: none`, `z-index: 3` ; sa carte `height: auto` avec `min-height` à la hauteur fixe (`--mob-carte-pers` / `--mob-carte-jal`), `overflow: visible` ; `.b-txt` sans `line-clamp`.
+- **js/grille-rendu.js** : `remonterCartesSelection()` — une carte sélectionnée qui dépasse le bas de sa `.grille` reçoit `transform: translateY(-d)` (qui s'ajoute au `translate` de la cascade, borné au haut de la grille, marquée `data-remonte`) ; appelée à la fin de `cascaderBullesJourMobile_` et par `majBarreSelection` (**js/formulaires-communs.js**).
+
+### Tests
+- test_suite93.js, 9/9 : ordinateur — bulle longue coupée puis dépliée (plus de « … », devant la cascade, sans rognage), repliée par Échap ; dernière bulle d'une cascade sur la dernière ligne, dépliée et remontée dans la grille, remise en place par Échap ; multi-sélection ; jalon long ; téléphone, carte du jour dépliée.
+- Suite complète : 98/98.
