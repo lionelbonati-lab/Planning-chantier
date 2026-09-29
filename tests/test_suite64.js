@@ -194,7 +194,8 @@ const souris = (page, type, button, opts) => page.evaluate(([t, b, o]) => {
     }));
     // Suite 102 : 10 gestes (glisser = sélection, clic/glisser « + » appuyé = ajout).
     // Suite 106 : 14 gestes (noms et jours : clic, double-clic, clic droit, trait).
-    verifier(l.prec === 'P Souris précédent🖱' && l.gestes === 14 && /\|Souris$/.test(l.titres) && /souris/.test(l.sous),
+    // Suite 114 : 16 gestes (clic droit sur une case, sur une bulle).
+    verifier(l.prec === 'P Souris précédent🖱' && l.gestes === 16 && /\|Souris$/.test(l.titres) && /souris/.test(l.sous),
       'page Raccourcis : bouton de souris avec sa petite souris, section « Souris » des gestes (' + JSON.stringify(l) + ')');
     await page.click('.ligne-raccourci[data-action="pageChantiers"] .rc-ajouter');
     const invite = await page.textContent('.ligne-raccourci[data-action="pageChantiers"] .rc-capture');

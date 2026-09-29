@@ -1446,6 +1446,12 @@
 
   function onPointerDownBulle(e) {
     e.preventDefault(); e.stopPropagation();
+    // Suite 114 : clic droit = menu de la bulle, au relâchement.
+    if (e.pointerType !== "touch" && e.button === 2) {
+      var bulleDom = e.currentTarget;
+      menuContexteAuRelacher_(e, function (x, y) { ouvrirMenuContexteBulle(bulleDom, x, y); });
+      return;
+    }
     onPointerDownGroupeSelection(e);
   }
 
@@ -1674,7 +1680,14 @@
     cell.addEventListener("contextmenu", function (e) { e.preventDefault(); });
     cell.addEventListener("pointerdown", function (e) {
       if (e.target !== cell) return;
-      if (e.pointerType !== "touch" && e.button === 2) { e.preventDefault(); if (!modeAjoutPlanning) demarrerSelectionRapide(e, cell); return; }
+      if (e.pointerType !== "touch" && e.button === 2) {
+        e.preventDefault();
+        // Suite 114 : clic droit sans glisser = menu de la case.
+        var menuCase = function (x, y) { ouvrirMenuContexteCase(cell, x, y); };
+        if (modeAjoutPlanning) menuContexteAuRelacher_(e, menuCase);
+        else demarrerSelectionRapide(e, cell, { surClic: menuCase });
+        return;
+      }
       if (e.pointerType === "touch" && !modeAjoutPlanning) {
         var maintenant = Date.now();
         var estDoubleTap = dernierTapCellule === cell && (maintenant - dernierTapTemps) < 400;
@@ -1886,8 +1899,9 @@
         if (Object.keys(bullesSelectionnees).length) { quitterModeSelection(); render(false); }
         return;
       }
-      // Clic droit ou double toucher SANS glisser : la case d'appui, comme
-      // avant (pas de rectangle à tracer).
+      // Clic droit SANS glisser : menu de la case (suite 114, opts.surClic) ;
+      // double toucher sans glisser : la case d'appui, comme avant.
+      if (!bouge && opts.surClic) { opts.surClic(e2.clientX, e2.clientY); return; }
       if (!bouge) { selectionnerDepuisCellules([celluleDebut]); return; }
       if (opts.remplacer && Object.keys(bullesSelectionnees).length) quitterModeSelection();
       selectionnerDansFenetre(fenetre);
@@ -1968,6 +1982,105 @@
     }
     ramasser(TACHES); ramasser(JALONS); ramasser(NOTES);
     return ids;
+  }
+
+  /* ============ MENUS DU CLIC DROIT (round du 29.09.2026, suite 114) ============
+     Lionel : « clic droit souris doit faire apparaitre un menu déroulant,
+     différent suivant la zone ou il se situe. * sur un nom, déjà actif * sur
+     une case, ajout, couper/copier/coller * sur une bulle, couper/copier/
+     coller * d'autres propositions? »
+     - case : le menu « Ajouter » de la case (Tâche, Absence, entrées
+       rapides, « Coller » quand le presse-papiers est plein ; Jalons et
+       Notes : « Jalon… » / « Note… » et « Coller »), puis « Couper / Copier
+       la sélection » quand des bulles sont sélectionnées ;
+     - bulle : « Modifier… » (une seule bulle), Couper, Copier, « Coller
+       ici » (sur la case de début de la bulle), Supprimer. Une bulle hors de
+       la sélection devient la sélection (comme un tableur) ; dans la
+       sélection, le menu agit sur toute la sélection ;
+     - nom : inchangé (suite 104).
+     Le menu s'ouvre au RELÂCHEMENT : en mode sélection, clic droit +
+     glisser sur les cases sélectionne toujours une zone. */
+  function menuContexteAuRelacher_(e, ouvrir) {
+    var pointerId = e.pointerId, sx = e.clientX, sy = e.clientY;
+    function onUp(e2) {
+      if (e2.pointerId !== pointerId) return;
+      document.removeEventListener("pointerup", onUp);
+      if (Math.abs(e2.clientX - sx) + Math.abs(e2.clientY - sy) <= 6) ouvrir(e2.clientX, e2.clientY);
+    }
+    document.addEventListener("pointerup", onUp);
+  }
+  // items : [{ libelle, action, danger }] ; null = séparateur. La sélection
+  // est rendue avant l'action (fermer() la vide, cf. fermerAuClicExterieur).
+  function ouvrirMenuContexte_(x, y, titre, items, cellule) {
+    var pop = document.createElement("div");
+    pop.className = "pop menu-pop menu-contexte";
+    pop.innerHTML = (titre ? '<div class="cp-titre">' + esc(titre) + '</div>' : '') + items.map(function (it, i) {
+      return it ? '<button type="button" data-i="' + i + '"' + (it.danger ? ' class="danger"' : '') + '>' + esc(it.libelle) + '</button>' : '<div class="mc-sep"></div>';
+    }).join("");
+    positionnerPop(pop, x, y);
+    var fermer = fermerAuClicExterieur(pop, cellule);
+    pop.addEventListener("click", function (e) {
+      var b = e.target.closest("button[data-i]");
+      if (!b) return;
+      var sel = Object.assign({}, bullesSelectionnees), multiple = modeSelectionMultiple;
+      fermer();
+      if (Object.keys(sel).length) { bullesSelectionnees = sel; modeSelectionMultiple = multiple; }
+      items[+b.dataset.i].action();
+    });
+    return pop;
+  }
+  function itemsSelection_() {
+    var n = Object.keys(bullesSelectionnees).length;
+    if (!n) return [];
+    var suffixe = " la sélection (" + n + ")";
+    return [null, { libelle: "Couper" + suffixe, action: couperSelection }, { libelle: "Copier" + suffixe, action: copierSelection }];
+  }
+  function ouvrirMenuContexteCase(cell, x, y) {
+    if (cell.dataset.kind === "personne") {
+      var extras = itemsSelection_();
+      ouvrirAjout(cell, x, y);
+      var pops = document.querySelectorAll("body > .menu-pop"), pop = pops[pops.length - 1];
+      if (!pop || !extras.length) return;
+      // Couper / Copier ajoutés au menu « Ajouter » de la case, qui vide la
+      // sélection en se fermant : elle est rendue avant l'action.
+      extras.forEach(function (it) {
+        if (!it) { var sep = document.createElement("div"); sep.className = "mc-sep"; pop.appendChild(sep); return; }
+        var b = document.createElement("button");
+        b.type = "button";
+        b.textContent = it.libelle;
+        b.addEventListener("click", function () {
+          var sel = Object.assign({}, bullesSelectionnees), multiple = modeSelectionMultiple;
+          if (popFermerActuel) popFermerActuel();
+          bullesSelectionnees = sel; modeSelectionMultiple = multiple;
+          it.action();
+        });
+        pop.appendChild(b);
+      });
+      positionnerPop(pop, x, y);
+      return;
+    }
+    // Jalons / Notes : ajouter à la demi-journée sous le pointeur, coller.
+    var kind = cell.dataset.kind, gi = +cell.dataset.jour, demi = demiDepuisPointeur(cell, x);
+    var items = [{ libelle: kind === "jalon" ? "Jalon…" : "Note…", action: function () { ouvrirEditionPlage(kind, null, gi, 1, x, y, cell, demi, demi); } }];
+    if (pressePapier.length) items.push({ libelle: "Coller (" + pressePapier.length + ")", action: function () { collerSurCase(null, gi, demi); } });
+    ouvrirMenuContexte_(x, y, "Ajouter", items.concat(itemsSelection_()), cell);
+  }
+  function ouvrirMenuContexteBulle(bulleDom, x, y) {
+    var id = bulleDom.dataset.id, plage = itemParId(id);
+    if (!plage) return;
+    if (!bullesSelectionnees[id]) {
+      quitterModeSelection();
+      bullesSelectionnees[id] = true;
+      render(false);
+      majBarreSelection();
+    }
+    var n = Object.keys(bullesSelectionnees).length, item = plage.item, suffixe = n > 1 ? " (" + n + ")" : "";
+    var items = [];
+    if (n === 1) items.push({ libelle: "Modifier…", action: function () { ouvrirBulle(item, plage, x, y); } }, null);
+    items.push({ libelle: "Couper" + suffixe, action: couperSelection }, { libelle: "Copier" + suffixe, action: copierSelection });
+    if (pressePapier.length) items.push({ libelle: "Coller ici (" + pressePapier.length + ")", action: function () { collerSurCase(item.personneId, item.giDebut, item.demiDebut || "matin"); } });
+    items.push(null, { libelle: "Supprimer" + suffixe, danger: true, action: supprimerSelection });
+    ouvrirMenuContexte_(x, y, n > 1 ? n + " bulles sélectionnées" : (item.texte || ""), items);
   }
 
   // Round du 12.09.2026 — Lionel : « En mode sélection, sortir du mode

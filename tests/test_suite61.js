@@ -130,7 +130,8 @@ async function imagePng(page) {
     }));
     // Suite 102 : un geste souris de plus (glisser = sélection en mode sélection).
     // Suite 106 : 4 de plus (noms et jours : clic, double-clic, clic droit, trait).
-    verifier(liste.groupes === 'Modifier|Naviguer|Afficher|Pages|Touches fixes|Souris' && liste.suivante === 'S Souris suivant' && liste.refaire === 'Ctrl+Y / Ctrl+Maj+Z' && liste.fixes === 16 && liste.resetCache,
+    // Suite 114 : 2 de plus (clic droit sur une case, sur une bulle).
+    verifier(liste.groupes === 'Modifier|Naviguer|Afficher|Pages|Touches fixes|Souris' && liste.suivante === 'S Souris suivant' && liste.refaire === 'Ctrl+Y / Ctrl+Maj+Z' && liste.fixes === 18 && liste.resetCache,
       'page Raccourcis : groupes, touches affichées, touches fixes, « Tout rétablir » caché (' + JSON.stringify(liste) + ')');
 
     // Ajouter N à « Semaine suivante ».

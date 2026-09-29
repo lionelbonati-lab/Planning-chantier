@@ -186,7 +186,10 @@
     { combo: "Glisser", nom: "Sur les cases : sélectionner toutes les bulles d’une zone (Ctrl : les ajouter)" },
     { combo: "Clic", nom: "Mode ajout, sur une case vide : ajouter une tâche" },
     { combo: "Glisser", nom: "Mode ajout, sur des cases vides : ajouter sur plusieurs demi-journées ou personnes" },
-    { combo: "Clic droit+Glisser", nom: "Sur les cases : sélectionner toutes les bulles d’une zone" },
+    { combo: "Clic droit+Glisser", nom: "Mode sélection, sur les cases : sélectionner toutes les bulles d’une zone" },
+    // Suite 114 : menus du clic droit.
+    { combo: "Clic droit", nom: "Sur une case : ajouter, coller, couper ou copier la sélection" },
+    { combo: "Clic droit", nom: "Sur une bulle : modifier, couper, copier, coller, supprimer" },
     { combo: "Maj+Molette", nom: "Au bout du planning : semaine précédente ou suivante" },
     // Suites 105-106 : noms et jours, comme les en-têtes d'un tableur.
     { combo: "Clic", nom: "Sur un nom ou un jour : sélectionner la ligne ou la colonne (Ctrl : ajouter, Maj : jusqu’à celle-ci)" },
