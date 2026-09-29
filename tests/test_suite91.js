@@ -147,22 +147,30 @@ const M = 3; // MARGE_MOB_ (grille-rendu.js)
     await page.evaluate(() => { if (typeof deselectionnerTout === 'function') deselectionnerTout(); });
 
     // --- 6. Réglages ---
+    // Suite 101 : hauteur des lignes en pixels (hauteurLigneTel) — réglée
+    // ici à la place de 1 à 4 bulles (formule ci-dessous, U mesurée).
+    const formule = (n, u) => M + n * u + (n - 1) * M + M;
+    const u0 = (await releve(page)).u;
     const par = {};
     for (const n of ['1', '2', '3', '4']) {
-      await page.evaluate((n) => changerOptionAffichage('lignesTel', n), n);
+      await page.evaluate((px) => changerOptionAffichage('hauteurLigneTel', px), String(formule(+n, u0)));
       await page.waitForTimeout(400);
       const q = await releve(page);
       par[n] = { H: q.H, ligne: q.lignes.Mathis.hauteur, u: q.u, B: vue(q.cartes.B).h - q.lignes.Mathis.h, W: vue(q.cartes.W).h - q.lignes.Antoine.h };
     }
-    const formule = (n, u) => M + n * u + (n - 1) * M + M;
     verifier(['1', '2', '3', '4'].every((n) => Math.abs(par[n].H - formule(+n, par[n].u)) < 0.5 && Math.abs(par[n].ligne - par[n].H) <= 1) && par['1'].H < par['2'].H && par['2'].H < par['3'].H && par['3'].H < par['4'].H,
       '« Hauteur des lignes » 1 à 4 bulles : ' + ['1', '2', '3', '4'].map((n) => par[n].ligne).join(' / ') + ' px');
     verifier(par['1'].B === M + 20 && par['2'].B === M + par['2'].u + M && par['4'].W === M + 3 * (par['4'].u + M),
       'cascade selon le réglage : 1 bulle → B décalée de 20 px ; 2 → B sous A ; 4 → les 4 d\'Antoine l\'une sous l\'autre (' + [par['1'].B, par['2'].B, par['4'].W].join(', ') + ')');
-    await page.evaluate(() => changerOptionAffichage('lignesTel', '2'));
+    await page.evaluate(() => changerOptionAffichage('hauteurLigneTel', '89'));
+    // Suite 101 : « jalonsTel » (bulles x lignes) remplacé par la hauteur en
+    // pixels (hauteurJalTel) et les lignes de texte (lignesJal).
     const jal = {};
     for (const j of ['1x1', '1x2', '2x1', '2x2']) {
-      await page.evaluate((j) => changerOptionAffichage('jalonsTel', j), j);
+      await page.evaluate((l) => changerOptionAffichage('lignesJal', l), j[2]);
+      await page.waitForTimeout(300);
+      const uj = (await releve(page)).uJal;
+      await page.evaluate((px) => changerOptionAffichage('hauteurJalTel', px), String(formule(+j[0], uj)));
       await page.waitForTimeout(400);
       const q = await releve(page);
       jal[j] = { ligne: q.jal, u: q.uJal, n: q.lignesJal, H: q.lignes.Mathis.hauteur };
@@ -170,18 +178,20 @@ const M = 3; // MARGE_MOB_ (grille-rendu.js)
     verifier(jal['1x1'].ligne < jal['1x2'].ligne && jal['1x1'].ligne < jal['2x1'].ligne && jal['2x1'].ligne < jal['2x2'].ligne && jal['1x2'].n === '2' && jal['2x1'].n === '1' && jal['1x2'].u > jal['1x1'].u
       && Object.values(jal).every((x) => x.H === jal['1x1'].H),
       '« Lignes Jalons et Notes » : ' + Object.entries(jal).map(([k, x]) => k + ' ' + x.ligne + ' px').join(', ') + ' ; lignes de personnes inchangées');
-    await page.evaluate(() => changerOptionAffichage('jalonsTel', '1x1'));
+    await page.evaluate(() => { changerOptionAffichage('lignesJal', '1'); changerOptionAffichage('hauteurJalTel', '32'); });
 
     // Page Affichage : réglages du téléphone seulement.
     await page.evaluate(() => afficherPage('affichage'));
     await page.waitForTimeout(300);
     // Suite 92 : l'ancien « Hauteur des lignes » de l'ordinateur (hauteur)
     // est remplacé par son curseur (lignesOrdi).
-    const cache = () => page.evaluate(() => Object.fromEntries(['lignesOrdi', 'lignesTel', 'jalonsTel'].map((id) => [id, document.querySelector('#page-affichage .reglage-ligne[data-option="' + id + '"]').hidden])));
+    // Suite 101 : curseurs en pixels (hauteurLigneOrdi, hauteurLigneTel,
+    // hauteurJalTel).
+    const cache = () => page.evaluate(() => Object.fromEntries(['hauteurLigneOrdi', 'hauteurLigneTel', 'hauteurJalTel'].map((id) => [id, document.querySelector('#page-affichage .reglage-ligne[data-option="' + id + '"]').hidden])));
     const tel = await cache();
     await page.click('#page-affichage .bascule-profil[data-profil="ordi"]');
     const ordi = await cache();
-    verifier(tel.lignesOrdi && !tel.lignesTel && !tel.jalonsTel && !ordi.lignesOrdi && ordi.lignesTel && ordi.jalonsTel,
+    verifier(tel.hauteurLigneOrdi && !tel.hauteurLigneTel && !tel.hauteurJalTel && !ordi.hauteurLigneOrdi && ordi.hauteurLigneTel && ordi.hauteurJalTel,
       'page Affichage : « Hauteur des lignes » et « Lignes Jalons et Notes » pour le téléphone, le curseur de l\'ordinateur pour l\'ordinateur (' + JSON.stringify({ tel, ordi }) + ')');
     toutesErreurs.push(...erreurs);
     await page.close();

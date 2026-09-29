@@ -48,7 +48,9 @@ const conforme = (r) => Object.keys(attendu).every((k) => r[k] && r[k].empile ==
     await page.waitForTimeout(500);
     let r = await releve(page);
     verifier(conforme(r), nom + ' : cartes posées sur une autre marquées ; toutes ombrées et liserées (suite 95) (' + JSON.stringify(r) + ')');
-    await page.evaluate(() => changerOptionAffichage(profilAppareil_() === 'tel' ? 'lignesTel' : 'lignesOrdi', '3', undefined, true));
+    // Suite 101 : hauteur des lignes en pixels — la place de 3 bulles de 2
+    // lignes (132 px au téléphone, 174 px à l'ordinateur).
+    await page.evaluate(() => changerOptionAffichage(profilAppareil_() === 'tel' ? 'hauteurLigneTel' : 'hauteurLigneOrdi', profilAppareil_() === 'tel' ? '132' : '174', undefined, true));
     await page.waitForTimeout(200);
     r = await releve(page);
     verifier(conforme(r), nom + ' : pile refaite à 3 bulles, mêmes marques');

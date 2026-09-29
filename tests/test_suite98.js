@@ -60,7 +60,9 @@ const empilees = (cs) => cs.every((c, i) => i === 0 || c.h >= cs[i - 1].b - 1);
 
   {
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 360, height: 760 }, hasTouch: true, bd: BD(), date: '2026-09-29T10:00:00' });
-    await page.evaluate(() => { changerOptionAffichage('lignesTel', '1'); changerOptionAffichage('lignes', '1'); });
+    // Suite 101 : hauteur des lignes en pixels — la place d'1 bulle d'1
+    // ligne (3 + 26 + 3 px).
+    await page.evaluate(() => { changerOptionAffichage('hauteurLigneTel', '32'); changerOptionAffichage('lignes', '1'); });
     await page.waitForTimeout(800);
 
     const f0 = await etat(page, 'Francois'), l0 = await etat(page, 'Lionel');
@@ -124,7 +126,8 @@ const empilees = (cs) => cs.every((c, i) => i === 0 || c.h >= cs[i - 1].b - 1);
   // --- Ordinateur ---
   {
     const { page, erreurs } = await ouvrirPlanning(browser, { bd: BD(), date: '2026-09-29T10:00:00' });
-    await page.evaluate(() => { changerOptionAffichage('lignesOrdi', '1'); changerOptionAffichage('lignes', '1'); });
+    // Suite 101 : 1 bulle d'1 ligne, en pixels (3 + 40 + 3).
+    await page.evaluate(() => { changerOptionAffichage('hauteurLigneOrdi', '46'); changerOptionAffichage('lignes', '1'); });
     await page.waitForTimeout(800);
     const f0 = await etat(page, 'Francois');
     verifier(f0.ps.length === 1 && /^\+[12]$/.test(f0.ps[0].txt), 'ordinateur (cartes plus hautes, la 2e dépasse assez) : pastille « +1 » ou « +2 » chez François (' + f0.ps.map((p) => p.txt) + ')');

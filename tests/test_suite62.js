@@ -87,10 +87,13 @@ const style = (page, sel, prop) => page.evaluate(([s, p]) => { const e = documen
     // Suite 95 — Lionel : « Trille correctement le menu affichage. » Rangés
     // par sujet (groupe « Hauteur des lignes », ordinateur et téléphone
     // côte à côte).
-    verifier(page0.options === 'weekends,separation,auj,teinte,zebre,noms,cadre,jourSemaine,formatDate,heures,ligneDemi,coinMois,coinAnnee,lignesOrdi,lignesTel,lignes,jalonsOrdi,jalonsTel,jalonsLignesOrdi,texte,statut,coins,police,vueOrdi,vueTel',
-      'page Affichage : les 25 réglages (suite 95 : rangés par sujet) (suite 92 : curseurs de l\'ordinateur) (suite 91 : hauteurs des lignes du téléphone) (suite 83 : mois et année de la case de gauche) (bords : suite 74, dans la barre d\'outils depuis la suite 79) (' + page0.options + ')');
+    // Suite 101 — Lionel : « hauteur de ligne doit etre ranger dans
+    // planning […] réglage maintenant en pixels. » Hauteurs en pixels à la
+    // fin de Planning ; lignes de texte (bulles, Jalons et Notes) dans Bulles.
+    verifier(page0.options === 'weekends,separation,auj,teinte,zebre,noms,cadre,hauteurLigneOrdi,hauteurLigneTel,hauteurJalOrdi,hauteurJalTel,jourSemaine,formatDate,heures,ligneDemi,coinMois,coinAnnee,lignes,lignesJal,texte,statut,coins,police,vueOrdi,vueTel',
+      'page Affichage : les 25 réglages (suite 101 : hauteurs en pixels dans Planning) (suite 95 : rangés par sujet) (suite 92 : curseurs de l\'ordinateur) (suite 91 : hauteurs des lignes du téléphone) (suite 83 : mois et année de la case de gauche) (bords : suite 74, dans la barre d\'outils depuis la suite 79) (' + page0.options + ')');
     // Suite 95 : dans le nouvel ordre de la page.
-    verifier(page0.actifs === 'teinte=aprem,noms=normal,jourSemaine=abrege,formatDate=numero,ligneDemi=horaires,coinMois=abrege,coinAnnee=complete,lignesTel=2,lignes=2,jalonsTel=1x1,jalonsLignesOrdi=1,texte=normal,statut=badge,police=archivo,vueOrdi=1,vueTel=jour' && page0.inter === 'separation,cadre,coins' && !page0.we && page0.statut && page0.reset,
+    verifier(page0.actifs === 'teinte=aprem,noms=normal,jourSemaine=abrege,formatDate=numero,ligneDemi=horaires,coinMois=abrege,coinAnnee=complete,lignes=2,lignesJal=1,texte=normal,statut=badge,police=archivo,vueOrdi=1,vueTel=jour' && page0.inter === 'separation,cadre,coins' && !page0.we && page0.statut && page0.reset,
       'valeurs d\'origine affichées, « Tout rétablir » caché (' + page0.actifs + ')');
     verifier(page0.noms === 'Lionel,Mathis,Antoine' && page0.jours === 'Jeu 24,Ven 25,Lun 28,Mar 29' && page0.seps === 2,
       'aperçu : 3 personnes, Jeu Ven | Lun Mar, espace entre les semaines (' + JSON.stringify(page0) + ')');
@@ -117,11 +120,13 @@ const style = (page, sel, prop) => page.evaluate(([s, p]) => { const e = documen
     // de « Serrée / Normale / Aérée » ; ligne = N·(U + 3) + 3.
     const curseur = (id, v) => page.evaluate(([id, v]) => { const c = document.querySelector('#page-affichage .curseur-option[data-option="' + id + '"]'); c.value = v; c.dispatchEvent(new Event('input', { bubbles: true })); }, [id, v]);
     const hauteurLigne = () => page.evaluate(() => vuPlanning(() => ({ lbl: Math.round(document.querySelector('.lbl-compacte').getBoundingClientRect().height * 10) / 10, u: parseFloat(getComputedStyle(racineEl).getPropertyValue('--mob-carte-pers')) })));
-    await curseur('lignesOrdi', '1'); await page.waitForTimeout(250);
+    // Suite 101 : en pixels (hauteurLigneOrdi), sans lien avec la
+    // hauteur d'une bulle (U).
+    await curseur('hauteurLigneOrdi', '60'); await page.waitForTimeout(250);
     const hs = await hauteurLigne();
-    await curseur('lignesOrdi', '3'); await page.waitForTimeout(250);
+    await curseur('hauteurLigneOrdi', '180'); await page.waitForTimeout(250);
     const ha = await hauteurLigne();
-    verifier(Math.abs(hs.lbl - (hs.u + 6)) <= 1 && Math.abs(ha.lbl - (3 * ha.u + 12)) <= 1, 'hauteur des lignes 1 puis 3 bulles : lignes de U + 6 puis 3·U + 12 px (' + JSON.stringify([hs, ha]) + ')');
+    verifier(Math.abs(hs.lbl - 60) <= 1 && Math.abs(ha.lbl - 180) <= 1 && hs.u === ha.u, 'hauteur des lignes 60 puis 180 px : lignes de 60 puis 180 px, bulles inchangées (' + JSON.stringify([hs, ha]) + ')');
     // Coins
     await basculer(page, 'coins'); await page.waitForTimeout(150);
     verifier((await style(page, '.bulle .b-carte', 'borderTopLeftRadius')) === '2px' && (await style(page, '#apercuAffichage .aa-carte', 'borderTopLeftRadius')) === '2px', 'coins droits : planning et aperçu');
@@ -170,7 +175,7 @@ const style = (page, sel, prop) => page.evaluate(([s, p]) => { const e = documen
     await page.click('#page-affichage .bascule-profil[data-profil="tel"]'); await pastille(page, 'vueTel', 'semaine');
     await page.click('#page-affichage .bascule-profil[data-profil="ordi"]');
     await page.waitForTimeout(700);
-    const attendu = { texte: 'petit', lignes: '3', lignesOrdi: '3', coins: 'droits', statut: 'non', auj: 'oui', zebre: 'oui', weekends: 'oui', vueOrdi: '2', vueTel: 'semaine' };
+    const attendu = { texte: 'petit', lignes: '3', hauteurLigneOrdi: '180', coins: 'droits', statut: 'non', auj: 'oui', zebre: 'oui', weekends: 'oui', vueOrdi: '2', vueTel: 'semaine' };
     const bd = await reglageBd(page), lc = await local(page);
     verifier(JSON.stringify(bd) === JSON.stringify(attendu) && JSON.stringify(lc) === JSON.stringify(attendu),
       'enregistré sur l\'appareil, seulement ce qui change (' + JSON.stringify(bd) + ')');

@@ -157,7 +157,9 @@
   //   téléphone : 1 à 4, 2 à l'origine) de L lignes de texte (« Lignes de
   //   texte », 2 à l'origine) ; Jalons et Notes, la leur (« Jalons et
   //   Notes » : 1 ou 2 bulles d'1 ou 2 lignes, 1 bulle d'1 ligne à
-  //   l'origine). Hauteur d'une carte mesurée une fois au rendu, sur une
+  //   l'origine) — suite 101 : une hauteur en pixels, qui ne dépend plus
+  //   des lignes de texte (reglagesLignesMobile_). Hauteur d'une carte
+  //   mesurée une fois au rendu, sur une
   //   carte sonde (mesurerHauteursMobile_) ; pistes de la grille posées
   //   une fois (poserPistesFixes_) ;
   // - une bulle de plusieurs jours a une carte par jour couvert, chacune à
@@ -178,24 +180,20 @@
     var m = /^(\d+)(?:\s*\/\s*span\s+(\d+))?/.exec(v || "");
     return m ? [+m[1], m[2] ? +m[2] : 1] : null;
   }
-  // Réglages de l'appareil (page Affichage) : bulles par ligne et lignes
-  // de texte par bulle, personnes et Jalons/Notes. Suite 92 : ordinateur
-  // et tablette ont les leurs, en curseur (nombre de bulles décimal, au
-  // pixel près : lignesOrdi, jalonsOrdi ; lignes de texte des Jalons /
-  // Notes : jalonsLignesOrdi).
+  // Réglages de l'appareil (page Affichage) : hauteur des lignes de
+  // personnes et des lignes Jalons/Notes, lignes de texte d'une bulle.
+  // Round du 29.09.2026 (suite 101) — Lionel : « les hauteurs ne doivent
+  // pas etre calculer en fonction du réglage texte dans les bulles.
+  // réglage maintenant en pixels. même chose pour jalons et notes. » La
+  // hauteur d'une ligne (h) est le réglage lui-même, en pixels ; les
+  // lignes de texte (l) ne donnent plus que la hauteur d'une bulle.
+  // Ordinateur et tablette d'un côté, téléphone de l'autre (profil).
   function reglagesLignesMobile_() {
-    var l = Math.max(1, Math.min(3, +optionAffichage("lignes") || 2));
-    var borne = function (v, d) { v = parseFloat(v); return isFinite(v) ? Math.max(1, Math.min(4, v)) : d; };
-    if (profilAppareil_() === "ordi") {
-      return {
-        pers: { n: borne(optionAffichage("lignesOrdi"), 2), l: l },
-        jal: { n: borne(optionAffichage("jalonsOrdi"), 1), l: optionAffichage("jalonsLignesOrdi") === "2" ? 2 : 1 }
-      };
-    }
-    var jal = /^([12])x([12])$/.exec(optionAffichage("jalonsTel") || "") || [null, "1", "1"];
+    var ordi = profilAppareil_() === "ordi";
+    var px = function (id, d) { var v = parseFloat(optionAffichage(id)); return isFinite(v) && v > 0 ? v : d; };
     return {
-      pers: { n: Math.max(1, Math.min(4, +optionAffichage("lignesTel") || 2)), l: l },
-      jal: { n: +jal[1], l: +jal[2] }
+      pers: { h: px(ordi ? "hauteurLigneOrdi" : "hauteurLigneTel", ordi ? 117 : 89), l: Math.max(1, Math.min(3, +optionAffichage("lignes") || 2)) },
+      jal: { h: px(ordi ? "hauteurJalOrdi" : "hauteurJalTel", 32), l: optionAffichage("lignesJal") === "2" ? 2 : 1 }
     };
   }
   // Hauteur d'une carte de `lignes` lignes de texte : une carte sonde,
@@ -225,14 +223,17 @@
   }
   // Suite 92 : N peut être décimal (curseur de l'ordinateur) — H au
   // pixel près, arrondi au dixième.
+  // Suite 101 : H est le réglage (pixels) ; N, le nombre de bulles qui y
+  // tiennent l'une sous l'autre (décimal, au moins 1), n'est plus que
+  // déduit : il sert à la cascade (au-delà, chevauchement).
   function mesurerHauteursMobile_(G) {
     var scroller = G.scroller, grilleCorps = G.grilleCorps, grilleEntete = G.grilleEntete;
     if (!scroller.getClientRects().length) return false;
     var r = reglagesLignesMobile_(), m = MARGE_MOB_;
     var mes = {};
     [["pers", grilleCorps, "bulle-tache"], ["jal", grilleEntete, "bulle-note"]].forEach(function (d) {
-      var u = hauteurCarteSonde_(d[1], d[2], r[d[0]].l, d[0] === "pers"), n = r[d[0]].n;
-      mes[d[0]] = { n: n, u: u, h: Math.round((m + n * u + (n - 1) * m + m) * 10) / 10 };
+      var u = hauteurCarteSonde_(d[1], d[2], r[d[0]].l, d[0] === "pers"), h = r[d[0]].h;
+      mes[d[0]] = { n: Math.max(1, (h - m) / (u + m)), u: u, h: h };
     });
     if (!mes.pers.u) return false;
     G.mesuresMob_ = hauteursLignesMesurees = mes;

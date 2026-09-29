@@ -10449,3 +10449,31 @@ Lionel :
 ### Tests
 - Nouveau : tests/test_suite100.js (8 vérifications).
 - Suite complète : 105/105.
+
+
+## 214. Round du 29.09.2026 (suite 101) — Hauteur des lignes en pixels, rangée dans Planning
+- Lionel : « Les lignes de texte des bulles influe sur la hauteur des lignes, je n'aime pas cette approche. au niveau des réglages, hauteur de ligne doit etre ranger dans planning. les hauteurs ne doivent pas etre calculer en fonction du réglage texte dans les bulles. réglage maintenant en pixels. même chose pour jalons et notes. »
+
+### Réglages (page Affichage)
+| Groupe | Réglage | Ordinateur / tablette | Téléphone |
+|---|---|---|---|
+| Planning | Hauteur des lignes | curseur 30 à 240 px, 117 px à l'origine | curseur 30 à 240 px, 89 px à l'origine |
+| Planning | Hauteur Jalons et Notes | curseur 20 à 120 px, 32 px | curseur 20 à 120 px, 32 px |
+| Bulles | Lignes de texte | 1, 2, 3 | 1, 2, 3 |
+| Bulles | Lignes de texte Jalons et Notes | 1, 2 | 1, 2 |
+
+- Le groupe « Hauteur des lignes » disparaît. Les valeurs d'origine sont les hauteurs d'avant, donc rien ne bouge à l'écran.
+- « Lignes de texte » ne règle plus que la hauteur d'une bulle. La hauteur des lignes reste celle réglée en pixels. Des bulles qui n'y tiennent pas se chevauchent en cascade, comme avant.
+- Le bouton « Hauteur des lignes » de la barre d'outils garde les mêmes réglages : les 2 curseurs en pixels, puis les lignes de texte.
+
+### Anciens réglages
+- Les réglages en nombre de bulles (« Bulles par personne », « Jalons et Notes ») sont convertis une fois en pixels, à la hauteur qu'ils donnaient (texte de taille normale). Exemple : 3 bulles de 2 lignes sur ordinateur donnent 174 px.
+
+### Tests
+- Nouveau : tests/test_suite101.js (10 vérifications) :
+  - réglages rangés dans Planning et Bulles ;
+  - lignes de texte sans effet sur la hauteur des lignes ;
+  - hauteur au pixel près ;
+  - anciens réglages convertis.
+- Adaptés aux curseurs en pixels : suites 62, 64, 91, 92, 94, 95, 98.
+- Suite complète : 106/106.
