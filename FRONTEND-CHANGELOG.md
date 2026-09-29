@@ -10082,7 +10082,7 @@ Lionel :
 - test_suite94.js, 4/4 : ordinateur et téléphone — cartes posées sur une autre marquées, ombrées et liserées ; la première de la pile et une bulle seule sans ; marques identiques après le curseur à 3 bulles.
 - Suite complète : 99/99.
 
-## 203. Round du 29.09.2026 (suite 95) — Bulles : ombre partout, hauteur au texte, dépliage élargi ; « + » au jour affiché ; page Affichage rangée
+## 203. Round du 29.09.2026 (suite 95) — Bulles : ombre partout, hauteur au texte, dépliage élargi et centré ; « + » au jour affiché ; page Affichage rangée
 - « Ajoute l'ombre à toute les bulles. »
 - « En multi-sélection ne pas agrandir la bulle sélectionnée. »
 - « J'ai l'impression que la hauteur des bulles n'est plus dynamique. »
@@ -10091,15 +10091,17 @@ Lionel :
 - « Ajoute ligne de texte bulle au bouton hauteur de ligne. »
 - « Trille correctement le menu affichage. »
 - Réponse de Lionel (hauteur des bulles) : « Bulle à la taille du texte ».
+- Puis, sur le dépliage élargi : « il serait plutôt judicieux d'élargir la bulle de quelques pixels et la centrer sur sa case quand c'est possible, sinon euh, la faire déborder à gauche ou à droite si elle est en bout de planning. »
 
 ### Ce qui change
 - **Ombre** : l'ombre portée vers le haut et le liseré de la suite 94 valent pour toutes les bulles, plus seulement celles posées sur une autre.
 - **Hauteur au texte** : une bulle prend la hauteur de son texte, au plus la hauteur réglée (« Lignes de texte », badge de statut). Une bulle au texte court ne fait qu'une ligne. Les lignes gardent leur hauteur fixe et la cascade son pas régulier.
 - **Multi-sélection** : plusieurs bulles sélectionnées (ou le mode multiple allumé) ne se déplient plus. Une bulle dépliée seule se replie dès qu'une deuxième est sélectionnée.
-- **Dépliage élargi** : une bulle sélectionnée seule dont le texte entier dépasse la hauteur d'une bulle s'élargit d'une demi-case :
-  - vers l'après-midi du même jour si elle finit le matin ;
-  - vers le matin (à gauche) si elle commence l'après-midi ;
-  - une bulle de journées entières ne s'élargit pas.
+- **Dépliage élargi** : une bulle sélectionnée seule dont le texte entier dépasse la hauteur d'une bulle s'élargit de 12 px de chaque côté, centrée sur sa case :
+  - au bord gauche du planning (contre la colonne des noms), les 24 px vont à droite ;
+  - au bord droit, ils vont à gauche ;
+  - vaut pour toutes les bulles, matin, après-midi ou journées entières, et pour la carte du jour en vue « 1 jour » du téléphone.
+  - (Une première version l'élargissait d'une demi-case dans la demi-journée opposée ; remplacée à la demande de Lionel.)
 - **Remontée** : si la bulle dépliée passe sous la séparation du bas de sa ligne, elle remonte, au plus jusqu'au haut de la ligne. Sur la dernière ligne du planning, elle tient toujours au-dessus du bas de la grille (suite 93). Échap, ou un clic ailleurs : tout reprend sa place.
 - **« + » du téléphone** : en vue « 1 jour », le formulaire (tâche, absence, jalon, note) s'ouvre à la date du jour affiché, et non plus à aujourd'hui. Ailleurs, rien ne change : aujourd'hui s'il est dans la semaine affichée.
 - **Bouton « Hauteur des lignes »** : son panneau montre aussi « Lignes de texte », entre les bulles par personne et les Jalons / Notes, sur l'ordinateur comme sur le téléphone.
@@ -10116,11 +10118,11 @@ Lionel :
   - les règles de dépliage passent sous `body:not(.selection-multiple)`.
 - **js/formulaires-communs.js** : `majBarreSelection` pose `body.selection-multiple` quand plus d'une bulle est sélectionnée, ou quand le mode multiple est allumé.
 - **js/grille-rendu.js** — `remonterCartesSelection` :
-  - **Remise à zéro** : il remet d'abord les cartes à leur état d'origine. Largeur et marge sont gardées en `data-deplie`, puis rendues seulement si un rendu ne les a pas reposées entre-temps.
-  - **Élargissement** : quand une carte dépliée est plus haute que U, il ajoute une demi-colonne de la grille (lue dans `grid-template-columns`) :
-    - à droite, pour une bulle qui finit le matin ;
-    - à gauche, pour une bulle qui commence l'après-midi (largeur et `margin-left`).
-  - En vue « 1 jour », seule la carte du jour concerné change (la dernière pour la droite, la première pour la gauche).
+  - **Remise à zéro** : il remet d'abord les cartes à leur état d'origine. Largeur et marges sont gardées en `data-deplie`, puis rendues seulement si un rendu ne les a pas reposées entre-temps.
+  - **Élargissement** : quand une carte dépliée est plus haute que U, elle gagne `ELARGI_SEL_` (12 px) de chaque côté :
+    - bornes : le planning visible, de la colonne des noms (collante, `largeurNoms()`) au bord droit du `.scroller` ou de la grille ; le débordement qui passerait une borne va de l'autre côté ;
+    - largeur plus grande, `margin-left` et `margin-right` négatives d'autant : la place de la carte dans sa bulle ne change pas, et en vue « 1 jour » les cartes des autres jours ne bougent pas ;
+    - seules les cartes visibles à l'écran sont élargies ; mesures à l'écran ramenées au zoom du planning.
   - **Remontée** : ensuite, la carte remonte (`translateY`) du plus grand de deux dépassements :
     - sous le bas de sa ligne (haut de la bulle + H − marge) ;
     - sous le bas de la grille.
@@ -10132,14 +10134,14 @@ Lionel :
   - `majPanneauHauteurs` montre `lignesOrdi, lignes, jalonsOrdi, jalonsLignesOrdi` sur l'ordinateur et `lignesTel, lignes, jalonsTel` sur le téléphone.
 
 ### Tests
-- test_suite95.js, 18/18 :
+- test_suite95.js, 19/19 :
   - taille au texte : courte plus basse que la longue, longue coupée au plus à U, ligne à H ;
   - toutes les cartes ombrées ;
-  - élargissement : à droite (matin), à gauche (après-midi), aucun pour une journée entière ;
+  - élargissement : centré au milieu du planning (mercredi matin, jeudi après-midi) ; lundi, contre la colonne des noms, vers la droite ; vendredi, au bord droit, vers la gauche ;
   - remontée de la 2e d'une cascade au-dessus de la séparation ;
   - Échap : tout reprend sa place ;
   - multi-sélection : ni dépliage ni élargissement ;
-  - téléphone : carte du jour élargie ;
+  - téléphone : carte du matin, contre la colonne des noms, élargie vers la droite ;
   - « + » : ordinateur à aujourd'hui, téléphone au jour affiché (tâche et jalon) ;
   - panneau « Hauteur des lignes » sur l'ordinateur et le téléphone, et « Lignes de texte » à 3 qui agrandit les cartes ;
   - groupes de la page Affichage.

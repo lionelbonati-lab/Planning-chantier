@@ -13,16 +13,22 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //     passe dessous une ligne de séparation.
 //     Ajoute ligne de texte bulle au bouton hauteur de ligne.
 //     Trille correctement le menu affichage. »
+//   Puis : « il serait plutôt judicieux d'élargir la bulle de quelques
+//     pixels et la centrer sur sa case quand c'est possible, sinon […] la
+//     faire déborder à gauche ou à droite si elle est en bout de
+//     planning. »
 // Vérifie :
 //   1. bulle à la taille du texte : un texte court fait une carte plus
 //      basse que U, un long une carte de U ; lignes à leur hauteur fixe ;
 //      toutes les cartes ombrées ;
-//   2. ordinateur, dépliage : bulle du matin -> élargie d'une demi-case à
-//      droite ; de l'après-midi -> à gauche ; d'une journée -> pas
-//      élargie ; 2e d'une cascade -> remontée, son bas au-dessus de la
-//      séparation du bas de sa ligne ; Échap -> tout reprend sa place ;
-//      multi-sélection -> ni dépliage ni élargissement ;
-//   3. téléphone, vue « 1 jour » : même élargissement de la carte du jour ;
+//   2. ordinateur, dépliage : bulle au milieu du planning -> élargie de
+//      12 px de chaque côté, centrée ; lundi (bord gauche) -> les 24 px à
+//      droite ; vendredi (bord droit) -> à gauche ; 2e d'une cascade ->
+//      remontée, son bas au-dessus de la séparation du bas de sa ligne ;
+//      Échap -> tout reprend sa place ; multi-sélection -> ni dépliage ni
+//      élargissement ;
+//   3. téléphone, vue « 1 jour » : carte du matin, contre la colonne des
+//      noms -> les 24 px à droite ;
 //   4. « + » : formulaire à la date du jour affiché (téléphone), à
 //      aujourd'hui (ordinateur) ;
 //   5. panneau « Hauteur des lignes » : « Lignes de texte » (ordinateur et
@@ -41,7 +47,7 @@ const TACHES = [
   T(2, '2026-09-22', 'matin', 'Court', 0), T(2, '2026-09-22', 'matin', 'Cascade ' + LONG, 1),
   T(2, '2026-09-23', 'matin', 'Matin ' + LONG), T(2, '2026-09-24', 'aprem', 'Aprem ' + LONG),
   T(2, '2026-09-25', 'matin', 'Journee ' + LONG), T(2, '2026-09-25', 'aprem', 'Journee ' + LONG),
-  T(1, '2026-09-24', 'matin', 'Seule')
+  T(1, '2026-09-24', 'matin', 'Seule'), T(1, '2026-09-21', 'matin', 'Lundi ' + LONG)
 ];
 const BD = () => ({ personnes: PERS, taches: TACHES.map((t) => Object.assign({}, t)) });
 
@@ -58,8 +64,7 @@ const carte = (page, mot) => page.evaluate((mot) => {
   return {
     sel: b.classList.contains('selectionnee'), g: r.left, d: r.right, h: r.top, b: r.bottom, larg: r.width, haut: r.height,
     coupe: t.scrollHeight > t.clientHeight + 1, deplie: c.hasAttribute('data-deplie'), ombre: /drop-shadow/.test(getComputedStyle(c).filter),
-    ligneH: lbl.top, ligneB: lbl.bottom, u: css('--mob-carte-pers'), H: css('--mob-h-pers'),
-    demi: document.querySelector('#racine .scroller .cell[data-demi="aprem"]').getBoundingClientRect().width
+    ligneH: lbl.top, ligneB: lbl.bottom, u: css('--mob-carte-pers'), H: css('--mob-h-pers')
   };
 }, mot);
 const clic = async (page, mot, ctrl) => {
@@ -94,30 +99,41 @@ const echap = async (page) => { await page.keyboard.press('Escape'); await page.
       'bulle à la taille du texte : courte ' + Math.round(court.haut) + ' px, longue ' + Math.round(long.haut) + ' px (U ' + court.u + '), ligne à ' + Math.round(court.ligneB - court.ligneH) + ' px (H ' + court.H + ')');
     verifier(court.ombre && long.ombre, 'toutes les cartes ombrées, même seules');
 
-    // 2. Matin -> élargie à droite.
+    // 2. Milieu du planning -> 12 px de chaque côté, centrée sur sa case.
+    const E = 12; // ELARGI_SEL_ (grille-rendu.js)
     let a = await carte(page, 'Matin');
     await clic(page, 'Matin');
     let e = await carte(page, 'Matin');
-    verifier(e.sel && e.deplie && Math.abs(e.g - a.g) <= 1 && Math.abs(e.d - (a.d + e.demi)) <= 2 && !e.coupe,
-      'matin : élargie d\'une demi-case à droite (' + Math.round(a.larg) + ' -> ' + Math.round(e.larg) + ' px, demi-case ' + Math.round(e.demi) + ')');
+    verifier(e.sel && e.deplie && Math.abs(e.g - (a.g - E)) <= 1 && Math.abs(e.d - (a.d + E)) <= 1 && e.haut > e.u,
+      'mercredi matin : élargie de ' + E + ' px de chaque côté, centrée (' + Math.round(a.g) + '–' + Math.round(a.d) + ' -> ' + Math.round(e.g) + '–' + Math.round(e.d) + ')');
     verifier(e.b <= e.ligneB - 2 || Math.abs(e.h - (e.ligneH + 3)) <= 1, 'matin : sous la séparation du bas de sa ligne, ou calée en haut de la ligne (bas ' + Math.round(e.b) + ', ligne ' + Math.round(e.ligneB) + ')');
     await echap(page);
     e = await carte(page, 'Matin');
     verifier(!e.sel && !e.deplie && Math.abs(e.larg - a.larg) <= 1 && Math.abs(e.haut - a.haut) <= 1, 'Échap : largeur et hauteur d\'avant');
 
-    // Après-midi -> élargie à gauche.
     a = await carte(page, 'Aprem');
     await clic(page, 'Aprem');
     e = await carte(page, 'Aprem');
-    verifier(e.sel && e.deplie && Math.abs(e.d - a.d) <= 1 && Math.abs(e.g - (a.g - e.demi)) <= 2,
-      'après-midi : élargie d\'une demi-case à gauche (' + Math.round(a.g) + ' -> ' + Math.round(e.g) + ')');
+    verifier(e.sel && e.deplie && Math.abs(e.g - (a.g - E)) <= 1 && Math.abs(e.d - (a.d + E)) <= 1,
+      'jeudi après-midi : centrée aussi (' + Math.round(a.g) + '–' + Math.round(a.d) + ' -> ' + Math.round(e.g) + '–' + Math.round(e.d) + ')');
     await echap(page);
 
-    // Journée entière -> pas élargie.
+    // Lundi, contre la colonne des noms : tout le débordement à droite.
+    a = await carte(page, 'Lundi');
+    await clic(page, 'Lundi');
+    e = await carte(page, 'Lundi');
+    const noms = await page.evaluate(() => document.querySelector('#racine .scroller').getBoundingClientRect().left + largeurNoms());
+    verifier(e.sel && e.deplie && e.g >= noms - 0.5 && e.g <= a.g + 0.5 && Math.abs(e.larg - (a.larg + 2 * E)) <= 1,
+      'lundi (bord gauche) : pas sous la colonne des noms, déborde à droite (' + Math.round(a.g) + '–' + Math.round(a.d) + ' -> ' + Math.round(e.g) + '–' + Math.round(e.d) + ', noms ' + Math.round(noms) + ')');
+    await echap(page);
+
+    // Vendredi, bord droit du planning : le débordement à gauche.
     a = await carte(page, 'Journee');
     await clic(page, 'Journee');
     e = await carte(page, 'Journee');
-    verifier(e.sel && !e.deplie && Math.abs(e.larg - a.larg) <= 1 && e.haut > e.u, 'journée entière : dépliée en hauteur, pas élargie (' + Math.round(e.larg) + ' px)');
+    const bordD = await page.evaluate(() => Math.min(document.querySelector('#racine .scroller').getBoundingClientRect().right, document.querySelector('#racine .scroller .grille').getBoundingClientRect().right));
+    verifier(e.sel && e.deplie && e.d <= Math.max(a.d, bordD - 2) + 0.5 && e.g <= a.g - 2 * E + 1 && e.larg >= a.larg + 2 * E - 1,
+      'vendredi (bord droit) : déborde à gauche (' + Math.round(a.g) + '–' + Math.round(a.d) + ' -> ' + Math.round(e.g) + '–' + Math.round(e.d) + ', bord ' + Math.round(bordD) + ')');
     await echap(page);
 
     // 2e d'une cascade : remontée au-dessus de la séparation.
@@ -175,8 +191,9 @@ const echap = async (page) => { await page.keyboard.press('Escape'); await page.
     await page.touchscreen.tap(p[0], p[1]);
     await page.waitForTimeout(300);
     const e = await carte(page, 'Matin');
-    verifier(e.sel && e.deplie && Math.abs(e.g - a.g) <= 1 && Math.abs(e.d - (a.d + e.demi)) <= 2,
-      'téléphone : carte du matin élargie d\'une demi-case à droite (' + Math.round(a.larg) + ' -> ' + Math.round(e.larg) + ' px)');
+    const Et = 12, nomsT = await page.evaluate(() => document.querySelector('#racine .scroller').getBoundingClientRect().left + largeurNoms());
+    verifier(e.sel && e.deplie && e.g >= nomsT - 0.5 && Math.abs(e.larg - (a.larg + 2 * Et)) <= 1 && e.d >= a.d + Et,
+      'téléphone : carte du matin, contre les noms, élargie de ' + 2 * Et + ' px vers la droite (' + Math.round(a.g) + '–' + Math.round(a.d) + ' -> ' + Math.round(e.g) + '–' + Math.round(e.d) + ')');
     await echap(page);
     // « + » : le jour affiché, pas aujourd'hui.
     const d = await page.evaluate(() => { ouvrirAjoutElementBarre('tache', 1); return [jourMobileIso, document.querySelector('.form-pop .date-val').textContent]; });
