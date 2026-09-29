@@ -226,6 +226,34 @@
   function signatureMembresAffiches_() { return personnesAffichees("personnel").map(function (p) { return p.id; }).join(","); }
   function personnesAfficheesToutes() { return personnesAffichees("personnel").concat(personnesAffichees("sous-traitant")); }
 
+  /* ---------- Couleur (round du 29.09.2026, suite 119) ----------
+     Lionel : « mettre une couleur sur l'équipe, je vois qu'il y a une
+     bordure grise, il serait bien de pouvoir choisir sa couleur par
+     équipe ». La bande à gauche du nom de l'équipe (et, plus pâle, de ses
+     membres) prend la couleur choisie — menu du nom (clic droit, appui
+     long) ou pastille de la page Personnel. Enregistrée en base
+     (personnes.couleur, sql/0025) : la même sur tous les appareils. Sans
+     couleur : l'accent du thème, comme avant. */
+  var COULEURS_EQUIPES = ["#e53935", "#fb8c00", "#fdd835", "#43a047", "#00897b", "#1e88e5", "#8e24aa", "#6d4c41"];
+  function couleurEquipe(equipeId) {
+    var r = (etat.personnesActives || []).filter(function (x) { return String(x.id) === String(equipeId); })[0];
+    return (r && r.couleur) || null;
+  }
+  function changerCouleurEquipe(equipeId, couleur) {
+    couleur = couleur ? hexPastille(couleur) : null;
+    if (couleur === couleurEquipe(equipeId)) return Promise.resolve();
+    return couleurPersonneServeur(ancreDe(equipeId), couleur).then(function () {
+      (etat.personnesActives || []).forEach(function (x) { if (String(x.id) === String(equipeId)) x.couleur = couleur; });
+      render(false);
+      toast(couleur ? "Couleur de l’équipe modifiée." : "Couleur de l’équipe par défaut.");
+    }).catch(function (err) { toast("Échec de la modification : " + (err && err.message ? err.message : err)); });
+  }
+  function poserCouleurEquipe_(lbl, equipeId) {
+    var c = couleurEquipe(equipeId);
+    lbl.classList.toggle("equipe-coloree", !!c);
+    if (c) lbl.style.setProperty("--couleur-equipe", c); else lbl.style.removeProperty("--couleur-equipe");
+  }
+
   /* ---------- Étiquette de ligne ---------- */
   function nomsMembres_(ids) {
     return ids.map(function (id) { var p = personneParAncre(id); return p ? p.nom : null; }).filter(Boolean);
@@ -240,6 +268,7 @@
       var ouverte = !!equipesDepliees[p.id];
       lbl.classList.add("lbl-equipe");
       lbl.dataset.equipe = p.id;
+      poserCouleurEquipe_(lbl, p.id);
       // Suite 104 : le menu de la ligne (grille-hauteurs.js) propose
       // « Composition de l'équipe… » ; suite 106 : il s'ouvre au clic droit.
       lbl.title = p.nom + (noms.length ? " — " + noms.join(", ") : "") + "\nClic droit : composition de la semaine, hauteur de la ligne";
@@ -254,6 +283,7 @@
     if (eq) {
       lbl.classList.add("lbl-membre");
       lbl.dataset.membreDe = eq;
+      poserCouleurEquipe_(lbl, eq);
     }
   }
 

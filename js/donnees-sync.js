@@ -364,7 +364,7 @@
     etat.aujourdhui = new Date().toISOString().slice(0, 10); // date du jour, UTC — même convention que le reste du chargement
 
     Promise.all([
-      sbClient.from("personnes").select("id, nom, sous_traitant, equipe, ordre").eq("actif", true).order("ordre", { ascending: true }),
+      sbClient.from("personnes").select("id, nom, sous_traitant, equipe, ordre, couleur").eq("actif", true).order("ordre", { ascending: true }),
       // actif/ordre (sql/0008) : la requête reste volontairement SANS
       // .eq("actif", true) — contrairement à celle des personnes juste
       // au-dessus — pour que chantiersParId (juste en dessous) reste
@@ -604,7 +604,7 @@
   // chargerSemaineDepuisServeur (qui filtre `.in("personne_id", ...)` sur
   // cette liste) reste synchrone avec ce qui vient d'être écrit.
   function rechargerPersonnesActives_() {
-    return sbClient.from("personnes").select("id, nom, sous_traitant, equipe, ordre").eq("actif", true).order("ordre", { ascending: true })
+    return sbClient.from("personnes").select("id, nom, sous_traitant, equipe, ordre, couleur").eq("actif", true).order("ordre", { ascending: true })
       .then(function (res) {
         if (res.error) throw res.error;
         etat.personnesActives = res.data || [];
@@ -622,6 +622,12 @@
   // suivantes" (cf. commentaire de tête ci-dessus), la personne n'a qu'un nom.
   function renommerPersonneServeur(id, nom, sousTraitant) {
     return sbClient.from("personnes").update({ nom: nom, sous_traitant: !!sousTraitant }).eq("id", id)
+      .then(function (res) { if (res.error) throw res.error; });
+  }
+  // Couleur d'une équipe (suite 119, sql/0025) : #rrggbb, null = couleur
+  // d'accent du thème.
+  function couleurPersonneServeur(id, couleur) {
+    return sbClient.from("personnes").update({ couleur: couleur || null }).eq("id", id)
       .then(function (res) { if (res.error) throw res.error; });
   }
   // Désactiver/réactiver (round du 14.09.2026 — auparavant, seule la
@@ -658,11 +664,11 @@
   // grille elle-même ne doit jamais montrer une personne désactivée,
   // historique compris — comportement préexistant, inchangé).
   function listerPersonnesGestionServeur() {
-    return sbClient.from("personnes").select("id, nom, sous_traitant, equipe, actif, ordre").order("ordre", { ascending: true })
+    return sbClient.from("personnes").select("id, nom, sous_traitant, equipe, actif, ordre, couleur").order("ordre", { ascending: true })
       .then(function (res) {
         if (res.error) throw res.error;
         var liste = (res.data || []).map(function (p) {
-          return { id: String(p.id), nom: p.nom, sousTraitant: !!p.sous_traitant, equipe: !!p.equipe, actif: p.actif !== false, ordre: p.ordre || 0 };
+          return { id: String(p.id), nom: p.nom, sousTraitant: !!p.sous_traitant, equipe: !!p.equipe, actif: p.actif !== false, ordre: p.ordre || 0, couleur: p.couleur || null };
         });
         // Re-tri explicite côté client, en plus du .order() ci-dessus (qui
         // suffit déjà avec un vrai Supabase) : ceinture et bretelles, sans
