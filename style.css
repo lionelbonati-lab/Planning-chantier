@@ -1097,6 +1097,11 @@
     position: fixed; z-index: 90; pointer-events: none; padding: 3px 7px; border-radius: 6px;
     background: var(--ink); color: var(--surface); font: 600 11.5px/1.2 var(--police-mono);
   }
+  /* Suite 115 : glisser un nom pour changer l'ordre des lignes — trait
+     à la place d'arrivée, nom déplacé estompé. */
+  body.glisse-ligne, body.glisse-ligne * { cursor: grabbing !important; user-select: none; }
+  .trait-ordre-ligne { position: fixed; z-index: 90; height: 3px; border-radius: 2px; background: var(--accent); pointer-events: none; }
+  #racine .grille > .ligne-deplacee { opacity: .45; }
   /* Menus du clic droit (suite 114) : séparateur entre les groupes. */
   .menu-pop .mc-sep { height: 1px; margin: 4px 2px; background: var(--border); }
   .menu-hauteur-ligne .mhl-valeur { display: flex; align-items: center; gap: 6px; }

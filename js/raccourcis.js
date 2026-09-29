@@ -195,7 +195,9 @@
     { combo: "Clic", nom: "Sur un nom ou un jour : sélectionner la ligne ou la colonne (Ctrl : ajouter, Maj : jusqu’à celle-ci)" },
     { combo: "Double-clic", nom: "Sur un nom : le modifier" },
     { combo: "Clic droit", nom: "Sur un nom : menu de la ligne (hauteur, composition d’une équipe…)" },
-    { combo: "Glisser", nom: "Sur le trait sous un nom : hauteur de la ligne (double-clic : ajuster au contenu)" }
+    { combo: "Glisser", nom: "Sur le trait sous un nom : hauteur de la ligne (double-clic : ajuster au contenu)" },
+    // Suite 115 : ordre des noms.
+    { combo: "Glisser", nom: "Sur un nom : changer l’ordre des lignes (doigt : Monter / Descendre dans son menu)" }
   ];
   function actionClavierParId_(id) { return ACTIONS_CLAVIER.filter(function (a) { return a.id === id; })[0] || null; }
 

@@ -832,10 +832,14 @@
     var idP = groupe ? null : idPersonneLigne_(lbl), equipe = lbl.classList.contains("lbl-equipe");
     // Suite 109 : pas de « Sélectionner la ligne » en mode ajout.
     var bChoix = modeAjoutPlanning ? '' : '<button type="button" data-a="choix">' + (choisie ? "Désélectionner la ligne" : "Sélectionner la ligne") + '</button>';
+    // Suite 115 : changer l'ordre (au doigt, où le nom ne se glisse pas).
+    var voisins = idP != null ? lignesPermutables_(lbl) : [], rang = voisins.indexOf(lbl);
+    var bOrdre = rang < 0 ? '' : '<button type="button" data-a="monter"' + (rang > 0 ? '' : ' disabled') + '>Monter</button>' +
+      '<button type="button" data-a="descendre"' + (rang < voisins.length - 1 ? '' : ' disabled') + '>Descendre</button>';
     pop.innerHTML = (groupe ? '<div class="cp-titre">' + ids.length + ' lignes sélectionnées</div>' + bChoix :
       idP != null ? '<div class="cp-titre">' + esc(nom) + '</div>' +
       '<button type="button" data-a="nom">Modifier le nom…</button>' +
-      (equipe ? '<button type="button" data-a="composition">Composition de l’équipe…</button>' : '') + bChoix : bChoix) +
+      (equipe ? '<button type="button" data-a="composition">Composition de l’équipe…</button>' : '') + bChoix + bOrdre : bChoix) +
       '<div class="cp-titre">' + (groupe ? 'Hauteur des ' + ids.length + ' lignes' : 'Hauteur de la ligne' + (idP != null ? '' : ' — ' + esc(nom))) + '</div>' +
       '<div class="mhl-valeur"><input type="number" inputmode="numeric" min="' + HAUTEUR_LIGNE_MIN_ + '" max="' + HAUTEUR_LIGNE_MAX_ + '" step="1" value="' + Math.round(lbl.offsetHeight) + '" aria-label="Hauteur en pixels"><span>px</span>' +
       '<button type="button" class="btn-primaire" data-a="ok">OK</button></div>' +
@@ -868,4 +872,131 @@
     var bNom = pop.querySelector('[data-a="nom"]'), bCompo = pop.querySelector('[data-a="composition"]');
     if (bNom) bNom.addEventListener("click", function () { fermer(); modifierNomLigne_(lbl); });
     if (bCompo) bCompo.addEventListener("click", function () { fermer(); ouvrirCompositionEquipe(idP); });
+    var bMonter = pop.querySelector('[data-a="monter"]'), bDescendre = pop.querySelector('[data-a="descendre"]');
+    if (bMonter) bMonter.addEventListener("click", function () { fermer(); deplacerPersonneLigne(idP, idPersonneLigne_(voisins[rang - 1]), false); });
+    if (bDescendre) bDescendre.addEventListener("click", function () { fermer(); deplacerPersonneLigne(idP, idPersonneLigne_(voisins[rang + 1]), true); });
   }
+
+  /* ============ ORDRE DES NOMS (round du 29.09.2026, suite 115) ============
+     Lionel : « Réordonner les noms. » Glisser un nom à la souris (plus de
+     6 px en hauteur) le déplace : un trait montre où il va ; au doigt,
+     « Monter » / « Descendre » dans le menu du nom (appui long). L'ordre
+     est celui de la page Personnel (colonne ordre en base), pour tous les
+     appareils. Une ligne ne change de place que parmi ses pareilles : une
+     équipe parmi les équipes, un membre parmi les membres de son équipe,
+     une personne seule parmi les personnes seules, un intervenant parmi
+     les intervenants (l'affichage regroupe toujours les équipes et leurs
+     membres, cf. ordrePersonnesEquipes). */
+  // Étiquettes de la même grille où la ligne lbl peut aller, dans l'ordre
+  // affiché (elle comprise).
+  function lignesPermutables_(lbl) {
+    var idP = idPersonneLigne_(lbl);
+    if (idP == null) return [];
+    idP = String(idP);
+    var moi = null;
+    PERSONNES.forEach(function (x) { if (x.id === idP) moi = x; });
+    if (!moi) return [];
+    var ids;
+    if (moi.sousTraitant) ids = PERSONNES.filter(function (x) { return x.sousTraitant; }).map(function (x) { return x.id; });
+    else {
+      var ordre = ordrePersonnesEquipes(PERSONNES.filter(function (x) { return !x.sousTraitant; }), lundiCourantEquipes(), function (x) { return x.id; });
+      var e0 = ordre.filter(function (e) { return e.p.id === idP; })[0];
+      if (!e0) return [];
+      ids = ordre.filter(function (e) { return e.role === e0.role && (e.role !== "membre" || e.equipeId === e0.equipeId); }).map(function (e) { return e.p.id; });
+    }
+    var parLigne = {};
+    etiquettesLignes_().forEach(function (l) { if (l.parentNode === lbl.parentNode) parLigne[l.dataset.ligne] = l; });
+    return ids.map(function (id) { return parLigne["p" + id]; }).filter(Boolean);
+  }
+  // Place la personne idP juste avant (apres = false) ou après idCible :
+  // tout de suite à l'écran (PERSONNES, personnes actives, semaines en
+  // cache), puis en base — ordre renuméroté 1..N sur la liste complète
+  // (désactivées comprises), seules les lignes changées sont écrites.
+  function deplacerPersonneLigne(idP, idCible, apres) {
+    idP = String(idP); idCible = String(idCible);
+    if (idP === idCible) return Promise.resolve(false);
+    function deplacer(liste, cle) {
+      var i = -1, j = -1, k;
+      for (k = 0; k < liste.length; k++) if (String(cle(liste[k])) === idP) i = k;
+      if (i < 0) return false;
+      var el = liste.splice(i, 1)[0];
+      for (k = 0; k < liste.length; k++) if (String(cle(liste[k])) === idCible) j = k;
+      liste.splice(j < 0 ? i : j + (apres ? 1 : 0), 0, el);
+      return j >= 0 && j + (apres ? 1 : 0) !== i;
+    }
+    function parId(x) { return x.id; }
+    if (!deplacer(PERSONNES, parId)) return Promise.resolve(false);
+    deplacer(etat.personnesActives || [], parId);
+    Object.keys(etat.cache || {}).forEach(function (lg) {
+      var d = etat.cache[lg];
+      if (d && d.personnes) deplacer(d.personnes, function (x) { return x.ancre; });
+    });
+    render(false);
+    return listerPersonnesGestionServeur().then(function (liste) {
+      deplacer(liste, parId);
+      var nouveaux = {}, envois = [];
+      liste.forEach(function (x, k) {
+        nouveaux[x.id] = k + 1;
+        if (x.ordre !== k + 1) envois.push(sbClient.from("personnes").update({ ordre: k + 1 }).eq("id", ancreDe(x.id)));
+      });
+      (etat.personnesActives || []).forEach(function (x) { if (nouveaux[String(x.id)]) x.ordre = nouveaux[String(x.id)]; });
+      return Promise.all(envois);
+    }).then(function (r) {
+      r.forEach(function (res) { if (res.error) throw res.error; });
+      return true;
+    }).catch(function (err) {
+      toast("Échec du changement d’ordre : " + (err && err.message ? err.message : err));
+      return false;
+    });
+  }
+  // Glisser un nom (souris, bouton gauche ; pas le trait de hauteur).
+  document.addEventListener("pointerdown", function (e) {
+    if (e.pointerType === "touch" || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    var lbl = etiquetteLigne_(e.target);
+    if (!lbl || e.target.closest(".poignee-ligne") || idPersonneLigne_(lbl) == null) return;
+    var pointerId = e.pointerId, y0 = e.clientY, voisins = null, trait = null, cible = null;
+    function viser(y) {
+      var rs = voisins.map(function (l) { return l.getBoundingClientRect(); }), k = 0;
+      while (k < rs.length - 1 && y > rs[k].bottom) k++;
+      var apres = y > (rs[k].top + rs[k].bottom) / 2;
+      cible = voisins[k] === lbl ? null : { lbl: voisins[k], apres: apres };
+      var sc = lbl.closest(".scroller"), droite = sc ? sc.getBoundingClientRect().right : rs[k].right;
+      trait.style.display = cible ? "" : "none";
+      trait.style.top = ((apres ? rs[k].bottom : rs[k].top) - 1) + "px";
+      trait.style.left = rs[k].left + "px";
+      trait.style.width = Math.max(0, droite - rs[k].left) + "px";
+    }
+    function onMove(e2) {
+      if (e2.pointerId !== pointerId) return;
+      if (!trait) {
+        if (Math.abs(e2.clientY - y0) <= 6) return;
+        voisins = lignesPermutables_(lbl);
+        if (voisins.length < 2) { detacher(); return; }
+        trait = document.createElement("div");
+        trait.className = "trait-ordre-ligne";
+        document.body.appendChild(trait);
+        document.body.classList.add("glisse-ligne");
+        lbl.classList.add("ligne-deplacee");
+      }
+      e2.preventDefault();
+      viser(e2.clientY);
+    }
+    function onUp(e2) {
+      if (e2.pointerId !== pointerId) return;
+      var fin = trait && cible;
+      if (trait) clicLigneIgnoreT_ = performance.now();
+      detacher();
+      if (fin) deplacerPersonneLigne(idPersonneLigne_(lbl), idPersonneLigne_(cible.lbl), cible.apres);
+    }
+    function detacher() {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      document.removeEventListener("pointercancel", onUp);
+      if (trait) trait.remove();
+      document.body.classList.remove("glisse-ligne");
+      lbl.classList.remove("ligne-deplacee");
+    }
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+    document.addEventListener("pointercancel", onUp);
+  });

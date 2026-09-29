@@ -10703,3 +10703,21 @@ Lionel :
 ### Tests
 - Nouveau : tests/test_suite114.js (11 vérifications).
 - Suites 61 et 64 : 2 gestes de souris de plus.
+
+## 228. Round du 29.09.2026 (suite 115) — Réordonner les noms
+- Lionel : « Réordonner les noms. »
+- Ordinateur : glisser un nom à la souris (bouton gauche, au moins 6 px vers le haut ou le bas).
+  - Un trait de la couleur d'accent montre où la ligne va, le nom glissé est estompé.
+  - Au relâchement, la ligne prend sa place tout de suite. Le clic qui termine le geste ne choisit pas la ligne ; un clic simple la choisit toujours.
+- Téléphone (et ordinateur) : « Monter » et « Descendre » dans le menu du nom, grisés en bout de groupe.
+- Une ligne ne change de place que parmi ses pareilles :
+  - une équipe parmi les équipes, ses membres la suivent ;
+  - un membre parmi les membres de son équipe ;
+  - une personne seule parmi les personnes seules ;
+  - un intervenant parmi les intervenants.
+- L'ordre est celui de la page Personnel, enregistré en base pour tous les appareils : numéros 1 à N sur la liste complète (désactivés compris), seules les lignes changées sont écrites. En cas d'échec, un message le dit.
+- Page Raccourcis : geste « Glisser — Sur un nom : changer l'ordre des lignes ».
+
+### Tests
+- Nouveau : tests/test_suite115.js (14 vérifications), ordinateur et téléphone.
+- Suites 61 et 64 : 1 geste de souris de plus.
