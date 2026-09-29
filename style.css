@@ -1820,6 +1820,10 @@
   .vue-jour-mobile .bulle.selectionnee .poignee::after { opacity: .45; }
   .vue-jour-mobile .bulle .poignee.actif::after { opacity: .7; }
   .vue-jour-mobile .bulle.hors-jour .poignee { display: none; }
+  /* Suite 97 : bulle sélectionnée absente du jour affiché (la veille,
+     rangée sous la colonne des noms) — sans anneau de sélection, dont les
+     2,5 px dépassaient au bord de la colonne en un liseré bleu. */
+  .vue-jour-mobile .bulle.selectionnee.hors-jour .b-carte { box-shadow: 0 1px 2px var(--shadow); }
   /* Round du 27.09.2026 (suite 78) — Lionel, capture à l'appui : « Certaines
      bulle passent encore la colonne des en-têtes. Les séparations doivent
      être dessinée au dessus du planning car c'est des élément principaux. »
@@ -1842,6 +1846,17 @@
      semaines (5), qui la coupe comme avant. */
   .section-row.section-collee { z-index: 4; }
   #racine.vue-jour-mobile .lbl, #racine.vue-jour-mobile .lbl-speciale { z-index: 3; }
+  /* Round du 29.09.2026 (suite 97) — Lionel, captures à l'appui : « Sur
+     mobile, plusieurs incohérences au niveau des sélections et des
+     poignées. » La bulle sélectionnée passe devant les autres (z-index 3,
+     suite 93) : à égalité avec la colonne des noms, et placée après elle,
+     elle la recouvrait une fois le jour changé (la carte de la veille,
+     rangée sous les noms, s'y dessinait par-dessus « Lionel »). Noms et
+     case coin passent à 4 ; la bande collée sous l'en-tête, qui doit les
+     recouvrir, à 5 ; l'espace entre semaines, qui la coupe, à 6. */
+  #racine.hauteurs-fixes :is(.th.coin, .lbl, .lbl-speciale) { z-index: 4; }
+  #racine.hauteurs-fixes .section-row.section-collee { z-index: 5; }
+  #racine.hauteurs-fixes .sep-semaines { z-index: 6; }
   .ghost { border: 1.5px dashed var(--border-strong); border-radius: 9px; opacity: .5; }
 
   .pop {

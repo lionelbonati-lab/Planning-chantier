@@ -10179,3 +10179,33 @@ Lionel :
   - « Recharger » : la nouvelle version est chargée.
   - Sans la correction, les vérifications 1 et 3 échouent.
 - Suite complète : 101/101.
+
+## 205. Round du 29.09.2026 (suite 97) — Téléphone : sélection et poignées à la place de leur bulle
+- « Sur mobile, plusieurs incohérences au niveau des sélections et des poignées. » (5 captures)
+
+### Défauts
+- Au jour suivant, la bulle sélectionnée de la veille (rangée sous la colonne des noms) se dessinait par-dessus « Lionel » : la bulle sélectionnée passe devant les autres (z-index 3, suite 93), à égalité avec les noms et placée après eux.
+- Poignées décalées de leur bulle : elles gardaient la hauteur de la ligne et les bords d'origine de la bulle, alors que depuis la suite 95 la carte a la hauteur de son texte et, sélectionnée, se déplie, s'élargit et remonte :
+  - bulle courte (« rfecdxs », 2e de la cascade) : trait sous la carte, à cheval sur la ligne suivante ;
+  - bulle dépliée et élargie (« Transports matériel… ») : poignée droite en retrait, au milieu de la carte.
+
+### Ce qui change
+- La colonne des noms (et la case coin) reste toujours devant les bulles, sélectionnée comprise ; la carte de la veille sélectionnée n'a plus d'anneau de sélection (son liseré dépassait au bord des noms).
+- Les poignées prennent exactement la place de leur carte : même haut, même hauteur, mêmes bords, même remontée. Téléphone et ordinateur.
+
+### Fonctionnement
+- **style.css** :
+  - lignes de hauteur fixe : noms et case coin à z-index 4 ; la bande collée sous l'en-tête à 5 (elle les recouvre) ; l'espace entre semaines à 6 (il la coupe) ;
+  - `.vue-jour-mobile .bulle.selectionnee.hors-jour .b-carte` : ombre simple, sans anneau.
+- **js/grille-rendu.js** — `placerPoigneesCartes_`, appelée à la fin de `remonterCartesSelection` (chaque cascade, chaque changement de sélection) :
+  - poignée gauche calée sur la première carte, droite sur la dernière (comme la cascade) : `top`, `height`, `left` / `right` et la `transform` de remontée ;
+  - lectures d'abord, écritures ensuite ; styles effacés hors lignes de hauteur fixe.
+
+### Tests
+- test_suite97.js, 8/8 :
+  - téléphone : poignées à la place de la carte, pour une bulle courte en cascade, pour une bulle sélectionnée, et pour une bulle dépliée et élargie ;
+  - jour suivant : la carte sélectionnée de la veille passe sous les noms, sans anneau ;
+  - ordinateur : poignées calées sur une bulle courte, dépliée puis revenue (Échap).
+  - Sans la correction, les 8 vérifications échouent.
+- test_suite78.js : z-index attendu des noms 4 au lieu de 3 (téléphone) et 2 (ordinateur).
+- Suite complète : 102/102.
