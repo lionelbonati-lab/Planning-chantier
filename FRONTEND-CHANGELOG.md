@@ -10151,3 +10151,31 @@ Lionel :
   - test_suite91 : la dernière de la cascade porte un texte long, pour rester à la hauteur U ;
   - test_suite62 et test_suite64 : nouvel ordre des réglages et des groupes.
 - Suite complète : 100/100.
+
+## 204. Round du 29.09.2026 (suite 96) — Téléphone : la nouvelle version de l'appli arrive aussi quand l'appli reste ouverte
+- « Ces derniers changement n'es sont pas actifs sur portable. »
+
+### Cause
+- Le code publié (suite 95) fonctionne sur téléphone : vérifié en émulation complète d'un Pixel 7 et d'un iPhone 13 (ombre, hauteur au texte, dépliage élargi et centré, « + » au jour affiché).
+- Le téléphone montrait l'ancienne version. Depuis la suite 61, l'appli s'ouvre depuis la copie gardée sur l'appareil (sw.js, « copie d'abord »). Chaque fichier n'est redemandé à GitHub Pages que lorsqu'une page le charge, donc à l'ouverture ; s'il a changé, le bandeau « Nouvelle version de l'appli prête » propose « Recharger ».
+- L'appli posée sur l'écran d'accueil d'un téléphone reste souvent ouverte en arrière-plan : en y revenant, rien n'est rechargé, donc rien n'est redemandé. L'ancienne version reste affichée et le bandeau ne vient jamais.
+
+### Ce qui change
+- Quand l'appli revient au premier plan (au plus une fois par minute), et toutes les 30 minutes tant qu'elle est à l'écran, elle vérifie s'il existe une nouvelle version. Si oui, le bandeau « Nouvelle version de l'appli prête » apparaît ; « Recharger » l'applique.
+- Rien ne se recharge tout seul : une saisie en cours n'est jamais perdue.
+
+### Fonctionnement
+- **js/hors-ligne.js** — `verifierNouvelleVersion` :
+  - la page redemande ses propres fichiers : index.html, feuilles de style et scripts du dépôt (lus dans `<script src>` et `<link rel="stylesheet">`) ;
+  - sw.js les sert depuis la copie et les revalide auprès de GitHub Pages ; si l'ETag d'un fichier a changé, il envoie « appli-maj » et la page affiche le bandeau (mécanisme de la suite 61, inchangé) ;
+  - le service worker lui-même est revérifié (`registration.update()`) ;
+  - appelée sur `visibilitychange` (retour au premier plan) et toutes les 30 minutes quand la page est visible ; pas plus d'une fois par minute ; rien sans service worker actif (tests en file://).
+
+### Tests
+- test_suite96.js, 5/5 : appli servie en http avec son service worker et des ETag comme GitHub Pages.
+  - Retour au premier plan sans changement : fichiers revalidés, pas de bandeau.
+  - 2e retour dans la minute : rien de redemandé.
+  - style.css changé sur le serveur, retour plus d'une minute après : bandeau.
+  - « Recharger » : la nouvelle version est chargée.
+  - Sans la correction, les vérifications 1 et 3 échouent.
+- Suite complète : 101/101.
