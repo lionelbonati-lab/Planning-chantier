@@ -219,7 +219,10 @@ async function ouvrirPlanning(browser, options) {
   // sélection par défaut). Les tests écrits avant lui cliquent/glissent
   // sur des cases vides pour AJOUTER : ils démarrent en mode ajout, sauf
   // s'ils fixent eux-mêmes « planning.modeAjout ».
-  const ls = Object.assign({ 'planning.modeAjout': '1' }, options.localStorage || {});
+  // Suite 107 : en mode ajout, les bulles ne se cliquent plus (transparentes)
+  // — or la plupart des tests les manipulent : ils démarrent désormais en
+  // mode sélection ; ceux qui ajoutent par une case vide fixent « 1 ».
+  const ls = Object.assign({ 'planning.modeAjout': '0' }, options.localStorage || {});
   await page.addInitScript((d) => {
     window.__BD_INITIALE = d.bd;
     window.__TABLES_EN_ECHEC = d.echecs;
