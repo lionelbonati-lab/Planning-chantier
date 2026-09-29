@@ -63,7 +63,8 @@ const souris = (page, type, button, opts) => page.evaluate(([t, b, o]) => {
     await page.evaluate(() => afficherPage('affichage')); await page.waitForTimeout(250);
     const groupes = await page.evaluate(() => [...document.querySelectorAll('#page-affichage .titre-liste')].map((h) => h.textContent).join('|'));
     // Suite 95 : groupe « Hauteur des lignes » avant « Bulles ».
-    verifier(groupes === 'Planning|Dates|Hauteur des lignes|Bulles|Police|À l’ouverture', 'page Affichage : groupes Planning, Dates, Hauteur des lignes, Bulles, Police, À l’ouverture (' + groupes + ')');
+    // Suite 101 : retiré — hauteurs dans Planning, lignes de texte dans Bulles.
+    verifier(groupes === 'Planning|Dates|Bulles|Police|À l’ouverture', 'page Affichage : groupes Planning, Dates, Bulles, Police, À l’ouverture (' + groupes + ')');
 
     // Dates
     const essais = [['jourSemaine', 'complet', 'formatDate', 'complet', '2026-09-24', 'Jeudi', '24 septembre'],

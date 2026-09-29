@@ -97,6 +97,8 @@
     // deux est montré, cf. majPageAffichage). Noms : « Bulles par personne »,
     // « Bulles Jalons et Notes », « Jalons et Notes » — le titre du groupe
     // dit déjà « Hauteur des lignes ».
+    // Suite 101 : groupe « Hauteur des lignes » retiré — les hauteurs (en
+    // pixels) sont rangées dans Planning, les lignes de texte dans Bulles.
     { id: "weekends", groupe: "Planning", nom: "Afficher les week-ends", aide: "Ajoute Samedi et Dimanche à la fin de chaque semaine, pour y poser une tâche ponctuelle.", interrupteur: true, defaut: "non" },
     { id: "separation", groupe: "Planning", nom: "Espace entre 2 semaines", aide: "Comme 2 fenêtres côte à côte. Éteint : un simple trait, comme entre 2 jours.", interrupteur: ["espace", "rien"], defaut: "espace", alias: { trait: "rien" }, css: true },
     { id: "auj", groupe: "Planning", nom: "Surligner aujourd’hui", aide: "Teinte toute la colonne du jour, pas seulement son en-tête.", interrupteur: true, defaut: "non", css: true },
@@ -109,6 +111,42 @@
     // voisins se choisit dans « À l'ouverture » (vueOrdi) — cf. lireJeu_
     // pour un ancien « bords » enregistré.
     { id: "cadre", groupe: "Planning", nom: "Coins du planning arrondis", aide: "Éteint : coins carrés.", interrupteur: ["arrondis", "carres"], defaut: "arrondis", css: true },
+    // Round du 29.09.2026 (suite 92) — Lionel : « La hauteur de ligne est
+    // fixe aussi sur ordinateur. Proposer les même réglage que sur
+    // portable. […] Passer hauteur de ligne à un curseur sur ordinateur. »
+    // Puis, à nos questions : curseur « continu, au pixel », tablette
+    // « comme l'ordinateur ». Remplacent « Serrée / Normale / Aérée »
+    // (`hauteur`, retiré) : un nombre de bulles décimal (pas de 0,01 : moins
+    // d'un pixel), mêmes origines que le téléphone ; lignes de texte des
+    // Jalons / Notes à part (le téléphone les a dans jalonsTel).
+    // Round du 28.09.2026 (suite 91) — Lionel : « passer à des hauteur de
+    // ligne fixe sur mobile. […] Ajouter un réglage d'affichage mobile
+    // permettant de choisir sa hauteur de ligne. Réglage différents pour
+    // hauteurs des lignes jalons/notes. Pour un réglage de base partir sur
+    // une hauteur contenant 2 bulles de 2hauteurs de texte. » Téléphone
+    // seulement (`profil`, cf. majPageAffichage), en nombre de bulles : la
+    // hauteur d'une bulle suit « Lignes de texte » ; Jalons et Notes, 1 bulle
+    // d'1 ligne à l'origine. Au-delà, les bulles se chevauchent en cascade
+    // (cascaderBullesJourMobile_, js/grille-hauteurs.js). Remplacés à la
+    // suite 101 (ci-dessous).
+    // Round du 29.09.2026 (suite 101) — Lionel : « Les lignes de texte des
+    // bulles influe sur la hauteur des lignes, je n'aime pas cette
+    // approche. au niveau des réglages, hauteur de ligne doit etre ranger
+    // dans planning. les hauteurs ne doivent pas etre calculer en fonction
+    // du réglage texte dans les bulles. réglage maintenant en pixels. même
+    // chose pour jalons et notes. » Hauteur d'une ligne en pixels, en
+    // curseur sur les deux jeux (ordinateur et tablette, téléphone), sans
+    // lien avec « Lignes de texte » (qui ne règle plus que la hauteur d'une
+    // bulle, groupe Bulles). Remplacent « Bulles par personne »
+    // (lignesOrdi, lignesTel), « Bulles Jalons et Notes » (jalonsOrdi) et
+    // « Jalons et Notes » (jalonsTel) : anciennes valeurs converties une
+    // fois (cf. lireJeu_). Origines : les hauteurs d'avant, à leur réglage
+    // d'origine (2 bulles de 2 lignes : 117 px sur ordinateur, 89 px sur
+    // téléphone ; Jalons et Notes, 1 bulle d'1 ligne : 32 px).
+    { id: "hauteurLigneOrdi", groupe: "Planning", nom: "Hauteur des lignes", aide: "Une ligne de personne, en pixels. Des bulles qui n’y tiennent pas se chevauchent en cascade.", curseur: [30, 240, 1], unite: "px", defaut: "117", profil: "ordi" },
+    { id: "hauteurLigneTel", groupe: "Planning", nom: "Hauteur des lignes", aide: "Une ligne de personne, en pixels. Des bulles qui n’y tiennent pas se chevauchent en cascade.", curseur: [30, 240, 1], unite: "px", defaut: "89", profil: "tel" },
+    { id: "hauteurJalOrdi", groupe: "Planning", nom: "Hauteur Jalons et Notes", aide: "Les lignes Jalons et Notes, en pixels.", curseur: [20, 120, 1], unite: "px", defaut: "32", profil: "ordi" },
+    { id: "hauteurJalTel", groupe: "Planning", nom: "Hauteur Jalons et Notes", aide: "Les lignes Jalons et Notes, en pixels.", curseur: [20, 120, 1], unite: "px", defaut: "32", profil: "tel" },
     { id: "jourSemaine", groupe: "Dates", nom: "Jour de la semaine", choix: [["abrege", "Jeu"], ["complet", "Jeudi"], ["initiale", "J"], ["masque", "Masqué"]], defaut: "abrege" },
     { id: "formatDate", groupe: "Dates", nom: "Date", choix: [["numero", "24"], ["chiffres", "24.09"], ["abrege", "24 sept."], ["complet", "24 septembre"]], defaut: "numero" },
     { id: "heures", groupe: "Dates", nom: "Heures de travail", aide: "La durée du jour (8.75 h) sous la date, d’après la page Horaires.", interrupteur: true, defaut: "oui" },
@@ -119,29 +157,12 @@
     // l'année, et comme les autres lignes, gras / italique / taille.
     { id: "coinMois", groupe: "Dates", nom: "Case de gauche : mois", aide: "Retiré quand la date des jours écrit déjà le mois.", choix: [["abrege", "sept."], ["complet", "septembre"], ["chiffres", "09"], ["masque", "Masqué"]], defaut: "abrege" },
     { id: "coinAnnee", groupe: "Dates", nom: "Case de gauche : année", choix: [["complete", "2026"], ["courte", "26"], ["masquee", "Masquée"]], defaut: "complete" },
-    // Round du 29.09.2026 (suite 92) — Lionel : « La hauteur de ligne est
-    // fixe aussi sur ordinateur. Proposer les même réglage que sur
-    // portable. […] Passer hauteur de ligne à un curseur sur ordinateur. »
-    // Puis, à nos questions : curseur « continu, au pixel », tablette
-    // « comme l'ordinateur ». Remplacent « Serrée / Normale / Aérée »
-    // (`hauteur`, retiré) : un nombre de bulles décimal (pas de 0,01 : moins
-    // d'un pixel), mêmes origines que le téléphone ; lignes de texte des
-    // Jalons / Notes à part (le téléphone les a dans jalonsTel).
-    { id: "lignesOrdi", groupe: "Hauteur des lignes", nom: "Bulles par personne", aide: "La place de combien de bulles, l’une sous l’autre, par personne. Au-delà, elles se chevauchent en cascade.", curseur: [1, 4, 0.01], defaut: "2", profil: "ordi" },
-    // Round du 28.09.2026 (suite 91) — Lionel : « passer à des hauteur de
-    // ligne fixe sur mobile. […] Ajouter un réglage d'affichage mobile
-    // permettant de choisir sa hauteur de ligne. Réglage différents pour
-    // hauteurs des lignes jalons/notes. Pour un réglage de base partir sur
-    // une hauteur contenant 2 bulles de 2hauteurs de texte. » Téléphone
-    // seulement (`profil`, cf. majPageAffichage), en nombre de bulles : la
-    // hauteur d'une bulle suit « Lignes de texte » ; Jalons et Notes, 1 bulle
-    // d'1 ligne à l'origine. Au-delà, les bulles se chevauchent en cascade
-    // (cascaderBullesJourMobile_, js/grille-rendu.js).
-    { id: "lignesTel", groupe: "Hauteur des lignes", nom: "Bulles par personne", aide: "La place de combien de bulles, l’une sous l’autre, par personne et par jour. Au-delà, elles se chevauchent en cascade.", choix: [["1", "1 bulle"], ["2", "2 bulles"], ["3", "3 bulles"], ["4", "4 bulles"]], defaut: "2", profil: "tel" },
-    { id: "lignes", groupe: "Hauteur des lignes", nom: "Lignes de texte", aide: "Par bulle — la hauteur d’une bulle. Au-delà, le texte est coupé par « … ».", choix: [["1", "1"], ["2", "2"], ["3", "3"]], defaut: "2", css: true },
-    { id: "jalonsOrdi", groupe: "Hauteur des lignes", nom: "Bulles Jalons et Notes", aide: "La place de combien de bulles dans les lignes Jalons et Notes.", curseur: [1, 4, 0.01], defaut: "1", profil: "ordi" },
-    { id: "jalonsTel", groupe: "Hauteur des lignes", nom: "Jalons et Notes", aide: "Leur propre hauteur : combien de bulles, et combien de lignes de texte par bulle.", choix: [["1x1", "1 bulle d’1 ligne"], ["1x2", "1 bulle de 2 lignes"], ["2x1", "2 bulles d’1 ligne"], ["2x2", "2 bulles de 2 lignes"]], defaut: "1x1", profil: "tel" },
-    { id: "jalonsLignesOrdi", groupe: "Hauteur des lignes", nom: "Lignes de texte Jalons et Notes", choix: [["1", "1"], ["2", "2"]], defaut: "1", profil: "ordi" },
+    // Suite 101 : « Lignes de texte » ne règle plus que la hauteur d'une
+    // bulle (plus celle des lignes) : rangé avec les bulles. Jalons et
+    // Notes ont les leurs (lignesJal : jalonsLignesOrdi et la 2e moitié
+    // de jalonsTel d'avant, cf. lireJeu_).
+    { id: "lignes", groupe: "Bulles", nom: "Lignes de texte", aide: "Par bulle — la hauteur d’une bulle. Au-delà, le texte est coupé par « … ».", choix: [["1", "1"], ["2", "2"], ["3", "3"]], defaut: "2", css: true },
+    { id: "lignesJal", groupe: "Bulles", nom: "Lignes de texte Jalons et Notes", choix: [["1", "1"], ["2", "2"]], defaut: "1" },
     { id: "texte", groupe: "Bulles", nom: "Taille du texte", choix: [["petit", "Petit"], ["normal", "Normal"], ["grand", "Grand"], ["tresgrand", "Très grand"]], defaut: "normal", css: true },
     { id: "statut", groupe: "Bulles", nom: "Statut", aide: "Badge : « Confirmé », « Réservé »… sous le texte. Pastille : un point de sa couleur dans le coin (le nom au survol).", choix: [["non", "Non"], ["pastille", "Pastille"], ["badge", "Badge"]], defaut: "badge", alias: { oui: "badge" }, css: true },
     { id: "coins", groupe: "Bulles", nom: "Coins des bulles arrondis", aide: "Éteint : coins droits.", interrupteur: ["arrondis", "droits"], defaut: "arrondis", css: true },
@@ -243,6 +264,26 @@
       m = JSON.parse(JSON.stringify(m));
       if (m.bords === "oui" && m.vueOrdi === undefined) m.vueOrdi = "bords";
       delete m.bords;
+    }
+    // Suite 101 : hauteurs en nombre de bulles (lignesOrdi, lignesTel,
+    // jalonsOrdi, jalonsTel) -> en pixels, à la hauteur qu'elles donnaient
+    // avec le texte de taille normale (bulle de 1, 2, 3 lignes : 40, 54,
+    // 68 px sur ordinateur, avec son badge de statut ; 26, 40, 54 px sur
+    // téléphone ; Jalons et Notes : 26, 40 px), 3 px de marge autour et
+    // entre les bulles. Oubliées au prochain enregistrement (options
+    // inconnues), les nouvelles prenant le relais.
+    if (m.lignesOrdi !== undefined || m.lignesTel !== undefined || m.jalonsOrdi !== undefined || m.jalonsTel !== undefined || m.jalonsLignesOrdi !== undefined) {
+      m = JSON.parse(JSON.stringify(m));
+      var l = +m.lignes >= 1 && +m.lignes <= 3 ? +m.lignes : 2;
+      var px = function (n, u) { return String(Math.round(3 + n * (u + 3))); };
+      var jt = /^([12])x([12])$/.exec(m.jalonsTel || "");
+      if (m.lignesJal === undefined && (m.jalonsLignesOrdi === "2" || (jt && jt[2] === "2"))) m.lignesJal = "2";
+      var uj = m.lignesJal === "2" ? 40 : 26;
+      if (m.lignesOrdi !== undefined && m.hauteurLigneOrdi === undefined && isFinite(parseFloat(m.lignesOrdi))) m.hauteurLigneOrdi = px(parseFloat(m.lignesOrdi), [40, 54, 68][l - 1]);
+      if (m.lignesTel !== undefined && m.hauteurLigneTel === undefined && isFinite(parseFloat(m.lignesTel))) m.hauteurLigneTel = px(parseFloat(m.lignesTel), [26, 40, 54][l - 1]);
+      if (m.jalonsOrdi !== undefined && m.hauteurJalOrdi === undefined && isFinite(parseFloat(m.jalonsOrdi))) m.hauteurJalOrdi = px(parseFloat(m.jalonsOrdi), uj);
+      if (jt && m.hauteurJalTel === undefined) m.hauteurJalTel = px(+jt[1], uj);
+      ["lignesOrdi", "lignesTel", "jalonsOrdi", "jalonsTel", "jalonsLignesOrdi"].forEach(function (k) { delete m[k]; });
     }
     return m;
   }
@@ -461,6 +502,7 @@
   // appareil, la hauteur de ligne qu'elle donne (dernières mesures du
   // planning, hauteursLignesMesurees — H = N·(U + 3) + 3).
   function libelleCurseur_(o, v, profil) {
+    if (o.unite) return Math.round(parseFloat(v)) + " " + o.unite; // suite 101 : hauteurs en pixels
     var n = parseFloat(v), txt = String(Math.round(n * 100) / 100).replace(".", ",") + (n < 2 ? " bulle" : " bulles");
     var mes = profil === profilAppareil_() && typeof hauteursLignesMesurees !== "undefined" && hauteursLignesMesurees;
     var u = mes && mes[o.id === "jalonsOrdi" ? "jal" : "pers"].u;
@@ -719,7 +761,9 @@
       // Suite 95 — Lionel : « Ajoute ligne de texte bulle au bouton hauteur
       // de ligne. » « Lignes de texte » (commun aux deux jeux) après les
       // bulles par personne.
-      var ids = profil === "ordi" ? ["lignesOrdi", "lignes", "jalonsOrdi", "jalonsLignesOrdi"] : ["lignesTel", "lignes", "jalonsTel"];
+      // Suite 101 : hauteurs en pixels ; les lignes de texte (des bulles)
+      // restent au panneau, sans plus changer la hauteur des lignes.
+      var ids = profil === "ordi" ? ["hauteurLigneOrdi", "hauteurJalOrdi", "lignes", "lignesJal"] : ["hauteurLigneTel", "hauteurJalTel", "lignes", "lignesJal"];
       p.innerHTML = '<div class="outil-menu-titre">Hauteur des lignes</div>' +
         ids.map(function (id) { return htmlLigneOption_(optionAffichageParId_(id)); }).join("") +
         '<button type="button" class="outil-menu-item hauteurs-tous" data-page-affichage>Tous les réglages d’affichage</button>';

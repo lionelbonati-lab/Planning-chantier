@@ -121,41 +121,46 @@ const pasCascade = (U, H, n, k) => k <= n ? U + M : Math.max(Math.min(20, U + M)
     // --- 3. Bouton de la barre, curseurs, page Affichage ---
     await page.click('#btnHauteurs');
     await page.waitForTimeout(150);
+    // Suite 101 — Lionel : « réglage maintenant en pixels. même chose pour
+    // jalons et notes. » Curseurs en pixels (hauteurLigneOrdi,
+    // hauteurJalOrdi) ; lignes de texte des jalons : lignesJal.
     const pan = await page.evaluate(() => ({
       ouvert: document.getElementById('menuHauteurs').classList.contains('ouvert'),
       curseurs: [...document.querySelectorAll('#panneauHauteurs .curseur-option')].map((e) => e.dataset.option + '=' + e.value),
-      lignesJal: !!document.querySelector('#panneauHauteurs [data-option="jalonsLignesOrdi"]'),
-      libelle: document.querySelector('#panneauHauteurs .curseur-valeur[data-pour="lignesOrdi"]').textContent,
+      lignesJal: !!document.querySelector('#panneauHauteurs [data-option="lignesJal"]'),
+      libelle: document.querySelector('#panneauHauteurs .curseur-valeur[data-pour="hauteurLigneOrdi"]').textContent,
       tous: !!document.querySelector('#panneauHauteurs .hauteurs-tous')
     }));
-    verifier(pan.ouvert && pan.curseurs.join(',') === 'lignesOrdi=2,jalonsOrdi=1' && pan.lignesJal && pan.tous,
-      'bouton « Hauteur des lignes » : panneau avec les curseurs Personnes et Jalons/Notes, les lignes de texte des jalons, le lien vers tous les réglages (' + JSON.stringify(pan) + ')');
-    verifier(pan.libelle === '2 bulles · ' + Math.round(r.H) + ' px', 'libellé du curseur en bulles et en pixels (« ' + pan.libelle + ' »)');
-    // Curseur tiré à 3 : événement « input » comme au glisser du pouce.
+    verifier(pan.ouvert && pan.curseurs.join(',') === 'hauteurLigneOrdi=117,hauteurJalOrdi=32' && pan.lignesJal && pan.tous,
+      'bouton « Hauteur des lignes » : panneau avec les curseurs Personnes et Jalons/Notes, les lignes de texte des jalons, le lien vers tous les réglages (' + JSON.stringify(pan) + ')');
+    verifier(pan.libelle === Math.round(r.H) + ' px', 'libellé du curseur en pixels (« ' + pan.libelle + ' »)');
+    // Curseur tiré à la place de 3 bulles : événement « input » comme au glisser du pouce.
     const marque = async () => page.evaluate(() => document.querySelector('#racine .scroller .grille').dataset.marque === '1');
     await page.evaluate(() => { document.querySelector('#racine .scroller .grille').dataset.marque = '1'; });
     const tirer = (id, v) => page.evaluate(([id, v]) => {
       const e = document.querySelector('#panneauHauteurs .curseur-option[data-option="' + id + '"]');
       e.value = v; e.dispatchEvent(new Event('input', { bubbles: true }));
     }, [id, v]);
-    await tirer('lignesOrdi', '3');
+    const px3 = String(Math.round(3 * r.u + 4 * M));
+    await tirer('hauteurLigneOrdi', px3);
     await page.waitForTimeout(150);
     r = await releve(page);
-    const lib3 = await page.evaluate(() => [optionAffichage('lignesOrdi'), document.querySelector('#panneauHauteurs .curseur-valeur[data-pour="lignesOrdi"]').textContent]);
+    const lib3 = await page.evaluate(() => [optionAffichage('hauteurLigneOrdi'), document.querySelector('#panneauHauteurs .curseur-valeur[data-pour="hauteurLigneOrdi"]').textContent]);
     verifier(proche(r.H, 3 * r.u + 4 * M) && Object.values(r.lignes).every((l) => proche(l.hauteur, r.H)) && await marque(),
-      'curseur à 3 : lignes de 3 bulles tout de suite, sans reconstruire la grille (H ' + r.H + ')');
+      'curseur à ' + px3 + ' px (3 bulles) : lignes de 3 bulles tout de suite, sans reconstruire la grille (H ' + r.H + ')');
     const pas3 = pasCascade(r.u, r.H, 3, 4), hX3 = ['X', 'Y', 'Z', 'W'].map((t) => r.cartes[t][0].h - r.lignes.Antoine.h);
     verifier(hX3.every((h, i) => proche(h, M + i * pas3)), 'cascade refaite à la nouvelle hauteur (pas ' + pas3.toFixed(1) + ', hauts ' + hX3.map(Math.round).join('/') + ')');
-    verifier(lib3[0] === '3' && lib3[1] === '3 bulles · ' + Math.round(r.H) + ' px', 'valeur enregistrée et libellé à jour (' + lib3.join(' | ') + ')');
-    await tirer('lignesOrdi', '1.5');
+    verifier(lib3[0] === px3 && lib3[1] === px3 + ' px', 'valeur enregistrée et libellé à jour (' + lib3.join(' | ') + ')');
+    await tirer('hauteurLigneOrdi', '88');
     await page.waitForTimeout(150);
     r = await releve(page);
-    verifier(proche(r.H, 1.5 * (r.u + M) + M) && await marque(), 'curseur continu : 1,5 bulle (H ' + r.H + ')');
-    await tirer('jalonsOrdi', '2');
+    verifier(proche(r.H, 88) && await marque(), 'curseur au pixel : 88 px (H ' + r.H + ')');
+    const pxJ = String(Math.round(2 * r.uJal + 3 * M));
+    await tirer('hauteurJalOrdi', pxJ);
     await page.waitForTimeout(150);
     r = await releve(page);
-    verifier(proche(r.hJal, 2 * r.uJal + 3 * M) && proche(r.jal, r.hJal) && await marque(), 'curseur Jalons/Notes à 2 : ligne Jalons de 2 bulles (' + r.jal + ' px)');
-    // Page Affichage : même curseur, même valeur ; ancien réglage retiré.
+    verifier(proche(r.hJal, 2 * r.uJal + 3 * M) && proche(r.jal, r.hJal) && await marque(), 'curseur Jalons/Notes à ' + pxJ + ' px : ligne Jalons de 2 bulles (' + r.jal + ' px)');
+    // Page Affichage : même curseur, même valeur ; anciens réglages retirés.
     // Le panneau recouvre une partie de la grille : refermé par son bouton.
     await page.click('#btnHauteurs');
     await page.waitForTimeout(100);
@@ -163,17 +168,17 @@ const pasCascade = (U, H, n, k) => k <= n ? U + M : Math.max(Math.min(20, U + M)
     await page.evaluate(() => afficherPage('affichage'));
     await page.waitForTimeout(300);
     const pa = await page.evaluate(() => {
-      const e = document.querySelector('#page-affichage .curseur-option[data-option="lignesOrdi"], .curseur-option[data-option="lignesOrdi"]:not(#panneauHauteurs *)');
-      return { valeur: e && e.value, libelle: e && e.parentNode.querySelector('.curseur-valeur').textContent, ancien: !!document.querySelector('[data-option="hauteur"]') };
+      const e = document.querySelector('#page-affichage .curseur-option[data-option="hauteurLigneOrdi"]');
+      return { valeur: e && e.value, libelle: e && e.parentNode.querySelector('.curseur-valeur').textContent, ancien: !!document.querySelector('[data-option="hauteur"], [data-option="lignesOrdi"]') };
     });
-    verifier(pa.valeur === '1.5' && /^1,5 bulle/.test(pa.libelle) && !pa.ancien,
-      'page Affichage : curseur « Hauteur des lignes » à la même valeur, « Serrée / Normale / Aérée » retiré (' + JSON.stringify(pa) + ')');
+    verifier(pa.valeur === '88' && pa.libelle === '88 px' && !pa.ancien,
+      'page Affichage : curseur « Hauteur des lignes » à la même valeur, anciens réglages retirés (' + JSON.stringify(pa) + ')');
     await page.evaluate(() => afficherPage('planning'));
     await page.waitForTimeout(300);
     r = await releve(page);
-    verifier(proche(r.H, 1.5 * (r.u + M) + M) && Object.values(r.lignes).every((l) => proche(l.hauteur, r.H)), 'retour au planning : hauteur gardée (H ' + r.H + ')');
-    await tirer('lignesOrdi', '2');
-    await tirer('jalonsOrdi', '1');
+    verifier(proche(r.H, 88) && Object.values(r.lignes).every((l) => proche(l.hauteur, r.H)), 'retour au planning : hauteur gardée (H ' + r.H + ')');
+    await tirer('hauteurLigneOrdi', '117');
+    await tirer('hauteurJalOrdi', '32');
     await page.waitForTimeout(150);
 
     // --- 4. Case chantier synchronisée avec la sélection ---
