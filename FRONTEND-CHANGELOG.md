@@ -10649,3 +10649,11 @@ Lionel :
 
 ### Tests
 - Nouveau : tests/test_suite110.js (3 vérifications), qui échoue sans le correctif.
+
+## 224. Round du 29.09.2026 (suite 111) — Échap quitte le mode ajout
+- Lionel : « esc doit pouvoir faire sortir du mode ajout »
+- Échap, dans l'ordre : ferme un popup ouvert, puis les réglages, puis quitte la sélection, puis quitte le mode ajout (« + » relâché, retenu par l'appareil).
+- Page Raccourcis : « Échap — Fermer une fenêtre, quitter la sélection, puis le mode ajout ».
+
+### Tests
+- Nouveau : tests/test_suite111.js (4 vérifications).

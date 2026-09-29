@@ -169,7 +169,7 @@
     { id: "pageRaccourcis", groupe: "Pages", nom: "Raccourcis clavier (cette page)", defaut: ["?"], faire: allerPage_("raccourcis") }
   ];
   var TOUCHES_FIXES_ = [
-    { combo: "Échap", nom: "Fermer une fenêtre, quitter la sélection" },
+    { combo: "Échap", nom: "Fermer une fenêtre, quitter la sélection, puis le mode ajout" },
     { combo: "Entrée", nom: "Valider une fenêtre ouverte" }
   ];
   // Suite 64 : gestes de la souris sur le planning, tels qu'ils sont codés
