@@ -461,7 +461,15 @@
       // Suite 63 : Échap referme les réglages (comme la croix), sauf en
       // pleine saisie dans un champ.
       if (!dansChamp && fermerReglages()) { e.preventDefault(); return; }
-      if (Object.keys(bullesSelectionnees).length > 0 || modeSelectionMultiple) { quitterModeSelection(); render(false); e.preventDefault(); }
+      if (Object.keys(bullesSelectionnees).length > 0 || modeSelectionMultiple) { quitterModeSelection(); render(false); e.preventDefault(); return; }
+      // Round du 29.09.2026 (suite 111). Lionel : « esc doit pouvoir faire
+      // sortir du mode ajout » — « + » relâché, retour au mode sélection
+      // (après les popups, les réglages et la sélection, fermés d'abord).
+      if (!dansChamp && modeAjoutPlanning) {
+        changerModeAjoutPlanning(false);
+        toast("Mode sélection : glisser sur les cases pour sélectionner.");
+        e.preventDefault();
+      }
       return;
     }
     if (e.key === "Enter" && popValiderActuel) { popValiderActuel(); e.preventDefault(); return; }
