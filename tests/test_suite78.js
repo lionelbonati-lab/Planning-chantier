@@ -80,7 +80,9 @@ const ecart = (a, b) => Math.max(...a.map((v, i) => Math.abs(v - b[i])));
         zLbl: getComputedStyle(lbl).zIndex, zSection: getComputedStyle(s.querySelector('.section-row')).zIndex };
     });
     // Suite 91 : traits plus prolongés (repos.prolonge faux).
-    verifier(repos.sw === repos.sans && !repos.deborde && !repos.prolonge && repos.zLbl === '3' && repos.zSection === '3',
+    // Suite 97 : noms à 4 (hauteurs fixes), devant la bulle sélectionnée
+    // (3) qui, rangée sous eux au jour suivant, les recouvrait.
+    verifier(repos.sw === repos.sans && !repos.deborde && !repos.prolonge && repos.zLbl === '4' && repos.zSection === '3',
       'téléphone au repos : bandes et noms au-dessus des bulles, traits non prolongés (suite 91), défilement inchangé (' + JSON.stringify(repos) + ')');
 
     // Doigt posé au milieu du glissement jeudi → vendredi.
@@ -127,7 +129,9 @@ const ecart = (a, b) => Math.max(...a.map((v, i) => Math.abs(v - b[i])));
     // Ordinateur : les traits de la colonne des noms ne sont pas prolongés.
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 1400, height: 800 }, bd: { personnes: PERS, taches: TACHES } });
     const o = await page.evaluate(() => { const lbl = document.querySelector('.scroller .lbl'); return { ombre: getComputedStyle(lbl, '::after').boxShadow, z: getComputedStyle(lbl).zIndex }; });
-    verifier(o.ombre === 'none' && o.z === '2', 'ordinateur : traits de la colonne des noms inchangés (' + JSON.stringify(o) + ')');
+    // Suite 97 : noms à 4 partout (lignes de hauteur fixe sur ordinateur
+    // aussi, suite 92), devant la bulle sélectionnée.
+    verifier(o.ombre === 'none' && o.z === '4', 'ordinateur : traits de la colonne des noms inchangés (' + JSON.stringify(o) + ')');
     toutesErreurs.push(...erreurs);
     await page.close();
   }

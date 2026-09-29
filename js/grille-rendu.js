@@ -147,7 +147,7 @@
       if (c.style.marginRight === o.r1) c.style.marginRight = o.r0;
       delete c.dataset.deplie;
     });
-    if (document.body.classList.contains("selection-multiple") || !racineEl.classList.contains("hauteurs-fixes")) return;
+    if (document.body.classList.contains("selection-multiple") || !racineEl.classList.contains("hauteurs-fixes")) { placerPoigneesCartes_(); return; }
     var cs = getComputedStyle(racineEl), px = function (v) { return parseFloat(cs.getPropertyValue(v)) || 0; };
     var marge = 3, sc = document.querySelector("#racine .scroller");
     var rs = sc ? sc.getBoundingClientRect() : null;
@@ -190,6 +190,40 @@
         var d = Math.max(dLigne, dGrille);
         if (d > 0.5) { c.style.transform = "translateY(" + (-Math.round(d / k)) + "px)"; c.dataset.remonte = "1"; }
       });
+    });
+    placerPoigneesCartes_();
+  }
+  // Round du 29.09.2026 (suite 97) — Lionel, captures à l'appui : « Sur
+  // mobile, plusieurs incohérences au niveau des sélections et des
+  // poignées. » Les poignées (.poignee-g / -d) couvraient toute la hauteur
+  // de la BULLE (top/bottom 0, soit U) et ses bords d'origine ; depuis la
+  // suite 95 la carte fait la hauteur de son texte, et, sélectionnée, se
+  // déplie, s'élargit (marges négatives) et remonte (transform). Leur trait
+  // tombait donc sous une carte courte (à cheval sur la ligne suivante), en
+  // retrait d'une carte élargie, à côté d'une carte remontée. Chaque
+  // poignée prend maintenant la place de sa carte (la première pour la
+  // gauche, la dernière pour la droite, comme la cascade) : même haut, même
+  // hauteur, même bord, même remontée. Lectures d'abord, écritures ensuite
+  // (une seule mise en page).
+  function placerPoigneesCartes_() {
+    var fixes = racineEl.classList.contains("hauteurs-fixes"), aPoser = [];
+    document.querySelectorAll("#racine .bulle").forEach(function (b) {
+      var pg = b.querySelector(":scope > .poignee-g"), pd = b.querySelector(":scope > .poignee-d");
+      var cs = b.querySelectorAll(":scope > .b-carte");
+      if (!pg || !pd || !cs.length) return;
+      if (!fixes) { aPoser.push([pg, "", "", "", "", ""], [pd, "", "", "", "", ""]); return; }
+      var c0 = cs[0], c1 = cs[cs.length - 1];
+      aPoser.push([pg, c0.offsetTop + "px", c0.offsetHeight + "px", c0.offsetLeft + "px", "", c0.style.transform]);
+      aPoser.push([pd, c1.offsetTop + "px", c1.offsetHeight + "px", "", (b.clientWidth - c1.offsetLeft - c1.offsetWidth) + "px", c1.style.transform]);
+    });
+    aPoser.forEach(function (x) {
+      var st = x[0].style, v = x[1] ? "auto" : "";
+      if (st.top !== x[1]) st.top = x[1];
+      if (st.bottom !== v) st.bottom = v;
+      if (st.height !== x[2]) st.height = x[2];
+      if (x[0].classList.contains("poignee-g") && st.left !== x[3]) st.left = x[3];
+      if (x[0].classList.contains("poignee-d") && st.right !== x[4]) st.right = x[4];
+      if (st.transform !== x[5]) st.transform = x[5];
     });
   }
   function majChantierSelection() {
@@ -2957,6 +2991,20 @@
         poserJourMobile_(thJour); // poignées du jour posé (suite 91)
         var giJour = +thJour.dataset.gi, isoJour = isoDeGi(giJour);
         if (!isoJour) return;
+        // Suite 97 — Lionel : « en sélection simple, quand on change de
+        // jour, la case est désélectionnée. Et en multiple, la case reste
+        // sélectionnée. » Nouveau jour posé, sélection simple (ni plusieurs
+        // bulles, ni mode multiple : body.selection-multiple) dont la bulle
+        // n'est plus sur ce jour (.hors-jour, ou plus dans la grille) : la
+        // sélection est vidée. Une bulle encore là (tâche de plusieurs
+        // jours, bulle amenée au bord ou étirée jusqu'au nouveau jour)
+        // reste sélectionnée.
+        if (isoJour !== jourMobileIso && !document.body.classList.contains("selection-multiple")) {
+          var idsSel = Object.keys(bullesSelectionnees);
+          if (idsSel.length && idsSel.every(function (id) {
+            return [].every.call(racineEl.querySelectorAll('.bulle[data-id="' + id + '"]'), function (b) { return b.classList.contains("hors-jour"); });
+          })) quitterModeSelection();
+        }
         jourMobileIso = isoJour;
         for (var iSem = 0; iSem < etat.semaines.length; iSem++) {
           var sem = etat.semaines[iSem];
@@ -2993,10 +3041,35 @@
       // du planning). Semaine voisine en principe déjà en cache
       // (prechargerVoisinesJourMobile) : reconstruction immédiate.
       var recentrerFenetreJourMobile = function () {
+        // Suite 97 — Lionel : « en multiple, la case reste sélectionnée »
+        // au changement de jour. La sélection était vidée d'office au
+        // recentrage : les id des bulles et leurs colonnes (giDebut) sont
+        // refaits avec la fenêtre. Chaque bulle sélectionnée est donc
+        // notée par son contenu (cleBulle_) et sa DATE de début, puis
+        // retrouvée dans la nouvelle fenêtre (la bulle de même contenu qui
+        // couvre cette date) ; celles qui en sortent sont désélectionnées.
+        // (La sélection simple d'une bulle absente du jour a déjà été
+        // vidée à l'arrêt, plus haut.)
+        var selAvant = [];
+        Object.keys(bullesSelectionnees).forEach(function (id) {
+          var p = itemParId(id), iso = p && isoDeGi(p.item.giDebut);
+          if (iso) selAvant.push({ cle: cleBulle_(p.item), iso: iso });
+        });
         debutFenetreMobile = null;
         if (fenetreLabGs().join(",") === labsRendus) return;
         bullesSelectionnees = {};
-        assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); majBarreSelection(); });
+        assurerFenetreChargee(function () {
+          construireVueDepuisCache();
+          var toutes = TACHES.concat(JALONS, NOTES);
+          selAvant.forEach(function (sel) {
+            var gi = giDepuisIso(sel.iso);
+            if (gi == null) return;
+            var it = toutes.filter(function (x) { return !bullesSelectionnees[x.id] && cleBulle_(x) === sel.cle && gi >= x.giDebut && gi < x.giDebut + x.duree; })[0];
+            if (it) bullesSelectionnees[it.id] = true;
+          });
+          if (!Object.keys(bullesSelectionnees).length) { modeSelectionMultiple = false; copieSelectionActive = false; }
+          render(false); majBarreSelection();
+        });
       };
       prechargerVoisinesJourMobile();
     }
