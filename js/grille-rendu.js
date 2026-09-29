@@ -116,16 +116,80 @@
   // remonte d'autant (transform, qui s'ajoute au translate de la
   // cascade), sans passer au-dessus du haut de la grille. Appelée à chaque
   // changement de sélection (majBarreSelection) et après chaque cascade.
+  //
+  // Round du 29.09.2026 (suite 95) — Lionel : « L'agrandissement d'une
+  // bulle sélectionnée peut se faire d'une demi case à droite ou à gauche
+  // (dans sa demi journée opposée) pour éviter qu'elle ne prenne trop de
+  // hauteur, la décaler contre le haut si elle passe dessous une ligne de
+  // séparation. » Puis, même round : « il serait plutôt judicieux
+  // d'élargir la bulle de quelques pixels et la centrer sur sa case quand
+  // c'est possible, sinon […] la faire déborder à gauche ou à droite si
+  // elle est en bout de planning. » Carte dépliée plus haute qu'une carte
+  // fixe (U) : ELARGI_SEL_ px de plus de chaque côté, centrée sur sa case ;
+  // au bord du planning visible (colonne des noms, bord droit), le
+  // débordement passe tout entier de l'autre côté. Marges négatives
+  // (gauche et droite) : la place de la carte dans sa bulle ne change pas
+  // (en vue « 1 jour », les cartes des autres jours ne bougent pas). Puis,
+  // si son bas passe sous la ligne de séparation du bas de sa ligne, elle
+  // remonte, au plus jusqu'au haut de la ligne. En multi-sélection
+  // (body.selection-multiple), rien : les bulles ne se déplient pas.
+  // Largeur et marges d'origine gardées en data-deplie, remises au
+  // changement suivant (sauf si un rendu les a reposées entre-temps).
+  var ELARGI_SEL_ = 12;
   function remonterCartesSelection() {
     document.querySelectorAll("#racine .bulle > .b-carte[data-remonte]").forEach(function (c) {
       c.style.transform = ""; delete c.dataset.remonte;
     });
-    document.querySelectorAll("#racine .scroller .bulle.selectionnee > .b-carte").forEach(function (c) {
-      var g = c.closest(".grille");
-      if (!g) return;
-      var rg = g.getBoundingClientRect(), r = c.getBoundingClientRect();
-      var d = Math.min(r.bottom - rg.bottom + 2, r.top - rg.top);
-      if (d > 0.5) { c.style.transform = "translateY(" + (-Math.round(d)) + "px)"; c.dataset.remonte = "1"; }
+    document.querySelectorAll("#racine .bulle > .b-carte[data-deplie]").forEach(function (c) {
+      var o = JSON.parse(c.dataset.deplie);
+      if (c.style.width === o.w1) c.style.width = o.w0;
+      if (c.style.marginLeft === o.m1) c.style.marginLeft = o.m0;
+      if (c.style.marginRight === o.r1) c.style.marginRight = o.r0;
+      delete c.dataset.deplie;
+    });
+    if (document.body.classList.contains("selection-multiple") || !racineEl.classList.contains("hauteurs-fixes")) return;
+    var cs = getComputedStyle(racineEl), px = function (v) { return parseFloat(cs.getPropertyValue(v)) || 0; };
+    var marge = 3, sc = document.querySelector("#racine .scroller");
+    var rs = sc ? sc.getBoundingClientRect() : null;
+    document.querySelectorAll("#racine .bulle.selectionnee").forEach(function (b) {
+      var g = b.closest(".grille"), cartes = [].filter.call(b.querySelectorAll(":scope > .b-carte"), function (c) { return c.offsetWidth > 0; });
+      if (!g || !cartes.length) return;
+      var jal = b.classList.contains("bulle-jalon") || b.classList.contains("bulle-note");
+      var u = px(jal ? "--mob-carte-jal" : "--mob-carte-pers"), h = px(jal ? "--mob-h-jal" : "--mob-h-pers");
+      var rg = g.getBoundingClientRect();
+      // Planning visible, à l'écran : de la colonne des noms (collante) au
+      // bord droit du planning.
+      cartes.forEach(function (c) {
+        if (!u || c.offsetHeight <= u + 1) return;
+        var r = c.getBoundingClientRect(), k = c.offsetWidth ? r.width / c.offsetWidth : 1;
+        var gMin = Math.max(rg.left, rs ? rs.left : rg.left) + largeurNoms() * k, gMax = Math.min(rg.right, rs ? rs.right : rg.right) - 2;
+        if (r.right < gMin || r.left > gMax) return; // carte d'un autre jour, hors de l'écran
+        var e = ELARGI_SEL_ * k, gauche = r.left - e, droite = r.right + e;
+        if (gauche < gMin) { droite = Math.min(gMax, droite + gMin - gauche); gauche = gMin; }
+        if (droite > gMax) { gauche = Math.max(gMin, gauche - (droite - gMax)); droite = gMax; }
+        var dg = Math.max(0, r.left - gauche) / k, dd = Math.max(0, droite - r.right) / k;
+        if (dg + dd < 0.5) return;
+        var ccs = getComputedStyle(c);
+        var o = { w0: c.style.width, m0: c.style.marginLeft, r0: c.style.marginRight };
+        c.style.width = (c.offsetWidth + dg + dd) + "px";
+        c.style.marginLeft = (parseFloat(ccs.marginLeft) - dg) + "px";
+        c.style.marginRight = (parseFloat(ccs.marginRight) - dd) + "px";
+        o.w1 = c.style.width; o.m1 = c.style.marginLeft; o.r1 = c.style.marginRight;
+        c.dataset.deplie = JSON.stringify(o);
+      });
+      // Remontée : sous le bas de la ligne (bulle posée en haut de sa
+      // ligne, H de haut), puis sous le bas de la grille (dernière ligne
+      // du planning, coupée par .scroller) — jamais au-dessus du haut de
+      // la ligne, ni de la grille. k : zoom du planning (mesures à l'écran,
+      // décalage en px de la page).
+      var rb = b.getBoundingClientRect();
+      cartes.forEach(function (c) {
+        var r = c.getBoundingClientRect(), k = c.offsetHeight ? r.height / c.offsetHeight : 1;
+        var dLigne = h ? Math.min(r.bottom - (rb.top + (h - marge) * k), r.top - (rb.top + marge * k)) : 0;
+        var dGrille = Math.min(r.bottom - rg.bottom + 2, r.top - rg.top);
+        var d = Math.max(dLigne, dGrille);
+        if (d > 0.5) { c.style.transform = "translateY(" + (-Math.round(d / k)) + "px)"; c.dataset.remonte = "1"; }
+      });
     });
   }
   function majChantierSelection() {

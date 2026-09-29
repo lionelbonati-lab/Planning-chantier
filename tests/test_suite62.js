@@ -84,9 +84,13 @@ const style = (page, sel, prop) => page.evaluate(([s, p]) => { const e = documen
     // Suite 91 : + lignesTel et jalonsTel (hauteurs fixes du téléphone).
     // Suite 92 : « hauteur » (Serrée / Normale / Aérée) remplacé par les
     // curseurs lignesOrdi, jalonsOrdi et les lignes de texte jalonsLignesOrdi.
-    verifier(page0.options === 'weekends,auj,zebre,teinte,separation,cadre,noms,jourSemaine,formatDate,heures,ligneDemi,coinMois,coinAnnee,texte,lignes,lignesTel,jalonsTel,lignesOrdi,jalonsOrdi,jalonsLignesOrdi,coins,statut,police,vueOrdi,vueTel',
-      'page Affichage : les 25 réglages (suite 92 : curseurs de l\'ordinateur) (suite 91 : hauteurs des lignes du téléphone) (suite 83 : mois et année de la case de gauche) (bords : suite 74, dans la barre d\'outils depuis la suite 79) (' + page0.options + ')');
-    verifier(page0.actifs === 'teinte=aprem,noms=normal,jourSemaine=abrege,formatDate=numero,ligneDemi=horaires,coinMois=abrege,coinAnnee=complete,texte=normal,lignes=2,lignesTel=2,jalonsTel=1x1,jalonsLignesOrdi=1,statut=badge,police=archivo,vueOrdi=1,vueTel=jour' && page0.inter === 'separation,cadre,coins' && !page0.we && page0.statut && page0.reset,
+    // Suite 95 — Lionel : « Trille correctement le menu affichage. » Rangés
+    // par sujet (groupe « Hauteur des lignes », ordinateur et téléphone
+    // côte à côte).
+    verifier(page0.options === 'weekends,separation,auj,teinte,zebre,noms,cadre,jourSemaine,formatDate,heures,ligneDemi,coinMois,coinAnnee,lignesOrdi,lignesTel,lignes,jalonsOrdi,jalonsTel,jalonsLignesOrdi,texte,statut,coins,police,vueOrdi,vueTel',
+      'page Affichage : les 25 réglages (suite 95 : rangés par sujet) (suite 92 : curseurs de l\'ordinateur) (suite 91 : hauteurs des lignes du téléphone) (suite 83 : mois et année de la case de gauche) (bords : suite 74, dans la barre d\'outils depuis la suite 79) (' + page0.options + ')');
+    // Suite 95 : dans le nouvel ordre de la page.
+    verifier(page0.actifs === 'teinte=aprem,noms=normal,jourSemaine=abrege,formatDate=numero,ligneDemi=horaires,coinMois=abrege,coinAnnee=complete,lignesTel=2,lignes=2,jalonsTel=1x1,jalonsLignesOrdi=1,texte=normal,statut=badge,police=archivo,vueOrdi=1,vueTel=jour' && page0.inter === 'separation,cadre,coins' && !page0.we && page0.statut && page0.reset,
       'valeurs d\'origine affichées, « Tout rétablir » caché (' + page0.actifs + ')');
     verifier(page0.noms === 'Lionel,Mathis,Antoine' && page0.jours === 'Jeu 24,Ven 25,Lun 28,Mar 29' && page0.seps === 2,
       'aperçu : 3 personnes, Jeu Ven | Lun Mar, espace entre les semaines (' + JSON.stringify(page0) + ')');

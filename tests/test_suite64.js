@@ -62,7 +62,8 @@ const souris = (page, type, button, opts) => page.evaluate(([t, b, o]) => {
     verifier(JSON.stringify(e0) === '{"nom":"Jeu","date":"24","duree":true}', 'à l\'origine : « Jeu 24 » et la durée de travail (' + JSON.stringify(e0) + ')');
     await page.evaluate(() => afficherPage('affichage')); await page.waitForTimeout(250);
     const groupes = await page.evaluate(() => [...document.querySelectorAll('#page-affichage .titre-liste')].map((h) => h.textContent).join('|'));
-    verifier(groupes === 'Planning|Dates|Bulles|Police|À l’ouverture', 'page Affichage : groupes Planning, Dates, Bulles, Police, À l’ouverture (' + groupes + ')');
+    // Suite 95 : groupe « Hauteur des lignes » avant « Bulles ».
+    verifier(groupes === 'Planning|Dates|Hauteur des lignes|Bulles|Police|À l’ouverture', 'page Affichage : groupes Planning, Dates, Hauteur des lignes, Bulles, Police, À l’ouverture (' + groupes + ')');
 
     // Dates
     const essais = [['jourSemaine', 'complet', 'formatDate', 'complet', '2026-09-24', 'Jeudi', '24 septembre'],

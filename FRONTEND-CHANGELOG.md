@@ -10081,3 +10081,73 @@ Lionel :
 ### Tests
 - test_suite94.js, 4/4 : ordinateur et téléphone — cartes posées sur une autre marquées, ombrées et liserées ; la première de la pile et une bulle seule sans ; marques identiques après le curseur à 3 bulles.
 - Suite complète : 99/99.
+
+## 203. Round du 29.09.2026 (suite 95) — Bulles : ombre partout, hauteur au texte, dépliage élargi et centré ; « + » au jour affiché ; page Affichage rangée
+- « Ajoute l'ombre à toute les bulles. »
+- « En multi-sélection ne pas agrandir la bulle sélectionnée. »
+- « J'ai l'impression que la hauteur des bulles n'est plus dynamique. »
+- « En mode portable, sélectionner la date du jour actif dans les formulaire à l'ajout par la touche "+". »
+- « L'agrandissement d'une bulle sélectionnée peut se faire d'une demi case à droite ou à gauche (dans sa demi journée opposée) pour éviter qu'elle ne prenne trop de hauteur, la décaler contre le haut si elle passe dessous une ligne de séparation. »
+- « Ajoute ligne de texte bulle au bouton hauteur de ligne. »
+- « Trille correctement le menu affichage. »
+- Réponse de Lionel (hauteur des bulles) : « Bulle à la taille du texte ».
+- Puis, sur le dépliage élargi : « il serait plutôt judicieux d'élargir la bulle de quelques pixels et la centrer sur sa case quand c'est possible, sinon euh, la faire déborder à gauche ou à droite si elle est en bout de planning. »
+
+### Ce qui change
+- **Ombre** : l'ombre portée vers le haut et le liseré de la suite 94 valent pour toutes les bulles, plus seulement celles posées sur une autre.
+- **Hauteur au texte** : une bulle prend la hauteur de son texte, au plus la hauteur réglée (« Lignes de texte », badge de statut). Une bulle au texte court ne fait qu'une ligne. Les lignes gardent leur hauteur fixe et la cascade son pas régulier.
+- **Multi-sélection** : plusieurs bulles sélectionnées (ou le mode multiple allumé) ne se déplient plus. Une bulle dépliée seule se replie dès qu'une deuxième est sélectionnée.
+- **Dépliage élargi** : une bulle sélectionnée seule dont le texte entier dépasse la hauteur d'une bulle s'élargit de 12 px de chaque côté, centrée sur sa case :
+  - au bord gauche du planning (contre la colonne des noms), les 24 px vont à droite ;
+  - au bord droit, ils vont à gauche ;
+  - vaut pour toutes les bulles, matin, après-midi ou journées entières, et pour la carte du jour en vue « 1 jour » du téléphone.
+  - (Une première version l'élargissait d'une demi-case dans la demi-journée opposée ; remplacée à la demande de Lionel.)
+- **Remontée** : si la bulle dépliée passe sous la séparation du bas de sa ligne, elle remonte, au plus jusqu'au haut de la ligne. Sur la dernière ligne du planning, elle tient toujours au-dessus du bas de la grille (suite 93). Échap, ou un clic ailleurs : tout reprend sa place.
+- **« + » du téléphone** : en vue « 1 jour », le formulaire (tâche, absence, jalon, note) s'ouvre à la date du jour affiché, et non plus à aujourd'hui. Ailleurs, rien ne change : aujourd'hui s'il est dans la semaine affichée.
+- **Bouton « Hauteur des lignes »** : son panneau montre aussi « Lignes de texte », entre les bulles par personne et les Jalons / Notes, sur l'ordinateur comme sur le téléphone.
+- **Page Affichage rangée par sujet** : Planning, Dates, Hauteur des lignes, Bulles, Police, À l'ouverture.
+  - **Planning** : week-ends, espace entre 2 semaines, surligner aujourd'hui, colonnes teintées, lignes alternées, taille des noms, coins.
+  - **Hauteur des lignes** (nouveau groupe) : « Bulles par personne », « Lignes de texte », « Bulles Jalons et Notes » / « Jalons et Notes », « Lignes de texte Jalons et Notes ». Les réglages de l'ordinateur et du téléphone d'un même sujet se suivent.
+  - **Bulles** : taille du texte, statut, coins.
+
+### Fonctionnement
+- **style.css** (bloc `#racine.hauteurs-fixes`) :
+  - la bulle garde la hauteur U, sur laquelle s'appuie le rognage au bas de la ligne (`clip-path`) ;
+  - sa carte passe en `height: auto; max-height: U`, et en vue « 1 jour » en `align-self: flex-start` ;
+  - `filter: drop-shadow` et le liseré `::before` s'appliquent à toutes les cartes ;
+  - les règles de dépliage passent sous `body:not(.selection-multiple)`.
+- **js/formulaires-communs.js** : `majBarreSelection` pose `body.selection-multiple` quand plus d'une bulle est sélectionnée, ou quand le mode multiple est allumé.
+- **js/grille-rendu.js** — `remonterCartesSelection` :
+  - **Remise à zéro** : il remet d'abord les cartes à leur état d'origine. Largeur et marges sont gardées en `data-deplie`, puis rendues seulement si un rendu ne les a pas reposées entre-temps.
+  - **Élargissement** : quand une carte dépliée est plus haute que U, elle gagne `ELARGI_SEL_` (12 px) de chaque côté :
+    - bornes : le planning visible, de la colonne des noms (collante, `largeurNoms()`) au bord droit du `.scroller` ou de la grille ; le débordement qui passerait une borne va de l'autre côté ;
+    - largeur plus grande, `margin-left` et `margin-right` négatives d'autant : la place de la carte dans sa bulle ne change pas, et en vue « 1 jour » les cartes des autres jours ne bougent pas ;
+    - seules les cartes visibles à l'écran sont élargies ; mesures à l'écran ramenées au zoom du planning.
+  - **Remontée** : ensuite, la carte remonte (`translateY`) du plus grand de deux dépassements :
+    - sous le bas de sa ligne (haut de la bulle + H − marge) ;
+    - sous le bas de la grille.
+  - Elle ne passe jamais au-dessus du haut de la ligne, ni de la grille.
+  - Rien n'est fait en multi-sélection.
+- **js/formulaires-edition.js** : `giPourAjoutBarre` cherche `jourMobileIso` en vue « 1 jour » (`modeJourMobileActif()`), aujourd'hui sinon.
+- **js/page-affichage.js** :
+  - `OPTIONS_AFFICHAGE` est réordonné, avec le groupe « Hauteur des lignes » et les nouveaux noms ;
+  - `majPanneauHauteurs` montre `lignesOrdi, lignes, jalonsOrdi, jalonsLignesOrdi` sur l'ordinateur et `lignesTel, lignes, jalonsTel` sur le téléphone.
+
+### Tests
+- test_suite95.js, 19/19 :
+  - taille au texte : courte plus basse que la longue, longue coupée au plus à U, ligne à H ;
+  - toutes les cartes ombrées ;
+  - élargissement : centré au milieu du planning (mercredi matin, jeudi après-midi) ; lundi, contre la colonne des noms, vers la droite ; vendredi, au bord droit, vers la gauche ;
+  - remontée de la 2e d'une cascade au-dessus de la séparation ;
+  - Échap : tout reprend sa place ;
+  - multi-sélection : ni dépliage ni élargissement ;
+  - téléphone : carte du matin, contre la colonne des noms, élargie vers la droite ;
+  - « + » : ordinateur à aujourd'hui, téléphone au jour affiché (tâche et jalon) ;
+  - panneau « Hauteur des lignes » sur l'ordinateur et le téléphone, et « Lignes de texte » à 3 qui agrandit les cartes ;
+  - groupes de la page Affichage.
+- Assertions adaptées (commentaires « Suite 95 ») :
+  - test_suite93 : hauteur d'avant au lieu de U pile ; plus de dépliage en multi-sélection ;
+  - test_suite94 : ombre et liseré sur toutes les cartes ;
+  - test_suite91 : la dernière de la cascade porte un texte long, pour rester à la hauteur U ;
+  - test_suite62 et test_suite64 : nouvel ordre des réglages et des groupes.
+- Suite complète : 100/100.

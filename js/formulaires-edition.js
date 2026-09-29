@@ -229,9 +229,14 @@
   // giPourAjoutBarre() vise aujourd'hui s'il est dans la semaine affichée (10
   // jours en mode 2 semaines), sinon le premier jour affiché — pas d'autre
   // choix raisonnable sans case cliquée pour deviner "quel jour".
+  // Round du 29.09.2026 (suite 95) — Lionel : « En mode portable,
+  // sélectionner la date du jour actif dans les formulaire à l'ajout par
+  // la touche "+". » Vue « 1 jour » : le jour affiché (jourMobileIso),
+  // plus aujourd'hui ; ailleurs, aujourd'hui s'il est dans la semaine.
   function giPourAjoutBarre() {
     var n = nbJoursAffiches();
-    for (var gi = 0; gi < n; gi++) { if (isoDeGi(gi) === etat.aujourdhui) return gi; }
+    var cible = (typeof modeJourMobileActif === "function" && modeJourMobileActif() && jourMobileIso) || etat.aujourdhui;
+    for (var gi = 0; gi < n; gi++) { if (isoDeGi(gi) === cible) return gi; }
     return 0;
   }
   function ouvrirAjoutElementBarre(type, personneId) {

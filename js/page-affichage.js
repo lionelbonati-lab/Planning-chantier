@@ -87,18 +87,28 @@
   // cf. majPageAffichage — suite 91, d'après la vue à l'ouverture).
   // alias : anciennes valeurs enregistrées -> valeur actuelle (suite 64).
   var OPTIONS_AFFICHAGE = [
+    // Round du 29.09.2026 (suite 95) — Lionel : « Trille correctement le
+    // menu affichage. » Rangé par sujet : Planning (semaines, surlignage et
+    // teintes, noms, coins), Dates, puis un groupe « Hauteur des lignes »
+    // (bulles par personne, lignes de texte, Jalons et Notes — les mêmes
+    // réglages que le bouton de la barre, cf. majPanneauHauteurs), puis
+    // l'apparence des bulles (texte, statut, coins). Les réglages de
+    // l'ordinateur et du téléphone d'un même sujet se suivent (un seul des
+    // deux est montré, cf. majPageAffichage). Noms : « Bulles par personne »,
+    // « Bulles Jalons et Notes », « Jalons et Notes » — le titre du groupe
+    // dit déjà « Hauteur des lignes ».
     { id: "weekends", groupe: "Planning", nom: "Afficher les week-ends", aide: "Ajoute Samedi et Dimanche à la fin de chaque semaine, pour y poser une tâche ponctuelle.", interrupteur: true, defaut: "non" },
-    { id: "auj", groupe: "Planning", nom: "Surligner aujourd’hui", aide: "Teinte toute la colonne du jour, pas seulement son en-tête.", interrupteur: true, defaut: "non", css: true },
-    { id: "zebre", groupe: "Planning", nom: "Lignes alternées", aide: "Une personne sur deux légèrement teintée, pour suivre une ligne d’un bout à l’autre.", interrupteur: true, defaut: "non", css: true },
-    { id: "teinte", groupe: "Planning", nom: "Colonnes teintées", aide: "La demi-journée légèrement grisée, pour distinguer le matin de l’après-midi.", choix: [["aucune", "Aucune"], ["matin", "Matin"], ["aprem", "Après-midi"]], defaut: "aprem", css: true },
     { id: "separation", groupe: "Planning", nom: "Espace entre 2 semaines", aide: "Comme 2 fenêtres côte à côte. Éteint : un simple trait, comme entre 2 jours.", interrupteur: ["espace", "rien"], defaut: "espace", alias: { trait: "rien" }, css: true },
+    { id: "auj", groupe: "Planning", nom: "Surligner aujourd’hui", aide: "Teinte toute la colonne du jour, pas seulement son en-tête.", interrupteur: true, defaut: "non", css: true },
+    { id: "teinte", groupe: "Planning", nom: "Colonnes teintées", aide: "La demi-journée légèrement grisée, pour distinguer le matin de l’après-midi.", choix: [["aucune", "Aucune"], ["matin", "Matin"], ["aprem", "Après-midi"]], defaut: "aprem", css: true },
+    { id: "zebre", groupe: "Planning", nom: "Lignes alternées", aide: "Une personne sur deux légèrement teintée, pour suivre une ligne d’un bout à l’autre.", interrupteur: true, defaut: "non", css: true },
+    { id: "noms", groupe: "Planning", nom: "Taille des noms", aide: "La colonne de gauche : personnes, Jalons, Notes.", choix: [["petit", "Petite"], ["normal", "Normale"], ["grand", "Grande"], ["tresgrand", "Très grande"]], defaut: "normal", css: true },
     // Suite 74, 79, 82 : « Jours voisins aux bords » était ici une option
     // enregistrée (`bords`), réglée par le bouton de vue. Suite 84 : un
     // état de la session (vueBords, js/core.js) ; l'ouverture en jours
     // voisins se choisit dans « À l'ouverture » (vueOrdi) — cf. lireJeu_
     // pour un ancien « bords » enregistré.
     { id: "cadre", groupe: "Planning", nom: "Coins du planning arrondis", aide: "Éteint : coins carrés.", interrupteur: ["arrondis", "carres"], defaut: "arrondis", css: true },
-    { id: "noms", groupe: "Planning", nom: "Taille des noms", aide: "La colonne de gauche : personnes, Jalons, Notes.", choix: [["petit", "Petite"], ["normal", "Normale"], ["grand", "Grande"], ["tresgrand", "Très grande"]], defaut: "normal", css: true },
     { id: "jourSemaine", groupe: "Dates", nom: "Jour de la semaine", choix: [["abrege", "Jeu"], ["complet", "Jeudi"], ["initiale", "J"], ["masque", "Masqué"]], defaut: "abrege" },
     { id: "formatDate", groupe: "Dates", nom: "Date", choix: [["numero", "24"], ["chiffres", "24.09"], ["abrege", "24 sept."], ["complet", "24 septembre"]], defaut: "numero" },
     { id: "heures", groupe: "Dates", nom: "Heures de travail", aide: "La durée du jour (8.75 h) sous la date, d’après la page Horaires.", interrupteur: true, defaut: "oui" },
@@ -109,8 +119,15 @@
     // l'année, et comme les autres lignes, gras / italique / taille.
     { id: "coinMois", groupe: "Dates", nom: "Case de gauche : mois", aide: "Retiré quand la date des jours écrit déjà le mois.", choix: [["abrege", "sept."], ["complet", "septembre"], ["chiffres", "09"], ["masque", "Masqué"]], defaut: "abrege" },
     { id: "coinAnnee", groupe: "Dates", nom: "Case de gauche : année", choix: [["complete", "2026"], ["courte", "26"], ["masquee", "Masquée"]], defaut: "complete" },
-    { id: "texte", groupe: "Bulles", nom: "Taille du texte", choix: [["petit", "Petit"], ["normal", "Normal"], ["grand", "Grand"], ["tresgrand", "Très grand"]], defaut: "normal", css: true },
-    { id: "lignes", groupe: "Bulles", nom: "Lignes de texte", aide: "Au-delà, le texte est coupé par « … ».", choix: [["1", "1"], ["2", "2"], ["3", "3"]], defaut: "2", css: true },
+    // Round du 29.09.2026 (suite 92) — Lionel : « La hauteur de ligne est
+    // fixe aussi sur ordinateur. Proposer les même réglage que sur
+    // portable. […] Passer hauteur de ligne à un curseur sur ordinateur. »
+    // Puis, à nos questions : curseur « continu, au pixel », tablette
+    // « comme l'ordinateur ». Remplacent « Serrée / Normale / Aérée »
+    // (`hauteur`, retiré) : un nombre de bulles décimal (pas de 0,01 : moins
+    // d'un pixel), mêmes origines que le téléphone ; lignes de texte des
+    // Jalons / Notes à part (le téléphone les a dans jalonsTel).
+    { id: "lignesOrdi", groupe: "Hauteur des lignes", nom: "Bulles par personne", aide: "La place de combien de bulles, l’une sous l’autre, par personne. Au-delà, elles se chevauchent en cascade.", curseur: [1, 4, 0.01], defaut: "2", profil: "ordi" },
     // Round du 28.09.2026 (suite 91) — Lionel : « passer à des hauteur de
     // ligne fixe sur mobile. […] Ajouter un réglage d'affichage mobile
     // permettant de choisir sa hauteur de ligne. Réglage différents pour
@@ -120,21 +137,14 @@
     // hauteur d'une bulle suit « Lignes de texte » ; Jalons et Notes, 1 bulle
     // d'1 ligne à l'origine. Au-delà, les bulles se chevauchent en cascade
     // (cascaderBullesJourMobile_, js/grille-rendu.js).
-    { id: "lignesTel", groupe: "Bulles", nom: "Hauteur des lignes", aide: "La place de combien de bulles, l’une sous l’autre, par personne et par jour. Au-delà, elles se chevauchent en cascade.", choix: [["1", "1 bulle"], ["2", "2 bulles"], ["3", "3 bulles"], ["4", "4 bulles"]], defaut: "2", profil: "tel" },
-    { id: "jalonsTel", groupe: "Bulles", nom: "Lignes Jalons et Notes", aide: "Leur propre hauteur : combien de bulles, et combien de lignes de texte par bulle.", choix: [["1x1", "1 bulle d’1 ligne"], ["1x2", "1 bulle de 2 lignes"], ["2x1", "2 bulles d’1 ligne"], ["2x2", "2 bulles de 2 lignes"]], defaut: "1x1", profil: "tel" },
-    // Round du 29.09.2026 (suite 92) — Lionel : « La hauteur de ligne est
-    // fixe aussi sur ordinateur. Proposer les même réglage que sur
-    // portable. […] Passer hauteur de ligne à un curseur sur ordinateur. »
-    // Puis, à nos questions : curseur « continu, au pixel », tablette
-    // « comme l'ordinateur ». Remplacent « Serrée / Normale / Aérée »
-    // (`hauteur`, retiré) : un nombre de bulles décimal (pas de 0,01 : moins
-    // d'un pixel), mêmes origines que le téléphone ; lignes de texte des
-    // Jalons / Notes à part (le téléphone les a dans jalonsTel).
-    { id: "lignesOrdi", groupe: "Bulles", nom: "Hauteur des lignes", aide: "La place de combien de bulles, l’une sous l’autre, par personne. Au-delà, elles se chevauchent en cascade.", curseur: [1, 4, 0.01], defaut: "2", profil: "ordi" },
-    { id: "jalonsOrdi", groupe: "Bulles", nom: "Hauteur Jalons et Notes", aide: "La place de combien de bulles dans les lignes Jalons et Notes.", curseur: [1, 4, 0.01], defaut: "1", profil: "ordi" },
-    { id: "jalonsLignesOrdi", groupe: "Bulles", nom: "Lignes de texte Jalons et Notes", choix: [["1", "1"], ["2", "2"]], defaut: "1", profil: "ordi" },
-    { id: "coins", groupe: "Bulles", nom: "Coins des bulles arrondis", aide: "Éteint : coins droits.", interrupteur: ["arrondis", "droits"], defaut: "arrondis", css: true },
+    { id: "lignesTel", groupe: "Hauteur des lignes", nom: "Bulles par personne", aide: "La place de combien de bulles, l’une sous l’autre, par personne et par jour. Au-delà, elles se chevauchent en cascade.", choix: [["1", "1 bulle"], ["2", "2 bulles"], ["3", "3 bulles"], ["4", "4 bulles"]], defaut: "2", profil: "tel" },
+    { id: "lignes", groupe: "Hauteur des lignes", nom: "Lignes de texte", aide: "Par bulle — la hauteur d’une bulle. Au-delà, le texte est coupé par « … ».", choix: [["1", "1"], ["2", "2"], ["3", "3"]], defaut: "2", css: true },
+    { id: "jalonsOrdi", groupe: "Hauteur des lignes", nom: "Bulles Jalons et Notes", aide: "La place de combien de bulles dans les lignes Jalons et Notes.", curseur: [1, 4, 0.01], defaut: "1", profil: "ordi" },
+    { id: "jalonsTel", groupe: "Hauteur des lignes", nom: "Jalons et Notes", aide: "Leur propre hauteur : combien de bulles, et combien de lignes de texte par bulle.", choix: [["1x1", "1 bulle d’1 ligne"], ["1x2", "1 bulle de 2 lignes"], ["2x1", "2 bulles d’1 ligne"], ["2x2", "2 bulles de 2 lignes"]], defaut: "1x1", profil: "tel" },
+    { id: "jalonsLignesOrdi", groupe: "Hauteur des lignes", nom: "Lignes de texte Jalons et Notes", choix: [["1", "1"], ["2", "2"]], defaut: "1", profil: "ordi" },
+    { id: "texte", groupe: "Bulles", nom: "Taille du texte", choix: [["petit", "Petit"], ["normal", "Normal"], ["grand", "Grand"], ["tresgrand", "Très grand"]], defaut: "normal", css: true },
     { id: "statut", groupe: "Bulles", nom: "Statut", aide: "Badge : « Confirmé », « Réservé »… sous le texte. Pastille : un point de sa couleur dans le coin (le nom au survol).", choix: [["non", "Non"], ["pastille", "Pastille"], ["badge", "Badge"]], defaut: "badge", alias: { oui: "badge" }, css: true },
+    { id: "coins", groupe: "Bulles", nom: "Coins des bulles arrondis", aide: "Éteint : coins droits.", interrupteur: ["arrondis", "droits"], defaut: "arrondis", css: true },
     { id: "police", groupe: "Police", nom: "Police de l’appli", aide: "Pour tout le document : planning, pages, fenêtres.", choix: [["archivo", "Archivo"], ["inter", "Inter"], ["roboto", "Roboto"], ["nunito", "Nunito"], ["sourcesans", "Source Sans"], ["systeme", "Système"]], defaut: "archivo", css: true },
     // Suite 84 — Lionel : « setup affichage, réglage à l'ouverture, manque
     // le mode jours voisins ». Les 3 modes du bouton de vue, dans son ordre.
@@ -706,7 +716,10 @@
     if (!p) return;
     var profil = profilAppareil_();
     if (p.dataset.profil !== profil) {
-      var ids = profil === "ordi" ? ["lignesOrdi", "jalonsOrdi", "jalonsLignesOrdi"] : ["lignesTel", "jalonsTel"];
+      // Suite 95 — Lionel : « Ajoute ligne de texte bulle au bouton hauteur
+      // de ligne. » « Lignes de texte » (commun aux deux jeux) après les
+      // bulles par personne.
+      var ids = profil === "ordi" ? ["lignesOrdi", "lignes", "jalonsOrdi", "jalonsLignesOrdi"] : ["lignesTel", "lignes", "jalonsTel"];
       p.innerHTML = '<div class="outil-menu-titre">Hauteur des lignes</div>' +
         ids.map(function (id) { return htmlLigneOption_(optionAffichageParId_(id)); }).join("") +
         '<button type="button" class="outil-menu-item hauteurs-tous" data-page-affichage>Tous les réglages d’affichage</button>';
