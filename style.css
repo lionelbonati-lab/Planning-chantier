@@ -1772,6 +1772,23 @@
      multi-sélection ne pas agrandir la bulle sélectionnée » (plusieurs
      bulles, ou mode multiple allumé : body.selection-multiple). */
   #racine.hauteurs-fixes .bulle.selectionnee { z-index: 3; }
+  /* Round du 29.09.2026 (suite 98) — Lionel : « sur un demi jour je ne
+     vois pas une bulle car la ligne est trop petite. » Pastille « +N »
+     (cascaderBullesJourMobile_) au coin bas droit de la demi-journée dont
+     des bulles sont cachées ; un appui étale les bulles de la case
+     (.cascade-ouverte : ni rognées au bas de la ligne, ni sous les lignes
+     suivantes, ni sous les bandes Personnel / Intervenants), la pastille
+     devient « − ». Au-dessus des bulles et des bandes, sous la colonne des
+     noms (5). */
+  #racine.hauteurs-fixes .bulle.cascade-ouverte { clip-path: none; z-index: 4; }
+  .pastille-cachees {
+    position: relative; z-index: 4; justify-self: end; align-self: end; margin: 0 4px 3px 0;
+    min-width: 22px; height: 18px; padding: 0 6px; border: 0; border-radius: 9px;
+    background: color-mix(in srgb, var(--ink) 78%, transparent); color: var(--surface);
+    font-family: inherit; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; cursor: pointer;
+    box-shadow: 0 1px 3px var(--shadow-lg); touch-action: manipulation;
+  }
+  .pastille-cachees.ouverte { background: var(--accent); color: var(--accent-ink); }
   body:not(.selection-multiple) #racine.hauteurs-fixes .bulle.selectionnee { clip-path: none; }
   body:not(.selection-multiple) #racine.hauteurs-fixes .bulle.selectionnee > .b-carte { height: auto; max-height: none; overflow: visible; }
   body:not(.selection-multiple) #racine.hauteurs-fixes .bulle.selectionnee .b-txt { -webkit-line-clamp: none; line-clamp: none; overflow: visible; }
@@ -1853,10 +1870,13 @@
      elle la recouvrait une fois le jour changé (la carte de la veille,
      rangée sous les noms, s'y dessinait par-dessus « Lionel »). Noms et
      case coin passent à 4 ; la bande collée sous l'en-tête, qui doit les
-     recouvrir, à 5 ; l'espace entre semaines, qui la coupe, à 6. */
-  #racine.hauteurs-fixes :is(.th.coin, .lbl, .lbl-speciale) { z-index: 4; }
-  #racine.hauteurs-fixes .section-row.section-collee { z-index: 5; }
-  #racine.hauteurs-fixes .sep-semaines { z-index: 6; }
+     recouvrir, à 5 ; l'espace entre semaines, qui la coupe, à 6.
+     Suite 98 : un cran de plus pour chacun (5, 6, 7) — les bulles étalées
+     par la pastille « +N » (4) passent devant les bandes Personnel /
+     Intervenants (3), toujours sous la colonne des noms. */
+  #racine.hauteurs-fixes :is(.th.coin, .lbl, .lbl-speciale) { z-index: 5; }
+  #racine.hauteurs-fixes .section-row.section-collee { z-index: 6; }
+  #racine.hauteurs-fixes .sep-semaines { z-index: 7; }
   .ghost { border: 1.5px dashed var(--border-strong); border-radius: 9px; opacity: .5; }
 
   .pop {

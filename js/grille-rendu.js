@@ -185,7 +185,7 @@
       var rb = b.getBoundingClientRect();
       cartes.forEach(function (c) {
         var r = c.getBoundingClientRect(), k = c.offsetHeight ? r.height / c.offsetHeight : 1;
-        var dLigne = h ? Math.min(r.bottom - (rb.top + (h - marge) * k), r.top - (rb.top + marge * k)) : 0;
+        var dLigne = h && !b.classList.contains("cascade-ouverte") ? Math.min(r.bottom - (rb.top + (h - marge) * k), r.top - (rb.top + marge * k)) : 0;
         var dGrille = Math.min(r.bottom - rg.bottom + 2, r.top - rg.top);
         var d = Math.max(dLigne, dGrille);
         if (d > 0.5) { c.style.transform = "translateY(" + (-Math.round(d / k)) + "px)"; c.dataset.remonte = "1"; }
@@ -1861,6 +1861,8 @@
     //   écrire pendant le geste, ni à l'arrêt.
     var MARGE_MOB_ = 3;       // px : au-dessus, entre et sous les bulles d'une ligne
     var PAS_MINI_MOB_ = 20;   // px : décalage minimal entre 2 bulles en cascade
+    var VU_MINI_MOB_ = 10;    // px : en dessous, une bulle de la cascade compte comme cachée (suite 98)
+    var cascadesOuvertes_ = {}; // clé de la case -> true : bulles étalées (pastille « +N », suite 98)
     var mesuresMob_ = null;   // { pers: {n, u, h}, jal: {n, u, h} } (mesurerHauteursMobile_)
     var geoGlisse_ = null;    // colonnes des jours pour la case coin (majGeoGlisse_)
     // « 4 / span 2 » → [4, 2] ; « 4 » → [4, 1].
@@ -2021,10 +2023,38 @@
     // en proche tant qu'elles se chevauchent (colonnes de la grille) ; dans
     // chaque amas, même rangement par piste et même pas que par jour
     // ci-dessus. Une bulle seule dans son amas reste en haut de sa ligne.
+    //
+    // Round du 29.09.2026 (suite 98) — Lionel, capture à l'appui : « sur un
+    // demi jour je ne vois pas une bulle car la ligne est trop petite. J'ai
+    // une bulle verte cachée derrière la bulle bleu. » Puis, à notre
+    // question : « La pastille, mais un appuis sur la pastille montre les
+    // bulles du jour sans changer la hauteur des lignes. Un nouvel appuis
+    // replace les bulles. » Bulle de la cascade dont moins de VU_MINI_MOB_
+    // px dépassent au-dessus du bas de sa ligne : cachée. Une pastille
+    // « +N » (N bulles cachées) se pose dans le coin bas droit de la
+    // demi-journée de ces bulles. Un appui étale les bulles de la case
+    // (même ligne, même jour — hors vue « 1 jour » : même amas) : une
+    // hauteur de carte d'écart, sans chevauchement, par-dessus les lignes
+    // suivantes (la ligne garde sa hauteur ; remontées d'autant si elles
+    // dépassaient le bas du planning). La pastille devient « − » ; un nouvel
+    // appui les replace en cascade. Changer de jour les replace aussi.
+    function isoDeColonne_(col) {
+      var th = [].filter.call(grilleEntete.querySelectorAll(".th[data-gi]"), function (t) {
+        var c = plageGrille_(t.style.gridColumn);
+        return c && col >= c[0] && col < c[0] + c[1];
+      })[0];
+      return th ? isoDeGi(+th.dataset.gi) + ":" + (col - plageGrille_(th.style.gridColumn)[0]) : "c" + col;
+    }
     function cascaderBullesJourMobile_() {
       if (!mesuresMob_) return;
+      var joursCol = [].map.call(grilleCorps.querySelectorAll(".snap-jour"), function (el) {
+        var c = plageGrille_(el.style.gridColumn) || [0, 0];
+        return { col: c[0], fin: c[0] + c[1] };
+      }).sort(function (a, b) { return a.col - b.col; });
       [grilleEntete, grilleCorps].forEach(function (g) {
         var lignes = g._lignesMob || {}, parLigne = {};
+        g.querySelectorAll(":scope > .pastille-cachees").forEach(function (el) { el.remove(); });
+        g.querySelectorAll(":scope > .bulle.cascade-ouverte").forEach(function (b) { b.classList.remove("cascade-ouverte"); });
         [].forEach.call(g.children, function (b) {
           if (!b.classList.contains("bulle") || b.classList.contains("bulle-sonde")) return;
           var r = plageGrille_(b.style.gridRow);
@@ -2039,10 +2069,10 @@
             parLigne[row].forEach(function (b) {
               var piste = +b.dataset.piste || 0;
               [].forEach.call(b.querySelectorAll(":scope > .b-carte"), function (c) {
-                (parJour[c.dataset.jour] = parJour[c.dataset.jour] || []).push({ c: c, piste: piste });
+                (parJour[c.dataset.jour] = parJour[c.dataset.jour] || []).push({ c: c, piste: piste, b: b });
               });
             });
-            groupes = Object.keys(parJour).map(function (j) { return parJour[j]; });
+            groupes = Object.keys(parJour).map(function (j) { parJour[j].jour = +j; return parJour[j]; });
           } else {
             var amas = null, fin = -1;
             parLigne[row].map(function (b) { return { b: b, col: plageGrille_(b.style.gridColumn) || [0, 1] }; })
@@ -2051,7 +2081,7 @@
                 if (!amas || x.col[0] >= fin) { amas = []; groupes.push(amas); fin = -1; }
                 fin = Math.max(fin, x.col[0] + x.col[1]);
                 var piste = +x.b.dataset.piste || 0;
-                [].forEach.call(x.b.querySelectorAll(":scope > .b-carte"), function (c) { amas.push({ c: c, piste: piste }); });
+                [].forEach.call(x.b.querySelectorAll(":scope > .b-carte"), function (c) { amas.push({ c: c, piste: piste, b: x.b }); });
               });
           }
           groupes.forEach(function (cartes) {
@@ -2060,8 +2090,45 @@
             pistes.sort(function (a, b) { return a - b; });
             var n = pistes.length;
             var pas = n <= mes.n ? mes.u + m : Math.max(Math.min(PAS_MINI_MOB_, mes.u + m), (mes.h - 2 * m - mes.u) / (n - 1));
+            // Suite 98 : bulles cachées (colonnes de leur part de journée),
+            // pastille « +N », case étalée si elle est ouverte.
+            var cachees = [], c0 = Infinity, c1 = 0, d0 = Infinity;
             cartes.forEach(function (x) {
-              var rang = pistes.indexOf(x.piste), y = m + rang * pas;
+              var cb = plageGrille_(x.b.style.gridColumn) || [0, 1], a = cb[0], z = cb[0] + cb[1];
+              var jc = cartes.jour != null ? joursCol[cartes.jour] : null;
+              if (jc) { a = Math.max(a, jc.col); z = Math.min(z, jc.fin); }
+              d0 = Math.min(d0, a);
+              if (mes.h - (m + pistes.indexOf(x.piste) * pas) >= VU_MINI_MOB_) return;
+              if (cachees.indexOf(x.piste) < 0) cachees.push(x.piste);
+              c0 = Math.min(c0, a); c1 = Math.max(c1, z);
+            });
+            var cle = (g === grilleEntete ? "e" : "c") + row + "|" + isoDeColonne_(d0);
+            var ouverte = cachees.length > 0 && !!cascadesOuvertes_[cle], decale = 0;
+            if (ouverte) {
+              pas = mes.u + m;
+              var rG = g.getBoundingClientRect(), kz = g.offsetHeight ? rG.height / g.offsetHeight : 1;
+              var haut = (cartes[0].b.getBoundingClientRect().top - rG.top) / kz, bas = haut + m + (n - 1) * pas + mes.u + 2;
+              decale = Math.max(0, Math.min(haut, bas - g.offsetHeight));
+            }
+            if (cachees.length && c1 > c0) {
+              var pc = document.createElement("button");
+              pc.type = "button";
+              pc.className = "pastille-cachees" + (ouverte ? " ouverte" : "");
+              pc.textContent = ouverte ? "\u2212" : "+" + cachees.length;
+              pc.title = ouverte ? "Replacer les bulles" : cachees.length + (cachees.length > 1 ? " bulles cachées : les montrer" : " bulle cachée : la montrer");
+              pc.setAttribute("aria-label", pc.title);
+              pc.style.gridRow = row;
+              pc.style.gridColumn = c0 + " / " + c1;
+              pc.addEventListener("click", function (e) {
+                e.stopPropagation();
+                if (cascadesOuvertes_[cle]) delete cascadesOuvertes_[cle]; else cascadesOuvertes_[cle] = true;
+                cascaderBullesJourMobile_();
+              });
+              g.appendChild(pc);
+            }
+            cartes.forEach(function (x) {
+              var rang = pistes.indexOf(x.piste), y = m + rang * pas - decale;
+              if (ouverte) x.b.classList.add("cascade-ouverte");
               x.c.style.translate = "0 " + Math.round(y * 10) / 10 + "px";
               // Suite 94 : carte posée sur une autre de la pile (ombre et
               // liseré en haut, style.css) — lisible même de même couleur.
@@ -2999,6 +3066,8 @@
         // sélection est vidée. Une bulle encore là (tâche de plusieurs
         // jours, bulle amenée au bord ou étirée jusqu'au nouveau jour)
         // reste sélectionnée.
+        // Suite 98 : cases étalées (pastille « +N ») replacées au nouveau jour.
+        if (isoJour !== jourMobileIso && Object.keys(cascadesOuvertes_).length) { cascadesOuvertes_ = {}; cascaderBullesJourMobile_(); }
         if (isoJour !== jourMobileIso && !document.body.classList.contains("selection-multiple")) {
           var idsSel = Object.keys(bullesSelectionnees);
           if (idsSel.length && idsSel.every(function (id) {
