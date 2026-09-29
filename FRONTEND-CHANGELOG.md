@@ -10425,3 +10425,27 @@ Lionel :
 
 ### Tests
 - Suite complète : 104/104.
+
+
+## 213. Round du 29.09.2026 (suite 100) — Téléphone : « Recharger » ne réparait pas l'appli
+- Lionel, capture à l'appui (« Impossible de charger le planning — caleJourMobileSurJourOuvre_ is not defined », bandeau « Nouvelle version de l'appli prête ») : « Sur portable, j'ai beau appuyer sur recharger plusieurs fois, ça ne fonctionne pas ».
+
+### Cause
+- La copie de l'appli sur l'appareil (sw.js) rangeait chaque adresse telle quelle. Une ouverture par un raccourci (`index.html?raccourci=notes`) ou par l'adresse du dossier créait une 2e copie de la page.
+- Pour ouvrir index.html, la copie ressortait cette 2e copie en premier. Elle n'était plus jamais mise à jour, alors que les scripts l'étaient.
+- Résultat depuis le découpage (§207 à §212) : ancien index.html (sans js/grille-telephone.js) avec les scripts neufs. « Recharger » resservait la même copie.
+- Reproduit tel quel par le test : même message, même bandeau, « Recharger » sans effet.
+
+### Correction
+- sw.js : une seule copie par fichier (adresse sans paramètres, dossier rangé sous index.html). Cache renommé v3 : l'ancienne copie est effacée et tout est recopié.
+- sw.js : une page qui a changé fait recopier tous ses fichiers avant d'être elle-même rangée. La copie ne garde plus une page neuve avec d'anciens scripts.
+- « Recharger » : le service worker recopie d'abord toute la version publiée, puis la page se recharge (au plus 10 s d'attente). Le bouton affiche « Mise à jour… ».
+- Filet de sécurité : un démarrage qui échoue faute d'une fonction (« … is not defined ») recopie la version publiée et recharge tout seul, une fois par tranche de 2 minutes. Si la version publiée est elle-même cassée, le message d'erreur reste, sans rechargements en boucle.
+
+### Sur le téléphone de Lionel
+- Essai avec l'ancien service worker et la copie dépareillée : après publication, le 1er rechargement installe la nouvelle copie, le 2e affiche le planning.
+- Donc : fermer complètement l'appli et la rouvrir, deux fois si besoin.
+
+### Tests
+- Nouveau : tests/test_suite100.js (8 vérifications).
+- Suite complète : 105/105.

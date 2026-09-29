@@ -419,6 +419,9 @@
     app.innerHTML = '<div class="loading-screen"><div class="spin"></div><div class="msg">' + esc(msg || "Chargement du planning…") + '</div></div>';
   }
   function erreurFatale(err) {
+    // Suite 100 : copie de l'appli dépareillée (« … is not defined ») →
+    // recopie et rechargement (reparerCopieAppli_, js/hors-ligne.js).
+    if (typeof reparerCopieAppli_ === "function" && reparerCopieAppli_(err)) return;
     var texte = (err && err.message) ? err.message : String(err);
     // Suite 34 : si même les 3 rejeux de fetchAvecRejeuJwt_ (plus haut)
     // n'ont pas suffi, dire ce qui se passe plutôt que le message anglais.

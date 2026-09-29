@@ -29,8 +29,11 @@
    fichier js/) vient du réseau, comme avant. Nouveau nom de cache (v2) :
    l'ancienne copie est effacée et tout est recopié à l'installation.
    ============================================================ */
-var CACHE = "planning-appli-v2";
-var EN_PLUS = ["./", "index.html", "manifest.json", "functions/enregistrer-plage/logic.js", "icons/icon-32.png", "icons/icon-192.png", "icons/icon-512.png"];
+var CACHE = "planning-appli-v3";
+// Round du 29.09.2026 (suite 100) : "./" retiré, l'adresse du dossier est
+// rangée sous index.html (cleCopie, plus bas). Cache v3 : la copie v2, qui
+// pouvait mêler deux versions de l'appli, est effacée et tout est recopié.
+var EN_PLUS = ["index.html", "manifest.json", "functions/enregistrer-plage/logic.js", "icons/icon-32.png", "icons/icon-192.png", "icons/icon-512.png"];
 
 // Fichiers chargés par une page (scripts, feuilles de style, supabase-js,
 // polices).
@@ -59,15 +62,58 @@ self.addEventListener("install", function (e) {
 // n'a jamais vu : servie depuis la copie à l'ouverture suivante, sans
 // réseau, elle le demandait en vain (le planning ne s'affichait plus).
 // Chaque page revalidée fait copier d'avance ceux qui manquent.
-function copierFichiersManquants(cache, rep) {
+//
+// Suite 100 : une page qui a changé fait recopier TOUS ses fichiers (pas
+// seulement ceux qui manquent), et la page n'est rangée qu'ensuite (cf.
+// fetch) : la copie ne garde jamais une page neuve avec d'anciens scripts.
+function copierFichiersManquants(cache, rep, tous) {
   return rep.text().then(function (html) {
     return Promise.all(fichiersDePage(html).map(function (u) {
-      return cache.match(u, { ignoreSearch: true }).then(function (c) {
+      return (tous ? Promise.resolve(null) : cache.match(u, { ignoreSearch: true })).then(function (c) {
         return c || cache.add(new Request(u, { cache: "no-cache" })).catch(function () {});
       });
     }));
   }).catch(function () {});
 }
+
+// Round du 29.09.2026 (suite 100) — Lionel, capture à l'appui
+// (« Impossible de charger le planning — caleJourMobileSurJourOuvre_ is
+// not defined ») : « Sur portable, j'ai beau appuyer sur recharger
+// plusieurs fois, ça ne fonctionne pas ». La copie rangeait chaque adresse
+// telle quelle : une ouverture par un raccourci (index.html?raccourci=notes)
+// ou par l'adresse du dossier (…/) créait une 2e copie de la page, que la
+// recherche « sans paramètres » ressortait ensuite la première pour
+// index.html. Cette copie-là n'était plus jamais revalidée : ancien
+// index.html (sans js/grille-telephone.js) avec les scripts neufs, et
+// « Recharger » la resservait. Une seule clé par fichier désormais :
+// l'adresse sans paramètres, le dossier rangé sous index.html.
+function cleCopie(url) {
+  return url.origin + url.pathname.replace(/\/$/, "/index.html");
+}
+
+// Suite 100 : recopie complète de la version publiée (index.html, tout ce
+// qu'il charge, EN_PLUS), la page en dernier. Demandée par la page avant
+// de recharger (« Recharger », ou démarrage raté faute d'une fonction :
+// js/hors-ligne.js, reparerCopieAppli_) ; répond sur le port reçu.
+function recopierTout() {
+  return caches.open(CACHE).then(function (cache) {
+    return fetch("index.html", { cache: "no-cache" }).then(function (rep) {
+      if (!rep.ok) throw new Error("index.html : " + rep.status);
+      var page = rep.clone();
+      return rep.text().then(function (html) {
+        var urls = EN_PLUS.filter(function (u) { return u !== "index.html"; }).concat(fichiersDePage(html));
+        return Promise.all(urls.map(function (u) { return cache.add(new Request(u, { cache: "no-cache" })).catch(function () {}); }));
+      }).then(function () { return cache.put("index.html", page); });
+    });
+  });
+}
+self.addEventListener("message", function (e) {
+  if (!e.data || e.data.type !== "recopier") return;
+  var port = e.ports && e.ports[0];
+  e.waitUntil(recopierTout().then(function () { return true; }, function () { return false; }).then(function (ok) {
+    if (port) port.postMessage({ type: "recopie-finie", ok: ok });
+  }));
+});
 
 self.addEventListener("activate", function (e) {
   e.waitUntil(caches.keys().then(function (cles) {
@@ -100,21 +146,30 @@ self.addEventListener("fetch", function (e) {
   if (!copiable(url)) return; // Supabase et le reste : pas touchés
   var memeOrigine = url.origin === self.location.origin;
   var ouvert = caches.open(CACHE);
-  var copieP = ouvert.then(function (cache) { return cache.match(req, { ignoreSearch: memeOrigine }); });
+  var cle = memeOrigine ? cleCopie(url) : req; // suite 100 : une seule copie par fichier
+  var copieP = ouvert.then(function (cache) { return cache.match(cle); });
   // Fichiers de l'appli : toujours revalidés auprès de GitHub Pages (le
   // cache HTTP du navigateur les garderait sinon 10 minutes).
+  // Suite 100 : la réponse est rendue tout de suite (fichier jamais
+  // copié) ; le rangement, qui peut attendre les fichiers d'une page, se
+  // fait à côté (rangeP, gardé vivant par waitUntil).
+  var rangeP = null;
   var reseauP = ouvert.then(function (cache) {
     return fetch(memeOrigine ? new Request(req.url, { cache: "no-cache", credentials: "same-origin" }) : req).then(function (rep) {
       if (!rep || !(rep.ok || rep.type === "opaque")) return rep;
-      return copieP.then(function (copie) {
+      var page = memeOrigine && rep.ok && /(\/|\.html)$/.test(url.pathname) ? rep.clone() : null;
+      var aRanger = rep.clone();
+      rangeP = copieP.then(function (copie) {
         var nouvelle = copie && memeOrigine && rep.ok && differe(copie, rep);
-        var page = memeOrigine && rep.ok && /(\/|\.html)$/.test(url.pathname) ? rep.clone() : null;
-        return cache.put(req, rep.clone()).catch(function () {}).then(function () {
-          return page ? copierFichiersManquants(cache, page) : null;
+        // Les fichiers d'une page d'abord (tous si elle a changé), la page
+        // ensuite.
+        return (page ? copierFichiersManquants(cache, page, nouvelle) : Promise.resolve()).then(function () {
+          return cache.put(cle, aRanger).catch(function () {});
         }).then(function () {
           return nouvelle ? prevenirNouvelleVersion() : null;
-        }).then(function () { return rep; });
+        });
       });
+      return rep;
     });
   });
   e.respondWith(copieP.then(function (copie) {
@@ -125,5 +180,5 @@ self.addEventListener("fetch", function (e) {
       return ouvert.then(function (cache) { return cache.match("index.html"); }).then(function (c) { if (c) return c; throw err; });
     });
   }));
-  e.waitUntil(reseauP.catch(function () {}));
+  e.waitUntil(reseauP.then(function () { return rangeP; }).catch(function () {}));
 });

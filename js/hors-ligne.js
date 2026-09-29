@@ -586,6 +586,45 @@
   }
   document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") verifierNouvelleVersion(); });
   setInterval(function () { if (document.visibilityState === "visible") verifierNouvelleVersion(); }, 30 * 60000);
+  // Round du 29.09.2026 (suite 100) — Lionel : « Sur portable, j'ai beau
+  // appuyer sur recharger plusieurs fois, ça ne fonctionne pas » (capture :
+  // « caleJourMobileSurJourOuvre_ is not defined »). « Recharger » ne
+  // faisait que recharger la page, servie de nouveau depuis la copie de
+  // l'appareil (sw.js) — qui mêlait deux versions. Désormais le service
+  // worker recopie d'abord toute la version publiée (recopierTout, sw.js),
+  // puis la page se recharge ; sans réponse en 10 s (ancien service
+  // worker, pas de réseau), elle se recharge quand même.
+  function rechargerAppliNeuve_() {
+    var fait = false;
+    function recharger() { if (!fait) { fait = true; window.location.reload(); } }
+    var sw = navigator.serviceWorker && navigator.serviceWorker.controller;
+    if (!sw || typeof MessageChannel === "undefined") { recharger(); return; }
+    var canal = new MessageChannel();
+    canal.port1.onmessage = recharger;
+    try { sw.postMessage({ type: "recopier" }, [canal.port2]); } catch (e) { recharger(); return; }
+    navigator.serviceWorker.getRegistration().then(function (r) { if (r) r.update(); }).catch(function () {});
+    setTimeout(recharger, 10000);
+  }
+  // Suite 100 : filet de sécurité. Un démarrage qui échoue faute d'une
+  // fonction (« … is not defined », « … is not a function ») trahit une
+  // copie de l'appli dépareillée : recopie de la version publiée et
+  // rechargement, une seule fois par tranche de 2 minutes (si la version
+  // publiée elle-même est cassée, le message d'erreur reste affiché, sans
+  // rechargements en boucle). Appelée par erreurFatale (js/core.js) ; rend
+  // true si elle s'en charge.
+  function reparerCopieAppli_(err) {
+    var texte = (err && err.message) || String(err);
+    if (!(err instanceof ReferenceError || /is not (defined|a function)/.test(texte))) return false;
+    if (!("serviceWorker" in navigator) || !navigator.serviceWorker.controller) return false;
+    try {
+      var derniere = +sessionStorage.getItem("reparationAppli") || 0;
+      if (Date.now() - derniere < 120000) return false;
+      sessionStorage.setItem("reparationAppli", String(Date.now()));
+    } catch (e) { return false; }
+    if (typeof afficherChargement === "function") afficherChargement("Mise à jour de l’appli…");
+    rechargerAppliNeuve_();
+    return true;
+  }
   function proposerNouvelleVersion() {
     if (document.getElementById("majAppli")) return;
     var bandeau = document.createElement("div");
@@ -595,7 +634,11 @@
     bandeau.innerHTML = '<span>Nouvelle version de l’appli prête.</span>' +
       '<button type="button" class="maj-recharger">Recharger</button>' +
       '<button type="button" class="maj-fermer" aria-label="Plus tard" title="Plus tard">×</button>';
-    bandeau.querySelector(".maj-recharger").addEventListener("click", function () { window.location.reload(); });
+    bandeau.querySelector(".maj-recharger").addEventListener("click", function () {
+      this.disabled = true;
+      this.textContent = "Mise à jour…";
+      rechargerAppliNeuve_();
+    });
     bandeau.querySelector(".maj-fermer").addEventListener("click", function () { bandeau.remove(); });
     document.body.appendChild(bandeau);
   }
