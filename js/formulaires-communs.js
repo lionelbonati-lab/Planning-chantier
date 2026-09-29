@@ -389,6 +389,8 @@
     bullesSelectionnees = {};
     modeSelectionMultiple = false;
     copieSelectionActive = false;
+    // Suite 105 : les lignes et jours choisis (grille-hauteurs.js) aussi.
+    if (typeof oublierChoixLignesJours === "function") oublierChoixLignesJours();
     majBarreSelection();
   }
   // Suppression groupée depuis la sélection : toujours confirmée avant

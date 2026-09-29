@@ -10548,3 +10548,33 @@ Lionel :
 - Nouveau : tests/test_suite104.js (9 vérifications), ordinateur et téléphone.
 - Suites 33 et 103 : clic gauche au lieu du clic droit, choix « Composition de l'équipe… » dans le menu.
 - Suite complète : 109/109.
+
+
+## 218. Round du 29.09.2026 (suite 105) — Sélectionner des lignes et des jours, comme dans un tableur
+- Lionel, « Oui » à notre proposition : choisir des lignes par les noms (Ctrl / Maj), des colonnes par les jours, et donner la même hauteur à toutes les lignes choisies.
+
+### Ordinateur
+| Geste | Effet |
+|---|---|
+| Ctrl + clic sur un nom (Cmd sur Mac) | ajoute ou retire la ligne |
+| Maj + clic sur un nom | de la dernière ligne cliquée jusqu'à celle-ci |
+| Clic sur un jour | ce jour seul |
+| Ctrl + clic / Maj + clic sur un jour | ajoute ou retire le jour / plage de jours |
+| Clic sur une ligne choisie | menu « N lignes sélectionnées » : la hauteur vaut pour toutes |
+| Clic sur une ligne non choisie | le choix est défait, menu de cette ligne |
+
+### Téléphone et tablette
+- Toucher un jour le choisit ; tant que des jours sont choisis, toucher un autre jour l'ajoute ou le retire.
+- Menu d'un nom : « Sélectionner la ligne ». Ensuite, toucher un autre nom l'ajoute ou le retire, sans ouvrir le menu.
+- Toucher une ligne choisie : menu des lignes choisies (« Désélectionner la ligne » y figure).
+
+### Ce que fait la sélection
+- Les bulles de ces lignes et de ces jours (semaines affichées) sont sélectionnées : la pilule du bas agit sur elles (déplacer, copier, statut, supprimer…).
+- Glisser le trait d'une ligne choisie, ou double-cliquer dessus, règle toutes les lignes choisies.
+- Lignes et jours choisis sont surlignés en bleu.
+- Échap, ou un clic simple dans la grille, défait la sélection.
+- Un réglage de hauteur depuis le menu garde la sélection.
+
+### Tests
+- Nouveau : tests/test_suite105.js (19 vérifications), ordinateur et téléphone.
+- Suite complète : 110/110.

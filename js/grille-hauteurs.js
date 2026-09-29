@@ -260,6 +260,9 @@
     [grilleEntete, grilleCorps].forEach(function (g) {
       var nb = 0, fixes = {}, hPerso = {};
       [].forEach.call(g.children, function (el) {
+        // Suite 105 : lignes et jours choisis gardent leur marque au rendu.
+        if (el.dataset.ligne) el.classList.toggle("ligne-choisie", lignesChoisies_.indexOf(el.dataset.ligne) >= 0);
+        else if (el.dataset.gi && el.classList.contains("th") && !el.classList.contains("th-demi")) el.classList.toggle("jour-choisi", joursChoisis_.indexOf(isoDeGi(+el.dataset.gi)) >= 0);
         var r = plageGrille_(el.style.gridRow);
         if (!r) return;
         nb = Math.max(nb, r[0] + r[1] - 1);
@@ -517,6 +520,23 @@
     changerHauteursLignes([lbl.dataset.ligne], h);
     toast("Hauteur ajustée au contenu : " + Math.round(Math.max(HAUTEUR_LIGNE_MIN_, h)) + " px.");
   }
+  // Suite 105 : chaque ligne choisie à son propre contenu (comme le
+  // double-clic d'un tableur sur plusieurs lignes).
+  function ajusterLignesAuContenu_(ids) {
+    if (ids.length < 2) { var l = etiquetteParId_(ids[0]); if (l) ajusterLigneAuContenu_(l); return; }
+    var hs = {};
+    ids.forEach(function (id) { var l = etiquetteParId_(id), h = l && hauteurAuContenu_(l); if (h != null) hs[id] = h; });
+    Object.keys(hs).forEach(function (id) { changerHauteursLignes([id], hs[id]); });
+    toast(Object.keys(hs).length + " lignes ajustées au contenu.");
+  }
+  function etiquetteParId_(id) {
+    return etiquettesLignes_().filter(function (l) { return l.dataset.ligne === id; })[0] || null;
+  }
+  // Lignes réglées ensemble : toutes les lignes choisies si celle-ci en
+  // fait partie (et qu'il y en a plusieurs), sinon elle seule.
+  function lignesDuGeste_(id) {
+    return lignesChoisies_.length > 1 && lignesChoisies_.indexOf(id) >= 0 ? lignesChoisies_.slice() : [id];
+  }
   function etiquetteLigne_(el) { return el && el.closest ? el.closest("#racine .grille > [data-ligne]") : null; }
 
   // Glisser le trait sous le nom (souris ou doigt). Écouteur en capture
@@ -527,7 +547,7 @@
     var lbl = etiquetteLigne_(pg);
     if (!lbl) return;
     e.preventDefault(); e.stopPropagation();
-    var id = lbl.dataset.ligne, pointerId = e.pointerId, y0 = e.clientY;
+    var id = lbl.dataset.ligne, ids = lignesDuGeste_(id), pointerId = e.pointerId, y0 = e.clientY;
     var k = lbl.offsetHeight ? lbl.getBoundingClientRect().height / lbl.offsetHeight : 1;
     var h0 = lbl.offsetHeight, hCourant = h0, bouge = false, attente = false;
     var info = document.createElement("div");
@@ -547,7 +567,7 @@
       montrer(e2.clientX, e2.clientY);
       if (attente) return;
       attente = true;
-      requestAnimationFrame(function () { attente = false; changerHauteursLignes([id], hCourant); });
+      requestAnimationFrame(function () { attente = false; changerHauteursLignes(ids, hCourant); });
     }
     function fin(e2) {
       if (e2.pointerId !== pointerId) return;
@@ -556,7 +576,7 @@
       document.removeEventListener("pointercancel", fin);
       info.remove();
       document.body.classList.remove("en-redim-ligne");
-      if (bouge) { clicLigneIgnoreT_ = performance.now(); changerHauteursLignes([id], hCourant); }
+      if (bouge) { clicLigneIgnoreT_ = performance.now(); changerHauteursLignes(ids, hCourant); }
     }
     document.addEventListener("pointermove", onMove);
     document.addEventListener("pointerup", fin);
@@ -567,7 +587,7 @@
     if (!pg) return;
     e.preventDefault(); e.stopPropagation();
     var lbl = etiquetteLigne_(pg);
-    if (lbl) ajusterLigneAuContenu_(lbl);
+    if (lbl) ajusterLignesAuContenu_(lignesDuGeste_(lbl.dataset.ligne));
   }, true);
 
   // Suite 104 : clic (toucher) = menu, clic droit (appui long au doigt) =
@@ -588,9 +608,21 @@
     if (performance.now() - clicLigneIgnoreT_ < 1000) return;
     modifierNomLigne_(lbl);
   });
+  // Suite 105 : Ctrl (Cmd) / Maj + clic = choisir des lignes ; au doigt,
+  // tant que des lignes sont choisies, toucher un autre nom l'ajoute. Un
+  // clic simple sur une ligne non choisie défait le choix, puis ouvre son
+  // menu ; sur une ligne choisie : le menu de toutes les lignes choisies.
   document.addEventListener("click", function (e) {
     var lbl = etiquetteLigne_(e.target);
     if (!lbl || e.button !== 0 || e.target.closest(".poignee-ligne")) return;
+    var id = lbl.dataset.ligne;
+    if (e.ctrlKey || e.metaKey) { choisirLigne_(id, "basculer"); return; }
+    if (e.shiftKey) { choisirLigne_(id, ancreLigne_ != null ? "plage" : "basculer"); return; }
+    if (lignesChoisies_.length && lignesChoisies_.indexOf(id) < 0) {
+      if (dernierPointeur_ === "touch") { choisirLigne_(id, "basculer"); return; }
+      quitterModeSelection(); render(false);
+      lbl = etiquetteParId_(id) || lbl;
+    }
     ouvrirMenuHauteurLigne(lbl, e.clientX, e.clientY);
   });
   document.addEventListener("pointerdown", function (e) {
@@ -622,35 +654,164 @@
     if (performance.now() - clicLigneIgnoreT_ < 800 && etiquetteLigne_(e.target)) { clicLigneIgnoreT_ = -1e9; e.preventDefault(); e.stopPropagation(); }
   }, true);
 
+  /* Sélection de lignes et de colonnes (round du 29.09.2026, suite 105) —
+     Lionel, « Oui » à notre proposition : choisir des lignes par les noms
+     (Ctrl / Maj), des colonnes par les jours, comme dans un tableur ; les
+     lignes choisies prennent la même hauteur.
+     - ordinateur : clic sur un jour = ce jour seul ; Ctrl (Cmd) + clic sur
+       un nom ou un jour = l'ajoute ou le retire ; Maj + clic = de la
+       dernière ligne (du dernier jour) cliquée jusqu'à celle-ci ;
+     - doigt : « Sélectionner la ligne » dans le menu du nom, toucher un
+       jour le choisit ; tant que des lignes (des jours) sont choisies,
+       toucher un autre nom (jour) l'ajoute ou le retire ;
+     - les bulles de ces lignes et de ces jours (semaine affichée) sont
+       sélectionnées : la pilule de sélection agit sur elles ;
+     - hauteur : le trait (glisser, double-clic) et le menu d'une ligne
+       choisie règlent toutes les lignes choisies.
+     Jours retenus par leur date (isoDeGi), pas par leur colonne. Le choix
+     s'efface avec la sélection des bulles (quitterModeSelection) et par un
+     clic simple de la souris dans la grille. */
+  var lignesChoisies_ = [], joursChoisis_ = [], ancreLigne_ = null, ancreJour_ = null, dernierPointeur_ = "mouse";
+  document.addEventListener("pointerdown", function (e) {
+    dernierPointeur_ = e.pointerType;
+    if (!lignesChoisies_.length && !joursChoisis_.length) return;
+    // Au doigt, un appui sert aussi à défiler : seulement sans bulle
+    // sélectionnée (sinon, toucher une case vide quitte déjà la sélection).
+    if ((e.pointerType === "touch" && Object.keys(bullesSelectionnees).length) || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    if (e.target.closest && e.target.closest("#racine .grille .cell, #racine .grille .bulle")) oublierChoixLignesJours();
+  }, true);
+  function etiquettesLignes_() { return [].slice.call(document.querySelectorAll("#racine .grille > [data-ligne]")); }
+  function thsJours_() { return [].slice.call(document.querySelectorAll("#racine .entete-planning-figee .th[data-gi]:not(.th-demi)")); }
+  function isosJours_() {
+    var vus = [];
+    thsJours_().forEach(function (th) { var iso = isoDeGi(+th.dataset.gi); if (iso && vus.indexOf(iso) < 0) vus.push(iso); });
+    return vus.sort();
+  }
+  function cellulesChoix_() {
+    var cells = [];
+    lignesChoisies_.forEach(function (id) {
+      var sel = /^p/.test(id) ? '.cell[data-kind="personne"][data-personne="' + id.slice(1) + '"]' : '.cell[data-kind="' + id + '"]';
+      cells = cells.concat([].slice.call(document.querySelectorAll("#racine " + sel)));
+    });
+    thsJours_().forEach(function (th) {
+      if (joursChoisis_.indexOf(isoDeGi(+th.dataset.gi)) >= 0) cells = cells.concat([].slice.call(document.querySelectorAll('#racine .cell[data-jour="' + th.dataset.gi + '"]')));
+    });
+    return cells;
+  }
+  function idsChoix_() { var c = cellulesChoix_(); return c.length ? idsDepuisCellules(c) : {}; }
+  function majClassesChoix_() {
+    etiquettesLignes_().forEach(function (l) { l.classList.toggle("ligne-choisie", lignesChoisies_.indexOf(l.dataset.ligne) >= 0); });
+    thsJours_().forEach(function (th) { th.classList.toggle("jour-choisi", joursChoisis_.indexOf(isoDeGi(+th.dataset.gi)) >= 0); });
+  }
+  // Appelée par quitterModeSelection (formulaires-communs.js).
+  function oublierChoixLignesJours() {
+    ancreLigne_ = ancreJour_ = null;
+    if (!lignesChoisies_.length && !joursChoisis_.length) return;
+    lignesChoisies_ = []; joursChoisis_ = [];
+    majClassesChoix_();
+  }
+  // Nouveau choix : les bulles de l'ancien quittent la sélection, celles
+  // du nouveau y entrent ; les autres bulles sélectionnées restent.
+  function changerChoix_(lignes, jours) {
+    Object.keys(idsChoix_()).forEach(function (id) { delete bullesSelectionnees[id]; });
+    lignesChoisies_ = lignes; joursChoisis_ = jours;
+    Object.assign(bullesSelectionnees, idsChoix_());
+    var nb = Object.keys(bullesSelectionnees).length;
+    if (!nb && !lignes.length && !jours.length) { quitterModeSelection(); render(false); return; }
+    modeSelectionMultiple = true;
+    render(false);
+    majBarreSelection();
+    majClassesChoix_();
+    var quoi = [];
+    if (lignes.length) quoi.push(lignes.length + (lignes.length > 1 ? " lignes" : " ligne"));
+    if (jours.length) quoi.push(jours.length + (jours.length > 1 ? " jours" : " jour"));
+    toast((quoi.join(" et ") || "Sélection") + " — " + (nb ? nb + (nb > 1 ? " bulles sélectionnées." : " bulle sélectionnée.") : "aucune bulle."));
+  }
+  // mode : "seul" (remplace toute la sélection), "basculer" (ajoute ou
+  // retire), "plage" (de l'ancre jusqu'ici, remplace le choix).
+  function choisirParmi_(liste, choisis, cle, ancre, mode) {
+    if (mode === "plage" && ancre != null && liste.indexOf(ancre) >= 0 && liste.indexOf(cle) >= 0) {
+      var i = liste.indexOf(ancre), j = liste.indexOf(cle);
+      return liste.slice(Math.min(i, j), Math.max(i, j) + 1);
+    }
+    if (mode === "seul") return [cle];
+    var l = choisis.slice(), k = l.indexOf(cle);
+    if (k >= 0) l.splice(k, 1); else l.push(cle);
+    return l;
+  }
+  function choisirLigne_(id, mode) {
+    var ids = etiquettesLignes_().map(function (l) { return l.dataset.ligne; });
+    var l = choisirParmi_(ids, lignesChoisies_, id, ancreLigne_, mode), jours = mode === "basculer" ? joursChoisis_.slice() : [];
+    if (mode === "seul") quitterModeSelection();
+    if (mode !== "plage") ancreLigne_ = id;
+    var ancre = ancreLigne_;
+    changerChoix_(l, jours);
+    ancreLigne_ = ancre;
+  }
+  function choisirJour_(iso, mode) {
+    var j = choisirParmi_(isosJours_(), joursChoisis_, iso, ancreJour_, mode), lignes = mode === "basculer" ? lignesChoisies_.slice() : [];
+    if (mode === "seul") quitterModeSelection();
+    if (mode !== "plage") ancreJour_ = iso;
+    var ancre = ancreJour_;
+    changerChoix_(lignes, j);
+    ancreJour_ = ancre;
+  }
+  document.addEventListener("click", function (e) {
+    var th = e.target.closest && e.target.closest("#racine .entete-planning-figee .th[data-gi]:not(.th-demi)");
+    if (!th || e.button !== 0) return;
+    var iso = isoDeGi(+th.dataset.gi);
+    if (!iso) return;
+    if (e.ctrlKey || e.metaKey) choisirJour_(iso, "basculer");
+    else if (e.shiftKey) choisirJour_(iso, ancreJour_ ? "plage" : "basculer");
+    else if (dernierPointeur_ === "touch" && joursChoisis_.length) choisirJour_(iso, "basculer");
+    else choisirJour_(iso, "seul");
+  });
+
   function ouvrirMenuHauteurLigne(lbl, x, y) {
     var id = lbl.dataset.ligne;
     var nom = (lbl.querySelector("b") || lbl).textContent.trim() || lbl.title;
-    var perso = hauteursLignesPerso_()[id] > 0;
+    // Suite 105 : ligne choisie parmi d'autres = menu de toutes ces lignes.
+    var ids = lignesDuGeste_(id), groupe = ids.length > 1, choisie = lignesChoisies_.indexOf(id) >= 0;
+    var reglages = hauteursLignesPerso_();
+    var perso = ids.some(function (i) { return reglages[i] > 0; });
     var pop = document.createElement("div");
     pop.className = "pop menu-pop menu-hauteur-ligne";
     // Suite 104 : en tête, modifier le nom (et la composition d'une équipe).
-    var idP = idPersonneLigne_(lbl), equipe = lbl.classList.contains("lbl-equipe");
-    pop.innerHTML = (idP != null ? '<div class="cp-titre">' + esc(nom) + '</div>' +
+    var idP = groupe ? null : idPersonneLigne_(lbl), equipe = lbl.classList.contains("lbl-equipe");
+    var bChoix = '<button type="button" data-a="choix">' + (choisie ? "Désélectionner la ligne" : "Sélectionner la ligne") + '</button>';
+    pop.innerHTML = (groupe ? '<div class="cp-titre">' + ids.length + ' lignes sélectionnées</div>' + bChoix :
+      idP != null ? '<div class="cp-titre">' + esc(nom) + '</div>' +
       '<button type="button" data-a="nom">Modifier le nom…</button>' +
-      (equipe ? '<button type="button" data-a="composition">Composition de l’équipe…</button>' : '') : '') +
-      '<div class="cp-titre">Hauteur de la ligne' + (idP != null ? '' : ' — ' + esc(nom)) + '</div>' +
+      (equipe ? '<button type="button" data-a="composition">Composition de l’équipe…</button>' : '') + bChoix : bChoix) +
+      '<div class="cp-titre">' + (groupe ? 'Hauteur des ' + ids.length + ' lignes' : 'Hauteur de la ligne' + (idP != null ? '' : ' — ' + esc(nom))) + '</div>' +
       '<div class="mhl-valeur"><input type="number" inputmode="numeric" min="' + HAUTEUR_LIGNE_MIN_ + '" max="' + HAUTEUR_LIGNE_MAX_ + '" step="1" value="' + Math.round(lbl.offsetHeight) + '" aria-label="Hauteur en pixels"><span>px</span>' +
       '<button type="button" class="btn-primaire" data-a="ok">OK</button></div>' +
       '<button type="button" data-a="contenu">Ajuster au contenu</button>' +
       '<button type="button" data-a="defaut"' + (perso ? '' : ' disabled') + '>Hauteur par défaut</button>';
     positionnerPop(pop, x, y);
     var fermer = fermerAuClicExterieur(pop);
+    // Suite 105 : fermer le menu vide la sélection (fermerAuClicExterieur) ;
+    // un réglage de hauteur la garde, lignes et jours choisis compris.
+    function fermerGarde() {
+      var b = Object.assign({}, bullesSelectionnees), l = lignesChoisies_, j = joursChoisis_, m = modeSelectionMultiple, al = ancreLigne_, aj = ancreJour_;
+      fermer();
+      if (!Object.keys(b).length) return;
+      bullesSelectionnees = b; lignesChoisies_ = l; joursChoisis_ = j; modeSelectionMultiple = m; ancreLigne_ = al; ancreJour_ = aj;
+      render(false); majBarreSelection(); majClassesChoix_();
+    }
     var champ = pop.querySelector("input");
     function valider() {
       var v = parseFloat(champ.value);
       if (!isFinite(v)) return;
-      fermer();
-      changerHauteursLignes([id], v);
+      fermerGarde();
+      changerHauteursLignes(ids, v);
     }
     champ.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); valider(); } });
     pop.querySelector('[data-a="ok"]').addEventListener("click", valider);
-    pop.querySelector('[data-a="contenu"]').addEventListener("click", function () { fermer(); ajusterLigneAuContenu_(lbl); });
-    pop.querySelector('[data-a="defaut"]').addEventListener("click", function () { fermer(); changerHauteursLignes([id], null); });
+    pop.querySelector('[data-a="contenu"]').addEventListener("click", function () { fermerGarde(); ajusterLignesAuContenu_(ids); });
+    pop.querySelector('[data-a="defaut"]').addEventListener("click", function () { fermerGarde(); changerHauteursLignes(ids, null); });
+    var bCh = pop.querySelector('[data-a="choix"]');
+    if (bCh) bCh.addEventListener("click", function () { fermer(); choisirLigne_(id, choisie ? "basculer" : "seul"); });
     var bNom = pop.querySelector('[data-a="nom"]'), bCompo = pop.querySelector('[data-a="composition"]');
     if (bNom) bNom.addEventListener("click", function () { fermer(); modifierNomLigne_(lbl); });
     if (bCompo) bCompo.addEventListener("click", function () { fermer(); ouvrirCompositionEquipe(idP); });
