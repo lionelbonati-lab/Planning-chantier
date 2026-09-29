@@ -206,11 +206,24 @@
   function personnesAffichees(secteur) {
     if (secteur === "sous-traitant") return PERSONNES.filter(function (p) { return p.sousTraitant; });
     var ordre = ordrePersonnesEquipes(PERSONNES.filter(function (p) { return !p.sousTraitant; }), lundiCourantEquipes(), function (p) { return p.id; });
+    // Round du 29.09.2026 (suite 118) — Lionel : « En vue un jour, le
+    // pliage et le dépliage de l'équipe ne fonctionnent pas. » La vue
+    // « 1 jour » charge 2 semaines : un membre qui avait quoi que ce soit
+    // dans ces 2 semaines restait sous son équipe repliée — sur un vrai
+    // chantier, tous ; ▸/▾ ne changeait donc rien. Dans cette vue, seul
+    // compte le jour affiché (lignes refaites au changement de jour,
+    // cf. defilementArrete, grille-telephone.js).
+    var jour = modeJourMobileActif() ? (jourMobileIso || etat.aujourdhui) : null;
     return ordre.filter(function (e) {
       if (e.role !== "membre" || equipesDepliees[e.equipeId]) return true;
-      return TACHES.some(function (it) { return it.personneId === e.p.id; });
+      return TACHES.some(function (it) {
+        return it.personneId === e.p.id && (!jour || ((it.dateDebutIso || isoDeGi(it.giDebut)) <= jour && isoDeApres(it) >= jour));
+      });
     }).map(function (e) { return e.p; });
   }
+  // Membres affichés sous les équipes (suite 118) : comparés avant / après
+  // un changement de jour en vue « 1 jour ».
+  function signatureMembresAffiches_() { return personnesAffichees("personnel").map(function (p) { return p.id; }).join(","); }
   function personnesAfficheesToutes() { return personnesAffichees("personnel").concat(personnesAffichees("sous-traitant")); }
 
   /* ---------- Étiquette de ligne ---------- */
