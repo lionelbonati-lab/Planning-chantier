@@ -1076,6 +1076,27 @@
   .lbl::before, .lbl::after, .lbl-speciale::before, .lbl-speciale::after { content: ""; position: absolute; left: 0; right: -1px; height: 1px; background: var(--border); pointer-events: none; }
   .lbl::before, .lbl-speciale::before { top: -1px; }
   .lbl::after, .lbl-speciale::after { bottom: -1px; }
+  /* Suite 103 (round du 29.09.2026) : trait sous le nom, à glisser pour
+     régler la hauteur de la ligne (cf. poserPistesFixes_ et
+     grille-hauteurs.js) ; double-clic = ajustée au contenu. Visible au
+     survol (souris), toujours saisissable au doigt. Ligne réglée à part :
+     petit repère à gauche du trait (.ligne-perso). */
+  .poignee-ligne { position: absolute; left: 0; right: 0; bottom: -3px; height: 7px; cursor: row-resize; touch-action: none; z-index: 3; }
+  .poignee-ligne::after { content: ""; position: absolute; left: 0; right: 0; top: 3px; height: 1px; background: transparent; }
+  .lbl.ligne-perso .poignee-ligne::after, .lbl-speciale.ligne-perso .poignee-ligne::after { left: 0; right: auto; width: 10px; background: var(--accent); }
+  @media (hover: hover) and (pointer: fine) { .poignee-ligne:hover::after { left: 0; right: 0; width: auto; height: 2px; top: 2.5px; background: var(--accent); } }
+  body.en-redim-ligne, body.en-redim-ligne * { cursor: row-resize !important; user-select: none; }
+  .info-hauteur-ligne {
+    position: fixed; z-index: 90; pointer-events: none; padding: 3px 7px; border-radius: 6px;
+    background: var(--ink); color: var(--surface); font: 600 11.5px/1.2 var(--police-mono);
+  }
+  .menu-hauteur-ligne .mhl-valeur { display: flex; align-items: center; gap: 6px; }
+  .menu-hauteur-ligne .mhl-valeur input {
+    width: 70px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--surface); color: var(--ink); font: inherit; font-size: 12.5px;
+  }
+  .menu-hauteur-ligne .mhl-valeur span { font-size: 12px; color: var(--ink-muted); flex: 1; }
+  .menu-hauteur-ligne .mhl-valeur button { text-align: center; }
   .th.sem-frontiere, .cell.sem-frontiere, .lbl.sem-frontiere { border-left: 2px solid var(--border-strong); }
   .th-weekend { min-width: 46px; }
   /* Suite 67 — date d'un week-end : marges réduites et mois sous le

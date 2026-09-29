@@ -1595,6 +1595,7 @@
       lbl.innerHTML = "<b>" + esc(label) + "</b>";
       lbl.title = label;
       lbl.dataset.hMob = "jal";
+      lbl.dataset.ligne = kind; // suite 103 : hauteur de cette ligne à part
       poser(lbl, 1, row, null, pistesGrille);
       for (var g = 0; g < n; g++) {
         // Jalons et notes restent des objets à la JOURNÉE (ligne 4 et 5 de la
@@ -1764,6 +1765,7 @@
         lbl.title = p.nom;
         remplirEtiquetteEquipe(lbl, p);
         lbl.dataset.hMob = "pers";
+        lbl.dataset.ligne = "p" + p.id; // suite 103 : hauteur de cette ligne à part
         poser(lbl, 1, row, null, pistesGrille);
         for (var gi4 = 0; gi4 < n; gi4++) {
           DEMIS.forEach(function (demi) {

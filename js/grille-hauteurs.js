@@ -61,7 +61,8 @@
       var g = b.closest(".grille"), cartes = [].filter.call(b.querySelectorAll(":scope > .b-carte"), function (c) { return c.offsetWidth > 0; });
       if (!g || !cartes.length) return;
       var jal = b.classList.contains("bulle-jalon") || b.classList.contains("bulle-note");
-      var u = px(jal ? "--mob-carte-jal" : "--mob-carte-pers"), h = px(jal ? "--mob-h-jal" : "--mob-h-pers");
+      // Suite 103 : hauteur lue sur la bulle (sa ligne peut être réglée à part).
+      var u = px(jal ? "--mob-carte-jal" : "--mob-carte-pers"), h = parseFloat(getComputedStyle(b).getPropertyValue(jal ? "--mob-h-jal" : "--mob-h-pers")) || 0;
       var rg = g.getBoundingClientRect();
       // Planning visible, à l'écran : de la colonne des noms (collante) au
       // bord droit du planning.
@@ -249,20 +250,37 @@
   // leur contenu pour le reste (dates, horaires, bandes Personnel /
   // Intervenants). Une seule piste par personne en vue « 1 jour » (cf.
   // ligneGroupePersonnesCompact) : la cascade remplace l'empilement.
+  // Suite 103 : une ligne réglée à part (hauteursLignesPerso_, étiquette
+  // marquée data-ligne) prend sa hauteur en pixels au lieu de la variable
+  // commune ; g._hLignesMob la garde pour la cascade. Chaque étiquette
+  // reçoit sa poignée (trait du bas, cf. cablerHauteurLigne_).
   function poserPistesFixes_(G) {
     var grilleEntete = G.grilleEntete, grilleCorps = G.grilleCorps;
+    var perso = hauteursLignesPerso_();
     [grilleEntete, grilleCorps].forEach(function (g) {
-      var nb = 0, fixes = {};
+      var nb = 0, fixes = {}, hPerso = {};
       [].forEach.call(g.children, function (el) {
         var r = plageGrille_(el.style.gridRow);
         if (!r) return;
         nb = Math.max(nb, r[0] + r[1] - 1);
-        if (el.dataset.hMob) fixes[r[0]] = el.dataset.hMob;
+        if (!el.dataset.hMob) return;
+        fixes[r[0]] = el.dataset.hMob;
+        var id = el.dataset.ligne;
+        if (!id) return;
+        if (perso[id] > 0) hPerso[r[0]] = perso[id];
+        el.classList.toggle("ligne-perso", perso[id] > 0);
+        if (!el.querySelector(":scope > .poignee-ligne")) {
+          var pg = document.createElement("span");
+          pg.className = "poignee-ligne";
+          pg.title = "Glisser : hauteur de la ligne — double-clic : ajuster au contenu";
+          el.appendChild(pg);
+        }
       });
       var t = [];
-      for (var i = 1; i <= nb; i++) t.push(fixes[i] ? "var(--mob-h-" + fixes[i] + ")" : "auto");
+      for (var i = 1; i <= nb; i++) t.push(!fixes[i] ? "auto" : hPerso[i] ? hPerso[i] + "px" : "var(--mob-h-" + fixes[i] + ")");
       g.style.gridTemplateRows = t.join(" ");
       g._lignesMob = fixes;
+      g._hLignesMob = hPerso;
     });
   }
   // Cascade : pour chaque ligne (une personne, Jalons, Notes) et chaque
@@ -328,8 +346,15 @@
         if (!r || !lignes[r[0]]) return;
         (parLigne[r[0]] = parLigne[r[0]] || []).push(b);
       });
+      g._nMaxLignes = {};
       Object.keys(parLigne).forEach(function (row) {
         var mes = G.mesuresMob_[lignes[row]], m = MARGE_MOB_;
+        // Suite 103 : ligne réglée à part — même carte (U), sa hauteur
+        // (H) et donc son nombre de bulles (N) ; la variable de hauteur
+        // posée sur ses bulles règle leur rognage (clip-path, style.css).
+        var hPerso = (g._hLignesMob || {})[row], varH = "--mob-h-" + lignes[row];
+        if (hPerso) mes = { u: mes.u, h: hPerso, n: Math.max(1, (hPerso - m) / (mes.u + m)) };
+        parLigne[row].forEach(function (b) { if (hPerso) b.style.setProperty(varH, hPerso + "px"); else b.style.removeProperty(varH); });
         var groupes = [];
         if (enModeJourMobile) {
           var parJour = {};
@@ -356,6 +381,7 @@
           cartes.forEach(function (x) { if (pistes.indexOf(x.piste) < 0) pistes.push(x.piste); });
           pistes.sort(function (a, b) { return a - b; });
           var n = pistes.length;
+          g._nMaxLignes[row] = Math.max(g._nMaxLignes[row] || 0, n);
           var pas = n <= mes.n ? mes.u + m : Math.max(Math.min(PAS_MINI_MOB_, mes.u + m), (mes.h - 2 * m - mes.u) / (n - 1));
           // Suite 98 : bulles cachées (colonnes de leur part de journée),
           // pastille « +N », case étalée si elle est ouverte.
@@ -428,4 +454,175 @@
     if (!mesurerHauteursMobile_(G)) return false;
     cascaderBullesJourMobile_(G);
     return true;
+  }
+
+  /* ============ HAUTEUR DE CHAQUE LIGNE (round du 29.09.2026, suite 103) ============
+     Lionel : « pour plus de maniabilité j'aimerai pouvoir changer chaques
+     hauteurs de ligne séparément [...] excel est un bon exemple », puis, à
+     notre question : « Hauteur sur chaque appareil ». Une personne (« p12 »),
+     « jalon » ou « note » peut avoir sa propre hauteur, en pixels, retenue
+     par l'appareil (ordinateur/tablette d'un côté, téléphone de l'autre,
+     comme les curseurs de la page Affichage) ; les autres lignes gardent la
+     hauteur commune. Comme dans un tableur :
+     - glisser le trait sous le nom (.poignee-ligne) : hauteur de la ligne ;
+     - double-clic sur ce trait : ajustée au contenu (toutes ses bulles
+       l'une sous l'autre, sans cascade) ;
+     - clic droit sur le nom (appui long au doigt) : menu « Hauteur » —
+       valeur en pixels, « Ajuster au contenu », « Hauteur par défaut ». */
+  var HAUTEUR_LIGNE_MIN_ = 20, HAUTEUR_LIGNE_MAX_ = 400;
+  function cleHauteursLignes_() { return profilAppareil_() === "tel" ? "planning.hauteursLignes.tel" : "planning.hauteursLignes"; }
+  function hauteursLignesPerso_() {
+    try {
+      var o = JSON.parse(localStorage.getItem(cleHauteursLignes_()) || "{}");
+      return o && typeof o === "object" ? o : {};
+    } catch (e) { return {}; }
+  }
+  // px null : hauteur commune (réglage retiré).
+  function changerHauteursLignes(ids, px) {
+    var o = hauteursLignesPerso_();
+    ids.forEach(function (id) {
+      if (px == null) delete o[id];
+      else o[id] = Math.round(Math.max(HAUTEUR_LIGNE_MIN_, Math.min(HAUTEUR_LIGNE_MAX_, px)));
+    });
+    try { localStorage.setItem(cleHauteursLignes_(), JSON.stringify(o)); } catch (e) {}
+    appliquerHauteursLignes_();
+    if (typeof majPanneauHauteurs === "function") majPanneauHauteurs();
+  }
+  // Pistes et cascade refaites sur place, sans nouveau rendu.
+  function appliquerHauteursLignes_() {
+    var G = grilleCourante_;
+    if (!G || !G.scroller.isConnected) return;
+    poserPistesFixes_(G);
+    majHauteursLignes();
+  }
+  // Toutes les bulles de la ligne l'une sous l'autre : le plus grand
+  // nombre de bulles empilées (cascade, g._nMaxLignes), au moins une.
+  function hauteurAuContenu_(lbl) {
+    var G = grilleCourante_, r = plageGrille_(lbl.style.gridRow);
+    var mes = G && G.mesuresMob_ && G.mesuresMob_[lbl.dataset.hMob];
+    if (!mes || !r) return null;
+    var n = Math.max(1, (lbl.parentNode._nMaxLignes || {})[r[0]] || 0);
+    return Math.ceil(MARGE_MOB_ + n * (mes.u + MARGE_MOB_));
+  }
+  function ajusterLigneAuContenu_(lbl) {
+    var h = hauteurAuContenu_(lbl);
+    if (h == null) return;
+    changerHauteursLignes([lbl.dataset.ligne], h);
+    toast("Hauteur ajustée au contenu : " + Math.round(Math.max(HAUTEUR_LIGNE_MIN_, h)) + " px.");
+  }
+  function etiquetteLigne_(el) { return el && el.closest ? el.closest("#racine .grille > [data-ligne]") : null; }
+
+  // Glisser le trait sous le nom (souris ou doigt). Écouteur en capture
+  // sur document : passe avant tout autre geste de la colonne des noms.
+  document.addEventListener("pointerdown", function (e) {
+    var pg = e.target.closest && e.target.closest(".poignee-ligne");
+    if (!pg || (e.pointerType !== "touch" && e.button !== 0)) return;
+    var lbl = etiquetteLigne_(pg);
+    if (!lbl) return;
+    e.preventDefault(); e.stopPropagation();
+    var id = lbl.dataset.ligne, pointerId = e.pointerId, y0 = e.clientY;
+    var k = lbl.offsetHeight ? lbl.getBoundingClientRect().height / lbl.offsetHeight : 1;
+    var h0 = lbl.offsetHeight, hCourant = h0, bouge = false, attente = false;
+    var info = document.createElement("div");
+    info.className = "info-hauteur-ligne";
+    document.body.appendChild(info);
+    document.body.classList.add("en-redim-ligne");
+    function montrer(x, y) {
+      info.textContent = Math.round(hCourant) + " px";
+      info.style.left = (x + 14) + "px"; info.style.top = (y - 30) + "px";
+    }
+    montrer(e.clientX, e.clientY);
+    function onMove(e2) {
+      if (e2.pointerId !== pointerId) return;
+      if (Math.abs(e2.clientY - y0) > 2) bouge = true;
+      if (!bouge) return;
+      hCourant = Math.max(HAUTEUR_LIGNE_MIN_, Math.min(HAUTEUR_LIGNE_MAX_, h0 + (e2.clientY - y0) / k));
+      montrer(e2.clientX, e2.clientY);
+      if (attente) return;
+      attente = true;
+      requestAnimationFrame(function () { attente = false; changerHauteursLignes([id], hCourant); });
+    }
+    function fin(e2) {
+      if (e2.pointerId !== pointerId) return;
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", fin);
+      document.removeEventListener("pointercancel", fin);
+      info.remove();
+      document.body.classList.remove("en-redim-ligne");
+      if (bouge) changerHauteursLignes([id], hCourant);
+    }
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", fin);
+    document.addEventListener("pointercancel", fin);
+  }, true);
+  document.addEventListener("dblclick", function (e) {
+    var pg = e.target.closest && e.target.closest(".poignee-ligne");
+    if (!pg) return;
+    e.preventDefault(); e.stopPropagation();
+    var lbl = etiquetteLigne_(pg);
+    if (lbl) ajusterLigneAuContenu_(lbl);
+  }, true);
+
+  // Menu du nom : clic droit, ou appui long au doigt (sans bouger). Le
+  // clic qui suit un appui long n'ouvre pas en plus la fiche d'une équipe
+  // (equipes.js) ; le « contextmenu » natif d'Android, qui suit aussi
+  // l'appui long, n'ouvre pas un 2e menu. Temps : performance.now().
+  var menuLigneTactileT_ = -1e9;
+  document.addEventListener("contextmenu", function (e) {
+    var lbl = etiquetteLigne_(e.target);
+    if (!lbl) return;
+    e.preventDefault();
+    if (performance.now() - menuLigneTactileT_ < 1000) return;
+    ouvrirMenuHauteurLigne(lbl, e.clientX, e.clientY);
+  });
+  document.addEventListener("pointerdown", function (e) {
+    if (e.pointerType !== "touch") return;
+    var lbl = etiquetteLigne_(e.target);
+    if (!lbl || e.target.closest(".poignee-ligne")) return;
+    var pointerId = e.pointerId, x0 = e.clientX, y0 = e.clientY;
+    var minuteur = setTimeout(function () {
+      detacher();
+      menuLigneTactileT_ = performance.now();
+      ouvrirMenuHauteurLigne(lbl, x0, y0);
+    }, DELAI_APPUI_LONG + 50);
+    function onMove(e2) { if (e2.pointerId === pointerId && Math.abs(e2.clientX - x0) + Math.abs(e2.clientY - y0) > 8) detacher(); }
+    function onFin(e2) { if (e2.pointerId === pointerId) detacher(); }
+    function detacher() {
+      clearTimeout(minuteur);
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onFin);
+      document.removeEventListener("pointercancel", onFin);
+    }
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onFin);
+    document.addEventListener("pointercancel", onFin);
+  });
+  document.addEventListener("click", function (e) {
+    if (performance.now() - menuLigneTactileT_ < 800 && etiquetteLigne_(e.target)) { e.preventDefault(); e.stopPropagation(); }
+  }, true);
+
+  function ouvrirMenuHauteurLigne(lbl, x, y) {
+    var id = lbl.dataset.ligne;
+    var nom = lbl.title || (lbl.querySelector("b") || lbl).textContent.trim();
+    var perso = hauteursLignesPerso_()[id] > 0;
+    var pop = document.createElement("div");
+    pop.className = "pop menu-pop menu-hauteur-ligne";
+    pop.innerHTML = '<div class="cp-titre">Hauteur de la ligne — ' + esc(nom) + '</div>' +
+      '<div class="mhl-valeur"><input type="number" inputmode="numeric" min="' + HAUTEUR_LIGNE_MIN_ + '" max="' + HAUTEUR_LIGNE_MAX_ + '" step="1" value="' + Math.round(lbl.offsetHeight) + '" aria-label="Hauteur en pixels"><span>px</span>' +
+      '<button type="button" class="btn-primaire" data-a="ok">OK</button></div>' +
+      '<button type="button" data-a="contenu">Ajuster au contenu</button>' +
+      '<button type="button" data-a="defaut"' + (perso ? '' : ' disabled') + '>Hauteur par défaut</button>';
+    positionnerPop(pop, x, y);
+    var fermer = fermerAuClicExterieur(pop);
+    var champ = pop.querySelector("input");
+    function valider() {
+      var v = parseFloat(champ.value);
+      if (!isFinite(v)) return;
+      fermer();
+      changerHauteursLignes([id], v);
+    }
+    champ.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); valider(); } });
+    pop.querySelector('[data-a="ok"]').addEventListener("click", valider);
+    pop.querySelector('[data-a="contenu"]').addEventListener("click", function () { fermer(); ajusterLigneAuContenu_(lbl); });
+    pop.querySelector('[data-a="defaut"]').addEventListener("click", function () { fermer(); changerHauteursLignes([id], null); });
   }
