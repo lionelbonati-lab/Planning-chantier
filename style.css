@@ -1736,6 +1736,19 @@
   #racine.hauteurs-fixes :is(.bulle-jalon, .bulle-note) .b-txt { -webkit-line-clamp: var(--mob-lignes-jal, 1); line-clamp: var(--mob-lignes-jal, 1); }
   #racine.hauteurs-fixes .bulle .b-carte .b-serie { position: absolute; left: auto; right: 5px; bottom: 2px; font-size: 0; line-height: 1; }
   #racine.hauteurs-fixes .bulle .b-carte .b-serie::before { content: "↻"; font-size: 10px; }
+  /* Round du 29.09.2026 (suite 94) — Lionel : « Ajoute une ombre ou
+     quelque chose d'autre qui permet de mieux voir 2 bulles empilé de la
+     même couleurs. » Carte posée sur une autre dans une pile
+     (data-empile, cascaderBullesJourMobile_) : ombre portée vers le haut,
+     sur la bulle du dessous (filter, qui s'ajoute aux box-shadow de
+     sélection sans les réécrire), et liseré sombre le long de son bord
+     haut (::before, aux coins arrondis de la carte). */
+  #racine.hauteurs-fixes .bulle > .b-carte[data-empile] { filter: drop-shadow(0 -2px 2px var(--shadow-lg)); }
+  #racine.hauteurs-fixes .bulle > .b-carte[data-empile]::before {
+    content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+    box-shadow: inset 0 1.5px 0 color-mix(in srgb, var(--ink) 30%, transparent);
+  }
+  #racine.hauteurs-fixes .bulle.dragging > .b-carte[data-empile] { filter: none; }
   /* Round du 29.09.2026 (suite 93) — Lionel : « Sélectionner une bulle
      fait apparaître son texte en entier ainsi que sa hauteur de bulle
      complète si tronquée. » Bulle sélectionnée : plus de rognage au bas de

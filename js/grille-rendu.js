@@ -1963,8 +1963,11 @@
             var n = pistes.length;
             var pas = n <= mes.n ? mes.u + m : Math.max(Math.min(PAS_MINI_MOB_, mes.u + m), (mes.h - 2 * m - mes.u) / (n - 1));
             cartes.forEach(function (x) {
-              var y = m + pistes.indexOf(x.piste) * pas;
+              var rang = pistes.indexOf(x.piste), y = m + rang * pas;
               x.c.style.translate = "0 " + Math.round(y * 10) / 10 + "px";
+              // Suite 94 : carte posée sur une autre de la pile (ombre et
+              // liseré en haut, style.css) — lisible même de même couleur.
+              x.c.toggleAttribute("data-empile", rang > 0);
             });
           });
           parLigne[row].forEach(function (b) {
