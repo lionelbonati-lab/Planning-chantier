@@ -14,7 +14,7 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //      ajoutées ; glisser seul = remplacent ; simple clic = sélection vidée ;
 //   2. « + » appuyé : mode ajout retenu (localStorage), curseur « copy »,
 //      clic = popup d'ajout, glisser = ajout sur la plage ; clic
-//      droit + glisser sélectionne toujours ; rouvert : toujours appuyé ;
+//      droit + glisser ne sélectionne rien (suite 109) ; rouvert : toujours appuyé ;
 //      rappuyé : mode sélection ;
 //   3. téléphone, mode sélection : appui long puis glisser = zone
 //      sélectionnée ; appui long sans bouger = rien ; glisser rapide =
@@ -142,9 +142,11 @@ async function doigt(page, de, vers, attente) {
     s = await selection(page);
     verifier(/Ajouter \(/.test(titre) && s.length === 0, 'mode ajout : glisser = ajout sur la plage, rien de sélectionné : ' + titre);
     await fermerPopups(page);
+    // Suite 109 : en mode ajout, le clic droit + glisser ne sélectionne
+    // plus rien (avant : sélection par zone dans les 2 modes).
     await glisser(page, d1, d2, { button: 'right' });
     s = await selection(page);
-    verifier(JSON.stringify(s) === '["Deux","Un"]', 'mode ajout : clic droit + glisser sélectionne toujours : ' + JSON.stringify(s));
+    verifier(s.length === 0, 'mode ajout : clic droit + glisser ne sélectionne rien : ' + JSON.stringify(s));
     await page.evaluate(() => { quitterModeSelection(); render(false); });
     await page.click('#btnAjoutElement');
     await page.waitForTimeout(200);

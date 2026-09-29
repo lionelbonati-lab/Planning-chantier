@@ -10626,3 +10626,16 @@ Lionel :
 - Nouveau : tests/test_suite108.js (11 vérifications), ordinateur et téléphone.
 - Suite 102 : les glissers finissent au centre de la bulle visée (la fenêtre doit la toucher).
 - Suite complète : 112/112.
+
+## 222. Round du 29.09.2026 (suite 109) — Mode ajout : plus aucune sélection
+- Lionel : « la sélection en mode ajout est encore possible en appuyant sur les en-têtes de colonnes et de lignes, ainsi qu'en clic droit avec la souris »
+- « + » appuyé (mode ajout) :
+  - clic (ou toucher) sur un nom ou sur un jour : rien n'est choisi ; le double-clic sur un nom modifie toujours le nom ;
+  - le menu du nom (clic droit, appui long) n'a plus « Sélectionner la ligne » ; la hauteur se règle toujours ;
+  - clic droit + glisser sur les cases, double toucher : plus de sélection par zone ;
+  - curseur normal sur les jours.
+- Mode sélection : rien ne change.
+
+### Tests
+- Nouveau : tests/test_suite109.js (11 vérifications), ordinateur et téléphone.
+- Suite 102 : en mode ajout, le clic droit + glisser ne sélectionne plus rien.

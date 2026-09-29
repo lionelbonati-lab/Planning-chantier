@@ -1664,13 +1664,18 @@
   //  - dans les 2 modes : glisser au clic DROIT et double-tap = sélection
   //    par zone, comme avant (même geste quel que soit le mode, pour ne pas
   //    avoir à y penser).
+  //  - Suite 109 (round du 29.09.2026) — Lionel : « la sélection en mode
+  //    ajout est encore possible en appuyant sur les en-têtes de colonnes et
+  //    de lignes, ainsi qu'en clic droit avec la souris ». En mode ajout, le
+  //    clic droit et le double-tap ne sélectionnent plus rien (le double-tap
+  //    retombe sur le geste d'ajout / de défilement).
   var dernierTapCellule = null, dernierTapTemps = 0;
   function cablerAjoutCellule(cell) {
     cell.addEventListener("contextmenu", function (e) { e.preventDefault(); });
     cell.addEventListener("pointerdown", function (e) {
       if (e.target !== cell) return;
-      if (e.pointerType !== "touch" && e.button === 2) { e.preventDefault(); demarrerSelectionRapide(e, cell); return; }
-      if (e.pointerType === "touch") {
+      if (e.pointerType !== "touch" && e.button === 2) { e.preventDefault(); if (!modeAjoutPlanning) demarrerSelectionRapide(e, cell); return; }
+      if (e.pointerType === "touch" && !modeAjoutPlanning) {
         var maintenant = Date.now();
         var estDoubleTap = dernierTapCellule === cell && (maintenant - dernierTapTemps) < 400;
         dernierTapCellule = cell; dernierTapTemps = maintenant;

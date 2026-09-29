@@ -624,6 +624,11 @@
     var double = e.detail >= 2 || (tactile && dernierToucherNom_.id === id && t - dernierToucherNom_.t < 400);
     dernierToucherNom_ = double ? { id: null, t: -1e9 } : { id: id, t: t };
     if (double && !e.ctrlKey && !e.metaKey && !e.shiftKey) { modifierNomLigne_(lbl); return; }
+    // Round du 29.09.2026 (suite 109). Lionel : « la sélection en mode ajout
+    // est encore possible en appuyant sur les en-têtes de colonnes et de
+    // lignes, ainsi qu'en clic droit avec la souris ». En mode ajout, un nom
+    // ou un jour ne se choisit plus (modifier le nom et le menu restent).
+    if (modeAjoutPlanning) return;
     if (e.ctrlKey || e.metaKey) choisirLigne_(id, "basculer");
     else if (e.shiftKey) choisirLigne_(id, ancreLigne_ != null ? "plage" : "basculer");
     else if (tactile && lignesChoisies_.length) choisirLigne_(id, "basculer");
@@ -763,7 +768,7 @@
   }
   document.addEventListener("click", function (e) {
     var th = e.target.closest && e.target.closest("#racine .entete-planning-figee .th[data-gi]:not(.th-demi)");
-    if (!th || e.button !== 0) return;
+    if (!th || e.button !== 0 || modeAjoutPlanning) return;
     var iso = isoDeGi(+th.dataset.gi);
     if (!iso) return;
     if (e.ctrlKey || e.metaKey) choisirJour_(iso, "basculer");
@@ -783,7 +788,8 @@
     pop.className = "pop menu-pop menu-hauteur-ligne";
     // Suite 104 : en tête, modifier le nom (et la composition d'une équipe).
     var idP = groupe ? null : idPersonneLigne_(lbl), equipe = lbl.classList.contains("lbl-equipe");
-    var bChoix = '<button type="button" data-a="choix">' + (choisie ? "Désélectionner la ligne" : "Sélectionner la ligne") + '</button>';
+    // Suite 109 : pas de « Sélectionner la ligne » en mode ajout.
+    var bChoix = modeAjoutPlanning ? '' : '<button type="button" data-a="choix">' + (choisie ? "Désélectionner la ligne" : "Sélectionner la ligne") + '</button>';
     pop.innerHTML = (groupe ? '<div class="cp-titre">' + ids.length + ' lignes sélectionnées</div>' + bChoix :
       idP != null ? '<div class="cp-titre">' + esc(nom) + '</div>' +
       '<button type="button" data-a="nom">Modifier le nom…</button>' +
