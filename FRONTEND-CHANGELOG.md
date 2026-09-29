@@ -10751,3 +10751,13 @@ Lionel :
 ### Tests
 - Nouveau : tests/test_suite117.js (10 vérifications).
 - Suites 61 et 64 : 1 geste de souris de plus.
+
+## 231. Round du 29.09.2026 (suite 118) — Repli des équipes en vue « 1 jour »
+- Lionel : « En vue un jour, le pliage et le dépliage de l'équipe ne fonctionnent pas. »
+- Cause : une équipe repliée garde visibles les membres qui ont quelque chose à eux (absence, tâche ailleurs). La vue « 1 jour » charge 2 semaines : sur un vrai chantier, tous les membres avaient une tâche quelque part, donc tous restaient affichés et ▸ / ▾ ne changeait rien.
+- En vue « 1 jour », seul compte désormais le jour affiché : sous une équipe repliée, un membre n'apparaît que s'il a quelque chose ce jour-là.
+- Au changement de jour (glissement, défilement), la grille est refaite si les membres à montrer changent.
+- Ordinateur et tablette (« 1 semaine », « Jours voisins », « 2 semaines ») : inchangé.
+
+### Tests
+- Nouveau : tests/test_suite118.js (6 vérifications).

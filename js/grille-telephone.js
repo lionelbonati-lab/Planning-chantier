@@ -251,7 +251,7 @@
     // 200 ms d'attente d'un défilement natif (colonne des noms, bulle
     // amenée au bord), dont on ne connaît pas la fin autrement.
     scroller.addEventListener("jour-cale", function () { clearTimeout(minuteurArret); defilementArrete(); });
-    var minuteurRecentrage = null;
+    var minuteurRecentrage = null, membresChanges = false;
     var defilementArrete = function () {
       if (!scroller.isConnected || doigtsPoses > 0) return;
       // Glissement de page encore en cours : il pose le jour à sa fin.
@@ -286,7 +286,10 @@
           return [].every.call(racineEl.querySelectorAll('.bulle[data-id="' + id + '"]'), function (b) { return b.classList.contains("hors-jour"); });
         })) quitterModeSelection();
       }
+      // Suite 118 : membres d'une équipe repliée suivant le jour affiché.
+      var membresAvant = signatureMembresAffiches_();
       jourMobileIso = isoJour;
+      if (signatureMembresAffiches_() !== membresAvant) membresChanges = true;
       for (var iSem = 0; iSem < etat.semaines.length; iSem++) {
         var sem = etat.semaines[iSem];
         if (isoJour >= sem.debut && isoJour <= sem.fin) {
@@ -298,7 +301,20 @@
       // à chaque arrêt, plus seulement au changement de semaine.
       majSemaineAffichage();
       var rangJour = estGiWeekend(giJour) ? semaineDuGiWeekend(giJour) * 5 + 4 : giJour;
-      if (rangJour >= 2 && rangJour <= n - 3) return;
+      if (rangJour >= 2 && rangJour <= n - 3) {
+        // Suite 118 : membres à montrer / cacher pour ce jour — grille
+        // refaite une fois l'image affichée, comme le recentrage.
+        if (membresChanges) {
+          clearTimeout(minuteurRecentrage);
+          var refaireMembres = function () {
+            if (!scroller.isConnected || doigtsPoses > 0 || calageJourEnCours) return;
+            if (syncEnCours || document.body.classList.contains("en-glissement")) { minuteurRecentrage = setTimeout(refaireMembres, 400); return; }
+            render(false);
+          };
+          minuteurRecentrage = setTimeout(refaireMembres, 0);
+        }
+        return;
+      }
       // Pas tout de suite (round du 27.09.2026, suite 72) : la
       // reconstruction de la grille (quelques dizaines de ms sur un
       // téléphone) tombait dans la dernière image du glissement, qui
@@ -337,7 +353,7 @@
         if (iso) selAvant.push({ cle: cleBulle_(p.item), iso: iso });
       });
       debutFenetreMobile = null;
-      if (fenetreLabGs().join(",") === labsRendus) return;
+      if (fenetreLabGs().join(",") === labsRendus) { if (membresChanges) render(false); return; }
       bullesSelectionnees = {};
       assurerFenetreChargee(function () {
         construireVueDepuisCache();
