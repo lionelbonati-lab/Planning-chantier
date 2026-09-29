@@ -697,11 +697,23 @@
     thsJours_().forEach(function (th) { var iso = isoDeGi(+th.dataset.gi); if (iso && vus.indexOf(iso) < 0) vus.push(iso); });
     return vus.sort();
   }
+  // Round du 29.09.2026 (suite 110). Lionel : « sur portable la selection de
+  // ligne selectionne toute la semaine, elle ne doit selectionner que ce
+  // qu'il y a à l'ecran » ; « en mode jour voisin elle sélectionne les 3
+  // semaines. » Une ligne choisie ne ramasse que ses cases à l'écran : milieu
+  // de la case entre la colonne des noms et le bord droit de sa grille.
+  function caseALEcran_(c) {
+    if (!c.offsetWidth) return false;
+    var sc = c.closest(".scroller");
+    if (!sc) return true;
+    var r = sc.getBoundingClientRect(), rc = c.getBoundingClientRect(), x = (rc.left + rc.right) / 2;
+    return x >= r.left + largeurNoms() && x <= r.right;
+  }
   function cellulesChoix_() {
     var cells = [];
     lignesChoisies_.forEach(function (id) {
       var sel = /^p/.test(id) ? '.cell[data-kind="personne"][data-personne="' + id.slice(1) + '"]' : '.cell[data-kind="' + id + '"]';
-      cells = cells.concat([].slice.call(document.querySelectorAll("#racine " + sel)));
+      cells = cells.concat([].filter.call(document.querySelectorAll("#racine " + sel), caseALEcran_));
     });
     thsJours_().forEach(function (th) {
       if (joursChoisis_.indexOf(isoDeGi(+th.dataset.gi)) >= 0) cells = cells.concat([].slice.call(document.querySelectorAll('#racine .cell[data-jour="' + th.dataset.gi + '"]')));

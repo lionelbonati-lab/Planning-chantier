@@ -10639,3 +10639,13 @@ Lionel :
 ### Tests
 - Nouveau : tests/test_suite109.js (11 vérifications), ordinateur et téléphone.
 - Suite 102 : en mode ajout, le clic droit + glisser ne sélectionne plus rien.
+
+## 223. Round du 29.09.2026 (suite 110) — Ligne choisie : seulement ce qui est à l'écran
+- Lionel : « sur portable la selection de ligne selectionne toute la semaine, elle ne doit selectionner que ce qu'il y a à l'ecran » ; « en mode jour voisin elle sélectionne les 3 semaines. »
+- Choisir une ligne (nom) ne sélectionne que les bulles de ses cases visibles à l'écran :
+  - téléphone : le jour affiché ;
+  - « Jours voisins » : la semaine à l'écran (et les jours voisins visibles aux bords), plus les semaines d'avant et d'après ;
+  - « 1 semaine » : toute la semaine, comme avant.
+
+### Tests
+- Nouveau : tests/test_suite110.js (3 vérifications), qui échoue sans le correctif.
