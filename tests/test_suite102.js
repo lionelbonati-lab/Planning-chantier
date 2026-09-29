@@ -41,6 +41,13 @@ const point = (page, pid, iso, demi) => page.evaluate(([pid, iso, demi]) => {
   }
   return null;
 }, [pid, iso, demi]);
+// Suite 108 : la zone est une fenêtre libre (seules les bulles qu'elle
+// touche) ; les glissers finissent donc au centre de la carte visée.
+const centre = (page, texte) => page.evaluate((texte) => {
+  const t = TACHES.find((x) => x.texte === texte);
+  const r = document.querySelector('#racine .bulle[data-id="' + t.id + '"] > .b-carte').getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+}, texte);
 // Textes des bulles sélectionnées (les id internes sont « b1 », « b2 »…).
 const selection = (page) => page.evaluate(() => TACHES.filter((t) => bullesSelectionnees[t.id]).map((t) => t.texte).sort());
 const popup = (page) => page.evaluate(() => ({ menu: !!document.querySelector('.menu-pop'), form: !!document.querySelector('.form-pop') }));
@@ -89,7 +96,9 @@ async function doigt(page, de, vers, attente) {
     let p = await popup(page);
     verifier(!p.menu && !p.form && (await selection(page)).length === 0, 'simple clic sur une case vide : rien ne s\'ouvre ' + JSON.stringify(p));
 
-    const d1 = await point(page, 1, '2026-09-22', 'matin'), d2 = await point(page, 1, '2026-09-23', 'matin');
+    // Suite 108 : jusqu'au centre de « Deux » (la case d2 seule, sous la
+    // carte, ne toucherait plus aucune bulle).
+    const d1 = await point(page, 1, '2026-09-22', 'matin'), d2 = await centre(page, 'Deux');
     await glisser(page, d1, d2);
     let s = await selection(page);
     p = await popup(page);
@@ -97,7 +106,9 @@ async function doigt(page, de, vers, attente) {
     const nSel = await page.evaluate(() => document.querySelectorAll('.bulle.selectionnee').length);
     verifier(nSel >= 2, 'bulles marquées « selectionnee » : ' + nSel);
 
-    const d3 = await point(page, 2, '2026-09-24', 'matin'), d3b = await point(page, 3, '2026-09-24', 'matin');
+    // Suite 108 : de la case vide de la personne 3 jusqu'au centre de
+    // « Trois » (au lieu de la case de « Trois » vers celle d'en dessous).
+    const d3 = await point(page, 3, '2026-09-24', 'matin'), d3b = await centre(page, 'Trois');
     await glisser(page, d3, d3b, { ctrl: true });
     s = await selection(page);
     verifier(JSON.stringify(s) === '["Deux","Trois","Un"]', 'Ctrl+glisser : « Trois » ajoutée à la sélection : ' + JSON.stringify(s));
@@ -157,7 +168,9 @@ async function doigt(page, de, vers, attente) {
     await doigt(page, t1, null, 600);
     let s = await selection(page), p = await popup(page);
     verifier(s.length === 0 && !p.menu && !p.form, 'mode sélection : appui long sans bouger = rien ' + JSON.stringify([s, p]));
-    await doigt(page, t1, t2, 500);
+    // Suite 108 : fenêtre libre, de la case vide de la personne 2 jusqu'au
+    // centre de « Quatre » (elle passe sur « Trois »).
+    await doigt(page, t2, await centre(page, 'Quatre'), 500);
     s = await selection(page); p = await popup(page);
     verifier(JSON.stringify(s) === '["Quatre","Trois"]' && !p.menu && !p.form, 'mode sélection : appui long + glisser = zone sélectionnée : ' + JSON.stringify(s));
     await page.evaluate(() => { quitterModeSelection(); render(false); });
