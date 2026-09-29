@@ -20,6 +20,9 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //      sélectionnée ; appui long sans bouger = rien ; glisser rapide =
 //      défilement, rien de sélectionné ; mode ajout : appui long = popup.
 //
+// Suite 112 : le mode ajout a sa propre icône, #btnModeAjout ; le « + »
+// (#btnAjoutElement) est redevenu le menu d'ajout rapide.
+//
 // Lancer : node test_suite102.js
 
 const PERS = [1, 2, 3].map((id) => ({ id, nom: 'Personne ' + id, sous_traitant: false, ordre: id, actif: true }));
@@ -86,10 +89,10 @@ async function doigt(page, de, vers, attente) {
   {
     const { page, erreurs } = await ouvrirPlanning(browser, { bd: BD(), localStorage: { 'planning.modeAjout': '0' } });
     const b = await page.evaluate(() => {
-      const btn = document.getElementById('btnAjoutElement');
-      return { actif: btn.classList.contains('actif'), pressed: btn.getAttribute('aria-pressed'), menu: !!document.querySelector('#groupeAjoutElement .outil-menu-panneau'), corps: document.body.classList.contains('planning-mode-ajout') };
+      const btn = document.getElementById('btnModeAjout');
+      return { actif: btn.classList.contains('actif'), pressed: btn.getAttribute('aria-pressed'), menu: !!document.querySelector('.outil-menu.ouvert'), corps: document.body.classList.contains('planning-mode-ajout') };
     });
-    verifier(!b.actif && b.pressed === 'false' && !b.menu && !b.corps, '« + » relâché par défaut, sans menu : ' + JSON.stringify(b));
+    verifier(!b.actif && b.pressed === 'false' && !b.menu && !b.corps, 'icône du mode ajout relâchée par défaut, aucun menu ouvert (suite 112) : ' + JSON.stringify(b));
     const vide = await point(page, 3, '2026-09-24', 'matin');
     verifier(vide && vide.curseur === 'cell', 'curseur « cell » en mode sélection : ' + (vide && vide.curseur));
     await cliquer(page, vide);
@@ -122,10 +125,10 @@ async function doigt(page, de, vers, attente) {
     verifier(s.length === 0, 'simple clic à côté : sélection vidée : ' + JSON.stringify(s));
 
     // --- 2. « + » appuyé : mode ajout --------------------------------------
-    await page.click('#btnAjoutElement');
+    await page.click('#btnModeAjout');
     await page.waitForTimeout(200);
     const b2 = await page.evaluate(() => {
-      const btn = document.getElementById('btnAjoutElement');
+      const btn = document.getElementById('btnModeAjout');
       return { actif: btn.classList.contains('actif'), pressed: btn.getAttribute('aria-pressed'), ls: localStorage.getItem('planning.modeAjout'), corps: document.body.classList.contains('planning-mode-ajout'), menuOuvert: !!document.querySelector('.outil-menu.ouvert') };
     });
     verifier(b2.actif && b2.pressed === 'true' && b2.ls === '1' && b2.corps && !b2.menuOuvert, '« + » appuyé : mode ajout retenu, aucun menu : ' + JSON.stringify(b2));
@@ -148,15 +151,15 @@ async function doigt(page, de, vers, attente) {
     s = await selection(page);
     verifier(s.length === 0, 'mode ajout : clic droit + glisser ne sélectionne rien : ' + JSON.stringify(s));
     await page.evaluate(() => { quitterModeSelection(); render(false); });
-    await page.click('#btnAjoutElement');
+    await page.click('#btnModeAjout');
     await page.waitForTimeout(200);
-    const b4 = await page.evaluate(() => [document.getElementById('btnAjoutElement').classList.contains('actif'), localStorage.getItem('planning.modeAjout'), modeAjoutPlanning]);
+    const b4 = await page.evaluate(() => [document.getElementById('btnModeAjout').classList.contains('actif'), localStorage.getItem('planning.modeAjout'), modeAjoutPlanning]);
     verifier(!b4[0] && b4[1] === '0' && !b4[2], 'rappuyé : retour au mode sélection ' + JSON.stringify(b4));
     toutesErreurs.push(...erreurs);
     await page.close();
     // Réouverture avec « planning.modeAjout » = 1 (retenu par l'appareil).
     const o = await ouvrirPlanning(browser, { bd: BD(), localStorage: { 'planning.modeAjout': '1' } });
-    const b3 = await o.page.evaluate(() => [document.getElementById('btnAjoutElement').classList.contains('actif'), modeAjoutPlanning, document.body.classList.contains('planning-mode-ajout')]);
+    const b3 = await o.page.evaluate(() => [document.getElementById('btnModeAjout').classList.contains('actif'), modeAjoutPlanning, document.body.classList.contains('planning-mode-ajout')]);
     verifier(b3[0] && b3[1] && b3[2], 'rouvert : toujours en mode ajout ' + JSON.stringify(b3));
     toutesErreurs.push(...o.erreurs);
     await o.page.close();
@@ -183,9 +186,11 @@ async function doigt(page, de, vers, attente) {
     verifier(s.length === 0 && !p.menu && !p.form, 'glisser rapide = défilement, rien de sélectionné ni ouvert');
 
     await page.waitForTimeout(800);
-    await page.click('#btnAjoutElement');
+    // Suite 112 : l'icône du mode ajout est masquée sur téléphone (« peut
+    // disparaitre en mode portable ») ; le mode s'allume ici directement.
+    await page.evaluate(() => changerModeAjoutPlanning(true));
     await page.waitForTimeout(300);
-    verifier(await page.evaluate(() => modeAjoutPlanning), 'téléphone : « + » appuyé = mode ajout');
+    verifier(await page.evaluate(() => modeAjoutPlanning), 'téléphone : mode ajout allumé');
     // Autre case que la précédente : l'horloge du test est figée (Date.now()
     // constant), 2 appuis sur la même case passeraient pour un double-tap.
     const t1c = await point(page, 3, '2026-09-24', 'aprem');

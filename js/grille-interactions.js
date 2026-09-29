@@ -1643,7 +1643,7 @@
   }
   function majBoutonModeAjout() {
     document.body.classList.toggle("planning-mode-ajout", modeAjoutPlanning);
-    var btn = document.getElementById("btnAjoutElement");
+    var btn = document.getElementById("btnModeAjout");
     if (!btn) return;
     btn.classList.toggle("actif", modeAjoutPlanning);
     btn.setAttribute("aria-pressed", modeAjoutPlanning ? "true" : "false");

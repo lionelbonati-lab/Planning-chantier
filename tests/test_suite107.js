@@ -12,6 +12,9 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //      en mode ajout défait la sélection ;
 //   3. téléphone, mode ajout : appui long sur une bulle = ajout dans la case.
 //
+// Suite 112 : le mode ajout a sa propre icône, #btnModeAjout ; le « + »
+// (#btnAjoutElement) est redevenu le menu d'ajout rapide.
+//
 // Lancer : node test_suite107.js
 
 const PERS = [1, 2].map((id) => ({ id, nom: 'Personne ' + id, sous_traitant: false, ordre: id, actif: true }));
@@ -46,7 +49,7 @@ const popup = (page) => page.evaluate(() => { const m = document.querySelector('
     await page.waitForTimeout(150);
     await page.evaluate(() => document.querySelectorAll('.menu-pop, .form-pop').forEach((x) => x.remove()));
 
-    await page.click('#btnAjoutElement');
+    await page.click('#btnModeAjout');
     await page.waitForTimeout(150);
     b = await bulle(page, 'Un');
     // (.bulle elle-même est toujours « none » : ses cartes captent le clic.)
@@ -54,7 +57,7 @@ const popup = (page) => page.evaluate(() => { const m = document.querySelector('
     await page.mouse.click(b.x, b.y);
     await page.waitForTimeout(200);
     verifier((await selection(page)) === 'Un', 'mode sélection : clic = bulle sélectionnée (' + await selection(page) + ')');
-    await page.click('#btnAjoutElement');
+    await page.click('#btnModeAjout');
     await page.waitForTimeout(150);
     const apres = await page.evaluate(() => ({ n: document.querySelectorAll('.bulle.selectionnee').length, pilule: document.getElementById('panneauSelection').hidden }));
     verifier((await selection(page)) === '' && apres.n === 0 && apres.pilule, 'retour en mode ajout : sélection défaite ' + JSON.stringify(apres));

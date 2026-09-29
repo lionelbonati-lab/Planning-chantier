@@ -342,7 +342,9 @@
   // repli (toujours dans la barre, entre Annuler/Refaire et Imprimer) ;
   // « Ajouter une ligne » y entre à sa place.
   // Suite 92 : hauteur des lignes, repliée juste après le zoom.
-  var REPLIS_ORDRE = ["groupeZoom", "groupeHauteurs", "controlesAffichage", "groupeAjoutLigne", "groupeNavSemaine", "groupeImprimer"];
+  // Suite 112 : icône du mode ajout (#groupeModeAjout), repliée juste
+  // avant « Ajouter une ligne » (sur téléphone, masquée hors mode ajout).
+  var REPLIS_ORDRE = ["groupeZoom", "groupeHauteurs", "controlesAffichage", "groupeModeAjout", "groupeAjoutLigne", "groupeNavSemaine", "groupeImprimer"];
   // Téléphone : tout ce qui se replie va dans « ⋮ » ; la cloche est dans la
   // barre du bas (#btnNotificationsNavBas), masquée dans celle-ci.
   var REPLIS_TELEPHONE = REPLIS_ORDRE;

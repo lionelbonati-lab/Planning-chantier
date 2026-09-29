@@ -170,6 +170,11 @@
        (Suite 102 : le « + » n'a plus de menu ; la règle sert au panneau
        de tout autre .outil-menu rangé à droite.) */
     .toolbar-groupe-droite .outil-menu-panneau { left: auto; right: 0; }
+    /* Round du 29.09.2026 (suite 112). Lionel : l'icône du mode ajout
+       « peut disparaitre en mode portable car moins utile ». Masquée tant
+       qu'elle est éteinte ; allumée (mode ajout retenu par l'appareil),
+       elle reste (dans « ⋮ ») pour pouvoir en sortir. */
+    body:not(.planning-mode-ajout) #groupeModeAjout { display: none; }
     /* Pilule de sélection sur téléphone (round du 24.09.2026, suite 8 —
        Lionel : « Sur mobile une pilule vient remplacer la barre d'onglet en
        bas ») : même pilule fixe qu'ailleurs (style.css), étirée sur toute

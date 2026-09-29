@@ -9,12 +9,15 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //   2. Échap suivant : retour au mode sélection (« + » relâché, retenu) ;
 //   3. Échap en mode sélection : rien ne change.
 //
+// Suite 112 : le mode ajout a sa propre icône, #btnModeAjout ; le « + »
+// (#btnAjoutElement) est redevenu le menu d'ajout rapide.
+//
 // Lancer : node test_suite111.js
 
 const PERS = [1, 2].map((id) => ({ id, nom: 'Personne ' + id, sous_traitant: false, ordre: id, actif: true }));
 const BD = () => ({ personnes: PERS, taches: [] });
 const etat = (page) => page.evaluate(() => ({
-  ajout: modeAjoutPlanning, bouton: document.getElementById('btnAjoutElement').classList.contains('actif'),
+  ajout: modeAjoutPlanning, bouton: document.getElementById('btnModeAjout').classList.contains('actif'),
   corps: document.body.classList.contains('planning-mode-ajout'), ls: localStorage.getItem('planning.modeAjout'),
   popup: !!document.querySelector('.menu-pop, .form-pop'),
 }));

@@ -10657,3 +10657,16 @@ Lionel :
 
 ### Tests
 - Nouveau : tests/test_suite111.js (4 vérifications).
+
+## 225. Round du 29.09.2026 (suite 112) — « + » = ajout rapide, nouvelle icône pour le mode ajout
+- Lionel : « Le bouton "+" doit revenir un ajout rapide comme avant, mais ajoute une nouvelle icone pour ce mode ajout. dans la tool-bar, pas important, peut disparaitre en mode portable car moins utile. »
+- « + » : retour du menu Tâche / Absence / Note / Jalon (Tâche et Absence demandent « pour qui ? »), comme avant la suite 102.
+- Nouvelle icône « Mode ajout » (flèche + « + »), juste avant le « + » : même interrupteur qu'avant (appuyée = mode ajout, relâchée = mode sélection, retenu par l'appareil).
+  - repliée dans « ⋮ » quand la barre manque de place, juste avant « Ajouter une ligne » ;
+  - téléphone : dans « ⋮ », masquée hors mode ajout (visible seulement pour en sortir).
+- Page Raccourcis : « Mode ajout, sur une case vide… » au lieu de « « + » appuyé… ».
+
+### Tests
+- Nouveau : tests/test_suite112.js (9 vérifications), ordinateur et téléphone.
+- Suites 102, 107, 109, 111 : l'interrupteur est #btnModeAjout.
+- test_toolbar_chevauchement : #groupeModeAjout dans l'ordre de repli et dans le menu « ⋮ ».
