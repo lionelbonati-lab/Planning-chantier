@@ -215,11 +215,16 @@ async function ouvrirPlanning(browser, options) {
   await page.route(/fonts\.googleapis|fonts\.gstatic/, (r) => r.abort());
   await page.route(/supabase-js/, (r) => r.fulfill({ contentType: 'application/javascript', body: FAUX_SUPABASE }));
   const bd = Object.assign({ personnes: PERSONNES_TEST, chantiers: CHANTIERS_TEST }, options.bd || {});
+  // Suite 102 : le « + » est devenu l'interrupteur du mode ajout (mode
+  // sélection par défaut). Les tests écrits avant lui cliquent/glissent
+  // sur des cases vides pour AJOUTER : ils démarrent en mode ajout, sauf
+  // s'ils fixent eux-mêmes « planning.modeAjout ».
+  const ls = Object.assign({ 'planning.modeAjout': '1' }, options.localStorage || {});
   await page.addInitScript((d) => {
     window.__BD_INITIALE = d.bd;
     window.__TABLES_EN_ECHEC = d.echecs;
     try { Object.keys(d.ls).forEach(function (k) { localStorage.setItem(k, d.ls[k]); }); } catch (e) {}
-  }, { bd: bd, ls: options.localStorage || {}, echecs: options.tablesEnEchec || [] });
+  }, { bd: bd, ls: ls, echecs: options.tablesEnEchec || [] });
   // Suite 88 : options.query = « ?raccourci=… » (raccourcis de l'icône, manifest.json).
   await page.goto('file://' + path.join(__dirname, '..', 'index.html') + (options.query || ''));
   // (raccourci « Mes notes » : page Notes affichée, barre du planning masquée)

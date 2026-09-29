@@ -276,6 +276,8 @@
       // #menuAjoutElement (Tâche/Absence/Note/Jalon, avec une 2e page "pour
       // qui ?" pour Tâche/Absence) — cf. cablerPagePlanning pour tout le
       // câblage (générique aux 3 .outil-menu) et ouvrirAjoutElementBarre.
+      // (Suite 102 : ce menu « + » a disparu, le bouton bascule désormais
+      // le mode ajout / sélection — cf. modeAjoutPlanning, core.js.)
       // §91 (round du 22.09.2026, suite) — Lionel, mockup mockup-nav-mobile.html
       // validé (« c'est ok pour moi, la toolbar par contre est à retailler
       // on gardera les "tools" principaux sur la barre et le reste sera
@@ -480,19 +482,9 @@
           '</div>' +
         '</div>' +
         '<div class="toolbar-groupe toolbar-groupe-droite" id="groupeAjoutElement" data-rang="80">' +
-          '<div class="outil-menu" id="menuAjoutElement">' +
-            '<button type="button" class="toolbar-btn" id="btnAjoutElement" title="Ajouter un élément au planning">' + ICONS.plus + '</button>' +
-            '<div class="outil-menu-panneau">' +
-              '<div class="outil-menu-page" data-page="choix">' +
-                '<div class="outil-menu-titre">Ajouter au planning</div>' +
-                '<button type="button" class="outil-menu-item" data-type="tache">' + ICONS.tache + 'Tâche</button>' +
-                '<button type="button" class="outil-menu-item" data-type="absence">' + ICONS.absence + 'Absence</button>' +
-                '<button type="button" class="outil-menu-item" data-type="note">' + ICONS.note + 'Note</button>' +
-                '<button type="button" class="outil-menu-item" data-type="jalon">' + ICONS.flag + 'Jalon</button>' +
-              '</div>' +
-              '<div class="outil-menu-page" data-page="personne" id="pageAjoutPersonne" hidden></div>' +
-            '</div>' +
-          '</div>' +
+          // Suite 102 : plus de menu — le « + » est un interrupteur (mode
+          // ajout appuyé / mode sélection relâché), cf. modeAjoutPlanning.
+          '<button type="button" class="toolbar-btn" id="btnAjoutElement" aria-pressed="false" title="Mode ajout">' + ICONS.plus + '</button>' +
         '</div>' +
         // Masquages : icônes seules partout, y compris dans le panneau où
         // elles restent sur UNE ligne (Lionel : « 4 icones sur la même ligne
@@ -925,26 +917,14 @@
     // #selectChantier et les 3 nouveaux .outil-menu (zoom, ligne+, +) restent
     // mutuellement exclusifs : un seul panneau ouvert à la fois dans cette
     // barre.
-    var menuAjoutElement = document.getElementById("menuAjoutElement");
-    var pageAjoutPersonne = document.getElementById("pageAjoutPersonne");
-    var typeAjoutBarreEnCours = null;
-    function reinitialiserMenuAjoutElement() {
-      if (!menuAjoutElement) return;
-      var pageChoix = menuAjoutElement.querySelector('[data-page="choix"]');
-      if (pageChoix) pageChoix.hidden = false;
-      if (pageAjoutPersonne) pageAjoutPersonne.hidden = true;
-      typeAjoutBarreEnCours = null;
-    }
+    // (Suite 102 : menuAjoutElement et sa 2e page « pour qui ? » ont
+    // disparu avec le menu du « + ».)
     // Ferme tout ce qui peut être ouvert dans cette barre SAUF `sauf` (un des
-    // .outil-menu, ou null pour tout fermer) — réinitialise au passage
-    // #menuAjoutElement sur sa page "choix" dès qu'il fait partie de ce qui
-    // se ferme, pour ne jamais le rouvrir plus tard sur l'étape "pour qui ?"
-    // d'un ajout précédent abandonné en cours de route.
+    // .outil-menu, ou null pour tout fermer).
     function fermerAutresMenusOutils(sauf) {
       document.querySelectorAll(".outil-menu.ouvert").forEach(function (m) {
         if (m === sauf) return;
         m.classList.remove("ouvert");
-        if (m === menuAjoutElement) reinitialiserMenuAjoutElement();
       });
       if (selectChantier) selectChantier.classList.remove("ouvert");
       // §91 — #toolbarSecondaire (panneau "⋮" téléphone) rejoint ce même
@@ -1014,7 +994,6 @@
         fermerAutresMenusOutils(menu);
         var maintenantOuvert = !etaitOuvert;
         menu.classList.toggle("ouvert", maintenantOuvert);
-        if (menu === menuAjoutElement && !maintenantOuvert) reinitialiserMenuAjoutElement();
       });
     });
     // Un clic À L'INTÉRIEUR d'un panneau ne doit pas remonter jusqu'au
@@ -1048,47 +1027,18 @@
       });
     }
 
-    // ---- "+" (ajout d'élément) : Tâche/Absence/Note/Jalon. Note/Jalon
-    // s'ouvrent directement (ouvrirAjoutElementBarre plus bas, cf. son
-    // commentaire). Tâche/Absence affichent d'abord la 2e page "pour qui ?"
-    // — liste reconstruite à l'ouverture (pas à chaque rendu de la grille,
-    // ce menu n'étant consulté qu'à la demande) depuis PERSONNES, déjà la
-    // liste "actif=true" triée (cf. demarrer()) — Absence exclut les
-    // intervenants, même règle que boutonsMenuAjout()/le clic sur une case.
-    if (menuAjoutElement && pageAjoutPersonne) {
-      var pageChoixAjout = menuAjoutElement.querySelector('[data-page="choix"]');
-      pageChoixAjout.querySelectorAll("[data-type]").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          var type = btn.dataset.type;
-          if (type !== "tache" && type !== "absence") {
-            menuAjoutElement.classList.remove("ouvert");
-            ouvrirAjoutElementBarre(type, null);
-            reinitialiserMenuAjoutElement();
-            return;
-          }
-          typeAjoutBarreEnCours = type;
-          pageAjoutPersonne.innerHTML =
-            '<button type="button" class="outil-menu-retour">‹ Retour</button>' +
-            '<div class="outil-menu-titre">Pour qui — ' + (type === "tache" ? "Tâche" : "Absence") + '</div>';
-          // Ordre affiché (suite 33) ; pas d'absence pour une équipe.
-          var liste = type === "absence" ? personnesAffichees("personnel").filter(function (p) { return !p.equipe; }) : personnesAfficheesToutes();
-          liste.forEach(function (p) {
-            var it = document.createElement("button");
-            it.type = "button";
-            it.className = "outil-menu-item";
-            it.dataset.personne = p.id;
-            it.textContent = p.nom;
-            it.addEventListener("click", function () {
-              menuAjoutElement.classList.remove("ouvert");
-              ouvrirAjoutElementBarre(typeAjoutBarreEnCours, p.id);
-              reinitialiserMenuAjoutElement();
-            });
-            pageAjoutPersonne.appendChild(it);
-          });
-          pageAjoutPersonne.querySelector(".outil-menu-retour").addEventListener("click", reinitialiserMenuAjoutElement);
-          pageChoixAjout.hidden = true;
-          pageAjoutPersonne.hidden = false;
-        });
+    // ---- "+" : interrupteur mode ajout / mode sélection (round du
+    // 29.09.2026, suite 102). Lionel : « plus de menu mais un appuis sur le
+    // bouton met le planning en mode ajout au lieu de sélection (ancien clic
+    // souris gauche). Bouton non appuyer mode sélection. » L'ancien menu
+    // Tâche/Absence/Note/Jalon (+ page « pour qui ? ») a disparu : en mode
+    // ajout, le clic sur une case ouvre déjà le même choix, à la bonne date.
+    var btnModeAjout = document.getElementById("btnAjoutElement");
+    if (btnModeAjout) {
+      majBoutonModeAjout();
+      btnModeAjout.addEventListener("click", function () {
+        changerModeAjoutPlanning(!modeAjoutPlanning);
+        toast(modeAjoutPlanning ? "Mode ajout : clic ou glisser sur une case vide pour ajouter." : "Mode sélection : glisser sur les cases pour sélectionner.");
       });
     }
 
@@ -1192,8 +1142,8 @@
     // #menuSemaine/#btnSemainePill remplacent ouvrirAllerSemaine() (popup
     // centrée avec un <select>, supprimée avec son unique déclencheur
     // .lien-aller) par un dropdown façon Sheets, cohérent avec zoom/ligne+/+
-    // juste à côté — reconstruit à l'OUVERTURE seulement (comme
-    // #pageAjoutPersonne plus haut), jamais à chaque rendu : etat.semaines
+    // juste à côté — reconstruit à l'OUVERTURE seulement (comme feu
+    // #pageAjoutPersonne, suite 102), jamais à chaque rendu : etat.semaines
     // ne change jamais en cours de session, et peut compter jusqu'à 521
     // semaines (FENETRE_SEMAINES=260 avant/après aujourd'hui) — tout afficher
     // d'un coup produirait un dropdown interminable, d'où une fenêtre de 8

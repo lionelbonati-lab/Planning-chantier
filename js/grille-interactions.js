@@ -1628,6 +1628,38 @@
     };
   }
 
+  // Interrupteur du « + » (round du 29.09.2026, suite 102, cf.
+  // modeAjoutPlanning dans core.js) : retenu par l'appareil, reflété par le
+  // bouton (.actif + aria-pressed) et par body.planning-mode-ajout (curseur
+  // des cases, cf. style.css).
+  function changerModeAjoutPlanning(actif) {
+    modeAjoutPlanning = !!actif;
+    try { localStorage.setItem("planning.modeAjout", modeAjoutPlanning ? "1" : "0"); } catch (e) {}
+    majBoutonModeAjout();
+  }
+  function majBoutonModeAjout() {
+    document.body.classList.toggle("planning-mode-ajout", modeAjoutPlanning);
+    var btn = document.getElementById("btnAjoutElement");
+    if (!btn) return;
+    btn.classList.toggle("actif", modeAjoutPlanning);
+    btn.setAttribute("aria-pressed", modeAjoutPlanning ? "true" : "false");
+    btn.title = modeAjoutPlanning ? "Mode ajout (appuyé) — rappuyer pour revenir au mode sélection" : "Mode sélection — appuyer pour passer en mode ajout";
+  }
+
+  // Gestes sur une case vide (round du 29.09.2026, suite 102) — Lionel :
+  // « Pour la sélection attention au geste de la souris clic droit/gauche
+  // suivi d'un glisser [...] Attention à traiter aussi la partie tactile. »
+  //  - mode AJOUT (« + » appuyé) : tout est comme avant — souris : clic =
+  //    popup d'ajout, glisser gauche = ajout sur la plage ; doigt : appui
+  //    long (+ glisser) = ajout, glisser = défilement ;
+  //  - mode SÉLECTION (défaut) : le même geste sélectionne les bulles de la
+  //    zone (demarrerSelectionRapide) — souris : glisser gauche = zone
+  //    (Ctrl/Maj : ajoutée à la sélection, sinon la remplace), simple clic
+  //    = rien (ou quitte la sélection en cours) ; doigt : appui long puis
+  //    glisser = zone, glisser = défilement (inchangé).
+  //  - dans les 2 modes : glisser au clic DROIT et double-tap = sélection
+  //    par zone, comme avant (même geste quel que soit le mode, pour ne pas
+  //    avoir à y penser).
   var dernierTapCellule = null, dernierTapTemps = 0;
   function cablerAjoutCellule(cell) {
     cell.addEventListener("contextmenu", function (e) { e.preventDefault(); });
@@ -1640,6 +1672,15 @@
         dernierTapCellule = cell; dernierTapTemps = maintenant;
         if (estDoubleTap) { dernierTapCellule = null; e.preventDefault(); demarrerSelectionRapide(e, cell); return; }
       } else if (e.button !== 0) return;
+      // Suite 102 : souris en mode sélection — le glisser gauche sélectionne
+      // (y compris quand des bulles sont déjà sélectionnées : il n'y a plus
+      // de panoramique au glisser gauche à la souris, la molette et les
+      // barres de défilement suffisent).
+      if (!modeAjoutPlanning && e.pointerType !== "touch") {
+        e.preventDefault();
+        demarrerSelectionRapide(e, cell, { clicSimple: true, remplacer: !(e.ctrlKey || e.metaKey || e.shiftKey) });
+        return;
+      }
       if (Object.keys(bullesSelectionnees).length > 0) { e.preventDefault(); demarrerDefilementOuSortieSelection(e, cell); return; }
       e.preventDefault();
       var sx = e.clientX, sy = e.clientY, dernierX = e.clientX, dernierY = e.clientY, dernierT = e.timeStamp;
@@ -1662,7 +1703,18 @@
       // depuis une case vide (ajout de tâche).
       var defilementManuel = creerDefilementManuel(scroller);
 
-      function armerSelection() { arme = true; cell.classList.add("armement-selection"); document.body.classList.add("en-glissement"); }
+      // Suite 102 : doigt en mode sélection — l'appui long passe la main à
+      // demarrerSelectionRapide (même pointerId, suivi depuis la position
+      // courante du doigt) au lieu d'armer un ajout.
+      var ajout = modeAjoutPlanning;
+      function armerSelection() {
+        if (!ajout && e.pointerType === "touch") {
+          detacher();
+          demarrerSelectionRapide({ pointerId: pointerId, clientX: dernierX, clientY: dernierY }, cell, { clicSimple: true });
+          return;
+        }
+        arme = true; cell.classList.add("armement-selection"); document.body.classList.add("en-glissement");
+      }
       function detacher() {
         clearTimeout(minuteur);
         if (enDefilement) defilementManuel.relacher();
@@ -1761,8 +1813,14 @@
     });
   }
 
-  function demarrerSelectionRapide(e, celluleDebut) {
+  // opts (suite 102, mode sélection) : clicSimple = un appui SANS glisser
+  // (< 5 px) ne sélectionne rien et vide la sélection en cours, comme un
+  // clic à côté d'une bulle ; remplacer = la zone remplace la sélection au
+  // lieu de s'y ajouter (glisser sans Ctrl/Maj).
+  function demarrerSelectionRapide(e, celluleDebut, opts) {
+    opts = opts || {};
     var pointerId = e.pointerId;
+    var sx0 = e.clientX, sy0 = e.clientY, bouge = false;
     var scroller = trouverScroller(celluleDebut);
     var derniereMove = null;
     var autoDefil = creerAutoDefilement(scroller, function () { if (derniereMove) onMove(derniereMove); });
@@ -1781,6 +1839,7 @@
     function onMove(e2) {
       if (e2.pointerId !== pointerId) return;
       derniereMove = e2;
+      if (Math.abs(e2.clientX - sx0) + Math.abs(e2.clientY - sy0) > 4) bouge = true;
       var xCible = xDansJourVisible_(scroller, e2.clientX);
       var sous = document.elementFromPoint(xCible, e2.clientY);
       var c2 = sous && sous.closest(".cell");
@@ -1814,6 +1873,11 @@
       if (e2.pointerId !== pointerId) return;
       var bornes = bornesDepuisDemiSlots(Math.min(halfDebut, halfCourant), Math.max(halfDebut, halfCourant));
       detacher(); effacerSurlignage();
+      if (opts.clicSimple && !bouge) {
+        if (Object.keys(bullesSelectionnees).length) { quitterModeSelection(); render(false); }
+        return;
+      }
+      if (opts.remplacer && Object.keys(bullesSelectionnees).length) quitterModeSelection();
       var cells = [];
       if (kind === "personne") {
         var pMin = Math.min(pIndexDebut, pIndexCourant), pMax = Math.max(pIndexDebut, pIndexCourant);

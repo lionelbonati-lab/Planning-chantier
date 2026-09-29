@@ -10477,3 +10477,33 @@ Lionel :
   - anciens réglages convertis.
 - Adaptés aux curseurs en pixels : suites 62, 64, 91, 92, 94, 95, 98.
 - Suite complète : 106/106.
+
+
+## 215. Round du 29.09.2026 (suite 102) — Bouton « + » : mode ajout ou mode sélection
+- Lionel : « Pour la sélection attention au geste de la souris clic droit/gauche suivi d'un glisser. Si on garde ta proposition de sélection on doit modifier l'utilisation du bouton "+", plus de menu mais un appuis sur le bouton met le planning en mode ajout au lieu de sélection (ancien clic souris gauche). Bouton non appuyer mode sélection. Attention à traiter aussi la partie tactile. »
+
+### Bouton « + »
+- Plus de menu Tâche / Absence / Note / Jalon. Le bouton est un interrupteur :
+  - appuyé (teinté) = mode ajout ;
+  - relâché (par défaut) = mode sélection.
+- Le mode est retenu par l'appareil. Un message confirme chaque changement.
+- Le curseur sur les cases montre le mode : croix de tableur en sélection, flèche « + » en ajout.
+
+### Gestes sur les cases vides
+| Geste | Mode sélection (« + » relâché) | Mode ajout (« + » appuyé) |
+|---|---|---|
+| Souris : clic gauche | rien (vide la sélection en cours) | popup d'ajout (comme avant) |
+| Souris : glisser gauche | sélectionne les bulles de la zone ; Ctrl ou Maj : les ajoute à la sélection | ajout sur la plage (comme avant) |
+| Souris : clic droit + glisser | sélectionne les bulles de la zone | idem |
+| Doigt : glisser | fait défiler | idem |
+| Doigt : appui long (+ glisser) | sélectionne les bulles de la zone | ajout (comme avant) |
+| Doigt : double-tap (+ glisser) | sélectionne les bulles de la zone | idem |
+
+- Les gestes sur les bulles ne changent pas (clic, glisser, poignées).
+- La page Raccourcis décrit les nouveaux gestes souris.
+
+### Tests
+- Nouveau : tests/test_suite102.js (21 vérifications), souris et doigt, dans les 2 modes.
+- Les tests écrits avant démarrent en mode ajout : tests/aide_tests.js (ouvrirPlanning) et tests/test_suite24.js.
+- Suites 61 et 64 : un geste souris de plus dans la page Raccourcis.
+- Suite complète : 107/107.
