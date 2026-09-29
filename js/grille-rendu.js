@@ -116,16 +116,70 @@
   // remonte d'autant (transform, qui s'ajoute au translate de la
   // cascade), sans passer au-dessus du haut de la grille. Appelée à chaque
   // changement de sélection (majBarreSelection) et après chaque cascade.
+  //
+  // Round du 29.09.2026 (suite 95) — Lionel : « L'agrandissement d'une
+  // bulle sélectionnée peut se faire d'une demi case à droite ou à gauche
+  // (dans sa demi journée opposée) pour éviter qu'elle ne prenne trop de
+  // hauteur, la décaler contre le haut si elle passe dessous une ligne de
+  // séparation. » Carte dépliée plus haute qu'une carte fixe (U) : si la
+  // bulle finit le matin, elle s'élargit sur l'après-midi du même jour ;
+  // sinon, si elle commence l'après-midi, sur le matin (à gauche). Puis,
+  // si son bas passe sous la ligne de séparation du bas de sa ligne, elle
+  // remonte, au plus jusqu'au haut de la ligne. En multi-sélection
+  // (body.selection-multiple), rien : les bulles ne se déplient pas.
+  // Largeur et marge d'origine gardées en data-deplie, remises au
+  // changement suivant (sauf si un rendu les a reposées entre-temps).
   function remonterCartesSelection() {
     document.querySelectorAll("#racine .bulle > .b-carte[data-remonte]").forEach(function (c) {
       c.style.transform = ""; delete c.dataset.remonte;
     });
-    document.querySelectorAll("#racine .scroller .bulle.selectionnee > .b-carte").forEach(function (c) {
-      var g = c.closest(".grille");
-      if (!g) return;
-      var rg = g.getBoundingClientRect(), r = c.getBoundingClientRect();
-      var d = Math.min(r.bottom - rg.bottom + 2, r.top - rg.top);
-      if (d > 0.5) { c.style.transform = "translateY(" + (-Math.round(d)) + "px)"; c.dataset.remonte = "1"; }
+    document.querySelectorAll("#racine .bulle > .b-carte[data-deplie]").forEach(function (c) {
+      var o = JSON.parse(c.dataset.deplie);
+      if (c.style.width === o.w1) c.style.width = o.w0;
+      if (c.style.marginLeft === o.m1) c.style.marginLeft = o.m0;
+      delete c.dataset.deplie;
+    });
+    if (document.body.classList.contains("selection-multiple") || !racineEl.classList.contains("hauteurs-fixes")) return;
+    var cs = getComputedStyle(racineEl), px = function (v) { return parseFloat(cs.getPropertyValue(v)) || 0; };
+    var marge = 3;
+    document.querySelectorAll("#racine .bulle.selectionnee").forEach(function (b) {
+      var g = b.closest(".grille"), cartes = [].filter.call(b.querySelectorAll(":scope > .b-carte"), function (c) { return c.offsetWidth > 0; });
+      if (!g || !cartes.length) return;
+      var jal = b.classList.contains("bulle-jalon") || b.classList.contains("bulle-note");
+      var u = px(jal ? "--mob-carte-jal" : "--mob-carte-pers"), h = px(jal ? "--mob-h-jal" : "--mob-h-pers");
+      // Demi-case voisine (colonne de la grille juste avant ou juste après).
+      var it = itemDepuisBulle(b), item = it && it.item;
+      var col = /^(\d+)(?:\s*\/\s*span\s+(\d+))?/.exec(b.style.gridColumn || "");
+      if (item && col && u) {
+        var c0 = +col[1], n = col[2] ? +col[2] : 1;
+        var finitMatin = item.duree === 1 ? item.demiDebut === "matin" : item.demiFin === "matin";
+        var commenceAprem = item.demiDebut === "aprem";
+        var gs = getComputedStyle(g), ws = gs.gridTemplateColumns.split(" ").map(parseFloat), ecart = parseFloat(gs.columnGap) || 0;
+        var cote = null, demi = 0;
+        if (finitMatin && ws[c0 + n - 1] > 0) { cote = "d"; demi = ws[c0 + n - 1] + ecart; }
+        else if (commenceAprem && ws[c0 - 2] > 0) { cote = "g"; demi = ws[c0 - 2] + ecart; }
+        var c = cote === "d" ? cartes[cartes.length - 1] : cartes[0];
+        if (cote && c.offsetHeight > u + 1) {
+          var o = { w0: c.style.width, m0: c.style.marginLeft };
+          c.style.width = (c.offsetWidth + demi) + "px";
+          if (cote === "g") c.style.marginLeft = (parseFloat(getComputedStyle(c).marginLeft) - demi) + "px";
+          o.w1 = c.style.width; o.m1 = c.style.marginLeft;
+          c.dataset.deplie = JSON.stringify(o);
+        }
+      }
+      // Remontée : sous le bas de la ligne (bulle posée en haut de sa
+      // ligne, H de haut), puis sous le bas de la grille (dernière ligne
+      // du planning, coupée par .scroller) — jamais au-dessus du haut de
+      // la ligne, ni de la grille. k : zoom du planning (mesures à l'écran,
+      // décalage en px de la page).
+      var rb = b.getBoundingClientRect(), rg = g.getBoundingClientRect();
+      cartes.forEach(function (c) {
+        var r = c.getBoundingClientRect(), k = c.offsetHeight ? r.height / c.offsetHeight : 1;
+        var dLigne = h ? Math.min(r.bottom - (rb.top + (h - marge) * k), r.top - (rb.top + marge * k)) : 0;
+        var dGrille = Math.min(r.bottom - rg.bottom + 2, r.top - rg.top);
+        var d = Math.max(dLigne, dGrille);
+        if (d > 0.5) { c.style.transform = "translateY(" + (-Math.round(d / k)) + "px)"; c.dataset.remonte = "1"; }
+      });
     });
   }
   function majChantierSelection() {

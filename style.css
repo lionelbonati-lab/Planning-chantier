@@ -1727,12 +1727,20 @@
   /* overflow: clip (et non hidden) : la carte ne devient pas un conteneur
      de défilement, le texte collant de l'ordinateur (plus haut) colle
      toujours au bord de l'écran. */
+  /* Suite 95 — Lionel : « J'ai l'impression que la hauteur des bulles
+     n'est plus dynamique. » Puis, à notre question : « bulle à la taille
+     du texte ». La carte prend la hauteur de son contenu, au plus U (la
+     hauteur réglée : « Lignes de texte », statut) ; la bulle, elle, garde
+     la hauteur U, sur laquelle s'appuie le rognage au bas de la ligne
+     (clip-path ci-dessus). Lignes et cascade inchangées. */
+  #racine.hauteurs-fixes .bulle { height: var(--mob-carte-pers, auto); }
+  #racine.hauteurs-fixes :is(.bulle-jalon, .bulle-note) { height: var(--mob-carte-jal, auto); }
   #racine.hauteurs-fixes .bulle > .b-carte {
     position: relative; flex: none; box-sizing: border-box;
-    height: var(--mob-carte-pers, auto); overflow: clip; justify-content: flex-start;
+    height: auto; max-height: var(--mob-carte-pers, none); overflow: clip; justify-content: flex-start;
   }
   #racine.vue-jour-mobile .bulle > .b-carte { align-self: flex-start; min-width: 0; }
-  #racine.hauteurs-fixes :is(.bulle-jalon, .bulle-note) > .b-carte { height: var(--mob-carte-jal, auto); }
+  #racine.hauteurs-fixes :is(.bulle-jalon, .bulle-note) > .b-carte { max-height: var(--mob-carte-jal, none); }
   #racine.hauteurs-fixes :is(.bulle-jalon, .bulle-note) .b-txt { -webkit-line-clamp: var(--mob-lignes-jal, 1); line-clamp: var(--mob-lignes-jal, 1); }
   #racine.hauteurs-fixes .bulle .b-carte .b-serie { position: absolute; left: auto; right: 5px; bottom: 2px; font-size: 0; line-height: 1; }
   #racine.hauteurs-fixes .bulle .b-carte .b-serie::before { content: "↻"; font-size: 10px; }
@@ -1743,24 +1751,30 @@
      sur la bulle du dessous (filter, qui s'ajoute aux box-shadow de
      sélection sans les réécrire), et liseré sombre le long de son bord
      haut (::before, aux coins arrondis de la carte). */
-  #racine.hauteurs-fixes .bulle > .b-carte[data-empile] { filter: drop-shadow(0 -2px 2px var(--shadow-lg)); }
-  #racine.hauteurs-fixes .bulle > .b-carte[data-empile]::before {
+  /* Suite 95 — Lionel : « Ajoute l'ombre à toute les bulles. » L'ombre et
+     le liseré valent maintenant pour toutes les cartes (data-empile reste
+     posé, il ne sert plus au style). */
+  #racine.hauteurs-fixes .bulle > .b-carte { filter: drop-shadow(0 -2px 2px var(--shadow-lg)); }
+  #racine.hauteurs-fixes .bulle > .b-carte::before {
     content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
     box-shadow: inset 0 1.5px 0 color-mix(in srgb, var(--ink) 30%, transparent);
   }
-  #racine.hauteurs-fixes .bulle.dragging > .b-carte[data-empile] { filter: none; }
+  #racine.hauteurs-fixes .bulle.dragging > .b-carte { filter: none; }
   /* Round du 29.09.2026 (suite 93) — Lionel : « Sélectionner une bulle
      fait apparaître son texte en entier ainsi que sa hauteur de bulle
      complète si tronquée. » Bulle sélectionnée : plus de rognage au bas de
-     la ligne (clip-path), carte à la hauteur de son contenu (au moins sa
-     hauteur fixe), texte sans limite de lignes ; elle passe devant les
+     la ligne (clip-path), carte à la hauteur de son contenu, texte sans
+     limite de lignes ; elle passe devant les
      bulles de la cascade et déborde sur la ligne suivante le temps de la
      sélection. Vaut pour toutes les cartes de la bulle (une par jour sur
      le téléphone, copies des jours voisins). */
-  #racine.hauteurs-fixes .bulle.selectionnee { clip-path: none; z-index: 3; }
-  #racine.hauteurs-fixes .bulle.selectionnee > .b-carte { height: auto; min-height: var(--mob-carte-pers, auto); overflow: visible; }
-  #racine.hauteurs-fixes :is(.bulle-jalon, .bulle-note).selectionnee > .b-carte { min-height: var(--mob-carte-jal, auto); }
-  #racine.hauteurs-fixes .bulle.selectionnee .b-txt { -webkit-line-clamp: none; line-clamp: none; overflow: visible; }
+  /* Suite 95 : seulement une bulle sélectionnée seule — « En
+     multi-sélection ne pas agrandir la bulle sélectionnée » (plusieurs
+     bulles, ou mode multiple allumé : body.selection-multiple). */
+  #racine.hauteurs-fixes .bulle.selectionnee { z-index: 3; }
+  body:not(.selection-multiple) #racine.hauteurs-fixes .bulle.selectionnee { clip-path: none; }
+  body:not(.selection-multiple) #racine.hauteurs-fixes .bulle.selectionnee > .b-carte { height: auto; max-height: none; overflow: visible; }
+  body:not(.selection-multiple) #racine.hauteurs-fixes .bulle.selectionnee .b-txt { -webkit-line-clamp: none; line-clamp: none; overflow: visible; }
   #racine.vue-jour-mobile .bulle .b-carte .b-statut {
     position: absolute; top: 4px; right: 4px; left: auto; width: 9px; height: 9px; padding: 0; margin: 0; gap: 0;
     font-size: 0; border-radius: 50%; box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--surface-2) 85%, transparent), 0 0 0 2.5px color-mix(in srgb, var(--ink) 25%, transparent);

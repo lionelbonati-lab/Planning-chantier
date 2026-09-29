@@ -131,6 +131,10 @@
     var n = Object.keys(bullesSelectionnees).length;
     panneau.hidden = !n;
     document.body.classList.toggle("selection-active", n > 0);
+    // Suite 95 — Lionel : « En multi-sélection ne pas agrandir la bulle
+    // sélectionnée. » Plusieurs bulles, ou le mode multiple allumé (appui
+    // long) : pas de dépliage (style.css, suite 93).
+    document.body.classList.toggle("selection-multiple", n > 1 || (n > 0 && modeSelectionMultiple));
     panneau.querySelector(".sel-fleches").hidden = !modeSelectionMultiple;
     panneau.querySelector(".sel-compte").textContent = String(n);
     document.getElementById("selModifier").hidden = n !== 1;

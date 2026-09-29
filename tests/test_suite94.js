@@ -8,7 +8,8 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //   1. dans une pile, chaque carte posée sur une autre porte data-empile,
 //      la première de la pile et une bulle seule non ;
 //   2. carte empilée : ombre portée vers le haut (filter drop-shadow) et
-//      liseré en haut (::before, box-shadow inset) ; les autres sans ;
+//      liseré en haut (::before, box-shadow inset) — suite 95 (« Ajoute
+//      l'ombre à toute les bulles ») : sur toutes les cartes ;
 //   3. la pile se refait au curseur « Hauteur des lignes » : marques
 //      inchangées.
 //
@@ -35,7 +36,8 @@ const releve = (page) => page.evaluate(() => {
   return out;
 });
 const attendu = { A1: false, A2: true, X1: false, X2: true, X3: true, Seule: false };
-const conforme = (r) => Object.keys(attendu).every((k) => r[k] && r[k].empile === attendu[k] && r[k].ombre === attendu[k] && r[k].lisere === attendu[k]);
+// Suite 95 : ombre et liseré sur toutes les cartes, data-empile inchangé.
+const conforme = (r) => Object.keys(attendu).every((k) => r[k] && r[k].empile === attendu[k] && r[k].ombre && r[k].lisere);
 
 (async () => {
   const browser = await lancerNavigateur(chromium);
@@ -45,7 +47,7 @@ const conforme = (r) => Object.keys(attendu).every((k) => r[k] && r[k].empile ==
     const { page, erreurs } = await ouvrirPlanning(browser, Object.assign({ bd: BD() }, opts));
     await page.waitForTimeout(500);
     let r = await releve(page);
-    verifier(conforme(r), nom + ' : cartes posées sur une autre marquées, ombrées et liserées ; première de la pile et bulle seule sans (' + JSON.stringify(r) + ')');
+    verifier(conforme(r), nom + ' : cartes posées sur une autre marquées ; toutes ombrées et liserées (suite 95) (' + JSON.stringify(r) + ')');
     await page.evaluate(() => changerOptionAffichage(profilAppareil_() === 'tel' ? 'lignesTel' : 'lignesOrdi', '3', undefined, true));
     await page.waitForTimeout(200);
     r = await releve(page);

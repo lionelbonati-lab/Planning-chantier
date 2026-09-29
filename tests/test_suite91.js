@@ -31,13 +31,17 @@ const PERS = ['Lionel', 'Mathis', 'Antoine'].map((nom, i) => ({ id: i + 1, nom, 
 let tid = 1;
 const T = (pid, date, demi, texte, ordre) => ({ id: tid++, personne_id: pid, date, demi, ordre: ordre || 0, texte, chantier_id: 1 });
 const LONG = 'Coffrage des voiles du sous-sol';
+// Suite 95 : la carte a la hauteur de son texte (au plus U) — la dernière
+// de la cascade porte un texte long, pour garder une carte à la hauteur U
+// qui dépasse la place restante (repérée par « W », son premier mot).
+const W_LONG = 'W reprise des banches et contrôle des aplombs';
 const TACHES = [
   // Lionel : mercredi après-midi → vendredi matin (3 cartes).
   T(1, '2026-09-23', 'aprem', LONG), T(1, '2026-09-24', 'matin', LONG), T(1, '2026-09-24', 'aprem', LONG), T(1, '2026-09-25', 'matin', LONG),
   // Mathis, jeudi matin : 2 bulles (la place de 2).
   T(2, '2026-09-24', 'matin', 'A', 0), T(2, '2026-09-24', 'matin', 'B', 1),
   // Antoine, jeudi matin : 4 bulles (en cascade).
-  T(3, '2026-09-24', 'matin', 'X', 0), T(3, '2026-09-24', 'matin', 'Y', 1), T(3, '2026-09-24', 'matin', 'Z', 2), T(3, '2026-09-24', 'matin', 'W', 3)
+  T(3, '2026-09-24', 'matin', 'X', 0), T(3, '2026-09-24', 'matin', 'Y', 1), T(3, '2026-09-24', 'matin', 'Z', 2), T(3, '2026-09-24', 'matin', W_LONG, 3)
 ];
 const JALONS = [{ id: 900, date: '2026-09-24', texte: 'Coulage de la dalle du premier étage avec la pompe', serie_id: null }];
 const BD = () => ({ personnes: PERS, taches: TACHES.map((t) => Object.assign({}, t)), jalons: JALONS.map((j) => Object.assign({}, j)) });
@@ -96,13 +100,13 @@ const M = 3; // MARGE_MOB_ (grille-rendu.js)
     verifier(hauts[0] === M && pas.every((p) => p >= 19 && Math.abs(p - pas[0]) <= 1) && hauts[3] < la.hauteur - 10,
       'Antoine, 4 bulles : en cascade, d\'un pas régulier, le haut de chacune dans la ligne (' + hauts.join(', ') + ' / ' + la.hauteur + ' px)');
     const visibles = await page.evaluate(() => ['X', 'Y', 'Z', 'W'].map((t) => {
-      const b = [...document.querySelectorAll('.scroller .bulle')].find((x) => x.querySelector('.b-txt').textContent.trim() === t), c = b.querySelector('.b-carte'), rc = c.getBoundingClientRect();
+      const b = [...document.querySelectorAll('.scroller .bulle')].find((x) => x.querySelector('.b-txt').textContent.trim().split(' ')[0] === t), c = b.querySelector('.b-carte'), rc = c.getBoundingClientRect();
       const el = document.elementFromPoint(rc.left + rc.width / 2, rc.top + 6);
       return !!el && el.closest('.bulle') === b;
     }));
     verifier(visibles.every(Boolean), 'le haut de chacune des 4 bulles est visible, au-dessus des autres (' + visibles.join(', ') + ')');
     const rogne = await page.evaluate(() => {
-      const b = [...document.querySelectorAll('.scroller .bulle')].find((x) => x.querySelector('.b-txt').textContent.trim() === 'W'), c = b.querySelector('.b-carte').getBoundingClientRect();
+      const b = [...document.querySelectorAll('.scroller .bulle')].find((x) => x.querySelector('.b-txt').textContent.trim().split(' ')[0] === 'W'), c = b.querySelector('.b-carte').getBoundingClientRect();
       const l = [...document.querySelectorAll('.scroller .lbl')].find((x) => x.textContent.includes('Antoine')).getBoundingClientRect();
       const el = document.elementFromPoint(c.left + c.width / 2, l.bottom + 3);
       return { depasse: c.bottom > l.bottom, dessous: el ? el.className : null, bulle: !!(el && el.closest('.bulle') === b) };

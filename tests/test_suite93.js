@@ -12,7 +12,7 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //   2. la dernière bulle d'une cascade, rognée au bas de la ligne,
 //      sélectionnée -> plus rognée ; sur la dernière ligne du planning,
 //      remontée pour tenir au-dessus du bas de la grille ; Échap -> à sa
-//      place ; multi-sélection : chaque bulle sélectionnée dépliée ;
+//      place ; multi-sélection : plus de dépliage (suite 95) ;
 //   3. un jalon au texte long (1 ligne) sélectionné -> texte entier ;
 //   4. téléphone, vue « 1 jour » : même chose sur la carte du jour.
 //
@@ -67,7 +67,10 @@ const clicCarte = async (page, debut) => {
     await page.waitForTimeout(500);
     // --- 1. Bulle longue en tête de cascade ---
     let e = await etat(page, 'Coffrage');
-    verifier(!e.sel && Math.abs(e.haut - e.u) < 1 && e.coupe, 'avant : carte à la hauteur fixe, texte coupé (' + Math.round(e.haut) + ' px, U ' + e.u + ')');
+    // Suite 95 : la carte a la hauteur de son texte, au plus U (« bulle à
+    // la taille du texte ») — plus forcément U pile.
+    verifier(!e.sel && e.haut <= e.u + 1 && e.coupe, 'avant : carte au plus à la hauteur fixe, texte coupé (' + Math.round(e.haut) + ' px, U ' + e.u + ')');
+    const hautAvant = e.haut;
     await clicCarte(page, 'Coffrage');
     e = await etat(page, 'Coffrage');
     verifier(e.sel && e.haut > e.u + 10 && !e.coupe, 'sélectionnée : carte à la hauteur du texte entier, plus coupé (' + Math.round(e.haut) + ' px)');
@@ -75,11 +78,11 @@ const clicCarte = async (page, debut) => {
     await page.keyboard.press('Escape');
     await page.waitForTimeout(150);
     e = await etat(page, 'Coffrage');
-    verifier(!e.sel && Math.abs(e.haut - e.u) < 1 && e.coupe, 'Échap : retour à la hauteur fixe (' + Math.round(e.haut) + ' px)');
+    verifier(!e.sel && Math.abs(e.haut - hautAvant) < 1 && e.coupe, 'Échap : retour à la hauteur d\'avant (' + Math.round(e.haut) + ' px)');
 
     // --- 2. Dernière bulle de la cascade, rognée au bas de la ligne ---
     e = await etat(page, 'Dernière');
-    const rogneeAvant = e.clip !== 'none';
+    const rogneeAvant = e.clip !== 'none', hautDerniere = e.haut;
     await clicCarte(page, 'Dernière');
     e = await etat(page, 'Dernière');
     // Dernière ligne du planning : la carte dépliée remonte pour tenir
@@ -89,15 +92,18 @@ const clicCarte = async (page, debut) => {
     await page.keyboard.press('Escape');
     await page.waitForTimeout(150);
     e = await etat(page, 'Dernière');
-    verifier(!e.sel && Math.abs(e.haut - e.u) < 1 && e.clip !== 'none' && await page.evaluate(() => !document.querySelector('.b-carte[data-remonte]')),
+    verifier(!e.sel && Math.abs(e.haut - hautDerniere) < 1 && e.clip !== 'none' && await page.evaluate(() => !document.querySelector('.b-carte[data-remonte], .b-carte[data-deplie]')),
       'Échap : la dernière reprend sa place et sa hauteur');
-    // Multi-sélection (deux bulles de lignes différentes) : les deux s'ouvrent.
+    // Multi-sélection (deux bulles de lignes différentes). Suite 95 —
+    // Lionel : « En multi-sélection ne pas agrandir la bulle sélectionnée. »
+    // La bulle longue, dépliée seule, se replie dès la 2e sélectionnée.
     await clicCarte(page, 'Coffrage');
     await page.keyboard.down('Control');
     await clicCarte(page, 'Court');
     await page.keyboard.up('Control');
     const e1 = await etat(page, 'Coffrage'), e2 = await etat(page, 'Dernière');
-    verifier(e1.sel && !e1.coupe && !e2.sel && await page.evaluate(() => Object.keys(bullesSelectionnees).length === 2), 'multi-sélection : la bulle longue reste dépliée');
+    verifier(e1.sel && e1.coupe && Math.abs(e1.haut - hautAvant) < 1 && e1.clip !== 'none' && !e2.sel && await page.evaluate(() => Object.keys(bullesSelectionnees).length === 2 && !document.querySelector('.b-carte[data-deplie], .b-carte[data-remonte]')),
+      'multi-sélection : la bulle longue n\'est plus dépliée (' + Math.round(e1.haut) + ' px)');
     await page.keyboard.press('Escape');
     await page.waitForTimeout(150);
 
