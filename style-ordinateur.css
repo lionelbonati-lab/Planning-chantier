@@ -1,0 +1,102 @@
+/* ============================================================
+   style-ordinateur.css — vue semaine du planning (ordinateur, tablette).
+   Round du 29.09.2026 (suite 99) — découpage de l'affichage du planning
+   (Lionel : « Ne serait-il pas plus judicieux de faire 2 application
+   différente pour portable et pour deskop? », puis « Allons-y » au plan
+   proposé), étape 5 : règles sorties telles quelles de style.css, dans
+   leur ordre — jours voisins aux bords (#racine.vue-bords, suites 74 à
+   89) et glissement d'une semaine à l'autre (html.vt-semaine, suites 72
+   et 90). Le JS correspondant : js/grille-ordinateur.js. Chargé après
+   style.css et style-mobile.css : l'ordre a été vérifié (styles calculés
+   de toute la page identiques avant et après).
+   ============================================================ */
+
+  /* Round du 28.09.2026 (suite 89) — Lionel : « Bug en vue jours voisin sur
+     tablette ». En jours voisins, la vue tient juste dans l'écran et son
+     défilement est tenu (grille-rendu.js remet scrollLeft à sa place à
+     chaque « scroll ») : sous le doigt, le navigateur faisait défiler la
+     grille, le script la ramenait, image après image — la grille tremblait
+     pendant tout le balayage. Plus de défilement horizontal natif ici : le
+     doigt ne fait que changer de semaine (le script, lui, peut toujours
+     poser scrollLeft). */
+  #racine.vue-bords .scroller { overflow-x: hidden; touch-action: pan-y; }
+  /* Jours voisins aux bords (round du 27.09.2026, suite 74, page Affichage)
+     — Lionel : « le vendredi de la semaine avant à gauche de l'écran et le
+     lundi de la semaine suivante à droite […] Les nom seraient affiché que
+     sur la partie centrale. » --noms-gauche (posé en JS sur #racine,
+     construireGrille) : la colonne des noms, les libellés Personnel /
+     Intervenants et le texte collant des bulles se collent après le bord
+     du vendredi et la bande entre semaines, plus au bord de l'écran. Le
+     défilement horizontal est tenu (on change de semaine, on ne défile
+     pas) : pas de barre. */
+  .scroller.vue-bords { overflow-x: hidden; }
+  /* Jour et date du jour coupé, du côté visible (th-bord-avant/-apres). */
+  .th.th-bord-avant { text-align: right; }
+  .th.th-bord-apres { text-align: left; }
+  /* Libellé Personnel / Intervenants : seul à rester fixe au changement de
+     semaine (le bandeau glisse avec la grille) — opaque, sur toute la
+     largeur de la colonne des noms. */
+  #racine.vue-bords .section-row-sticky { background: inherit; min-width: var(--largeur-noms); box-sizing: border-box; }
+  /* Round du 27.09.2026 (suite 75) — Lionel : « pas de bordure sur le bord de
+     l'écran pour les semaines adjacentes. Ça doit être collé au bord de la
+     fenêtre. » Le planning reprend les 18 px de marge de .page-scroll de
+     chaque côté ; cadre sans bord ni coin arrondi à gauche et à droite (la
+     suite est « cachée en dehors de l'écran »). La barre d'outils, elle,
+     garde sa marge. */
+  #racine.vue-bords { margin-left: -18px; margin-right: -18px; }
+  #racine.vue-bords .entete-planning-scroll, #racine.vue-bords .grille-cadre { border-left: none; border-right: none; border-radius: 0; }
+  /* « Pas de samedi-dimanche dans les semaines adjacentes » : colonnes de
+     0 px (cf. gabaritB), leur contenu masqué. */
+  #racine.vue-bords .we-voisin { display: none; }
+  /* Bulles des jours voisins (suite 84, ajusterBullesJoursVoisins_ dans
+     js/grille-rendu.js) : une carte par morceau visible (vendredi d'avant,
+     semaine, lundi d'après), côte à côte, même hauteur, texte au début de
+     chacune. Défilement tenu dans cette vue : le texte n'a pas à coller au
+     bord des noms (sticky), il resterait au bout d'une carte du vendredi. */
+  #racine.vue-bords .bulle .b-carte > :is(.b-txt, .b-statut, .b-serie) { position: static; max-width: none; }
+  #racine.vue-bords .bulle.bulle-morceaux { flex-direction: row; align-items: stretch; }
+  #racine.vue-bords .bulle.bulle-morceaux > .b-carte { flex: none; box-sizing: border-box; min-width: 0; }
+  /* Round du 27.09.2026 (suite 72) — Lionel : « J'aimerai un effet
+     similaire sur ordinateur lors du passage d'une semaine à l'autre. »
+     Glissement de semaine (glisserVersSemaine_, js/grille-rendu.js, API View
+     Transitions) : html.vt-semaine le temps de l'effet. La grille
+     (« semaine ») : ancienne photo qui sort, nouvelle qui entre, jointives
+     (--vt-pas = largeur des jours seuls, --vt-dir = 1 vers la semaine
+     suivante, -1 vers la précédente), chacune rognée de sa colonne des noms
+     et la paire rognée à droite de la colonne fixe (--vt-noms), pour que les
+     jours passent sous elle sans la recouvrir. Cases de la colonne des noms
+     (vt-coin, vt-p12…) : ne bougent pas, passent seulement à leur nouvelle
+     hauteur, même durée, sans fondu (la nouvelle case d'emblée : 2 textes
+     superposés dans le coin « sept. » → « sept. – oct. » se lisaient mal).
+     Page autour (root) : pareil, aucun fondu. */
+  html.vt-semaine::view-transition-group(*) { animation-duration: .34s; animation-timing-function: cubic-bezier(.22, .61, .36, 1); }
+  html.vt-semaine::view-transition-old(*) { animation: none; opacity: 0; }
+  html.vt-semaine::view-transition-new(*) { animation: none; }
+  html.vt-semaine::view-transition-image-pair(semaine) { clip-path: inset(0 0 0 var(--vt-noms, 0px)); }
+  html.vt-semaine::view-transition-old(semaine), html.vt-semaine::view-transition-new(semaine) {
+    clip-path: inset(0 0 0 var(--vt-noms, 0px)); mix-blend-mode: normal; opacity: 1;
+    animation-duration: .34s; animation-timing-function: cubic-bezier(.22, .61, .36, 1); animation-fill-mode: both;
+  }
+  html.vt-semaine::view-transition-old(semaine) { animation-name: vt-semaine-sortie; }
+  html.vt-semaine::view-transition-new(semaine) { animation-name: vt-semaine-entree; }
+  @keyframes vt-semaine-sortie { from { transform: none; } to { transform: translateX(calc(var(--vt-dir, 1) * -1 * var(--vt-pas, 100%))); } }
+  @keyframes vt-semaine-entree { from { transform: translateX(calc(var(--vt-dir, 1) * var(--vt-pas, 100%))); } to { transform: none; } }
+  /* Jours voisins aux bords (suite 74, cf. glisserVersSemaine_) : chaque
+     photo son pas (--vt-sortie, --vt-entree) et ses parties gardées
+     (--vt-masque-ancien, --vt-masque-nouveau). */
+  html.vt-semaine.vt-bords::view-transition-old(semaine) { animation-name: vt-bords-sortie; -webkit-mask-image: var(--vt-masque-ancien); mask-image: var(--vt-masque-ancien); }
+  html.vt-semaine.vt-bords::view-transition-new(semaine) { animation-name: vt-bords-entree; -webkit-mask-image: var(--vt-masque-nouveau); mask-image: var(--vt-masque-nouveau); }
+  @keyframes vt-bords-sortie { from { transform: none; } to { transform: translateX(var(--vt-sortie, 0px)); } }
+  @keyframes vt-bords-entree { from { transform: translateX(var(--vt-entree, 0px)); } to { transform: none; } }
+  /* Round du 28.09.2026 (suite 90) — Lionel : « Je voulais que seule la
+     première colonne et les séparations s'adaptent. Le planning glisse mais
+     ne modifie pas ses hauteurs de ligne. » Glissement de semaine ci-dessus
+     rétabli (la suite 89 ne faisait plus glisser que les dates). Cases des
+     noms : la photo garde sa taille, centrée et rognée dans la case qui
+     change de hauteur — le nom reste au milieu de sa case au lieu de sauter
+     à celui de la nouvelle. La photo de la grille, elle, reste calée en
+     haut. (La page du jour du téléphone de la suite 90 a disparu à la
+     suite 91 : lignes de hauteur fixe, un simple défilement.) */
+  html.vt-semaine::view-transition-new(*), html.vt-semaine::view-transition-old(*) { block-size: 100%; object-fit: none; object-position: center; overflow: clip; }
+  html.vt-semaine::view-transition-new(semaine), html.vt-semaine::view-transition-old(semaine),
+  html.vt-semaine::view-transition-new(root), html.vt-semaine::view-transition-old(root) { block-size: auto; object-fit: fill; }

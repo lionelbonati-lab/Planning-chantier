@@ -10358,3 +10358,37 @@ Lionel :
 
 ### Étapes suivantes
 - 5 : styles (règles du téléphone vers style-mobile.css) ; 6 : gestes (seulement si utile) ; 7 : bilan.
+
+
+## 211. Round du 29.09.2026 (suite 99) — Découpage du planning, étape 5 : styles de chaque vue dans leur feuille
+- Suite du plan validé par Lionel (« Allons-y »).
+
+### Ce qui change
+- Rien à l'écran : les règles sont déplacées, pas réécrites.
+- **style-mobile.css** reçoit, en fin de fichier, les règles de la vue « 1 jour » du téléphone, qui étaient dans style.css :
+  - aimantation au jour (`.scroller.snap-jour-mobile`, `.snap-jour`) ;
+  - cartes côte à côte, statut en pastille, texte non collé ;
+  - poignées (visibles une fois la bulle sélectionnée, jamais hors du jour affiché) ;
+  - colonne des noms au-dessus des bulles.
+  Elles restent hors @media : elles tiennent aux classes que le JS ne pose qu'en vue « 1 jour ».
+- Nouvelle feuille **style-ordinateur.css**, chargée par index.html après style-mobile.css : jours voisins aux bords (`#racine.vue-bords`) et glissement d'une semaine à l'autre (`html.vt-semaine`).
+- style.css : un court renvoi à chaque endroit vidé. Il garde tout le commun, dont les lignes de hauteur fixe (`#racine.hauteurs-fixes`), partagées par les deux.
+- Service worker : la nouvelle feuille est copiée comme les autres fichiers chargés par index.html (§208).
+
+### Vérification de l'ordre
+- Une règle placée plus loin dans une autre feuille peut gagner là où elle perdait.
+- Relevé des styles calculés de tous les éléments de la page, pseudo-éléments compris, avant et après, dans dix situations : téléphone (1 jour, bulle sélectionnée, 1 semaine, 1 bulle par ligne), tablette, ordinateur (1 semaine, sélection, Jours voisins, 2 semaines, 1 bulle par ligne).
+- Résultat : aucune différence. Seules sont écartées les animations en cours (barre de progression, barre de défilement qui s'estompe), qui varient d'un relevé à l'autre.
+- Contrôle du relevé : sans style-ordinateur.css, il trouve près de 2 000 différences.
+
+### Tests
+- test_suite99.js, 21/21 :
+  - style.css n'a plus de règle propre à une vue ;
+  - les règles sont dans leur feuille, et style-ordinateur.css est chargée après style-mobile.css ;
+  - sur le téléphone, le jour est toujours aimanté ;
+  - sur l'ordinateur, « Jours voisins » est toujours bord à bord.
+- test_survol_tactile.js : vérifie aussi style-ordinateur.css (tout :hover sous le @media).
+- Suite complète : 104/104.
+
+### Étapes suivantes
+- 6 : gestes (seulement si utile) ; 7 : bilan.

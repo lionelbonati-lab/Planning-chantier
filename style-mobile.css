@@ -10,6 +10,9 @@
    Chargé APRÈS style.css dans index.html (l'ordre n'a pas d'incidence ici
    vu que chaque règle est dans son propre @media, mais autant charger la
    surcouche en dernier).
+   Round du 29.09.2026 (suite 99) : en fin de fichier, les règles de la
+   vue « 1 jour » du planning, hors @media (liées aux classes posées par
+   le JS dans cette vue) — là, l'ordre compte et a été vérifié.
    ============================================================ */
 
   /* -- mobile (≤600px, cf. .form-pop plein écran plus bas) : bandeau carré
@@ -401,3 +404,107 @@
     .ligne-raccourci .rc-nom { flex-basis: 100%; }
     .rc-touches { justify-content: flex-start; }
   }
+
+
+  /* ============================================================
+     VUE « 1 JOUR » DU PLANNING (téléphone)
+     Round du 29.09.2026 (suite 99) — découpage de l'affichage du planning
+     (Lionel : « Ne serait-il pas plus judicieux de faire 2 application
+     différente pour portable et pour deskop? », puis « Allons-y » au plan
+     proposé), étape 5 : règles sorties telles quelles de style.css, dans
+     leur ordre. Hors @media : elles tiennent aux classes posées par le JS
+     en vue « 1 jour » seulement (#racine.vue-jour-mobile,
+     .scroller.snap-jour-mobile, cf. construireGrille, grille-rendu.js) —
+     toujours à 600 px de large au plus (modeJourMobileActif, core.js).
+     Chargées après style.css : l'ordre a été vérifié (styles calculés de
+     toute la page identiques avant et après, téléphone et ordinateur).
+     ============================================================ */
+
+  /* Round du 23.09.2026 (suite ×10) — Lionel, retour sur la vue mobile
+     "1 jour" (§99) : « La case du jour doit être aimantée pour qu'elle
+     rentre sur l'écran. A l'heure actuelle je peux afficher 2 demi journée
+     de jours différents [...] je pense qu'il faut voir cela comme un
+     nouveau mode d'affichage dédié. » Cause : la largeur de colonne
+     "pleine largeur d'écran" (§99, calc(100vw-116px)) rendait déjà 1 jour =
+     1 écran, mais RIEN n'empêchait le défilement natif de s'arrêter à
+     N'IMPORTE QUELLE position intermédiaire (dont pile entre les 2
+     colonnes M/A de 2 jours voisins) — .scroller défilait librement, sans
+     notion de "case".
+     Fix : scroll-snap natif, posé UNIQUEMENT sur .scroller (seul élément
+     réellement touché/swipé par le doigt — .entete-planning-scroll n'est
+     que le miroir JS de son scrollLeft, cf. le mirroir de scroll dans
+     construireGrille) et seulement en mode "1 jour" mobile (classe
+     .snap-jour-mobile posée par JS quand enModeJourMobile, cf.
+     construireGrille) — inerte en mode "1 semaine"/desktop/tablette,
+     défilement libre inchangé partout ailleurs. scroll-padding-left:116px
+     décale le point d'alignement de la même largeur que la colonne
+     d'étiquette sticky (.lbl/.lbl-speciale ci-dessus) : sans ça, un jour
+     "aimanté" laisserait ses 116px de gauche cachés dessous elle, comme le
+     fait déjà manuellement decalerSurColonne_() pour la navigation par
+     bouton/swipe de bord de semaine. Les points d'ancrage eux-mêmes
+     (scroll-snap-align) sont posés sur .snap-jour, un repère invisible
+     (hauteur 0) ajouté une fois PAR JOUR dans grilleCorps, à la colonne de
+     son démarrage et large de colsParJour() colonnes (donc toujours le jour
+     ENTIER, jamais une simple demi-journée M ou A) — repère dédié plutôt
+     que réutiliser une case Personnel/Intervenants existante, qui peut être
+     masquée par un bascule d'affichage et ferait alors disparaître le point
+     d'ancrage avec elle. Résultat : tout défilement (glissé au doigt ou
+     inertie) se recale TOUJOURS exactement sur un jour entier, plus jamais
+     entre 2 demi-journées de jours différents. */
+  .scroller.snap-jour-mobile { scroll-snap-type: x mandatory; scroll-padding-left: var(--largeur-noms); }
+  .snap-jour { height: 0; scroll-snap-align: start; }
+  /* Lignes de hauteur fixe (#racine.hauteurs-fixes, style.css, suites 91
+     et 92) : en vue « 1 jour », une carte par jour, côte à côte, calées en
+     haut de la bulle. */
+  #racine.vue-jour-mobile .bulle { flex-direction: row; }
+  #racine.vue-jour-mobile .bulle > .b-carte { align-self: flex-start; min-width: 0; }
+  /* Statut en pastille dans le coin (la carte n'a que la place de son
+     texte). */
+  #racine.vue-jour-mobile .bulle .b-carte .b-statut {
+    position: absolute; top: 4px; right: 4px; left: auto; width: 9px; height: 9px; padding: 0; margin: 0; gap: 0;
+    font-size: 0; border-radius: 50%; box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--surface-2) 85%, transparent), 0 0 0 2.5px color-mix(in srgb, var(--ink) 25%, transparent);
+  }
+  #racine.vue-jour-mobile .bulle .b-carte .b-statut .dot { display: none; }
+  /* Texte des cartes : pas collé au bord de l'écran (chaque jour a sa
+     carte). */
+  .vue-jour-mobile .bulle > .b-carte .b-txt,
+  .vue-jour-mobile .bulle > .b-carte .b-statut,
+  .vue-jour-mobile .bulle > .b-carte .b-serie {
+    position: static; max-width: none;
+  }
+  /* Poignées en vue « 1 jour » — round du 25.09.2026 (suite 35). Lionel :
+     « Je n'arrive pas à actionner les poignées gauche et droite sur
+     mobile. » Elles étaient MASQUÉES ici (display:none, cf. le commentaire
+     ci-dessus : à l'époque la bulle entière était collée au jour visible,
+     ses poignées tombaient sur les bords de l'écran). Depuis la suite 14
+     c'est la CARTE qui est collée, les poignées restent sur la .bulle, donc
+     sur les VRAIS début et fin de la tâche : visibles seulement le jour où
+     ce bord est à l'écran, ce qui est juste. Réaffichées, élargies pour le
+     doigt (22px — une demi-journée fait ici ~150px) et repérables (trait
+     pâle, sans survol possible au doigt). Appui maintenu puis glisser pour
+     étirer ; contre le bord de l'écran, jour suivant (creerAutoDefilement). */
+  /* Suite 37 — Lionel : « Les poignées doivent s'afficher uniquement quand
+     on clic dessus. » Toujours visibles, leurs traits encombraient chaque
+     bulle (et, pour celles de la veille, le bord de la colonne des noms).
+     Désormais invisibles ET inactives tant que la bulle n'est pas
+     sélectionnée : un tap sur le bord d'une bulle la sélectionne comme un
+     tap au milieu, un appui+glisser la déplace. Une fois la bulle
+     sélectionnée (entourée), ses poignées apparaissent : appui maintenu
+     puis glisser pour étirer. Bulle hors du jour affiché (.hors-jour, posée
+     par poserJourMobile_, suite 91) : jamais de poignée. Règles posées
+     sur #racine.vue-jour-mobile (et plus .scroller.snap-jour-mobile) pour
+     valoir aussi aux jalons et notes, dont la grille est hors de .scroller. */
+  .vue-jour-mobile .bulle .poignee { width: 22px; pointer-events: none; }
+  .vue-jour-mobile .bulle .poignee-g::after { left: 5px; }
+  .vue-jour-mobile .bulle .poignee-d::after { right: 5px; }
+  .vue-jour-mobile .bulle.selectionnee .poignee { pointer-events: auto; }
+  .vue-jour-mobile .bulle.selectionnee .poignee::after { opacity: .45; }
+  .vue-jour-mobile .bulle .poignee.actif::after { opacity: .7; }
+  .vue-jour-mobile .bulle.hors-jour .poignee { display: none; }
+  /* Suite 97 : bulle sélectionnée absente du jour affiché (la veille,
+     rangée sous la colonne des noms) — sans anneau de sélection, dont les
+     2,5 px dépassaient au bord de la colonne en un liseré bleu. */
+  .vue-jour-mobile .bulle.selectionnee.hors-jour .b-carte { box-shadow: 0 1px 2px var(--shadow); }
+  /* Suite 78 : colonne des noms au-dessus des bulles (cf. .section-row,
+     style.css). */
+  #racine.vue-jour-mobile .lbl, #racine.vue-jour-mobile .lbl-speciale { z-index: 3; }
