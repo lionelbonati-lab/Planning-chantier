@@ -559,6 +559,33 @@
       if (e.data && e.data.type === "appli-maj") proposerNouvelleVersion();
     });
   }
+  // Round du 29.09.2026 (suite 96) — Lionel : « Ces derniers changement
+  // n'es sont pas actifs sur portable. » Les fichiers de l'appli ne sont
+  // revalidés (sw.js) que lorsqu'une page les demande, donc à l'ouverture.
+  // Sur un téléphone, l'appli posée sur l'écran d'accueil reste souvent
+  // ouverte en arrière-plan des heures durant : en y revenant, rien n'est
+  // redemandé, l'ancienne version reste affichée et le bandeau « Nouvelle
+  // version » ne vient jamais. Au retour au premier plan (au plus une fois
+  // par minute), et toutes les 30 minutes quand elle est à l'écran : la page
+  // redemande ses propres fichiers (index.html, feuilles de style,
+  // scripts du dépôt). sw.js les sert depuis la copie, les revalide auprès
+  // de GitHub Pages et, si l'un a changé, prévient la page : le bandeau
+  // propose « Recharger ». Le service worker lui-même est aussi revérifié.
+  var derniereVerifMaj_ = 0;
+  function verifierNouvelleVersion() {
+    if (!("serviceWorker" in navigator) || !navigator.serviceWorker.controller) return;
+    if (Date.now() - derniereVerifMaj_ < 60000) return;
+    derniereVerifMaj_ = Date.now();
+    var urls = ["index.html"];
+    document.querySelectorAll('script[src], link[rel="stylesheet"][href]').forEach(function (el) {
+      var u = el.getAttribute("src") || el.getAttribute("href");
+      if (u && !/^[a-z][a-z0-9+.-]*:|^\/\//i.test(u) && urls.indexOf(u) < 0) urls.push(u);
+    });
+    urls.forEach(function (u) { fetch(u).catch(function () {}); });
+    navigator.serviceWorker.getRegistration().then(function (r) { if (r) r.update(); }).catch(function () {});
+  }
+  document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") verifierNouvelleVersion(); });
+  setInterval(function () { if (document.visibilityState === "visible") verifierNouvelleVersion(); }, 30 * 60000);
   function proposerNouvelleVersion() {
     if (document.getElementById("majAppli")) return;
     var bandeau = document.createElement("div");
