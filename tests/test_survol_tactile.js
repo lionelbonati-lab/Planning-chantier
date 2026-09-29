@@ -142,7 +142,8 @@ const FAUX_SUPABASE = '(' + function () {
 
   // 4) Toute règle :hover des feuilles de style est sous le @media.
   const nues = [];
-  for (const f of ['style.css', 'style-mobile.css']) {
+  // Suite 99 : style-ordinateur.css (étape 5 du découpage) aussi.
+  for (const f of ['style.css', 'style-mobile.css', 'style-ordinateur.css']) {
     const texte = fs.readFileSync(path.join(__dirname, '..', f), 'utf8').replace(/\/\*[\s\S]*?\*\//g, (c) => c.replace(/[^\n]/g, ' '));
     // Sélecteur coupé (suite 19) : "a," en fin de ligne puis le @media
     // sur la ligne suivante rendait toute la règle invalide.

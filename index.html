@@ -56,8 +56,12 @@
      dans leur propre fichier (cf. FRONTEND-CHANGELOG.md §90), pour pouvoir
      retravailler la version téléphone sans rouvrir tout style.css. Chargé
      après style.css par habitude (l'ordre n'a pas d'incidence : chaque
-     règle est dans son propre @media, aucune ne se chevauche). -->
+     règle est dans son propre @media, aucune ne se chevauche). Suite 99 :
+     plus, en fin de fichier, les règles de la vue « 1 jour » du planning. -->
 <link rel="stylesheet" href="style-mobile.css">
+<!-- Round du 29.09.2026 (suite 99) — vue semaine du planning (ordinateur,
+     tablette) : jours voisins aux bords, glissement de semaine. -->
+<link rel="stylesheet" href="style-ordinateur.css">
 </head>
 <body>
 <div id="app"></div>

@@ -32,6 +32,11 @@ const { FAUX_SUPABASE, ouvrirPlanning, verificateur, lancerNavigateur } = requir
 //   (répartition vérifiée en 5).
 // Étape 4 : vue semaine (glissement de semaine, mode de vue, jours
 //   voisins, balayage) dans js/grille-ordinateur.js (vérifiée en 5).
+// Étape 5 : règles CSS de la vue « 1 jour » dans style-mobile.css, de la
+//   vue semaine (jours voisins, glissement) dans style-ordinateur.css :
+//   plus aucune dans style.css, la nouvelle feuille chargée après les
+//   autres ; toujours appliquées (aimantation au jour sur le téléphone,
+//   planning bord à bord en « Jours voisins »).
 //
 // Lancer : node test_suite99.js
 
@@ -101,7 +106,7 @@ const AUTORISEES = ['poserDans', 'poserPleineLargeurDans', 'nomJourHTML_', 'lign
       // Ancien G : plus rien (grille remplacée).
       var coinAvant = G1.coin.innerHTML;
       majCoinJourMobile_(G1, 0); planifierDecoupeJourMobile_(G1);
-      return { avant: avant, apres: apres, hauteurs: hauteurs, ignore: ignore, coin: G2.isoCoinJour_ === iso, iso: iso, ancienIntact: G1.coin.innerHTML === coinAvant };
+      return { avant: avant, apres: apres, hauteurs: hauteurs, ignore: ignore, coin: G2.isoCoinJour_ === iso, iso: iso, ancienIntact: G1.coin.innerHTML === coinAvant, snap: getComputedStyle(sc2).scrollSnapType };
     });
     await page.waitForTimeout(100);
     verifier(r.avant.meme && r.avant.jour && r.avant.mesures, 'téléphone : grilleCourante_ = la grille à l\'écran, vue « 1 jour », hauteurs mesurées');
@@ -110,6 +115,7 @@ const AUTORISEES = ['poserDans', 'poserPleineLargeurDans', 'nomJourHTML_', 'lign
     verifier(r.ignore, 'suivreDefilementJourMobile ignore un autre .scroller');
     verifier(r.coin, 'suivreDefilementJourMobile fait suivre la case coin (' + r.iso + ')');
     verifier(r.ancienIntact, 'un ancien G ne touche plus à rien');
+    verifier(r.snap === 'x mandatory', 'style-mobile.css : aimantation au jour (' + r.snap + ')');
     erreurs.push(...e);
     await page.close();
   }
@@ -123,6 +129,10 @@ const AUTORISEES = ['poserDans', 'poserPleineLargeurDans', 'nomJourHTML_', 'lign
     }));
     verifier(r.meme && r.jour === false, 'ordinateur : grilleCourante_ hors vue « 1 jour »');
     verifier(r.hauteurs === true && r.mesures, 'ordinateur : hauteurs remesurées');
+    await page.evaluate(() => basculerModeVue()); // 1 semaine -> Jours voisins
+    await page.waitForTimeout(800);
+    const bords = await page.evaluate(() => { const rc = document.getElementById('racine'); return { vue: rc.classList.contains('vue-bords'), marge: getComputedStyle(rc).marginLeft }; });
+    verifier(bords.vue && bords.marge === '-18px', 'style-ordinateur.css : « Jours voisins » bord à bord (' + JSON.stringify(bords) + ')');
     erreurs.push(...e);
     await page.close();
   }
@@ -138,6 +148,13 @@ const AUTORISEES = ['poserDans', 'poserPleineLargeurDans', 'nomJourHTML_', 'lign
   const html = fs.readFileSync(path.join(RACINE, 'index.html'), 'utf8');
   verifier(Object.keys(REPARTITION).every((f) => html.indexOf('<script src="js/' + f + '"></script>') > html.indexOf('<script src="js/grille-rendu.js"></script>')),
     'index.html charge les nouveaux fichiers après grille-rendu.js');
+  const css = (f) => fs.readFileSync(path.join(RACINE, f), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const PROPRES = /\.vue-jour-mobile|\.snap-jour-mobile|\.vue-bords|vt-semaine/;
+  const restees = css('style.css').replace(/:not\(\.vue-jour-mobile\)/g, '').split('\n').filter((l) => PROPRES.test(l));
+  verifier(!restees.length, 'style.css : plus de règle propre à la vue « 1 jour » ou à la vue semaine' + (restees.length ? ' — ' + restees.join(' / ') : ''));
+  verifier(/\.vue-jour-mobile/.test(css('style-mobile.css')) && /\.vue-bords/.test(css('style-ordinateur.css')) && /vt-semaine/.test(css('style-ordinateur.css')),
+    'règles déplacées dans style-mobile.css et style-ordinateur.css');
+  verifier(html.indexOf('href="style-ordinateur.css"') > html.indexOf('href="style-mobile.css"'), 'index.html charge style-ordinateur.css après style-mobile.css');
 
   // 6. Service worker : fichier jamais copié, chargé par un index.html revalidé.
   {

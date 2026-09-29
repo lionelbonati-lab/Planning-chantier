@@ -1003,48 +1003,9 @@
      JAMAIS verticalement lui-même, c'est #app qui fait défiler la page —
      affichait sa propre barre verticale, par-dessus les bulles de droite. */
   .scroller { overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; }
-  /* Round du 28.09.2026 (suite 89) — Lionel : « Bug en vue jours voisin sur
-     tablette ». En jours voisins, la vue tient juste dans l'écran et son
-     défilement est tenu (grille-rendu.js remet scrollLeft à sa place à
-     chaque « scroll ») : sous le doigt, le navigateur faisait défiler la
-     grille, le script la ramenait, image après image — la grille tremblait
-     pendant tout le balayage. Plus de défilement horizontal natif ici : le
-     doigt ne fait que changer de semaine (le script, lui, peut toujours
-     poser scrollLeft). */
-  #racine.vue-bords .scroller { overflow-x: hidden; touch-action: pan-y; }
-  /* Round du 23.09.2026 (suite ×10) — Lionel, retour sur la vue mobile
-     "1 jour" (§99) : « La case du jour doit être aimantée pour qu'elle
-     rentre sur l'écran. A l'heure actuelle je peux afficher 2 demi journée
-     de jours différents [...] je pense qu'il faut voir cela comme un
-     nouveau mode d'affichage dédié. » Cause : la largeur de colonne
-     "pleine largeur d'écran" (§99, calc(100vw-116px)) rendait déjà 1 jour =
-     1 écran, mais RIEN n'empêchait le défilement natif de s'arrêter à
-     N'IMPORTE QUELLE position intermédiaire (dont pile entre les 2
-     colonnes M/A de 2 jours voisins) — .scroller défilait librement, sans
-     notion de "case".
-     Fix : scroll-snap natif, posé UNIQUEMENT sur .scroller (seul élément
-     réellement touché/swipé par le doigt — .entete-planning-scroll n'est
-     que le miroir JS de son scrollLeft, cf. le mirroir de scroll dans
-     construireGrille) et seulement en mode "1 jour" mobile (classe
-     .snap-jour-mobile posée par JS quand enModeJourMobile, cf.
-     construireGrille) — inerte en mode "1 semaine"/desktop/tablette,
-     défilement libre inchangé partout ailleurs. scroll-padding-left:116px
-     décale le point d'alignement de la même largeur que la colonne
-     d'étiquette sticky (.lbl/.lbl-speciale ci-dessus) : sans ça, un jour
-     "aimanté" laisserait ses 116px de gauche cachés dessous elle, comme le
-     fait déjà manuellement decalerSurColonne_() pour la navigation par
-     bouton/swipe de bord de semaine. Les points d'ancrage eux-mêmes
-     (scroll-snap-align) sont posés sur .snap-jour, un repère invisible
-     (hauteur 0) ajouté une fois PAR JOUR dans grilleCorps, à la colonne de
-     son démarrage et large de colsParJour() colonnes (donc toujours le jour
-     ENTIER, jamais une simple demi-journée M ou A) — repère dédié plutôt
-     que réutiliser une case Personnel/Intervenants existante, qui peut être
-     masquée par un bascule d'affichage et ferait alors disparaître le point
-     d'ancrage avec elle. Résultat : tout défilement (glissé au doigt ou
-     inertie) se recale TOUJOURS exactement sur un jour entier, plus jamais
-     entre 2 demi-journées de jours différents. */
-  .scroller.snap-jour-mobile { scroll-snap-type: x mandatory; scroll-padding-left: var(--largeur-noms); }
-  .snap-jour { height: 0; scroll-snap-align: start; }
+  /* Jours voisins aux bords : défilement tenu — style-ordinateur.css (suite 99). */
+  /* Vue « 1 jour » : aimantation au jour (.snap-jour-mobile, .snap-jour)
+     — style-mobile.css (suite 99). */
   .grille { display: grid; gap: 1px; background: var(--border); }
   .th, .lbl, .cell { background: var(--surface-2); }
   .th {
@@ -1078,86 +1039,8 @@
   .lbl-speciale { background: var(--surface); }
   .lbl-speciale b { color: var(--ink-muted); font-size: calc(11px * var(--aff-t-noms, 1)); text-transform: uppercase; letter-spacing: .04em; }
   .th.coin, .lbl, .lbl-speciale { position: sticky; left: var(--noms-gauche, 0px); z-index: 2; }
-  /* Jours voisins aux bords (round du 27.09.2026, suite 74, page Affichage)
-     — Lionel : « le vendredi de la semaine avant à gauche de l'écran et le
-     lundi de la semaine suivante à droite […] Les nom seraient affiché que
-     sur la partie centrale. » --noms-gauche (posé en JS sur #racine,
-     construireGrille) : la colonne des noms, les libellés Personnel /
-     Intervenants et le texte collant des bulles se collent après le bord
-     du vendredi et la bande entre semaines, plus au bord de l'écran. Le
-     défilement horizontal est tenu (on change de semaine, on ne défile
-     pas) : pas de barre. */
-  .scroller.vue-bords { overflow-x: hidden; }
-  /* Jour et date du jour coupé, du côté visible (th-bord-avant/-apres). */
-  .th.th-bord-avant { text-align: right; }
-  .th.th-bord-apres { text-align: left; }
-  /* Libellé Personnel / Intervenants : seul à rester fixe au changement de
-     semaine (le bandeau glisse avec la grille) — opaque, sur toute la
-     largeur de la colonne des noms. */
-  #racine.vue-bords .section-row-sticky { background: inherit; min-width: var(--largeur-noms); box-sizing: border-box; }
-  /* Round du 27.09.2026 (suite 75) — Lionel : « pas de bordure sur le bord de
-     l'écran pour les semaines adjacentes. Ça doit être collé au bord de la
-     fenêtre. » Le planning reprend les 18 px de marge de .page-scroll de
-     chaque côté ; cadre sans bord ni coin arrondi à gauche et à droite (la
-     suite est « cachée en dehors de l'écran »). La barre d'outils, elle,
-     garde sa marge. */
-  #racine.vue-bords { margin-left: -18px; margin-right: -18px; }
-  #racine.vue-bords .entete-planning-scroll, #racine.vue-bords .grille-cadre { border-left: none; border-right: none; border-radius: 0; }
-  /* « Pas de samedi-dimanche dans les semaines adjacentes » : colonnes de
-     0 px (cf. gabaritB), leur contenu masqué. */
-  #racine.vue-bords .we-voisin { display: none; }
-  /* Bulles des jours voisins (suite 84, ajusterBullesJoursVoisins_ dans
-     js/grille-rendu.js) : une carte par morceau visible (vendredi d'avant,
-     semaine, lundi d'après), côte à côte, même hauteur, texte au début de
-     chacune. Défilement tenu dans cette vue : le texte n'a pas à coller au
-     bord des noms (sticky), il resterait au bout d'une carte du vendredi. */
-  #racine.vue-bords .bulle .b-carte > :is(.b-txt, .b-statut, .b-serie) { position: static; max-width: none; }
-  #racine.vue-bords .bulle.bulle-morceaux { flex-direction: row; align-items: stretch; }
-  #racine.vue-bords .bulle.bulle-morceaux > .b-carte { flex: none; box-sizing: border-box; min-width: 0; }
-  /* Round du 27.09.2026 (suite 72) — Lionel : « J'aimerai un effet
-     similaire sur ordinateur lors du passage d'une semaine à l'autre. »
-     Glissement de semaine (glisserVersSemaine_, js/grille-rendu.js, API View
-     Transitions) : html.vt-semaine le temps de l'effet. La grille
-     (« semaine ») : ancienne photo qui sort, nouvelle qui entre, jointives
-     (--vt-pas = largeur des jours seuls, --vt-dir = 1 vers la semaine
-     suivante, -1 vers la précédente), chacune rognée de sa colonne des noms
-     et la paire rognée à droite de la colonne fixe (--vt-noms), pour que les
-     jours passent sous elle sans la recouvrir. Cases de la colonne des noms
-     (vt-coin, vt-p12…) : ne bougent pas, passent seulement à leur nouvelle
-     hauteur, même durée, sans fondu (la nouvelle case d'emblée : 2 textes
-     superposés dans le coin « sept. » → « sept. – oct. » se lisaient mal).
-     Page autour (root) : pareil, aucun fondu. */
-  html.vt-semaine::view-transition-group(*) { animation-duration: .34s; animation-timing-function: cubic-bezier(.22, .61, .36, 1); }
-  html.vt-semaine::view-transition-old(*) { animation: none; opacity: 0; }
-  html.vt-semaine::view-transition-new(*) { animation: none; }
-  html.vt-semaine::view-transition-image-pair(semaine) { clip-path: inset(0 0 0 var(--vt-noms, 0px)); }
-  html.vt-semaine::view-transition-old(semaine), html.vt-semaine::view-transition-new(semaine) {
-    clip-path: inset(0 0 0 var(--vt-noms, 0px)); mix-blend-mode: normal; opacity: 1;
-    animation-duration: .34s; animation-timing-function: cubic-bezier(.22, .61, .36, 1); animation-fill-mode: both;
-  }
-  html.vt-semaine::view-transition-old(semaine) { animation-name: vt-semaine-sortie; }
-  html.vt-semaine::view-transition-new(semaine) { animation-name: vt-semaine-entree; }
-  @keyframes vt-semaine-sortie { from { transform: none; } to { transform: translateX(calc(var(--vt-dir, 1) * -1 * var(--vt-pas, 100%))); } }
-  @keyframes vt-semaine-entree { from { transform: translateX(calc(var(--vt-dir, 1) * var(--vt-pas, 100%))); } to { transform: none; } }
-  /* Jours voisins aux bords (suite 74, cf. glisserVersSemaine_) : chaque
-     photo son pas (--vt-sortie, --vt-entree) et ses parties gardées
-     (--vt-masque-ancien, --vt-masque-nouveau). */
-  html.vt-semaine.vt-bords::view-transition-old(semaine) { animation-name: vt-bords-sortie; -webkit-mask-image: var(--vt-masque-ancien); mask-image: var(--vt-masque-ancien); }
-  html.vt-semaine.vt-bords::view-transition-new(semaine) { animation-name: vt-bords-entree; -webkit-mask-image: var(--vt-masque-nouveau); mask-image: var(--vt-masque-nouveau); }
-  @keyframes vt-bords-sortie { from { transform: none; } to { transform: translateX(var(--vt-sortie, 0px)); } }
-  @keyframes vt-bords-entree { from { transform: translateX(var(--vt-entree, 0px)); } to { transform: none; } }
-  /* Round du 28.09.2026 (suite 90) — Lionel : « Je voulais que seule la
-     première colonne et les séparations s'adaptent. Le planning glisse mais
-     ne modifie pas ses hauteurs de ligne. » Glissement de semaine ci-dessus
-     rétabli (la suite 89 ne faisait plus glisser que les dates). Cases des
-     noms : la photo garde sa taille, centrée et rognée dans la case qui
-     change de hauteur — le nom reste au milieu de sa case au lieu de sauter
-     à celui de la nouvelle. La photo de la grille, elle, reste calée en
-     haut. (La page du jour du téléphone de la suite 90 a disparu à la
-     suite 91 : lignes de hauteur fixe, un simple défilement.) */
-  html.vt-semaine::view-transition-new(*), html.vt-semaine::view-transition-old(*) { block-size: 100%; object-fit: none; object-position: center; overflow: clip; }
-  html.vt-semaine::view-transition-new(semaine), html.vt-semaine::view-transition-old(semaine),
-  html.vt-semaine::view-transition-new(root), html.vt-semaine::view-transition-old(root) { block-size: auto; object-fit: fill; }
+  /* Jours voisins aux bords et glissement de semaine (suites 72 à 90) :
+     style-ordinateur.css (suite 99). */
   /* Round du 24.09.2026 — Lionel : « ajoute un bordure à droite de la
      première colonne. » La colonne d'étiquette (116px, sticky left:0)
      n'avait pour seule séparation que le gap de grille de 1px habituel
@@ -1707,7 +1590,6 @@
      poignées reçoivent la souris ; « ↻ série » devient un petit ↻ dans le
      coin bas de la carte, partout. */
   #racine.hauteurs-fixes .bulle { pointer-events: none; }
-  #racine.vue-jour-mobile .bulle { flex-direction: row; }
   #racine.hauteurs-fixes .bulle-plage { margin: 0; }
   #racine.hauteurs-fixes .bulle > .b-carte { pointer-events: auto; }
   #racine.hauteurs-fixes:not(.vue-jour-mobile) .bulle > .poignee { pointer-events: auto; }
@@ -1739,7 +1621,6 @@
     position: relative; flex: none; box-sizing: border-box;
     height: auto; max-height: var(--mob-carte-pers, none); overflow: clip; justify-content: flex-start;
   }
-  #racine.vue-jour-mobile .bulle > .b-carte { align-self: flex-start; min-width: 0; }
   #racine.hauteurs-fixes :is(.bulle-jalon, .bulle-note) > .b-carte { max-height: var(--mob-carte-jal, none); }
   #racine.hauteurs-fixes :is(.bulle-jalon, .bulle-note) .b-txt { -webkit-line-clamp: var(--mob-lignes-jal, 1); line-clamp: var(--mob-lignes-jal, 1); }
   #racine.hauteurs-fixes .bulle .b-carte .b-serie { position: absolute; left: auto; right: 5px; bottom: 2px; font-size: 0; line-height: 1; }
@@ -1792,55 +1673,14 @@
   body:not(.selection-multiple) #racine.hauteurs-fixes .bulle.selectionnee { clip-path: none; }
   body:not(.selection-multiple) #racine.hauteurs-fixes .bulle.selectionnee > .b-carte { height: auto; max-height: none; overflow: visible; }
   body:not(.selection-multiple) #racine.hauteurs-fixes .bulle.selectionnee .b-txt { -webkit-line-clamp: none; line-clamp: none; overflow: visible; }
-  #racine.vue-jour-mobile .bulle .b-carte .b-statut {
-    position: absolute; top: 4px; right: 4px; left: auto; width: 9px; height: 9px; padding: 0; margin: 0; gap: 0;
-    font-size: 0; border-radius: 50%; box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--surface-2) 85%, transparent), 0 0 0 2.5px color-mix(in srgb, var(--ink) 25%, transparent);
-  }
-  #racine.vue-jour-mobile .bulle .b-carte .b-statut .dot { display: none; }
   /* Lignes de hauteur fixe (pistes posées par poserPistesFixes_) : cases,
      noms et Jalons / Notes ne poussent plus leur ligne — plus de hauteur
      minimale, le nom coupé s'il ne tient pas (le trait de 1 px au-dessus
      et au-dessous de l'étiquette, ::before / ::after, reste visible). */
   #racine.hauteurs-fixes .grille .cell { min-height: 0; overflow: hidden; }
   #racine.hauteurs-fixes :is(.lbl-compacte, .lbl-speciale) { min-height: 0; padding-top: 2px; padding-bottom: 2px; overflow: clip; overflow-clip-margin: 1px; }
-  .vue-jour-mobile .bulle > .b-carte .b-txt,
-  .vue-jour-mobile .bulle > .b-carte .b-statut,
-  .vue-jour-mobile .bulle > .b-carte .b-serie {
-    position: static; max-width: none;
-  }
-  /* Poignées en vue « 1 jour » — round du 25.09.2026 (suite 35). Lionel :
-     « Je n'arrive pas à actionner les poignées gauche et droite sur
-     mobile. » Elles étaient MASQUÉES ici (display:none, cf. le commentaire
-     ci-dessus : à l'époque la bulle entière était collée au jour visible,
-     ses poignées tombaient sur les bords de l'écran). Depuis la suite 14
-     c'est la CARTE qui est collée, les poignées restent sur la .bulle, donc
-     sur les VRAIS début et fin de la tâche : visibles seulement le jour où
-     ce bord est à l'écran, ce qui est juste. Réaffichées, élargies pour le
-     doigt (22px — une demi-journée fait ici ~150px) et repérables (trait
-     pâle, sans survol possible au doigt). Appui maintenu puis glisser pour
-     étirer ; contre le bord de l'écran, jour suivant (creerAutoDefilement). */
-  /* Suite 37 — Lionel : « Les poignées doivent s'afficher uniquement quand
-     on clic dessus. » Toujours visibles, leurs traits encombraient chaque
-     bulle (et, pour celles de la veille, le bord de la colonne des noms).
-     Désormais invisibles ET inactives tant que la bulle n'est pas
-     sélectionnée : un tap sur le bord d'une bulle la sélectionne comme un
-     tap au milieu, un appui+glisser la déplace. Une fois la bulle
-     sélectionnée (entourée), ses poignées apparaissent : appui maintenu
-     puis glisser pour étirer. Bulle hors du jour affiché (.hors-jour, posée
-     par poserJourMobile_, suite 91) : jamais de poignée. Règles posées
-     sur #racine.vue-jour-mobile (et plus .scroller.snap-jour-mobile) pour
-     valoir aussi aux jalons et notes, dont la grille est hors de .scroller. */
-  .vue-jour-mobile .bulle .poignee { width: 22px; pointer-events: none; }
-  .vue-jour-mobile .bulle .poignee-g::after { left: 5px; }
-  .vue-jour-mobile .bulle .poignee-d::after { right: 5px; }
-  .vue-jour-mobile .bulle.selectionnee .poignee { pointer-events: auto; }
-  .vue-jour-mobile .bulle.selectionnee .poignee::after { opacity: .45; }
-  .vue-jour-mobile .bulle .poignee.actif::after { opacity: .7; }
-  .vue-jour-mobile .bulle.hors-jour .poignee { display: none; }
-  /* Suite 97 : bulle sélectionnée absente du jour affiché (la veille,
-     rangée sous la colonne des noms) — sans anneau de sélection, dont les
-     2,5 px dépassaient au bord de la colonne en un liseré bleu. */
-  .vue-jour-mobile .bulle.selectionnee.hors-jour .b-carte { box-shadow: 0 1px 2px var(--shadow); }
+  /* Vue « 1 jour » : texte des cartes, statut en pastille, poignées —
+     style-mobile.css (suite 99). */
   /* Round du 27.09.2026 (suite 78) — Lionel, capture à l'appui : « Certaines
      bulle passent encore la colonne des en-têtes. Les séparations doivent
      être dessinée au dessus du planning car c'est des élément principaux. »
@@ -1862,7 +1702,6 @@
      recouvre (z-index 3 en vue « 1 jour »), toujours sous l'espace entre
      semaines (5), qui la coupe comme avant. */
   .section-row.section-collee { z-index: 4; }
-  #racine.vue-jour-mobile .lbl, #racine.vue-jour-mobile .lbl-speciale { z-index: 3; }
   /* Round du 29.09.2026 (suite 97) — Lionel, captures à l'appui : « Sur
      mobile, plusieurs incohérences au niveau des sélections et des
      poignées. » La bulle sélectionnée passe devant les autres (z-index 3,
