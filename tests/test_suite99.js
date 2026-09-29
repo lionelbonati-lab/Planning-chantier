@@ -28,13 +28,18 @@ const { FAUX_SUPABASE, ouvrirPlanning, verificateur, lancerNavigateur } = requir
 //   6. service worker (sw.js) : index.html revalidé qui charge un fichier
 //      jamais copié -> le fichier est copié d'avance (sans réseau à
 //      l'ouverture suivante, le planning le trouve).
+// Étape 3 : vue « 1 jour » du téléphone dans js/grille-telephone.js
+//   (répartition vérifiée en 5).
 //
 // Lancer : node test_suite99.js
 
 // Fonctions de chaque fichier (étapes 2 et suivantes).
 const REPARTITION = {
   'grille-hauteurs.js': ['remonterCartesSelection', 'placerPoigneesCartes_', 'plageGrille_', 'reglagesLignesMobile_', 'hauteurCarteSonde_',
-    'mesurerHauteursMobile_', 'poserPistesFixes_', 'isoDeColonne_', 'cascaderBullesJourMobile_', 'majHauteursLignes']
+    'mesurerHauteursMobile_', 'poserPistesFixes_', 'isoDeColonne_', 'cascaderBullesJourMobile_', 'majHauteursLignes'],
+  'grille-telephone.js': ['basculerVueJourMobile', 'jourOuvreLePlusProche_', 'caleJourMobileSurJourOuvre_', 'prechargerVoisinesJourMobile',
+    'decouperBullesJourMobile_', 'majGeoGlisse_', 'poserJourMobile_', 'suivreDefilementJourMobile', 'planifierMajCoinJourMobile_',
+    'majCoinJourMobile_', 'decalerSurColonne_', 'cablerArretJourMobile_']
 };
 const RACINE = path.join(__dirname, '..');
 const lire = (f) => fs.readFileSync(path.join(RACINE, 'js', f), 'utf8');

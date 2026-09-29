@@ -10314,3 +10314,24 @@ Lionel :
 
 ### Étapes suivantes
 - 3 : vue « 1 jour » dans js/grille-telephone.js ; 4 : vue semaine dans js/grille-ordinateur.js ; 5 : styles ; 6 : gestes ; 7 : bilan.
+
+
+## 209. Round du 29.09.2026 (suite 99) — Découpage du planning, étape 3 : vue « 1 jour » dans js/grille-telephone.js
+- Suite du plan validé par Lionel (« Allons-y »).
+
+### Ce qui change
+- Rien à l'écran : le code est déplacé, pas réécrit.
+- Nouveau fichier **js/grille-telephone.js**, chargé par index.html après js/grille-hauteurs.js : tout ce qui ne sert qu'à la vue « 1 jour » du téléphone.
+  - navigation : `basculerVueJourMobile` (« 1 jour » / « 1 semaine »), `jourOuvreLePlusProche_`, `caleJourMobileSurJourOuvre_` (week-end masqué), `prechargerVoisinesJourMobile` ;
+  - grille : `decouperBullesJourMobile_` (une carte par jour), `majGeoGlisse_`, `poserJourMobile_` (jour posé), `suivreDefilementJourMobile`, `planifierMajCoinJourMobile_`, `majCoinJourMobile_` (case coin), `decalerSurColonne_`, `cablerArretJourMobile_` (arrêt du défilement, recentrage de la fenêtre de 2 semaines).
+- Restent dans grille-rendu.js, car appelées aussi sur ordinateur : `allerAuJour`, `majCalendrierJour`, `verifierModeFenetre` (passage téléphone <-> ordinateur), `mettreEnPlaceJourMobile_`, `planifierDecoupeJourMobile_`, `reajusterBullesJourMobile`.
+- js/grille-rendu.js : ~2 660 lignes (~3 420 avant l'étape 2).
+- Contrôle : mêmes noms non définis dans les trois fichiers réunis qu'avant dans grille-rendu.js seul (analyse ESLint).
+- Hors ligne : le nouveau fichier est copié d'avance dès qu'index.html est revalidé (§208).
+
+### Tests
+- test_suite99.js, 15/15 : répartition de grille-telephone.js (12 fonctions, plus dans grille-rendu.js).
+- Suite complète : 104/104.
+
+### Étapes suivantes
+- 4 : vue semaine et jours voisins dans js/grille-ordinateur.js ; 5 : styles ; 6 : gestes ; 7 : bilan.
