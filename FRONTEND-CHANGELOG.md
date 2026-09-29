@@ -10392,3 +10392,36 @@ Lionel :
 
 ### Étapes suivantes
 - 6 : gestes (seulement si utile) ; 7 : bilan.
+
+
+## 212. Round du 29.09.2026 (suite 99) — Découpage du planning, étapes 6 et 7 : bilan
+- Fin du plan validé par Lionel (« Allons-y »). Une seule appli ; l'affichage du planning est rangé par vue.
+- Cinq PR, chacune testée et fusionnée à part (§207 à §211). Rien n'a changé à l'écran.
+
+### Qui fait quoi
+| Fichier | Rôle | Lignes |
+|---|---|---|
+| js/grille-rendu.js | commun : construction de la grille (G, `grilleCourante_`), bulles, rendu, ‹ ›, Aujourd'hui, calendrier, espace entre semaines | ~2 190 (~3 420 avant) |
+| js/grille-hauteurs.js | commun : lignes de hauteur fixe, cascade, pastille « +N », bulle sélectionnée dépliée | ~430 |
+| js/grille-telephone.js | téléphone : vue « 1 jour » (bascule, jour ouvré, cartes par jour, jour posé, case coin, arrêt du défilement, recentrage) | ~360 |
+| js/grille-ordinateur.js | ordinateur et tablette : glissement de semaine, mode de vue, jours voisins aux bords, balayage de semaine | ~510 |
+| js/grille-interactions.js | gestes, doigt et souris (communs) | ~2 050 |
+| style.css | styles communs | ~3 660 |
+| style-mobile.css | téléphone (≤ 600 px), dont la vue « 1 jour » | ~510 |
+| style-ordinateur.css | vue semaine : jours voisins, glissement | ~100 |
+
+- En pratique : une demande qui ne touche que le téléphone se fait dans grille-telephone.js / style-mobile.css. Une demande qui ne touche que l'ordinateur se fait dans grille-ordinateur.js / style-ordinateur.css. Le reste est commun.
+- Même carte en tête de js/grille-rendu.js.
+
+### Étape 6 (gestes) : non faite
+- Le plan la prévoyait « seulement si utile ».
+- Les gestes passent déjà par les mêmes événements « pointer » pour le doigt et la souris. Les différences se font à l'intérieur de grandes fonctions communes (`onPointerDownGroupeSelection`, ~800 lignes).
+- Les séparer demanderait de les réécrire, ce qui est contraire à la règle du découpage (déplacer, pas réécrire), et le risque est élevé pour un gain faible.
+
+### Retouches
+- `basculerDeuxSemaines` (§210 : « à retirer au bilan ») : gardée. L'appli ne l'appelle plus, mais dix tests s'en servent pour passer en 2 semaines. Commentaire ajouté.
+- Service worker (§208) : un fichier ajouté à index.html est copié d'avance, sans liste à tenir à jour.
+- Garde-fou pour la suite : test_suite99.js vérifie la répartition des fonctions et des règles CSS entre les fichiers. Une fonction remise par erreur dans grille-rendu.js, ou une règle propre à une vue remise dans style.css, fait échouer le test.
+
+### Tests
+- Suite complète : 104/104.

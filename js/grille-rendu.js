@@ -3,6 +3,20 @@
      MOTEUR DE RENDU / INTERACTION — repris du prototype prototype-bulles.html
      (V3), quasiment inchangé : il ne connaît que TACHES/JALONS/NOTES/
      PERSONNES/CHANTIERS/STATUTS en mémoire (cf. bloc "ÉTAT VUE" plus haut).
+     Round du 29.09.2026 (suite 99) — affichage du planning découpé
+     (Lionel : « Ne serait-il pas plus judicieux de faire 2 application
+     différente pour portable et pour deskop? », puis « Allons-y ») :
+       - ici, le commun : construction de la grille (construireGrille, G =
+         l'objet du rendu, grilleCourante_), bulles, rendu, navigation
+         commune (‹ ›, Aujourd'hui, calendrier), espace entre semaines ;
+       - js/grille-hauteurs.js : lignes de hauteur fixe, cascade, pastille
+         « +N », bulle sélectionnée dépliée (commun) ;
+       - js/grille-telephone.js : vue « 1 jour » du téléphone ;
+       - js/grille-ordinateur.js : vue semaine (ordinateur, tablette) —
+         glissement de semaine, mode de vue, jours voisins, balayage ;
+       - js/grille-interactions.js : gestes (doigt et souris, communs) ;
+       - styles : style.css (commun), style-mobile.css (téléphone, dont la
+         vue « 1 jour »), style-ordinateur.css (vue semaine).
      ============================================================ */
   function hexToRgba(hex, alpha) {
     var h = String(hex || "#999999").replace("#", "");

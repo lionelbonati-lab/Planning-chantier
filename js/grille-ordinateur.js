@@ -128,6 +128,9 @@
   // "1 semaine"/"2 semaines", cf. commentaire de construireGrille) : bascule
   // simplement l'état, son rendu .actif suit deuxSemaines à chaque
   // reconstruction de .semaine-titre.
+  // Suite 99 : plus appelée par l'appli depuis le bouton unique de mode de
+  // vue (basculerModeVue, suite 82) ; gardée pour les tests, qui s'en
+  // servent pour passer en 2 semaines.
   function basculerDeuxSemaines() {
     deuxSemaines = !deuxSemaines;
     assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); });
