@@ -556,8 +556,19 @@
   // Suite 77 : « L'aperçu mobile ne doit afficher que 1 jour car le
   // planning est basé sur 1 jour. » — téléphone : le jeudi seul (matin +
   // après-midi), sans week-end ni espace entre semaines.
+  // Round du 29.09.2026 (suite 121) — Lionel : « Les nouveaux réglages ne
+  // sont pas liés à l'aperçu d'écran ». Hauteur des lignes, hauteur et
+  // lignes de texte des Jalons et Notes, espace entre les bulles (suites
+  // 91 à 113) n'y changeaient rien : l'aperçu a maintenant les lignes
+  // Jalons et Notes, des lignes à la hauteur réglée (en pixels, comme le
+  // planning ; une bulle qui n'y tient pas est coupée) et une pile de 2
+  // bulles (lundi de Lionel, après-midi de Mathis au téléphone) espacée
+  // comme dans une case.
   function htmlApercuAffichage_(profil) {
     var opt = function (id) { return optionAffichage(id, profil); };
+    var tel_ = profil === "tel", pxOpt = function (id, d) { var v = parseFloat(opt(id)); return isFinite(v) ? v : d; };
+    var hPers = pxOpt(tel_ ? "hauteurLigneTel" : "hauteurLigneOrdi", tel_ ? 89 : 117), hJal = pxOpt(tel_ ? "hauteurJalTel" : "hauteurJalOrdi", 32);
+    var espaceB = pxOpt(tel_ ? "espaceBullesTel" : "espaceBullesOrdi", 3), lignesJal = opt("lignesJal") === "2" ? 2 : 1;
     var we = opt("weekends") === "oui", espace = opt("separation") === "espace";
     var ligneDemi = opt("ligneDemi"), heures = opt("heures") === "oui";
     var chantiers = (window.etat && etat.chantiers || []).filter(function (c) { return c.actif !== false && c.couleur; });
@@ -610,6 +621,16 @@
           '<span class="aa-demi aa-aprem" style="grid-row:2;grid-column:' + (colDe(j[0]) + 1) + '">' + a + '</span>');
       });
     }
+    // Suite 121 : lignes Jalons et Notes, sous la ligne des horaires.
+    var rangees = ["auto"].concat(row === 2 ? ["auto"] : [], [hJal + "px", hJal + "px", hPers + "px", hPers + "px", hPers + "px"]);
+    ["Jalons", "Notes"].forEach(function (nom, k) {
+      var r = row + k + 1;
+      h.push('<span class="aa-nom aa-nom-jal" style="grid-row:' + r + ';grid-column:1">' + nom + '</span>');
+      jours.forEach(function (j) {
+        h.push('<span class="aa-cell aa-cell-jal' + classesJour(j) + '" style="grid-row:' + r + ';grid-column:' + colDe(j[0]) + ' / ' + colA(j[0]) + '"></span>');
+      });
+    });
+    row += 2;
     ["Lionel", "Mathis", "Antoine"].forEach(function (nom, p) {
       var r = row + p + 1, alt = p % 2 === 1 ? " aa-alt" : "";
       h.push('<span class="aa-nom' + alt + '" style="grid-row:' + r + ';grid-column:1">' + nom + '</span>');
@@ -621,27 +642,36 @@
       });
     });
     // de/a : clé du jour, "m" ou "a" pour une seule demi-journée.
+    // Suite 121 : `texte` peut être une liste — bulles empilées dans la
+    // case, séparées de l'espace réglé ; p < 0 : ligne Jalons (-2) ou
+    // Notes (-1).
     function bulle(p, de, a, texte, teinte, avecStatut, demi) {
       var c1 = demi === "a" ? colDe(de) + 1 : colDe(de), c2 = demi === "m" ? colDe(a) + 1 : colA(a);
-      return '<span class="aa-bulle" style="grid-row:' + (row + p + 1) + ';grid-column:' + c1 + ' / ' + c2 + '"><span class="aa-carte" style="background:' + esc(teinte) + '">' +
-        '<span class="aa-txt">' + esc(texte) + '</span>' +
-        (avecStatut ? '<span class="aa-statut"' + styleStatut + ' title="' + esc(nomStatut) + '"><i></i>' + esc(nomStatut) + '</span>' : '') + '</span></span>';
+      return '<span class="aa-bulle' + (p < 0 ? ' aa-bulle-jal' : '') + '" style="grid-row:' + (row + p + 1) + ';grid-column:' + c1 + ' / ' + c2 + '">' + [].concat(texte).map(function (t, i) {
+        return '<span class="aa-carte" style="background:' + esc(teinte) + '">' +
+          '<span class="aa-txt">' + esc(t) + '</span>' +
+          (avecStatut && !i ? '<span class="aa-statut"' + styleStatut + ' title="' + esc(nomStatut) + '"><i></i>' + esc(nomStatut) + '</span>' : '') + '</span>';
+      }).join("") + '</span>';
     }
     h.push(bulle(0, "jeu", "ven", "Bétonnage dalle piliers et muret de l’extension côté jardin", teintes[0]));
     h.push(bulle(1, "jeu", "jeu", "Gabarits", teintes[2], false, "m"));
     if (etroit) {
       // Téléphone : l'après-midi de Mathis et la bulle avec statut
       // d'Antoine, pour que chaque réglage se voie sur le seul jour.
-      h.push(bulle(1, "jeu", "jeu", "Coffrage piliers", teintes[1], false, "a"));
+      h.push(bulle(1, "jeu", "jeu", ["Coffrage piliers", "Réservations"], teintes[1], false, "a"));
       h.push(bulle(2, "jeu", "jeu", "Armature dalle supérieure", teintes[0], true));
     } else {
-      h.push(bulle(0, "lun", "lun", "Coffrage piliers", teintes[1]));
+      h.push(bulle(0, "lun", "lun", ["Coffrage piliers", "Réservations"], teintes[1]));
       h.push(bulle(1, "lun", "mar", "Décoffrage balcons", teintes[1]));
       h.push(bulle(2, "ven", "ven", "Armature dalle supérieure", teintes[0], true));
       h.push(bulle(2, "mar", "mar", "Ouvertures murs", teintes[2]));
     }
+    // Jalon et note en dernier : les bulles des personnes restent les
+    // premières de l'aperçu.
+    h.push(bulle(-2, "jeu", "jeu", "Réception des armatures", "var(--jalon-bg)"));
+    h.push(bulle(-1, "jeu", "jeu", "Grue louée jusqu’au vendredi, clés au bureau", "var(--note-bg)"));
     return '<div class="apercu-affichage' + (etroit ? " aa-tel" : "") + '" aria-hidden="true"><div class="aa-cadre">' +
-      '<div class="aa-grille" style="grid-template-columns:' + pistes.join(" ") + '">' + h.join("") + '</div></div>' +
+      '<div class="aa-grille" style="grid-template-columns:' + pistes.join(" ") + ';grid-template-rows:' + rangees.join(" ") + ';--aa-espace:' + espaceB + 'px;--aa-lignes-jal:' + lignesJal + '">' + h.join("") + '</div></div>' +
       (espace && !etroit ? '<div class="sep-semaines sep-haut aa-sep" hidden><span class="sep-coin sep-coin-g"></span><span class="sep-coin sep-coin-d"></span></div>' +
         '<div class="sep-semaines sep-bas aa-sep" hidden><span class="sep-coin sep-coin-g"></span><span class="sep-coin sep-coin-d"></span></div>' : '') +
       '</div>';

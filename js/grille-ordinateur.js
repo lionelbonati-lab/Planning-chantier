@@ -542,55 +542,14 @@
   //   semaine.
   function cablerBalayageSemaine_(G) {
     var scroller = G.scroller, enModeJourMobile = G.enModeJourMobile;
-    function zoneBordSemaine_() {
-      var r = scroller.getBoundingClientRect();
-      var g = Math.max(r.left, 0), d = Math.min(r.right, window.innerWidth);
-      return { g: g, d: d, largeur: Math.max(48, Math.min(120, (d - g) * .12)) };
-    }
-    var seuilBordSemaine = 46, toucheDebutX = null, toucheDebutY = null, toucheAxe = null, toucheBord = null, toucheZone = null;
-    scroller.addEventListener("touchstart", function (e) {
-      toucheDebutX = (e.touches.length === 1) ? e.touches[0].clientX : null;
-      toucheDebutY = (e.touches.length === 1) ? e.touches[0].clientY : null;
-      toucheAxe = null;
-      toucheBord = null;
-      toucheZone = null;
-      if (toucheDebutX !== null) {
-        var z = zoneBordSemaine_();
-        toucheZone = toucheDebutX <= z.g + z.largeur ? "gauche" : toucheDebutX >= z.d - z.largeur ? "droite" : "centre";
-      }
-    }, { passive: true });
-    scroller.addEventListener("touchmove", function (e) {
-      // Vue "1 jour" téléphone : plus de bord de semaine à franchir, le
-      // défilement est continu (round du 24.09.2026, suite 6 — cf.
-      // fenetreLabGs, core.js) ; ce détecteur ne sert plus qu'aux autres vues.
-      if (enModeJourMobile) return;
-      if (toucheDebutX === null || e.touches.length !== 1) return;
-      if (document.body.classList.contains("en-glissement")) { toucheBord = null; return; }
-      var dx = e.touches[0].clientX - toucheDebutX;
-      var dy = e.touches[0].clientY - toucheDebutY;
-      // Jours voisins aux bords : rien à faire défiler (la vue tient juste
-      // dans l'écran), le balayage change de semaine partout, comme avant.
-      var zone = vueBordsRendue_ ? (dx < 0 ? "droite" : "gauche") : toucheZone;
-      // Chrome ne laisse annuler que les premiers déplacements, avant que la
-      // page ne défile : un départ franchement horizontal depuis un bord est
-      // retenu tout de suite.
-      if (!toucheAxe && zone !== "centre" && Math.abs(dx) > Math.abs(dy) && e.cancelable) e.preventDefault();
-      if (!toucheAxe && Math.abs(dx) + Math.abs(dy) > SEUIL_DEFILEMENT) toucheAxe = axeDuGeste(dx, dy);
-      if (toucheAxe !== "x" || zone === "centre") { toucheBord = null; return; }
-      toucheZone = zone;
-      // Balayage parti d'un bord : il tourne la page, la grille ne défile pas.
-      if (e.cancelable) e.preventDefault();
-      if (toucheZone === "gauche" && dx > seuilBordSemaine) toucheBord = "debut";
-      else if (toucheZone === "droite" && dx < -seuilBordSemaine) toucheBord = "fin";
-      else toucheBord = null;
-    }, { passive: false });
-    scroller.addEventListener("touchend", function () {
-      if (document.body.classList.contains("en-glissement")) { toucheDebutX = null; toucheBord = null; return; }
-      if (toucheBord === "debut") naviguerSemaineDepuisBordJour(-1);
-      else if (toucheBord === "fin") naviguerSemaineDepuisBordJour(1);
-      toucheDebutX = null; toucheDebutY = null; toucheAxe = null; toucheBord = null;
-    }, { passive: true });
-
+    // Round du 29.09.2026 (suite 121) — Lionel : « sur tablette quand je
+    // veux défiler gauche/droite, ça me change les pages involontairement »
+    // (la semaine) ; règle des gestes retenue : « glisser sur le vide =
+    // défiler, jamais autre chose ». Le balayage au doigt (bandes des bords,
+    // et partout en « Jours voisins ») ne change plus de semaine : la partie
+    // tactile ci-dessus (touchstart / touchmove / touchend, zones des bords)
+    // est retirée. Semaine : flèches de la barre, pilule « Sem. N »,
+    // calendrier ; molette / trackpad en butée sur ordinateur (ci-dessous).
     // Round du 23.09.2026 (suite ×11) — Lionel : « L'action de swiper d'une
     // semaine à l'autre est intéressante et pourrait être portée aux
     // versions tablette et desktop. » Équivalent du détecteur tactile

@@ -18,6 +18,12 @@ const { ouvrirPlanning, verificateur, glisserDoigt } = require('./aide_tests');
 // bord gauche (30 px) ; parti du centre, il ne fait que défiler, même en
 // butée.
 //
+// Round du 29.09.2026 (suite 121) — Lionel : « sur tablette quand je veux
+// défiler gauche/droite, ça me change les pages involontairement » ; règle
+// retenue : « glisser sur le vide = défiler, jamais autre chose ». Le
+// balayage au doigt ne change plus jamais de semaine (bords compris) : ce
+// test vérifie désormais qu'il la garde.
+//
 // Lancer : node test_swipe_tablette_1semaine.js
 
 (async () => {
@@ -35,12 +41,12 @@ const { ouvrirPlanning, verificateur, glisserDoigt } = require('./aide_tests');
   verifier(centre.index === avant.index, 'parti du centre, même en butée de fin : pas de changement de semaine (' + avant.index + ' → ' + centre.index + ')');
   await glisserDoigt(page, 790, 100, 400);
   const apres = await etatVue();
-  verifier(apres.index === avant.index + 1, 'glisser vers la gauche depuis le bord droit : semaine suivante (' + avant.index + ' → ' + apres.index + ')');
+  verifier(apres.index === avant.index, 'glisser vers la gauche depuis le bord droit : même semaine (suite 121) (' + avant.index + ' → ' + apres.index + ')');
 
   await page.evaluate(() => { document.querySelector('.scroller').scrollLeft = 0; });
   await glisserDoigt(page, 30, 700, 400);
   const retour = await etatVue();
-  verifier(retour.index === avant.index, 'glisser vers la droite depuis le bord gauche : retour à la semaine d\'origine (' + apres.index + ' → ' + retour.index + ')');
+  verifier(retour.index === avant.index, 'glisser vers la droite depuis le bord gauche : même semaine (suite 121) (' + apres.index + ' → ' + retour.index + ')');
 
   await browser.close();
   process.exit(bilan(erreurs));

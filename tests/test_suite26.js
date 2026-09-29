@@ -13,7 +13,8 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //     touche plus scrollLeft (même jour), un swipe horizontal qui dérive un
 //     peu ne défile plus verticalement ;
 //   - tablette (vue 1 semaine) : un défilement vertical qui dérive de plus
-//     de 46 px de côté ne change plus de semaine ; un vrai swipe, si.
+//     de 46 px de côté ne change plus de semaine ; un vrai swipe non plus
+//     depuis la suite 121.
 //
 // Lancer : node test_suite26.js
 
@@ -103,7 +104,8 @@ const caseVide = (page) => page.evaluate(() => {
     await glisser(page, { x: bord, y: (await caseVide(page)).y }, 200, 20);
     await page.waitForTimeout(500);
     const apresSwipe = await position(page);
-    verifier(apresSwipe.semaine === avant.semaine - 1, 'tablette, vrai swipe vers la droite : semaine précédente (' + avant.semaine + ' → ' + apresSwipe.semaine + ')');
+    // Suite 121 : un balayage au doigt ne change plus de semaine.
+    verifier(apresSwipe.semaine === avant.semaine, 'tablette, swipe depuis le bord gauche : même semaine (suite 121) (' + avant.semaine + ' → ' + apresSwipe.semaine + ')');
     toutesErreurs.push(...erreurs);
     await page.close();
   }

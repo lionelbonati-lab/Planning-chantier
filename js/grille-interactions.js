@@ -854,7 +854,8 @@
     // avec LA MÊME formule que le dépôt (mêmes bornes, même décalage, même
     // butée sur la fenêtre). Tâche seule : sur la ligne survolée, le dépôt
     // pouvant changer de personne. Groupe : chaque bulle sur SA ligne,
-    // appliquerDelta ne changeant jamais de ligne. Renvoie null quand le
+    // décalée du même nombre de lignes que la bulle tenue (suite 121,
+    // cf. deltaLignesGroupe). Renvoie null quand le
     // dépôt n'aurait pas lieu ou vise le week-end (une seule case par
     // personne) : le survol par cellule, inchangé, reprend la main.
     //
@@ -876,7 +877,7 @@
       groupeIds.forEach(function (id) {
         var plage = itemParId(id);
         if (!plage || estGiWeekend(plage.item.giDebut)) return;
-        var ligne = ligneDeBulle(id);
+        var ligne = ligneCibleBulle(id);
         if (!ligne) return;
         var it = plage.item;
         out.push({
@@ -936,7 +937,7 @@
       groupeIds.forEach(function (id) {
         var plage = itemParId(id);
         if (!plage || estGiWeekend(plage.item.giDebut)) return;
-        var ligne = ligneDeBulle(id);
+        var ligne = ligneCibleBulle(id);
         if (!ligne) return;
         var f = formeDecaleeDemis(plage.item, dh);
         f.gridRow = ligne.gridRow; f.parent = ligne.parent;
@@ -964,6 +965,46 @@
       }
       lignesBulles[id] = res;
       return res;
+    }
+    // Round du 29.09.2026 (suite 121) — Lionel : « impossible de changer
+    // plusieurs bulles d'un coup entre personnel et équipe ». Un groupe ne
+    // se décalait que dans le temps (appliquerDelta, « ne change jamais de
+    // ligne »). Il change désormais aussi de ligne : l'écart de lignes
+    // entre la bulle tenue et la case visée (ordre affiché : équipes, leurs
+    // membres, puis le personnel) est appliqué à chaque tâche du groupe,
+    // comme l'écart de jours. Tout ou rien : si une tâche sortait de la
+    // liste ou changeait de secteur (tâche d'intervenant, suite 66), le
+    // groupe garde ses lignes. Notes et jalons n'ont pas de ligne.
+    var dLignes = 0;
+    function deltaLignesGroupe(cible) {
+      if (groupeIds.length < 2 || !cible || cible.dataset.kind !== "personne" || plageClic.liste !== TACHES) return 0;
+      var ids = personnesAffichees(secteurPersonne(itemClic.personneId)).map(function (p) { return String(p.id); });
+      var d = ids.indexOf(String(cible.dataset.personne)) - ids.indexOf(String(itemClic.personneId));
+      if (!d || ids.indexOf(String(itemClic.personneId)) < 0 || ids.indexOf(String(cible.dataset.personne)) < 0) return 0;
+      var ok = groupeIds.every(function (id) {
+        var plage = itemParId(id);
+        if (!plage || plage.liste !== TACHES) return true;
+        var n = personneDecalee_(plage.item.personneId, d);
+        return n !== null && changementPersonneAutorise(plage.item.personneId, n);
+      });
+      return ok ? d : 0;
+    }
+    function personneDecalee_(personneId, d) {
+      var ids = personnesAffichees(secteurPersonne(personneId)).map(function (p) { return String(p.id); });
+      var i = ids.indexOf(String(personneId));
+      return i < 0 || !ids[i + d] ? null : ids[i + d];
+    }
+    // Ligne d'arrivée d'une bulle du groupe : la sienne, ou celle de la
+    // personne décalée de dLignes (tâches seulement).
+    function ligneCibleBulle(id) {
+      var ligne = ligneDeBulle(id), plage = itemParId(id);
+      if (!ligne || !dLignes || !plage || plage.liste !== TACHES) return ligne;
+      var n = personneDecalee_(plage.item.personneId, dLignes);
+      var c = n && ligne.parent.querySelector('.cell[data-kind="personne"][data-personne="' + n + '"]');
+      return c ? { gridRow: c.style.gridRow, parent: ligne.parent } : ligne;
+    }
+    function personneApresDecalage_(it, liste) {
+      return liste === TACHES && dLignes ? (personneDecalee_(it.personneId, dLignes) || it.personneId) : it.personneId;
     }
     function poserSurlignagePrecis(bornes, gridRow, parent, interdit) {
       var el = document.createElement("div");
@@ -1035,6 +1076,7 @@
     function survolerCible(cible, clientX) {
       nettoyerSurvol();
       if (!cible) return;
+      dLignes = deltaLignesGroupe(cible); // suite 121
       var precis = cibleNotePreciseCompacte(cible, clientX);
       if (precis) {
         // gridRow = cible.style.gridRow (round du 16.09.2026 ; auparavant
@@ -1206,9 +1248,10 @@
           // bulle démarrant/finissant en demi-journée par glissement
           // (Maj+glisser) donnait une copie en journée entière — la
           // demi-journée de l'originale disparaissait en silence.
-          if (plage.liste === TACHES) plage.liste.push(itemPlageTache(it.type, it.texte, it.personneId, ni, it.duree, { important: it.important, chantier: it.chantier, statut: it.statut, demiDebut: it.demiDebut, demiFin: it.demiFin }));
+          if (plage.liste === TACHES) plage.liste.push(itemPlageTache(it.type, it.texte, personneApresDecalage_(it, plage.liste), ni, it.duree, { important: it.important, chantier: it.chantier, statut: it.statut, demiDebut: it.demiDebut, demiFin: it.demiFin }));
           else plage.liste.push(itemPlage(it.type, it.texte, ni, it.duree, { important: it.important, chantierId: it.chantierId, demiDebut: it.demiDebut, demiFin: it.demiFin }));
         } else {
+          it.personneId = personneApresDecalage_(it, plage.liste); // suite 121
           it.giDebut = ni;
           // dateDebutIso (round du 07.09.2026, signalé par Lionel : "le
           // déplacement d'une demi journée ne fonctionne pas") : ce champ,
@@ -1252,9 +1295,10 @@
         var it = plage.item;
         var f = formeDecaleeDemis(it, dh);
         if (copieFinale) {
-          if (plage.liste === TACHES) plage.liste.push(itemPlageTache(it.type, it.texte, it.personneId, f.giDebut, f.duree, { important: it.important, chantier: it.chantier, statut: it.statut, demiDebut: f.demiDebut, demiFin: f.demiFin }));
+          if (plage.liste === TACHES) plage.liste.push(itemPlageTache(it.type, it.texte, personneApresDecalage_(it, plage.liste), f.giDebut, f.duree, { important: it.important, chantier: it.chantier, statut: it.statut, demiDebut: f.demiDebut, demiFin: f.demiFin }));
           else plage.liste.push(itemPlage(it.type, it.texte, f.giDebut, f.duree, { important: it.important, chantierId: it.chantierId, demiDebut: f.demiDebut, demiFin: f.demiFin }));
         } else {
+          it.personneId = personneApresDecalage_(it, plage.liste); // suite 121
           it.giDebut = f.giDebut; it.duree = f.duree;
           it.demiDebut = f.demiDebut; it.demiFin = f.demiFin;
           it.dateDebutIso = isoDeGi(it.giDebut);
@@ -1358,11 +1402,12 @@
         return;
       }
       if (estGiWeekend(giCibleBrut)) { nettoyerFantomes(); render(false); return; }
+      dLignes = deltaLignesGroupe(celluleCible); // suite 121
       // Groupe glissé à la souris : par demi-journée (suite 21, cf.
       // deltaDemisGroupe) — le même calcul que l'aperçu de survol.
       var dhGroupeFinal = deltaDemisGroupe(celluleCible, clientXFinal);
       if (dhGroupeFinal !== null) {
-        if (!dhGroupeFinal) { nettoyerFantomes(); render(false); return; }
+        if (!dhGroupeFinal && !dLignes) { nettoyerFantomes(); render(false); return; }
         appliquerDeltaDemisGroupe(dhGroupeFinal, copieActuelle);
         return;
       }
@@ -1407,7 +1452,7 @@
         appliquerDeltaNoteMultiJours(bordsMulti, copieActuelle);
         return;
       }
-      if (!delta) { nettoyerFantomes(); render(false); return; }
+      if (!delta && !dLignes) { nettoyerFantomes(); render(false); return; }
       // Tactile : plus de question "Déplacer / Copier" après la dépose
       // (round du 24.09.2026, suite 8-9) : un glisser DÉPLACE, sauf si ⧉
       // (copieSelectionActive) a été armé dans la pilule avant le geste.

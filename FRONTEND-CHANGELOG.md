@@ -10787,3 +10787,14 @@ Lionel :
 ### Tests
 - Nouveau : tests/test_suite120.js (7 vérifications).
 - Nouveau : tests/test_suite120_sw.js (4 vérifications ; l'ancien sw.js échoue sur la 2e).
+
+## 234. Round du 29.09.2026 (suite 121) — Bulles groupées entre lignes, aperçu Affichage, case année à l'impression, tablette
+- Lionel : « impossible de changer plusieurs bulle d'un coup entre personnel et équipe ». Plusieurs bulles sélectionnées et glissées vers une autre ligne changent toutes de ligne, du même nombre de lignes que la bulle tenue (par exemple d'un ouvrier vers la ligne de l'équipe, et retour). Comme pour une bulle seule, le changement n'est accepté que dans le même groupe (personnel et équipes), et pas pour les tâches d'intervenants. Sinon, les bulles se décalent seulement en jours, comme avant.
+- Lionel : « Les nouveaux réglages ne sont pas liés à l'aperçu d'écran ». L'aperçu de la page Affichage a maintenant les lignes Jalons et Notes, et une case avec 2 bulles empilées. Il suit la hauteur des lignes, la hauteur des Jalons et Notes, l'espace entre les bulles et les lignes de texte des Jalons et Notes. Tous les réglages d'apparence changent désormais l'aperçu. Sur téléphone et tablette, l'aperçu (collé au-dessus des réglages) est limité à 40 % de l'écran et défile dans son cadre.
+- Lionel : « en impression, la case de l'année est décalée ». Les réglages du coin du planning (mois et année l'un sous l'autre, gras, italique, taille) s'appliquaient aussi à la case « 2026 » de l'impression et la sortaient du tableau. Ils sont limités au planning et à l'aperçu ; la case de l'impression reste alignée sur la ligne des mois.
+- Lionel : « sur tablette quand je veux défiler gauche/droite, ça me change les pages involontairement ». Un glisser du doigt ne change plus jamais de semaine, même depuis le bord : il fait seulement défiler. Pour changer de semaine : les flèches, la pastille « Sem. N » ou le calendrier. À l'ordinateur, la molette et le pavé tactile restent comme avant.
+
+### Tests
+- Nouveau : tests/test_suite121.js (5 vérifications ; l'ancien style.css échoue sur la case de l'année).
+- Mis à jour (balayage : même semaine) : test_swipe_tablette_1semaine.js, test_suite26.js, test_suite89.js, test_selection_multijour_tablette.js.
+- Mis à jour : test_suite62.js (noms de l'aperçu : sans les lignes Jalons et Notes).

@@ -77,7 +77,7 @@ const style = (page, sel, prop) => page.evaluate(([s, p]) => { const e = documen
       inter: ['separation', 'cadre', 'coins'].filter((id) => document.getElementById('chkAff-' + id).checked).join(','),
       we: document.getElementById('chkWeekends').checked, statut: document.getElementById('chkAff-heures').checked,
       reset: document.getElementById('btnAffichageDefaut').hidden,
-      noms: [...document.querySelectorAll('#apercuAffichage .aa-nom')].map((n) => n.textContent).join(','),
+      noms: [...document.querySelectorAll('#apercuAffichage .aa-nom:not(.aa-nom-jal)')].map((n) => n.textContent).join(','),
       jours: [...document.querySelectorAll('#apercuAffichage .aa-th')].map((n) => n.querySelector('.aa-jour').textContent + ' ' + n.querySelector('.aa-date').textContent).join(','),
       seps: [...document.querySelectorAll('#apercuAffichage .sep-semaines')].filter((s) => !s.hidden).length
     }));
@@ -148,7 +148,7 @@ const style = (page, sel, prop) => page.evaluate(([s, p]) => { const e = documen
       lionel: getComputedStyle(document.querySelector('.cell.cell-personne[data-personne="1"]:not(.cell-auj)')).backgroundImage,
       lbl: document.querySelectorAll('.lbl.ligne-alt').length > 0,
       deux: getComputedStyle(document.querySelector('.cell.cell-personne[data-personne="2"].cell-auj')).backgroundImage.split('linear-gradient').length - 1,
-      ap: getComputedStyle(document.querySelectorAll('#apercuAffichage .aa-nom')[1]).backgroundImage !== 'none'
+      ap: getComputedStyle(document.querySelectorAll('#apercuAffichage .aa-nom:not(.aa-nom-jal)')[1]).backgroundImage !== 'none'
     }));
     verifier(zb.mathis && zb.lionel === 'none' && zb.lbl && zb.deux === 2 && zb.ap, 'lignes alternées : Mathis teinté, pas Lionel ; avec aujourd\'hui, les 2 teintes (' + JSON.stringify(zb) + ')');
     // Week-ends

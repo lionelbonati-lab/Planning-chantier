@@ -22,7 +22,7 @@ const { ouvrirPlanning, verificateur, glisserDoigt, lancerNavigateur } = require
 //      que du personnel est à l'écran, « Intervenants » la pousse puis
 //      prend sa place ; les cases ne bougent pas ;
 //   5. tablette, jours voisins : défilement horizontal coupé (plus de
-//      tremblement), balayage au centre = semaine suivante.
+//      tremblement) ; balayage : même semaine depuis la suite 121.
 // (Glissement de semaine : test_suite72.js et test_suite74.js — limité aux
 // dates par la suite 89, toute la semaine à nouveau depuis la suite 90,
 // cf. test_suite90.js ; balayage par les bords : test_swipe_tablette_1semaine.js.)
@@ -187,7 +187,8 @@ const lectures = (page) => page.evaluate(() => window.__ECRITURES.filter((e) => 
     await glisserDoigt(page, 700, 300, 400);
     await page.waitForTimeout(700);
     const i1 = await page.evaluate(() => etat.indexSemaine);
-    verifier(i1 === st.i + 1, 'jours voisins : un balayage, même au centre, passe à la semaine suivante (' + st.i + ' → ' + i1 + ')');
+    // Suite 121 : un balayage au doigt ne change plus de semaine.
+    verifier(i1 === st.i, 'jours voisins : un balayage garde la semaine (suite 121) (' + st.i + ' → ' + i1 + ')');
     toutesErreurs.push(...erreurs);
     await page.context().close();
   }
