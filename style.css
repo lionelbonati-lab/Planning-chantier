@@ -1097,6 +1097,8 @@
     position: fixed; z-index: 90; pointer-events: none; padding: 3px 7px; border-radius: 6px;
     background: var(--ink); color: var(--surface); font: 600 11.5px/1.2 var(--police-mono);
   }
+  /* Menus du clic droit (suite 114) : séparateur entre les groupes. */
+  .menu-pop .mc-sep { height: 1px; margin: 4px 2px; background: var(--border); }
   .menu-hauteur-ligne .mhl-valeur { display: flex; align-items: center; gap: 6px; }
   .menu-hauteur-ligne .mhl-valeur input {
     width: 70px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px;

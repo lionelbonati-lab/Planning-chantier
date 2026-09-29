@@ -10686,3 +10686,20 @@ Lionel :
 - Nouveau : tests/test_suite113.js (8 vérifications), ordinateur et téléphone.
 - Suites 91, 92, 103 : positions attendues calculées à partir des hauteurs réelles des bulles.
 - Suites 62 et 95 : le nouveau réglage apparaît dans la page Affichage et dans le panneau.
+
+## 227. Round du 29.09.2026 (suite 114) — Menus du clic droit
+- Lionel : « clic droit souris doit faire apparaitre un menu déroulant, différent suivant la zone ou il se situe. * sur un nom, déjà actif * sur une case, ajout, couper/copier/coller * sur une bulle, couper/copier/coller * d'autres propositions? »
+- Clic droit sur une case :
+  - cases de personne : le menu « Ajouter » (Tâche, Absence, entrées rapides, « Coller » si quelque chose a été copié) ;
+  - lignes Jalons et Notes : « Jalon… » ou « Note… », et « Coller » ;
+  - avec des bulles sélectionnées : en plus, « Couper la sélection » et « Copier la sélection ».
+- Clic droit sur une bulle :
+  - la bulle est sélectionnée, sauf si elle fait déjà partie de la sélection, auquel cas le menu vaut pour toute la sélection ;
+  - propositions : « Modifier… » (bulle seule), Couper, Copier, « Coller ici », Supprimer.
+- Clic droit sur un nom : inchangé.
+- Le menu s'ouvre au relâchement du bouton, dans les deux modes. En mode sélection, clic droit + glisser sur les cases sélectionne toujours une zone.
+- Page Raccourcis : 2 gestes « Clic droit » ajoutés.
+
+### Tests
+- Nouveau : tests/test_suite114.js (11 vérifications).
+- Suites 61 et 64 : 2 gestes de souris de plus.
