@@ -36,11 +36,12 @@ const { ouvrirPlanning, verificateur, glisserDoigt } = require('./aide_tests');
   verifier(await index() === avant1, 'sélection multi-jours en cours : la semaine NE change PAS (' + avant1 + ' → ' + await index() + ')');
   await page.evaluate(() => document.body.classList.remove('en-glissement'));
 
-  // 2. Même geste sans sélection (simple panoramique) : semaine suivante.
+  // 2. Même geste sans sélection : suite 121 (« glisser sur le vide =
+  // défiler, jamais autre chose »), la semaine ne change pas non plus.
   await auBordDeFin();
   const avant2 = await index();
   await glisserDoigt(page, 790, 100, 400);
-  verifier(await index() === avant2 + 1, 'sans sélection : le même geste passe à la semaine suivante (' + avant2 + ' → ' + await index() + ')');
+  verifier(await index() === avant2, 'sans sélection : le même geste garde la semaine (suite 121) (' + avant2 + ' → ' + await index() + ')');
 
   await browser.close();
   process.exit(bilan(erreurs));

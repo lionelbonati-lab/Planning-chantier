@@ -3591,16 +3591,21 @@
   html[data-aff-noms="petit"] { --aff-t-noms: .85; }
   html[data-aff-noms="grand"] { --aff-t-noms: 1.15; }
   html[data-aff-noms="tresgrand"] { --aff-t-noms: 1.3; }
-  /* Case de gauche (suite 67) : mois, puis année dessous. */
-  .coin-mois, .coin-annee { display: block; }
-  .coin-annee { color: var(--ink-faint); }
-  .coin-mois + .coin-annee { margin-top: 1px; }
+  /* Case de gauche (suite 67) : mois, puis année dessous.
+     Round du 29.09.2026 (suite 121) — Lionel : « en impression, la case
+     de l'année est décalée ». La case « 2026 » de l'impression est un
+     <th class="coin-annee"> : ces règles du planning la passaient en
+     display:block (hors du tableau) et lui donnaient les gras / italique /
+     taille de l'écran. Limitées aux <span> du planning et de l'aperçu. */
+  span.coin-mois, span.coin-annee { display: block; }
+  span.coin-annee { color: var(--ink-faint); }
+  span.coin-mois + span.coin-annee { margin-top: 1px; }
   /* Suite 83 : gras / italique / taille du mois et de l'année (page
-     Affichage, « Case de gauche »), comme les lignes des jours. */
-  .coin-mois { font-size: calc(1em * var(--aff-t-mois, 1)); }
-  .coin-annee { font-size: calc(1em * var(--aff-t-annee, 1)); }
-  html[data-aff-mois-gras="non"] .coin-mois, html[data-aff-annee-gras="non"] .coin-annee { font-weight: 400; }
-  html[data-aff-mois-italique="oui"] .coin-mois, html[data-aff-annee-italique="oui"] .coin-annee { font-style: italic; }
+     Affichage, « Case de gauche »), comme les lignes des jours. */
+  span.coin-mois { font-size: calc(1em * var(--aff-t-mois, 1)); }
+  span.coin-annee { font-size: calc(1em * var(--aff-t-annee, 1)); }
+  html[data-aff-mois-gras="non"] span.coin-mois, html[data-aff-annee-gras="non"] span.coin-annee { font-weight: 400; }
+  html[data-aff-mois-italique="oui"] span.coin-mois, html[data-aff-annee-italique="oui"] span.coin-annee { font-style: italic; }
   /* Icônes G / I / tailles à côté du nom d'une ligne « Dates » (suite 67). */
   .reglage-texte .reglage-nom { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; font-size: inherit; color: inherit; }
   .reglage-texte .icones-style, .reglage-texte .style-tailles { display: inline-flex; align-items: center; gap: 1px; font-size: inherit; color: inherit; line-height: 1; }
@@ -3657,6 +3662,13 @@
     .affichage-options { flex: 0 1 540px; min-width: 0; }
     .affichage-apercu-bloc { flex: 1 1 520px; max-width: 640px; top: 12px; padding: 0; margin-top: 22px; }
   }
+  /* Suite 121 : l'aperçu a les hauteurs de lignes réelles (jusqu'à
+     400 px au téléphone) ; collé au-dessus des réglages, il est limité à
+     40 % de l'écran et défile dans son cadre, pour laisser les réglages
+     visibles. */
+  @media (max-width: 999.98px) {
+    #apercuAffichage { max-height: 40vh; max-height: 40dvh; overflow-y: auto; }
+  }
 
   /* Aperçu : un petit planning d'exemple (Jeu, Ven, [Sam, Dim], Lun, Mar).
      L'espace entre semaines est fait des mêmes pièces .sep-semaines que le
@@ -3684,9 +3696,15 @@
   .aa-demi.aa-aprem { background: color-mix(in srgb, var(--surface) 92%, var(--ink-faint)); }
   .aa-cell.aa-aprem { background: color-mix(in srgb, var(--surface-2) 88%, var(--ink-faint)); }
   .aa-nom { background: var(--surface); font-weight: 700; font-size: calc(12px * var(--aff-t-noms, 1)); display: flex; align-items: center; padding: 0 8px; overflow: hidden; }
-  .aa-cell { background: var(--surface-2); min-height: 52px; }
+  .aa-cell { background: var(--surface-2); min-height: 0; }
+  /* Suite 121 : lignes Jalons et Notes de l'aperçu, bulles empilées. */
+  .aa-nom.aa-nom-jal { font-size: calc(10px * var(--aff-t-noms, 1)); font-weight: 600; color: var(--ink-muted); }
   .aa-th.aa-we, .aa-cell.aa-we, .aa-demi.aa-we { background-color: var(--weekend-bg); }
-  .aa-bulle { position: relative; z-index: 1; align-self: center; margin: 4px 3px; min-width: 0; }
+  .aa-bulle { position: relative; z-index: 1; align-self: stretch; margin: 0 3px; padding: var(--aa-espace, 3px) 0; min-width: 0; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: var(--aa-espace, 3px); }
+  .aa-bulle > .aa-carte { flex: none; }
+  .aa-bulle-jal { justify-content: center; padding: 2px 0; }
+  .aa-bulle-jal .aa-carte { padding-top: 2px; padding-bottom: 2px; border-radius: 6px; color: var(--ink); }
+  .aa-grille .aa-bulle-jal .aa-txt { -webkit-line-clamp: var(--aa-lignes-jal, 1); line-clamp: var(--aa-lignes-jal, 1); }
   .aa-carte { display: flex; flex-direction: column; gap: 1px; border-radius: 9px; padding: 6px 8px; box-shadow: 0 1px 2px var(--shadow); color: var(--bubble-ink); min-width: 0; }
   .aa-txt { font-size: 12px; font-weight: 600; line-height: 1.25; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
   .aa-statut { align-self: flex-start; display: inline-flex; align-items: center; gap: 4px; font-family: var(--police-mono); font-size: 8.5px; font-weight: 600; text-transform: uppercase; padding: 1px 6px 1px 5px; border-radius: 999px; background: var(--status-confirme-bg); color: var(--ink); }
