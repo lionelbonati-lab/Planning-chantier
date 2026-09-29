@@ -147,6 +147,12 @@
     { id: "hauteurLigneTel", groupe: "Planning", nom: "Hauteur des lignes", aide: "Une ligne de personne, en pixels. Des bulles qui n’y tiennent pas se chevauchent en cascade.", curseur: [30, 240, 1], unite: "px", defaut: "89", profil: "tel" },
     { id: "hauteurJalOrdi", groupe: "Planning", nom: "Hauteur Jalons et Notes", aide: "Les lignes Jalons et Notes, en pixels.", curseur: [20, 120, 1], unite: "px", defaut: "32", profil: "ordi" },
     { id: "hauteurJalTel", groupe: "Planning", nom: "Hauteur Jalons et Notes", aide: "Les lignes Jalons et Notes, en pixels.", curseur: [20, 120, 1], unite: "px", defaut: "32", profil: "tel" },
+    // Round du 29.09.2026 (suite 113). Lionel : « ajoute un réglage qui
+    // permet d'adapter l'espace qu'on souhaite entre chaque bulles et fond
+    // de case » (margeBulles_, js/grille-hauteurs.js). 3 px : l'espace
+    // d'avant.
+    { id: "espaceBullesOrdi", groupe: "Planning", nom: "Espace entre les bulles", aide: "Au-dessus, entre et sous les bulles d’une case, en pixels.", curseur: [0, 20, 1], unite: "px", defaut: "3", profil: "ordi" },
+    { id: "espaceBullesTel", groupe: "Planning", nom: "Espace entre les bulles", aide: "Au-dessus, entre et sous les bulles d’une case, en pixels.", curseur: [0, 20, 1], unite: "px", defaut: "3", profil: "tel" },
     { id: "jourSemaine", groupe: "Dates", nom: "Jour de la semaine", choix: [["abrege", "Jeu"], ["complet", "Jeudi"], ["initiale", "J"], ["masque", "Masqué"]], defaut: "abrege" },
     { id: "formatDate", groupe: "Dates", nom: "Date", choix: [["numero", "24"], ["chiffres", "24.09"], ["abrege", "24 sept."], ["complet", "24 septembre"]], defaut: "numero" },
     { id: "heures", groupe: "Dates", nom: "Heures de travail", aide: "La durée du jour (8.75 h) sous la date, d’après la page Horaires.", interrupteur: true, defaut: "oui" },
@@ -763,7 +769,8 @@
       // bulles par personne.
       // Suite 101 : hauteurs en pixels ; les lignes de texte (des bulles)
       // restent au panneau, sans plus changer la hauteur des lignes.
-      var ids = profil === "ordi" ? ["hauteurLigneOrdi", "hauteurJalOrdi", "lignes", "lignesJal"] : ["hauteurLigneTel", "hauteurJalTel", "lignes", "lignesJal"];
+      // Suite 113 : « Espace entre les bulles » après les hauteurs.
+      var ids = profil === "ordi" ? ["hauteurLigneOrdi", "hauteurJalOrdi", "espaceBullesOrdi", "lignes", "lignesJal"] : ["hauteurLigneTel", "hauteurJalTel", "espaceBullesTel", "lignes", "lignesJal"];
       p.innerHTML = '<div class="outil-menu-titre">Hauteur des lignes</div>' +
         ids.map(function (id) { return htmlLigneOption_(optionAffichageParId_(id)); }).join("") +
         // Suite 103 : lignes réglées à part (trait sous le nom) — toutes

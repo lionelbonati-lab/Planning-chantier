@@ -10670,3 +10670,19 @@ Lionel :
 - Nouveau : tests/test_suite112.js (9 vérifications), ordinateur et téléphone.
 - Suites 102, 107, 109, 111 : l'interrupteur est #btnModeAjout.
 - test_toolbar_chevauchement : #groupeModeAjout dans l'ordre de repli et dans le menu « ⋮ ».
+
+## 226. Round du 29.09.2026 (suite 113) — Espace entre les bulles
+- Lionel : « L'espace sous les bulles est trop grand. ajoute un réglage qui permet d'adapter l'espace qu'on souhaite entre chaque bulles et fond de case »
+- Cause : dans une case, chaque bulle occupait la place d'une carte pleine (« Lignes de texte » + statut), même quand son texte tenait sur une ligne, d'où un grand vide sous les bulles courtes.
+- Les bulles s'empilent maintenant à leur hauteur réelle. Quand elles ne tiennent pas dans la ligne, la cascade est comme avant, la dernière calée au bas de la ligne.
+- Nouveau réglage « Espace entre les bulles », en pixels de 0 à 20 (3 par défaut, l'espace d'avant) :
+  - s'applique au-dessus, entre et sous les bulles d'une case ;
+  - un réglage pour l'ordinateur, un pour le téléphone ;
+  - réglable sur la page Affichage (groupe Planning) et dans le panneau « Hauteur des lignes » de la barre ;
+  - effet immédiat, sans reconstruire la grille.
+- « Ajuster au contenu » (double-clic sur le trait sous un nom) suit la hauteur réelle de la pile.
+
+### Tests
+- Nouveau : tests/test_suite113.js (8 vérifications), ordinateur et téléphone.
+- Suites 91, 92, 103 : positions attendues calculées à partir des hauteurs réelles des bulles.
+- Suites 62 et 95 : le nouveau réglage apparaît dans la page Affichage et dans le panneau.

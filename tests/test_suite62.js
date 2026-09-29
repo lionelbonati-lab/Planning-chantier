@@ -90,8 +90,8 @@ const style = (page, sel, prop) => page.evaluate(([s, p]) => { const e = documen
     // Suite 101 — Lionel : « hauteur de ligne doit etre ranger dans
     // planning […] réglage maintenant en pixels. » Hauteurs en pixels à la
     // fin de Planning ; lignes de texte (bulles, Jalons et Notes) dans Bulles.
-    verifier(page0.options === 'weekends,separation,auj,teinte,zebre,noms,cadre,hauteurLigneOrdi,hauteurLigneTel,hauteurJalOrdi,hauteurJalTel,jourSemaine,formatDate,heures,ligneDemi,coinMois,coinAnnee,lignes,lignesJal,texte,statut,coins,police,vueOrdi,vueTel',
-      'page Affichage : les 25 réglages (suite 101 : hauteurs en pixels dans Planning) (suite 95 : rangés par sujet) (suite 92 : curseurs de l\'ordinateur) (suite 91 : hauteurs des lignes du téléphone) (suite 83 : mois et année de la case de gauche) (bords : suite 74, dans la barre d\'outils depuis la suite 79) (' + page0.options + ')');
+    verifier(page0.options === 'weekends,separation,auj,teinte,zebre,noms,cadre,hauteurLigneOrdi,hauteurLigneTel,hauteurJalOrdi,hauteurJalTel,espaceBullesOrdi,espaceBullesTel,jourSemaine,formatDate,heures,ligneDemi,coinMois,coinAnnee,lignes,lignesJal,texte,statut,coins,police,vueOrdi,vueTel',
+      'page Affichage : les 27 réglages (suite 113 : espace entre les bulles) (suite 101 : hauteurs en pixels dans Planning) (suite 95 : rangés par sujet) (suite 92 : curseurs de l\'ordinateur) (suite 91 : hauteurs des lignes du téléphone) (suite 83 : mois et année de la case de gauche) (bords : suite 74, dans la barre d\'outils depuis la suite 79) (' + page0.options + ')');
     // Suite 95 : dans le nouvel ordre de la page.
     verifier(page0.actifs === 'teinte=aprem,noms=normal,jourSemaine=abrege,formatDate=numero,ligneDemi=horaires,coinMois=abrege,coinAnnee=complete,lignes=2,lignesJal=1,texte=normal,statut=badge,police=archivo,vueOrdi=1,vueTel=jour' && page0.inter === 'separation,cadre,coins' && !page0.we && page0.statut && page0.reset,
       'valeurs d\'origine affichées, « Tout rétablir » caché (' + page0.actifs + ')');

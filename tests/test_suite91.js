@@ -69,7 +69,7 @@ const releve = (page) => page.evaluate(() => {
   };
 });
 const vue = (c) => c.find((x) => x.vu) || c[0];
-const M = 3; // MARGE_MOB_ (grille-rendu.js)
+const M = 3; // margeBulles_(), « Espace entre les bulles » par défaut (suite 113)
 
 (async () => {
   const browser = await lancerNavigateur(chromium);
@@ -156,11 +156,14 @@ const M = 3; // MARGE_MOB_ (grille-rendu.js)
       await page.evaluate((px) => changerOptionAffichage('hauteurLigneTel', px), String(formule(+n, u0)));
       await page.waitForTimeout(400);
       const q = await releve(page);
-      par[n] = { H: q.H, ligne: q.lignes.Mathis.hauteur, u: q.u, B: vue(q.cartes.B).h - q.lignes.Mathis.h, W: vue(q.cartes.W).h - q.lignes.Antoine.h };
+      par[n] = { H: q.H, ligne: q.lignes.Mathis.hauteur, u: q.u, B: vue(q.cartes.B).h - q.lignes.Mathis.h, W: vue(q.cartes.W).h - q.lignes.Antoine.h,
+        Ab: vue(q.cartes.A).b - q.lignes.Mathis.h, Zb: vue(q.cartes.Z).b - q.lignes.Antoine.h };
     }
     verifier(['1', '2', '3', '4'].every((n) => Math.abs(par[n].H - formule(+n, par[n].u)) < 0.5 && Math.abs(par[n].ligne - par[n].H) <= 1) && par['1'].H < par['2'].H && par['2'].H < par['3'].H && par['3'].H < par['4'].H,
       '« Hauteur des lignes » 1 à 4 bulles : ' + ['1', '2', '3', '4'].map((n) => par[n].ligne).join(' / ') + ' px');
-    verifier(par['1'].B === M + 20 && par['2'].B === M + par['2'].u + M && par['4'].W === M + 3 * (par['4'].u + M),
+    // Suite 113 : les bulles s'empilent à leur hauteur réelle — B à M px
+    // sous le bas de A, W sous le bas de Z (avant : une carte pleine U).
+    verifier(par['1'].B === M + 20 && Math.abs(par['2'].B - (par['2'].Ab + M)) <= 1 && Math.abs(par['4'].W - (par['4'].Zb + M)) <= 1,
       'cascade selon le réglage : 1 bulle → B décalée de 20 px ; 2 → B sous A ; 4 → les 4 d\'Antoine l\'une sous l\'autre (' + [par['1'].B, par['2'].B, par['4'].W].join(', ') + ')');
     await page.evaluate(() => changerOptionAffichage('hauteurLigneTel', '89'));
     // Suite 101 : « jalonsTel » (bulles x lignes) remplacé par la hauteur en
