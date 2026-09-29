@@ -10598,3 +10598,18 @@ Lionel :
 ### Tests
 - Suites 33, 103, 104, 105 : gestes adaptés ; suites 61 et 64 : 4 gestes souris de plus.
 - Suite complète : 110/110.
+
+
+## 220. Round du 29.09.2026 (suite 107) — Mode ajout : bulles transparentes, clic sur la case
+- Lionel : « En mode ajout, les bulles seront légèrement visibles, transparentes et insélectionnables afin de pouvoir cliquer sur une case sans cliquer sur la bulle. »
+- « + » appuyé (mode ajout) : les bulles sont transparentes (30 %) et le pointeur les traverse.
+  - Un clic (ou un appui long au doigt) sur une bulle ouvre l'ajout dans la case qui est dessous.
+  - Un glisser commencé sur une bulle ajoute sur la plage, comme sur une case vide.
+- Passer en mode ajout défait la sélection en cours.
+- Mode sélection (« + » relâché) : rien ne change.
+- Le glisser au clic droit sélectionne toujours une zone, dans les 2 modes (suite 102).
+
+### Tests
+- Nouveau : tests/test_suite107.js (7 vérifications), ordinateur et téléphone.
+- Les tests démarrent désormais en mode sélection (tests/aide_tests.js) ; la suite 33 passe en mode ajout pour ajouter par une case vide.
+- Suite complète : 111/111.

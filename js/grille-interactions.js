@@ -1636,6 +1636,10 @@
     modeAjoutPlanning = !!actif;
     try { localStorage.setItem("planning.modeAjout", modeAjoutPlanning ? "1" : "0"); } catch (e) {}
     majBoutonModeAjout();
+    // Suite 107 : en mode ajout, les bulles ne se sélectionnent plus
+    // (transparentes, clic sur la case dessous) — la sélection en cours
+    // est défaite.
+    if (modeAjoutPlanning && (Object.keys(bullesSelectionnees).length || modeSelectionMultiple)) { quitterModeSelection(); render(false); }
   }
   function majBoutonModeAjout() {
     document.body.classList.toggle("planning-mode-ajout", modeAjoutPlanning);

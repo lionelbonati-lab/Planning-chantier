@@ -70,7 +70,9 @@ const etiquettes = (page) => page.evaluate(() => [...document.querySelectorAll('
 
   // --- 2. Planning : ligne d'équipe, membres repliés, ordre ---
   {
-    const { page, erreurs } = await ouvrirPlanning(browser, { bd: BD });
+    // Suite 107 : les tests démarrent en mode sélection ; celui-ci clique une
+    // case vide pour AJOUTER : mode ajout (« + » appuyé).
+    const { page, erreurs } = await ouvrirPlanning(browser, { bd: BD, localStorage: { 'planning.modeAjout': '1' } });
     let e = await etiquettes(page);
     verifier(e.join(' | ') === 'E:Équipe A | M:Luc | E:Équipe B | Lionel | Pierre | Électricien',
       'repliées : chaque équipe en tête, seul Luc (absent mardi) visible sous A, Marc/Paul/Jean cachés (' + e.join(' | ') + ')');

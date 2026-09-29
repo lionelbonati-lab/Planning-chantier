@@ -1345,6 +1345,11 @@
      ajout (body.planning-mode-ajout, cf. majBoutonModeAjout). */
   .cell { cursor: cell; }
   .planning-mode-ajout .cell { cursor: copy; }
+  /* Suite 107 — Lionel : « En mode ajout, les bulles seront légèrement
+     visibles, transparentes et insélectionnables afin de pouvoir cliquer sur
+     une case sans cliquer sur la bulle. » Le clic passe à la case dessous. */
+  .planning-mode-ajout #racine .bulle, .planning-mode-ajout #racine .pastille-cachees { opacity: .3; }
+  .planning-mode-ajout #racine :is(.bulle, .bulle *, .pastille-cachees, .pastille-cachees *) { pointer-events: none !important; }
   .cell.cell-interdite { box-shadow: inset 0 0 0 2px var(--avertissement-ink); background: var(--avertissement-bg); }
   #selection-overlay {
     position: fixed; display: none; pointer-events: none; z-index: 60;
