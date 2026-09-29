@@ -1330,13 +1330,13 @@
         gabarit += " repeat(" + (5 * colsParJour()) + ", minmax(" + largeurColJour + "px, 1fr))";
         if (afficherWeekends) gabarit += " repeat(2, minmax(" + largeurVisibleJour + "px, 1fr))";
       } else {
-        gabarit += " repeat(" + (5 * colsParJour()) + ", minmax(" + largeurMin + "px, 1fr))";
-        if (afficherWeekends) gabarit += " repeat(2, 46px)";
+        // Suite 117 : chaque jour à sa largeur (largeursJours_).
+        gabarit += gabaritSemaineJours_(largeurMin);
       }
     }
     var largeurMiniTotale = enModeJourMobile
       ? (LN + nbSemainesAffichees * (5 * colsParJour() * largeurColJour + (afficherWeekends ? 2 * largeurVisibleJour : 0))) + "px"
-      : (LN + nbSemainesAffichees * (5 * colsParJour() * largeurMin + (afficherWeekends ? 2 * 46 : 0))) + "px";
+      : (LN + nbSemainesAffichees * (5 * colsParJour() * largeurMin + (afficherWeekends ? largeurWeekEnd_(5) + largeurWeekEnd_(6) : 0))) + "px";
     grilleEntete.style.gridTemplateColumns = gabarit;
     grilleEntete.style.minWidth = largeurMiniTotale;
     grilleCorps.style.gridTemplateColumns = gabarit;
@@ -1485,6 +1485,7 @@
       } else {
         th.innerHTML = nomJourHTML_(entete.nom) + dateHTML;
       }
+      if (!enModeJourMobile) ajouterPoigneeJour_(th);
       poser(th, colonneGrille(gi), row, colsParJour());
       if (afficherWeekends && (gi + 1) % 5 === 0) {
         var semIdxTh = Math.floor(gi / 5);
@@ -1495,6 +1496,7 @@
           thWE.dataset.gi = giWE;
           var infoWE = libelleJourGi(giWE), enteteWE = enteteJourAffichage(isoDeGi(giWE), infoWE.jour);
           thWE.innerHTML = nomJourHTML_(enteteWE.nom) + '<span class="th-date">' + htmlDateWeekEnd(enteteWE.date) + "</span>";
+          if (!enModeJourMobile) ajouterPoigneeJour_(thWE);
           poser(thWE, colonneGrille(giWE), row);
         });
       }

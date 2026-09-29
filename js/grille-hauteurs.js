@@ -268,9 +268,9 @@
   // reçoit sa poignée (trait du bas, cf. cablerHauteurLigne_).
   function poserPistesFixes_(G) {
     var grilleEntete = G.grilleEntete, grilleCorps = G.grilleCorps;
-    var perso = hauteursLignesPerso_();
+    var perso = hauteursLignesPerso_(), repliees = lignesRepliees_();
     [grilleEntete, grilleCorps].forEach(function (g) {
-      var nb = 0, fixes = {}, hPerso = {};
+      var nb = 0, fixes = {}, hPerso = {}, rangsReplies = {};
       [].forEach.call(g.children, function (el) {
         // Suite 105 : lignes et jours choisis gardent leur marque au rendu.
         if (el.dataset.ligne) el.classList.toggle("ligne-choisie", lignesChoisies_.indexOf(el.dataset.ligne) >= 0);
@@ -284,6 +284,12 @@
         if (!id) return;
         if (perso[id] > 0) hPerso[r[0]] = perso[id];
         el.classList.toggle("ligne-perso", perso[id] > 0);
+        // Suite 116 : ligne repliée.
+        var repliee = repliees.indexOf(id) >= 0;
+        if (repliee) { rangsReplies[r[0]] = true; if (el.dataset.titreNormal == null) el.dataset.titreNormal = el.title || ""; }
+        el.classList.toggle("ligne-repliee", repliee);
+        if (repliee) el.title = "Ligne repliée — clic : la déplier";
+        else if (el.dataset.titreNormal != null) { el.title = el.dataset.titreNormal; delete el.dataset.titreNormal; }
         if (!el.querySelector(":scope > .poignee-ligne")) {
           var pg = document.createElement("span");
           pg.className = "poignee-ligne";
@@ -291,11 +297,17 @@
           el.appendChild(pg);
         }
       });
+      [].forEach.call(g.children, function (el) {
+        if (el.dataset.ligne) return;
+        var r = plageGrille_(el.style.gridRow);
+        el.classList.toggle("en-ligne-repliee", !!(r && rangsReplies[r[0]]));
+      });
       var t = [];
-      for (var i = 1; i <= nb; i++) t.push(!fixes[i] ? "auto" : hPerso[i] ? hPerso[i] + "px" : "var(--mob-h-" + fixes[i] + ")");
+      for (var i = 1; i <= nb; i++) t.push(!fixes[i] ? "auto" : rangsReplies[i] ? HAUTEUR_REPLIEE_ + "px" : hPerso[i] ? hPerso[i] + "px" : "var(--mob-h-" + fixes[i] + ")");
       g.style.gridTemplateRows = t.join(" ");
       g._lignesMob = fixes;
       g._hLignesMob = hPerso;
+      g._lignesRepliees = rangsReplies;
     });
   }
   // Cascade : pour chaque ligne (une personne, Jalons, Notes) et chaque
@@ -358,7 +370,7 @@
       [].forEach.call(g.children, function (b) {
         if (!b.classList.contains("bulle") || b.classList.contains("bulle-sonde")) return;
         var r = plageGrille_(b.style.gridRow);
-        if (!r || !lignes[r[0]]) return;
+        if (!r || !lignes[r[0]] || (g._lignesRepliees || {})[r[0]]) return;
         (parLigne[r[0]] = parLigne[r[0]] || []).push(b);
       });
       g._nMaxLignes = {};
@@ -526,6 +538,29 @@
     appliquerHauteursLignes_();
     if (typeof majPanneauHauteurs === "function") majPanneauHauteurs();
   }
+  /* Replier une ligne (round du 29.09.2026, suite 116) — Lionel, sur
+     notre liste d'idées façon tableur : « Continue avec replier les lignes
+     et la largeur des jours ». Une ligne (personne, équipe, Jalons, Notes)
+     se replie en fine bande de HAUTEUR_REPLIEE_ px : son nom sur une
+     ligne, ses bulles cachées — pour mettre de côté quelqu'un d'absent sans
+     le retirer. Menu du nom (clic droit, appui long) : « Replier la
+     ligne » (les lignes choisies ensemble), « Déplier toutes les lignes » ;
+     un clic (toucher) sur le nom d'une ligne repliée la déplie. Retenu par
+     l'appareil, comme les hauteurs (ordinateur/tablette, téléphone). */
+  var HAUTEUR_REPLIEE_ = 18;
+  function cleLignesRepliees_() { return profilAppareil_() === "tel" ? "planning.lignesRepliees.tel" : "planning.lignesRepliees"; }
+  function lignesRepliees_() {
+    try {
+      var l = JSON.parse(localStorage.getItem(cleLignesRepliees_()) || "[]");
+      return Array.isArray(l) ? l : [];
+    } catch (e) { return []; }
+  }
+  function replierLignes(ids, replier) {
+    var l = lignesRepliees_().filter(function (id) { return ids.indexOf(id) < 0; });
+    if (replier) l = l.concat(ids);
+    try { localStorage.setItem(cleLignesRepliees_(), JSON.stringify(l)); } catch (e) {}
+    appliquerHauteursLignes_();
+  }
   // Pistes et cascade refaites sur place, sans nouveau rendu.
   function appliquerHauteursLignes_() {
     var G = grilleCourante_;
@@ -654,6 +689,8 @@
     var double = e.detail >= 2 || (tactile && dernierToucherNom_.id === id && t - dernierToucherNom_.t < 400);
     dernierToucherNom_ = double ? { id: null, t: -1e9 } : { id: id, t: t };
     if (double && !e.ctrlKey && !e.metaKey && !e.shiftKey) { modifierNomLigne_(lbl); return; }
+    // Suite 116 : clic simple sur une ligne repliée = la déplier.
+    if (lbl.classList.contains("ligne-repliee") && !e.ctrlKey && !e.metaKey && !e.shiftKey) { replierLignes([id], false); return; }
     // Round du 29.09.2026 (suite 109). Lionel : « la sélection en mode ajout
     // est encore possible en appuyant sur les en-têtes de colonnes et de
     // lignes, ainsi qu'en clic droit avec la souris ». En mode ajout, un nom
@@ -826,6 +863,8 @@
     var ids = lignesDuGeste_(id), groupe = ids.length > 1, choisie = lignesChoisies_.indexOf(id) >= 0;
     var reglages = hauteursLignesPerso_();
     var perso = ids.some(function (i) { return reglages[i] > 0; });
+    var repliees = lignesRepliees_(), toutesRepliees = ids.every(function (i) { return repliees.indexOf(i) >= 0; });
+    var autresRepliees = repliees.some(function (i) { return ids.indexOf(i) < 0; });
     var pop = document.createElement("div");
     pop.className = "pop menu-pop menu-hauteur-ligne";
     // Suite 104 : en tête, modifier le nom (et la composition d'une équipe).
@@ -844,7 +883,11 @@
       '<div class="mhl-valeur"><input type="number" inputmode="numeric" min="' + HAUTEUR_LIGNE_MIN_ + '" max="' + HAUTEUR_LIGNE_MAX_ + '" step="1" value="' + Math.round(lbl.offsetHeight) + '" aria-label="Hauteur en pixels"><span>px</span>' +
       '<button type="button" class="btn-primaire" data-a="ok">OK</button></div>' +
       '<button type="button" data-a="contenu">Ajuster au contenu</button>' +
-      '<button type="button" data-a="defaut"' + (perso ? '' : ' disabled') + '>Hauteur par défaut</button>';
+      '<button type="button" data-a="defaut"' + (perso ? '' : ' disabled') + '>Hauteur par défaut</button>' +
+      // Suite 116 : replier / déplier.
+      '<div class="mc-sep"></div>' +
+      '<button type="button" data-a="replier">' + (toutesRepliees ? "Déplier " : "Replier ") + (groupe ? "les " + ids.length + " lignes" : "la ligne") + '</button>' +
+      (autresRepliees ? '<button type="button" data-a="toutDeplier">Déplier toutes les lignes (' + repliees.length + ')</button>' : '');
     positionnerPop(pop, x, y);
     var fermer = fermerAuClicExterieur(pop);
     // Suite 105 : fermer le menu vide la sélection (fermerAuClicExterieur) ;
@@ -867,6 +910,9 @@
     pop.querySelector('[data-a="ok"]').addEventListener("click", valider);
     pop.querySelector('[data-a="contenu"]').addEventListener("click", function () { fermerGarde(); ajusterLignesAuContenu_(ids); });
     pop.querySelector('[data-a="defaut"]').addEventListener("click", function () { fermerGarde(); changerHauteursLignes(ids, null); });
+    pop.querySelector('[data-a="replier"]').addEventListener("click", function () { fermerGarde(); replierLignes(ids, !toutesRepliees); });
+    var bTout = pop.querySelector('[data-a="toutDeplier"]');
+    if (bTout) bTout.addEventListener("click", function () { fermerGarde(); replierLignes(repliees, false); });
     var bCh = pop.querySelector('[data-a="choix"]');
     if (bCh) bCh.addEventListener("click", function () { fermer(); choisirLigne_(id, choisie ? "basculer" : "seul"); });
     var bNom = pop.querySelector('[data-a="nom"]'), bCompo = pop.querySelector('[data-a="composition"]');
