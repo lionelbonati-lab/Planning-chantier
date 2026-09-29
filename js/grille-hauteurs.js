@@ -856,6 +856,19 @@
     else choisirJour_(iso, "seul");
   });
 
+  // Suite 119 — menu du nom d'une équipe : « Couleur de l'équipe », une
+  // rangée de pastilles (COULEURS_EQUIPES), le sélecteur du système pour
+  // toute autre couleur (pastille arc-en-ciel), et ↺ (couleur par défaut) quand elle en a une.
+  function htmlCouleurEquipe_(idEquipe) {
+    var c = couleurEquipe(idEquipe);
+    return '<div class="mc-sep"></div><div class="cp-titre">Couleur de l’équipe</div><div class="mc-couleurs">' +
+      COULEURS_EQUIPES.map(function (k) {
+        return '<button type="button" class="mc-pastille' + (k === c ? ' active' : '') + '" data-couleur="' + k + '" style="background:' + k + '" title="' + k + '" aria-label="Couleur ' + k + '"></button>';
+      }).join("") +
+      '<label class="mc-pastille mc-autre" title="Autre couleur"><input type="color" value="' + hexPastille(c || "#9e9e9e") + '" aria-label="Autre couleur"></label>' +
+      (c ? '<button type="button" class="mc-pastille mc-defaut" data-couleur="" title="Couleur par défaut" aria-label="Couleur par défaut">↺</button>' : '') +
+      '</div><div class="mc-sep"></div>';
+  }
   function ouvrirMenuHauteurLigne(lbl, x, y) {
     var id = lbl.dataset.ligne;
     var nom = (lbl.querySelector("b") || lbl).textContent.trim() || lbl.title;
@@ -878,7 +891,7 @@
     pop.innerHTML = (groupe ? '<div class="cp-titre">' + ids.length + ' lignes sélectionnées</div>' + bChoix :
       idP != null ? '<div class="cp-titre">' + esc(nom) + '</div>' +
       '<button type="button" data-a="nom">Modifier le nom…</button>' +
-      (equipe ? '<button type="button" data-a="composition">Composition de l’équipe…</button>' : '') + bChoix + bOrdre : bChoix) +
+      (equipe ? '<button type="button" data-a="composition">Composition de l’équipe…</button>' + htmlCouleurEquipe_(idP) : '') + bChoix + bOrdre : bChoix) +
       '<div class="cp-titre">' + (groupe ? 'Hauteur des ' + ids.length + ' lignes' : 'Hauteur de la ligne' + (idP != null ? '' : ' — ' + esc(nom))) + '</div>' +
       '<div class="mhl-valeur"><input type="number" inputmode="numeric" min="' + HAUTEUR_LIGNE_MIN_ + '" max="' + HAUTEUR_LIGNE_MAX_ + '" step="1" value="' + Math.round(lbl.offsetHeight) + '" aria-label="Hauteur en pixels"><span>px</span>' +
       '<button type="button" class="btn-primaire" data-a="ok">OK</button></div>' +
@@ -899,7 +912,7 @@
       bullesSelectionnees = b; lignesChoisies_ = l; joursChoisis_ = j; modeSelectionMultiple = m; ancreLigne_ = al; ancreJour_ = aj;
       render(false); majBarreSelection(); majClassesChoix_();
     }
-    var champ = pop.querySelector("input");
+    var champ = pop.querySelector(".mhl-valeur input");
     function valider() {
       var v = parseFloat(champ.value);
       if (!isFinite(v)) return;
@@ -918,6 +931,12 @@
     var bNom = pop.querySelector('[data-a="nom"]'), bCompo = pop.querySelector('[data-a="composition"]');
     if (bNom) bNom.addEventListener("click", function () { fermer(); modifierNomLigne_(lbl); });
     if (bCompo) bCompo.addEventListener("click", function () { fermer(); ouvrirCompositionEquipe(idP); });
+    // Suite 119 : couleur de l'équipe.
+    pop.querySelectorAll(".mc-couleurs [data-couleur]").forEach(function (b) {
+      b.addEventListener("click", function () { fermerGarde(); changerCouleurEquipe(idP, b.dataset.couleur || null); });
+    });
+    var pCouleur = pop.querySelector(".mc-couleurs input");
+    if (pCouleur) pCouleur.addEventListener("change", function () { fermerGarde(); changerCouleurEquipe(idP, pCouleur.value); });
     var bMonter = pop.querySelector('[data-a="monter"]'), bDescendre = pop.querySelector('[data-a="descendre"]');
     if (bMonter) bMonter.addEventListener("click", function () { fermer(); deplacerPersonneLigne(idP, idPersonneLigne_(voisins[rang - 1]), false); });
     if (bDescendre) bDescendre.addEventListener("click", function () { fermer(); deplacerPersonneLigne(idP, idPersonneLigne_(voisins[rang + 1]), true); });

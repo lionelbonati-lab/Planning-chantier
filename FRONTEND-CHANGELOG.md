@@ -10761,3 +10761,15 @@ Lionel :
 
 ### Tests
 - Nouveau : tests/test_suite118.js (6 vérifications).
+
+## 232. Round du 29.09.2026 (suite 119) — Couleur des équipes
+- Lionel : « mettre une couleur sur l'équipe, je vois qu'il y a une bordure grise, il serait bien de pouvoir choisir sa couleur par équipe ».
+- Chaque équipe peut avoir sa couleur : la bande à gauche de son nom la prend, et ses membres ont la même bande en plus pâle.
+- Où la choisir :
+  - menu du nom de l'équipe (clic droit, ou appui long au doigt) : « Couleur de l'équipe », 8 pastilles, une pastille arc-en-ciel pour toute autre couleur, et ↺ pour revenir à la couleur par défaut ;
+  - page Personnel : pastille devant le nom de chaque équipe (comme sur Chantiers).
+- Enregistrée en base (nouvelle colonne `personnes.couleur`, sql/0025_couleur_equipes.sql, déjà appliquée) : la même sur tous les appareils.
+- Sans couleur choisie : couleur d'accent du thème, comme avant.
+
+### Tests
+- Nouveau : tests/test_suite119.js (9 vérifications).

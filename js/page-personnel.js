@@ -54,6 +54,8 @@
       '<button type="button" class="cf-monter" title="Monter"' + (opts.premier ? " disabled" : "") + '>↑</button>' +
       '<button type="button" class="cf-descendre" title="Descendre"' + (opts.dernier ? " disabled" : "") + '>↓</button>' +
       '</span>' +
+      // Suite 119 : couleur de l'équipe (pastille = sélecteur, comme Chantiers).
+      (p.equipe ? pastilleCouleur("pastille-equipe", p.couleur, "Couleur de l’équipe") : '') +
       '<b>' + esc(p.nom) + '</b>' +
       // Compteur « N tâches en cours » retiré (suite 54) — Lionel : « Enlever
       // le nombre de taches attribuée, cela n'a aucune valeur. »
@@ -104,6 +106,11 @@
     });
     zone.querySelectorAll(".lien-consultation").forEach(function (btn) {
       btn.addEventListener("click", function () { ouvrirLienConsultation(idDe(btn)); });
+    });
+    zone.querySelectorAll(".pastille-equipe").forEach(function (input) {
+      input.addEventListener("change", function () {
+        changerCouleurEquipe(idDe(input), input.value).then(apresChangement);
+      });
     });
     zone.querySelectorAll(".lien-reactiver").forEach(function (btn) {
       btn.addEventListener("click", function () {

@@ -1123,6 +1123,16 @@
   .trait-largeur-jour { position: fixed; z-index: 90; width: 2px; background: var(--accent); pointer-events: none; }
   /* Menus du clic droit (suite 114) : séparateur entre les groupes. */
   .menu-pop .mc-sep { height: 1px; margin: 4px 2px; background: var(--border); }
+  /* Suite 119 : pastilles de couleur d'équipe dans le menu du nom. */
+  .menu-pop .mc-couleurs { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 4px 4px; max-width: 200px; }
+  .menu-pop .mc-couleurs .mc-pastille {
+    width: 22px; height: 22px; min-height: 0; padding: 0; border-radius: 50%; flex: none;
+    border: 1px solid var(--border); text-align: center; font-size: 12px; line-height: 20px;
+  }
+  .menu-pop .mc-couleurs .mc-autre { position: relative; overflow: hidden; cursor: pointer; background: conic-gradient(#e53935, #fdd835, #43a047, #00acc1, #1e88e5, #8e24aa, #e53935); }
+  .menu-pop .mc-couleurs .mc-autre input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; opacity: 0; cursor: pointer; }
+  .menu-pop .mc-couleurs .mc-pastille.active { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ink); }
+  .menu-pop .mc-couleurs .mc-defaut { background: var(--surface); color: var(--ink-muted); }
   .menu-hauteur-ligne .mhl-valeur { display: flex; align-items: center; gap: 6px; }
   .menu-hauteur-ligne .mhl-valeur input {
     width: 70px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px;
@@ -1270,6 +1280,10 @@
      complète au survol). Membres : décalés sous leur équipe, trait plus
      pâle — on voit d'un coup d'œil à quelle équipe ils appartiennent. */
   .lbl-equipe { cursor: pointer; box-shadow: inset 3px 0 0 var(--accent); padding-left: 8px; }
+  /* Suite 119 : couleur choisie pour l'équipe — bande de l'équipe, plus
+     pâle sur ses membres. */
+  .lbl-equipe.equipe-coloree { box-shadow: inset 4px 0 0 var(--couleur-equipe); }
+  .lbl-membre.equipe-coloree { box-shadow: inset 4px 0 0 color-mix(in srgb, var(--couleur-equipe) 45%, transparent); }
   .lbl-equipe .equipe-titre { display: flex; align-items: center; gap: 3px; min-width: 0; }
   .lbl-equipe .equipe-titre b { min-width: 0; }
   .lbl-equipe .equipe-repli {
