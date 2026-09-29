@@ -148,11 +148,15 @@ const TELEPHONE = { viewport: { width: 390, height: 844 }, hasTouch: true, bd: B
     await page.close();
   }
 
-  // --- Ordinateur : rien de figé (vue semaine inchangée) ---
+  // --- Ordinateur ---
+  // Suite 92 : lignes de hauteur fixe aussi sur ordinateur (Lionel : « La
+  // hauteur de ligne est fixe aussi sur ordinateur. ») — mêmes pistes en
+  // variables que le téléphone, jamais la classe hauteurs-figees d'avant.
   {
     const { page, erreurs } = await ouvrirPlanning(browser, { bd: BD });
-    const figees = await page.evaluate(() => [...document.querySelectorAll('.grille')].filter((g) => g.classList.contains('hauteurs-figees') || g.style.gridTemplateRows).length);
-    verifier(figees === 0, 'ordinateur : aucune hauteur figée (' + figees + ')');
+    const figees = await page.evaluate(() => [...document.querySelectorAll('.grille')].filter((g) => g.classList.contains('hauteurs-figees')).length);
+    const fixes = await page.evaluate(() => [...document.querySelectorAll('.grille')].filter((g) => /var\(--mob-h-(pers|jal)\)/.test(g.style.gridTemplateRows)).length);
+    verifier(figees === 0 && fixes === 2, 'ordinateur : pas de hauteur figée d\'avant, lignes de hauteur fixe (suite 92) (' + figees + ', ' + fixes + ')');
     toutesErreurs.push(...erreurs);
     await page.close();
   }

@@ -22,7 +22,8 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //      Notes » : hauteurs changées ; page Affichage : ces réglages
 //      montrés pour le téléphone seulement, « Hauteur des lignes » de
 //      l'ordinateur masqué ;
-//   7. ordinateur et tablette : rien de tout ça.
+//   7. ordinateur et tablette : suite 92, hauteurs fixes et cascade aussi,
+//      une seule carte par bulle.
 //
 // Lancer : node test_suite91.js
 
@@ -170,17 +171,22 @@ const M = 3; // MARGE_MOB_ (grille-rendu.js)
     // Page Affichage : réglages du téléphone seulement.
     await page.evaluate(() => afficherPage('affichage'));
     await page.waitForTimeout(300);
-    const cache = () => page.evaluate(() => Object.fromEntries(['hauteur', 'lignesTel', 'jalonsTel'].map((id) => [id, document.querySelector('#page-affichage .reglage-ligne[data-option="' + id + '"]').hidden])));
+    // Suite 92 : l'ancien « Hauteur des lignes » de l'ordinateur (hauteur)
+    // est remplacé par son curseur (lignesOrdi).
+    const cache = () => page.evaluate(() => Object.fromEntries(['lignesOrdi', 'lignesTel', 'jalonsTel'].map((id) => [id, document.querySelector('#page-affichage .reglage-ligne[data-option="' + id + '"]').hidden])));
     const tel = await cache();
     await page.click('#page-affichage .bascule-profil[data-profil="ordi"]');
     const ordi = await cache();
-    verifier(tel.hauteur && !tel.lignesTel && !tel.jalonsTel && !ordi.hauteur && ordi.lignesTel && ordi.jalonsTel,
-      'page Affichage : « Hauteur des lignes » et « Lignes Jalons et Notes » pour le téléphone, l\'ancien « Hauteur des lignes » pour l\'ordinateur (' + JSON.stringify({ tel, ordi }) + ')');
+    verifier(tel.lignesOrdi && !tel.lignesTel && !tel.jalonsTel && !ordi.lignesOrdi && ordi.lignesTel && ordi.jalonsTel,
+      'page Affichage : « Hauteur des lignes » et « Lignes Jalons et Notes » pour le téléphone, le curseur de l\'ordinateur pour l\'ordinateur (' + JSON.stringify({ tel, ordi }) + ')');
     toutesErreurs.push(...erreurs);
     await page.close();
   }
 
-  // --- 7. Ordinateur et tablette : inchangés ---
+  // --- 7. Ordinateur et tablette ---
+  // Suite 92 — Lionel : « La hauteur de ligne est fixe aussi sur
+  // ordinateur. » Tablette : « comme l'ordinateur ». Hauteurs fixes et
+  // cascade, mais une seule carte par bulle (pas de carte par jour).
   for (const [nom, opts] of [['ordinateur', { viewport: { width: 1400, height: 900 } }], ['tablette', { viewport: { width: 820, height: 1180 }, hasTouch: true }]]) {
     const { page, erreurs } = await ouvrirPlanning(browser, Object.assign({ bd: BD() }, opts));
     await page.waitForTimeout(500);
@@ -189,9 +195,9 @@ const M = 3; // MARGE_MOB_ (grille-rendu.js)
       var: getComputedStyle(racineEl).getPropertyValue('--mob-h-pers').trim(),
       copies: document.querySelectorAll('.b-carte-jour').length,
       lionel: (() => { const b = [...document.querySelectorAll('.scroller .bulle')].find((x) => x.textContent.includes('Coffrage')); return b ? b.querySelectorAll(':scope > .b-carte').length : -1; })(),
-      decale: [...document.querySelectorAll('.bulle .b-carte')].some((c) => c.style.translate)
+      decale: [...document.querySelectorAll('.bulle .b-carte')].some((c) => c.style.translate && c.style.translate !== '0px 3px')
     }));
-    verifier(!o.mob && o.var === '' && o.copies === 0 && o.lionel === 1 && !o.decale, nom + ' : ni hauteur fixe, ni carte par jour, ni cascade (' + JSON.stringify(o) + ')');
+    verifier(o.mob && o.var !== '' && o.copies === 0 && o.lionel === 1 && o.decale, nom + ' : hauteur fixe et cascade, une seule carte par bulle (suite 92) (' + JSON.stringify(o) + ')');
     toutesErreurs.push(...erreurs);
     await page.close();
   }

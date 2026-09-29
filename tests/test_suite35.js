@@ -180,7 +180,9 @@ const revenirJeudi = (page) => page.evaluate(() => {
     await page.waitForTimeout(300);
     const lignes = await page.evaluate(() => {
       const o = {};
-      document.querySelectorAll('.bulle-note').forEach((b) => { o[b.textContent.trim()] = b.style.gridRow; });
+      // Suite 92 : une seule ligne de grille (hauteur fixe) sur ordinateur
+      // aussi — la « ligne » d'une note est sa piste (rang de la cascade).
+      document.querySelectorAll('.bulle-note').forEach((b) => { o[b.textContent.trim()] = b.style.gridRow + '/' + b.dataset.piste; });
       return o;
     });
     verifier(lignes['Remorque plateau'] === lignes['Tri déchets dépôt'] && lignes['Tri déchets dépôt'] === lignes['Libérer garage BINE'] && lignes['Grue'] === lignes['Remorque plateau'],
