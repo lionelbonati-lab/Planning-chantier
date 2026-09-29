@@ -75,11 +75,14 @@ const nom = (page, id) => page.evaluate((id) => { const r = document.querySelect
     const c = await page.evaluate(() => {
       const u = grilleCourante_.mesuresMob_.pers.u;
       const ys = [...document.querySelectorAll('.bulle')].filter((b) => /^[ABCD]/.test(b.textContent.trim())).map((b) => b.querySelector('.b-carte').getBoundingClientRect()).map((r) => [Math.round(r.top), Math.round(r.bottom)]).sort((a, b) => a[0] - b[0]);
-      return { u, h: document.querySelector('[data-ligne="p1"]').offsetHeight, ys };
+      const haut = document.querySelector('[data-ligne="p1"]').getBoundingClientRect().top;
+      const bas = Math.max(...[...document.querySelectorAll('.bulle')].filter((b) => /^[ABCD]/.test(b.textContent.trim())).map((b) => b.querySelector('.b-carte').getBoundingClientRect().bottom));
+      return { u, h: document.querySelector('[data-ligne="p1"]').offsetHeight, ys, bas: bas - haut };
     });
-    const attendu = Math.ceil(3 + 4 * (c.u + 3));
+    // Suite 113 : bas réel de la pile + 3 px (avant : 4 cartes pleines U).
+    const attendu = Math.ceil(c.bas + 3);
     const sansChevauchement = c.ys.every((y, i) => i === 0 || y[0] >= c.ys[i - 1][1]);
-    verifier(c.h === attendu && sansChevauchement, 'double-clic : ajustée au contenu (' + c.h + ' = ' + attendu + ' px), 4 bulles sans chevauchement ' + JSON.stringify(c.ys));
+    verifier(Math.abs(c.h - attendu) <= 1 && sansChevauchement, 'double-clic : ajustée au contenu (' + c.h + ' = ' + attendu + ' px), 4 bulles sans chevauchement ' + JSON.stringify(c.ys));
 
     // 3. menu du nom
     const n3 = await nom(page, 'p3');

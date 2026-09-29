@@ -54,7 +54,7 @@ const TACHES = [
 ];
 const JALONS = [{ id: 900, date: '2026-09-24', texte: 'Coulage de la dalle du premier étage avec la pompe', serie_id: null }];
 const BD = () => ({ personnes: PERS, chantiers: CHANTIERS, series: [{ id: 5 }], taches: TACHES.map((t) => Object.assign({}, t)), jalons: JALONS.map((j) => Object.assign({}, j)) });
-const M = 3; // MARGE_MOB_ (grille-rendu.js)
+const M = 3; // margeBulles_(), « Espace entre les bulles » par défaut (suite 113)
 
 // Lignes, cartes (haut et bas) et variables posées.
 const releve = (page) => page.evaluate(() => {
@@ -72,7 +72,16 @@ const releve = (page) => page.evaluate(() => {
   return { lignes, cartes, jal: jal ? jal.getBoundingClientRect().height : null, u: css('--mob-carte-pers'), H: css('--mob-h-pers'), uJal: css('--mob-carte-jal'), hJal: css('--mob-h-jal') };
 });
 const proche = (a, b, tol) => Math.abs(a - b) <= (tol || 1.5);
-const pasCascade = (U, H, n, k) => k <= n ? U + M : Math.max(Math.min(20, U + M), (H - 2 * M - U) / (k - 1));
+// Suite 113 : les bulles s'empilent à leur hauteur réelle (hs) si tout
+// tient, sinon cascade d'un pas régulier, la dernière au bas de la ligne.
+const hautsAttendus = (hs, U, H) => {
+  const y = []; let yy = M;
+  hs.forEach((h, i) => { y[i] = yy; yy += h + M; });
+  if (y[hs.length - 1] + hs[hs.length - 1] + M <= H + 0.5) return y;
+  const pas = Math.max(Math.min(20, U + M), (H - 2 * M - hs[hs.length - 1]) / (hs.length - 1));
+  return hs.map((h, i) => M + i * pas);
+};
+const hauteurs = (c, ts) => ts.map((t) => c[t][0].b - c[t][0].h);
 
 (async () => {
   const browser = await lancerNavigateur(chromium);
@@ -98,11 +107,11 @@ const pasCascade = (U, H, n, k) => k <= n ? U + M : Math.max(Math.min(20, U + M)
 
     // --- 2. Cascade par amas ---
     const lm = r.lignes.Mathis, la = r.lignes.Antoine, c = r.cartes;
-    verifier(proche(c.A[0].h, lm.h + M) && proche(c.B[0].h, c.A[0].h + r.u + M),
+    verifier(proche(c.A[0].h, lm.h + M) && proche(c.B[0].h, c.A[0].b + M), // suite 113 : sous le bas réel de A
       'Mathis jeudi : B sous A sans recouvrement (A +' + Math.round(c.A[0].h - lm.h) + ', B +' + Math.round(c.B[0].h - lm.h) + ')');
-    const pas = pasCascade(r.u, r.H, 2, 4), hX = ['X', 'Y', 'Z', 'W'].map((t) => c[t][0].h - la.h);
-    verifier(hX.every((h, i) => proche(h, M + i * pas)) && pas >= 20,
-      'Antoine jeudi : 4 bulles en cascade régulière, haut de chacune visible (pas ' + pas.toFixed(1) + ', hauts ' + hX.map(Math.round).join('/') + ')');
+    const att = hautsAttendus(hauteurs(c, ['X', 'Y', 'Z', 'W']), r.u, r.H), hX = ['X', 'Y', 'Z', 'W'].map((t) => c[t][0].h - la.h);
+    verifier(hX.every((h, i) => proche(h, att[i])) && hX.every((h, i) => i === 0 || h - hX[i - 1] >= 20),
+      'Antoine jeudi : 4 bulles l\'une sous l\'autre ou en cascade régulière, haut de chacune visible (attendus ' + att.map(Math.round).join('/') + ', hauts ' + hX.map(Math.round).join('/') + ')');
     verifier(proche(c.M[0].h, lm.h + M) && proche(c.Q[0].h, la.h + M),
       'un autre jour, une bulle seule reste en haut de sa ligne (amas séparés) (M +' + Math.round(c.M[0].h - lm.h) + ', Q +' + Math.round(c.Q[0].h - la.h) + ')');
     const jour = await page.evaluate(() => document.querySelector('.th[data-gi]').getBoundingClientRect().width);
@@ -131,7 +140,7 @@ const pasCascade = (U, H, n, k) => k <= n ? U + M : Math.max(Math.min(20, U + M)
       libelle: document.querySelector('#panneauHauteurs .curseur-valeur[data-pour="hauteurLigneOrdi"]').textContent,
       tous: !!document.querySelector('#panneauHauteurs .hauteurs-tous')
     }));
-    verifier(pan.ouvert && pan.curseurs.join(',') === 'hauteurLigneOrdi=117,hauteurJalOrdi=32' && pan.lignesJal && pan.tous,
+    verifier(pan.ouvert && pan.curseurs.join(',') === 'hauteurLigneOrdi=117,hauteurJalOrdi=32,espaceBullesOrdi=3' /* suite 113 */ && pan.lignesJal && pan.tous,
       'bouton « Hauteur des lignes » : panneau avec les curseurs Personnes et Jalons/Notes, les lignes de texte des jalons, le lien vers tous les réglages (' + JSON.stringify(pan) + ')');
     verifier(pan.libelle === Math.round(r.H) + ' px', 'libellé du curseur en pixels (« ' + pan.libelle + ' »)');
     // Curseur tiré à la place de 3 bulles : événement « input » comme au glisser du pouce.
@@ -148,8 +157,8 @@ const pasCascade = (U, H, n, k) => k <= n ? U + M : Math.max(Math.min(20, U + M)
     const lib3 = await page.evaluate(() => [optionAffichage('hauteurLigneOrdi'), document.querySelector('#panneauHauteurs .curseur-valeur[data-pour="hauteurLigneOrdi"]').textContent]);
     verifier(proche(r.H, 3 * r.u + 4 * M) && Object.values(r.lignes).every((l) => proche(l.hauteur, r.H)) && await marque(),
       'curseur à ' + px3 + ' px (3 bulles) : lignes de 3 bulles tout de suite, sans reconstruire la grille (H ' + r.H + ')');
-    const pas3 = pasCascade(r.u, r.H, 3, 4), hX3 = ['X', 'Y', 'Z', 'W'].map((t) => r.cartes[t][0].h - r.lignes.Antoine.h);
-    verifier(hX3.every((h, i) => proche(h, M + i * pas3)), 'cascade refaite à la nouvelle hauteur (pas ' + pas3.toFixed(1) + ', hauts ' + hX3.map(Math.round).join('/') + ')');
+    const att3 = hautsAttendus(hauteurs(r.cartes, ['X', 'Y', 'Z', 'W']), r.u, r.H), hX3 = ['X', 'Y', 'Z', 'W'].map((t) => r.cartes[t][0].h - r.lignes.Antoine.h);
+    verifier(hX3.every((h, i) => proche(h, att3[i])), 'cascade refaite à la nouvelle hauteur (attendus ' + att3.map(Math.round).join('/') + ', hauts ' + hX3.map(Math.round).join('/') + ')');
     verifier(lib3[0] === px3 && lib3[1] === px3 + ' px', 'valeur enregistrée et libellé à jour (' + lib3.join(' | ') + ')');
     await tirer('hauteurLigneOrdi', '88');
     await page.waitForTimeout(150);

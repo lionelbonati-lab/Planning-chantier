@@ -166,7 +166,8 @@ const echap = async (page) => { await page.keyboard.press('Escape'); await page.
     await page.waitForTimeout(150);
     const pan = await page.evaluate(() => [...document.querySelectorAll('#panneauHauteurs .reglage-ligne[data-option]')].map((l) => l.dataset.option).join(','));
     // Suite 101 : hauteurs en pixels d'abord, puis les lignes de texte.
-    verifier(pan === 'hauteurLigneOrdi,hauteurJalOrdi,lignes,lignesJal', 'panneau « Hauteur des lignes » : ' + pan);
+    verifier(pan === 'hauteurLigneOrdi,hauteurJalOrdi,espaceBullesOrdi,lignes,lignesJal', // suite 113
+      'panneau « Hauteur des lignes » : ' + pan);
     const u2 = await page.evaluate(() => parseFloat(getComputedStyle(racineEl).getPropertyValue('--mob-carte-pers')));
     const h2 = await page.evaluate(() => getComputedStyle(racineEl).getPropertyValue('--mob-h-pers').trim());
     await page.click('#panneauHauteurs .choix-pastille[data-option="lignes"][data-valeur="3"]');
@@ -208,7 +209,8 @@ const echap = async (page) => { await page.keyboard.press('Escape'); await page.
     await echap(page);
     // Panneau du téléphone.
     const pan = await page.evaluate(() => { majPanneauHauteurs(); return [...document.querySelectorAll('#panneauHauteurs .reglage-ligne[data-option]')].map((l) => l.dataset.option).join(','); });
-    verifier(pan === 'hauteurLigneTel,hauteurJalTel,lignes,lignesJal', 'téléphone, panneau « Hauteur des lignes » : ' + pan);
+    verifier(pan === 'hauteurLigneTel,hauteurJalTel,espaceBullesTel,lignes,lignesJal', // suite 113
+      'téléphone, panneau « Hauteur des lignes » : ' + pan);
     toutesErreurs.push(...erreurs);
     await page.close();
   }

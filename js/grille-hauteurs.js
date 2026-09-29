@@ -173,7 +173,19 @@
   //   Un appui sur une bulle la sélectionne et la passe devant (style.css) ;
   // - changer de jour n'est plus qu'un défilement : rien à mesurer ni à
   //   écrire pendant le geste, ni à l'arrêt.
-  var MARGE_MOB_ = 3;       // px : au-dessus, entre et sous les bulles d'une ligne
+  // Round du 29.09.2026 (suite 113). Lionel : « L'espace sous les bulles
+  // est trop grand. ajoute un réglage qui permet d'adapter l'espace qu'on
+  // souhaite entre chaque bulles et fond de case ». L'espace venait de la
+  // pile : chaque bulle occupait la place d'une carte pleine (U, « Lignes
+  // de texte » + statut) même quand son texte tenait sur une ligne. Les
+  // bulles s'empilent maintenant à leur hauteur réelle (cascaderBulles-
+  // JourMobile_) ; l'espace au-dessus, entre et sous elles, jusque-là fixe
+  // (3 px), devient le réglage « Espace entre les bulles » (page Affichage
+  // et panneau Hauteur, un par appareil).
+  function margeBulles_() {
+    var v = parseFloat(optionAffichage(profilAppareil_() === "ordi" ? "espaceBullesOrdi" : "espaceBullesTel"));
+    return isFinite(v) && v >= 0 ? v : 3;
+  }
   var PAS_MINI_MOB_ = 20;   // px : décalage minimal entre 2 bulles en cascade
   var VU_MINI_MOB_ = 10;    // px : en dessous, une bulle de la cascade compte comme cachée (suite 98)
   // « 4 / span 2 » → [4, 2] ; « 4 » → [4, 1].
@@ -230,7 +242,7 @@
   function mesurerHauteursMobile_(G) {
     var scroller = G.scroller, grilleCorps = G.grilleCorps, grilleEntete = G.grilleEntete;
     if (!scroller.getClientRects().length) return false;
-    var r = reglagesLignesMobile_(), m = MARGE_MOB_;
+    var r = reglagesLignesMobile_(), m = margeBulles_();
     var mes = {};
     [["pers", grilleCorps, "bulle-tache"], ["jal", grilleEntete, "bulle-note"]].forEach(function (d) {
       var u = hauteurCarteSonde_(d[1], d[2], r[d[0]].l, d[0] === "pers"), h = r[d[0]].h;
@@ -350,8 +362,9 @@
         (parLigne[r[0]] = parLigne[r[0]] || []).push(b);
       });
       g._nMaxLignes = {};
+      g._basMax = {};
       Object.keys(parLigne).forEach(function (row) {
-        var mes = G.mesuresMob_[lignes[row]], m = MARGE_MOB_;
+        var mes = G.mesuresMob_[lignes[row]], m = margeBulles_();
         // Suite 103 : ligne réglée à part — même carte (U), sa hauteur
         // (H) et donc son nombre de bulles (N) ; la variable de hauteur
         // posée sur ses bulles règle leur rognage (clip-path, style.css).
@@ -385,7 +398,22 @@
           pistes.sort(function (a, b) { return a - b; });
           var n = pistes.length;
           g._nMaxLignes[row] = Math.max(g._nMaxLignes[row] || 0, n);
-          var pas = n <= mes.n ? mes.u + m : Math.max(Math.min(PAS_MINI_MOB_, mes.u + m), (mes.h - 2 * m - mes.u) / (n - 1));
+          // Suite 113 : chaque piste à la hauteur de sa plus haute carte
+          // (au plus U), la suivante juste dessous, à m px.
+          var hPiste = pistes.map(function () { return 0; });
+          cartes.forEach(function (x) {
+            var k = pistes.indexOf(x.piste);
+            hPiste[k] = Math.max(hPiste[k], Math.min(mes.u, x.c.offsetHeight || mes.u));
+          });
+          var yReel = [], yy = m;
+          hPiste.forEach(function (h, k) { yReel[k] = yy; yy += h + m; });
+          var bas = yReel[n - 1] + hPiste[n - 1];
+          g._basMax[row] = Math.max(g._basMax[row] || 0, bas);
+          // Tout tient : pile réelle. Sinon, cascade d'un pas régulier comme
+          // avant, la dernière carte au bas de la ligne.
+          var tient = bas + m <= mes.h + 0.5;
+          var pas = n < 2 ? 0 : Math.max(Math.min(PAS_MINI_MOB_, mes.u + m), (mes.h - 2 * m - hPiste[n - 1]) / (n - 1));
+          var yDe = function (k) { return tient ? yReel[k] : m + k * pas; };
           // Suite 98 : bulles cachées (colonnes de leur part de journée),
           // pastille « +N », case étalée si elle est ouverte.
           var cachees = [], c0 = Infinity, c1 = 0, d0 = Infinity;
@@ -394,17 +422,17 @@
             var jc = cartes.jour != null ? joursCol[cartes.jour] : null;
             if (jc) { a = Math.max(a, jc.col); z = Math.min(z, jc.fin); }
             d0 = Math.min(d0, a);
-            if (mes.h - (m + pistes.indexOf(x.piste) * pas) >= VU_MINI_MOB_) return;
+            if (mes.h - yDe(pistes.indexOf(x.piste)) >= VU_MINI_MOB_) return;
             if (cachees.indexOf(x.piste) < 0) cachees.push(x.piste);
             c0 = Math.min(c0, a); c1 = Math.max(c1, z);
           });
           var cle = (g === grilleEntete ? "e" : "c") + row + "|" + isoDeColonne_(G, d0);
           var ouverte = cachees.length > 0 && !!G.cascadesOuvertes_[cle], decale = 0;
           if (ouverte) {
-            pas = mes.u + m;
+            tient = true;
             var rG = g.getBoundingClientRect(), kz = g.offsetHeight ? rG.height / g.offsetHeight : 1;
-            var haut = (cartes[0].b.getBoundingClientRect().top - rG.top) / kz, bas = haut + m + (n - 1) * pas + mes.u + 2;
-            decale = Math.max(0, Math.min(haut, bas - g.offsetHeight));
+            var haut = (cartes[0].b.getBoundingClientRect().top - rG.top) / kz;
+            decale = Math.max(0, Math.min(haut, haut + bas + 2 - g.offsetHeight));
           }
           if (cachees.length && c1 > c0) {
             var pc = document.createElement("button");
@@ -423,7 +451,7 @@
             g.appendChild(pc);
           }
           cartes.forEach(function (x) {
-            var rang = pistes.indexOf(x.piste), y = m + rang * pas - decale;
+            var rang = pistes.indexOf(x.piste), y = yDe(rang) - decale;
             if (ouverte) x.b.classList.add("cascade-ouverte");
             x.c.style.translate = "0 " + Math.round(y * 10) / 10 + "px";
             // Suite 94 : carte posée sur une autre de la pile (ombre et
@@ -511,8 +539,10 @@
     var G = grilleCourante_, r = plageGrille_(lbl.style.gridRow);
     var mes = G && G.mesuresMob_ && G.mesuresMob_[lbl.dataset.hMob];
     if (!mes || !r) return null;
-    var n = Math.max(1, (lbl.parentNode._nMaxLignes || {})[r[0]] || 0);
-    return Math.ceil(MARGE_MOB_ + n * (mes.u + MARGE_MOB_));
+    // Suite 113 : bas de la plus haute pile (hauteurs réelles) ; ligne
+    // vide : la place d'une carte.
+    var m = margeBulles_(), bas = (lbl.parentNode._basMax || {})[r[0]];
+    return Math.ceil((bas || m + mes.u) + m);
   }
   function ajusterLigneAuContenu_(lbl) {
     var h = hauteurAuContenu_(lbl);
