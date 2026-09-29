@@ -10182,6 +10182,7 @@ Lionel :
 
 ## 205. Round du 29.09.2026 (suite 97) — Téléphone : sélection et poignées à la place de leur bulle
 - « Sur mobile, plusieurs incohérences au niveau des sélections et des poignées. » (5 captures)
+- Puis : « Pour remédier au problème, en sélection simple, quand on change de jour, la case est désélectionnée. Et en multiple, la case reste sélectionnée. »
 
 ### Défauts
 - Au jour suivant, la bulle sélectionnée de la veille (rangée sous la colonne des noms) se dessinait par-dessus « Lionel » : la bulle sélectionnée passe devant les autres (z-index 3, suite 93), à égalité avec les noms et placée après eux.
@@ -10191,6 +10192,9 @@ Lionel :
 
 ### Ce qui change
 - La colonne des noms (et la case coin) reste toujours devant les bulles, sélectionnée comprise ; la carte de la veille sélectionnée n'a plus d'anneau de sélection (son liseré dépassait au bord des noms).
+- Téléphone, changement de jour :
+  - sélection simple : la bulle est désélectionnée (barre de sélection fermée) dès qu'elle n'est plus sur le jour affiché ; une tâche de plusieurs jours encore affichée, ou une bulle amenée au bord ou étirée jusqu'au nouveau jour, reste sélectionnée ;
+  - sélection multiple : les bulles restent sélectionnées, même quand le téléphone recharge sa plage de jours (avant, la sélection y était vidée d'office).
 - Les poignées prennent exactement la place de leur carte : même haut, même hauteur, mêmes bords, même remontée. Téléphone et ordinateur.
 
 ### Fonctionnement
@@ -10201,11 +10205,14 @@ Lionel :
   - poignée gauche calée sur la première carte, droite sur la dernière (comme la cascade) : `top`, `height`, `left` / `right` et la `transform` de remontée ;
   - lectures d'abord, écritures ensuite ; styles effacés hors lignes de hauteur fixe.
 
+- **js/grille-rendu.js**, arrêt du défilement (`defilementArrete`) : nouveau jour posé, pas de `body.selection-multiple`, toutes les bulles sélectionnées `.hors-jour` → `quitterModeSelection()`.
+- **js/grille-rendu.js**, `recentrerFenetreJourMobile` : les id des bulles et leurs colonnes (giDebut) sont refaits avec la fenêtre. Chaque bulle sélectionnée est notée par son contenu (`cleBulle_`) et sa date de début (`isoDeGi`), puis retrouvée dans la nouvelle fenêtre (bulle de même contenu couvrant `giDepuisIso(date)`). Celles qui sortent de la fenêtre sont désélectionnées.
+
 ### Tests
-- test_suite97.js, 8/8 :
+- test_suite97.js, 10/10 :
   - téléphone : poignées à la place de la carte, pour une bulle courte en cascade, pour une bulle sélectionnée, et pour une bulle dépliée et élargie ;
-  - jour suivant : la carte sélectionnée de la veille passe sous les noms, sans anneau ;
+  - jour suivant : sélection simple désélectionnée ; sélection multiple gardée, la carte de la veille sous les noms, sans anneau ; tâche de plusieurs jours encore affichée gardée (« Banches », après rechargement de la plage) ;
   - ordinateur : poignées calées sur une bulle courte, dépliée puis revenue (Échap).
-  - Sans la correction, les 8 vérifications échouent.
+  - Sans la correction des poignées et des noms, les 8 vérifications d'origine échouaient.
 - test_suite78.js : z-index attendu des noms 4 au lieu de 3 (téléphone) et 2 (ordinateur).
 - Suite complète : 102/102.

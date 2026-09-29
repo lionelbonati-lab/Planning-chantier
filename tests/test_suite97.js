@@ -4,13 +4,16 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 // Round du 29.09.2026 (suite 97). Lionel, captures à l'appui :
 //   « Sur mobile, plusieurs incohérences au niveau des sélections et des
 //     poignées. »
+// Puis : « en sélection simple, quand on change de jour, la case est
+//   désélectionnée. Et en multiple, la case reste sélectionnée. »
 // Vérifie :
 //   1. téléphone, bulle courte (2e d'une cascade) sélectionnée : ses
 //      poignées ont le haut, la hauteur et les bords de sa carte (avant :
 //      la hauteur de la ligne, leur trait sous la carte) ;
-//   2. jour suivant (défilement) avec une bulle de la veille sélectionnée :
-//      la colonne des noms reste devant elle, et la carte, absente du jour,
-//      n'a plus d'anneau de sélection (liseré au bord des noms) ;
+//   2. jour suivant (défilement) : sélection simple -> désélectionnée ;
+//      sélection multiple -> reste sélectionnée, la colonne des noms devant
+//      elle et sans anneau de sélection (liseré au bord des noms) ; bulle
+//      de plusieurs jours encore là au jour suivant -> reste sélectionnée ;
 //   3. bulle dépliée et élargie : poignées aux bords de la carte élargie ;
 //   4. ordinateur : poignées à la place de leur carte (courte, puis dépliée
 //      et remontée).
@@ -25,7 +28,8 @@ const TACHES = [
   T(3, '2026-09-29', 'matin', 'Coffrage murs étage'), T(3, '2026-09-29', 'aprem', 'Coffrage murs étage'),
   T(3, '2026-09-29', 'aprem', 'Rfecdxs', 1),
   T(1, '2026-10-01', 'matin', 'Transports matériel frami depuis Outremont, retour par le dépôt de Genève et contrôle du chargement'),
-  T(1, '2026-10-01', 'aprem', 'Fermeture + pont murs étage')
+  T(1, '2026-10-01', 'aprem', 'Fermeture + pont murs étage'),
+  T(2, '2026-09-30', 'matin', 'Banches'), T(2, '2026-09-30', 'aprem', 'Banches'), T(2, '2026-10-01', 'matin', 'Banches')
 ];
 const BD = () => ({ personnes: PERS, taches: TACHES.map((t) => Object.assign({}, t)) });
 
@@ -68,29 +72,47 @@ const txt = (e) => 'carte ' + [e.c.g, e.c.h, e.c.d, e.c.b].map(Math.round).join(
     const cL = await etat(page, 'Coffrage');
     verifier(cL.sel && calees(cL), 'téléphone, « Coffrage » de Lionel : poignées à la place de la carte (' + txt(cL) + ')');
 
-    // Jour suivant par défilement (la sélection reste).
-    await page.evaluate(() => {
-      const sc = document.querySelector('#racine .scroller');
-      const th = [...document.querySelectorAll('.th[data-gi]')].find((t) => /30/.test(t.textContent));
-      sc.scrollTo({ left: sc.scrollLeft + th.getBoundingClientRect().left - sc.getBoundingClientRect().left - largeurNoms() });
-    });
-    await page.waitForTimeout(1200);
+    // Jour affiché par défilement (comme au doigt), jour repéré par son numéro.
+    const aller = async (re) => {
+      await page.evaluate((re) => {
+        const sc = document.querySelector('#racine .scroller');
+        const th = [...document.querySelectorAll('.th[data-gi]')].find((t) => new RegExp(re).test(t.textContent));
+        sc.scrollTo({ left: sc.scrollLeft + th.getBoundingClientRect().left - sc.getBoundingClientRect().left - largeurNoms() });
+      }, re);
+      await page.waitForTimeout(1200);
+    };
+    const nbSel = () => page.evaluate(() => [Object.keys(bullesSelectionnees).length, document.querySelectorAll('#racine .bulle.selectionnee').length, !document.getElementById('panneauSelection').hidden]);
+
+    // Sélection simple : désélectionnée au jour suivant.
+    await aller('30');
+    const s1 = await nbSel();
+    verifier(s1[0] === 0 && s1[1] === 0 && !s1[2], 'sélection simple, jour suivant : bulle désélectionnée, barre de sélection fermée (' + s1 + ')');
+
+    // Sélection multiple : reste sélectionnée, sous les noms, sans anneau.
+    await aller('29');
+    await tap('Coffrage');
+    await page.evaluate(() => { modeSelectionMultiple = true; majBarreSelection(); });
+    await aller('30');
     const n = await page.evaluate(() => {
-      const b = document.querySelector('#racine .scroller .bulle.selectionnee'), c = b.querySelector('.b-carte').getBoundingClientRect();
+      const b = document.querySelector('#racine .scroller .bulle.selectionnee');
+      if (!b) return { sel: false };
+      const c = b.querySelector('.b-carte').getBoundingClientRect();
       const l = [...document.querySelectorAll('.scroller .lbl')].find((x) => x.textContent.includes('Lionel')).getBoundingClientRect();
       const e = document.elementFromPoint(l.left + 20, c.top + 6);
-      return { horsJour: b.classList.contains('hors-jour'), devant: !!(e && e.closest('.lbl')), sous: c.right > l.left + 20 && c.top < l.bottom,
+      return { sel: true, horsJour: b.classList.contains('hors-jour'), devant: !!(e && e.closest('.lbl')), sous: c.right > l.left + 20 && c.top < l.bottom,
         anneau: /2\.5px/.test(getComputedStyle(b.querySelector('.b-carte')).boxShadow) };
     });
-    verifier(n.horsJour && n.sous && n.devant, 'jour suivant : la carte sélectionnée de la veille passe sous la colonne des noms (' + JSON.stringify(n) + ')');
-    verifier(!n.anneau, 'jour suivant : plus d\'anneau de sélection sur la carte de la veille');
+    verifier(n.sel && n.horsJour && n.sous && n.devant, 'sélection multiple, jour suivant : la bulle reste sélectionnée, sous la colonne des noms (' + JSON.stringify(n) + ')');
+    verifier(n.sel && !n.anneau, 'sélection multiple, jour suivant : plus d\'anneau de sélection sur la carte de la veille');
+    await page.evaluate(() => quitterModeSelection());
 
-    await page.evaluate(() => {
-      const sc = document.querySelector('#racine .scroller');
-      const th = [...document.querySelectorAll('.th[data-gi]')].find((t) => /01/.test(t.textContent) || /\b1\b/.test(t.textContent));
-      sc.scrollTo({ left: sc.scrollLeft + th.getBoundingClientRect().left - sc.getBoundingClientRect().left - largeurNoms() });
-    });
-    await page.waitForTimeout(1200);
+    // Bulle de plusieurs jours encore là le jour suivant : reste sélectionnée.
+    await tap('Banches');
+    await aller('01');
+    const s2 = await nbSel();
+    const quoi = await page.evaluate(() => [...document.querySelectorAll('#racine .scroller .bulle.selectionnee')].map((b) => b.querySelector('.b-txt').textContent.trim()).join(','));
+    verifier(s2[0] === 1 && s2[1] >= 1 && quoi === 'Banches', 'sélection simple, bulle de plusieurs jours encore affichée le jour suivant : reste sélectionnée (' + s2 + ' ; ' + quoi + ')');
+    await page.evaluate(() => quitterModeSelection());
     await tap('Transports');
     const t = await etat(page, 'Transports');
     verifier(t.sel && t.deplie && calees(t), 'téléphone, bulle dépliée et élargie : poignées aux bords de la carte élargie (' + txt(t) + ')');

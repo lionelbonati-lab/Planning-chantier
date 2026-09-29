@@ -2991,6 +2991,20 @@
         poserJourMobile_(thJour); // poignées du jour posé (suite 91)
         var giJour = +thJour.dataset.gi, isoJour = isoDeGi(giJour);
         if (!isoJour) return;
+        // Suite 97 — Lionel : « en sélection simple, quand on change de
+        // jour, la case est désélectionnée. Et en multiple, la case reste
+        // sélectionnée. » Nouveau jour posé, sélection simple (ni plusieurs
+        // bulles, ni mode multiple : body.selection-multiple) dont la bulle
+        // n'est plus sur ce jour (.hors-jour, ou plus dans la grille) : la
+        // sélection est vidée. Une bulle encore là (tâche de plusieurs
+        // jours, bulle amenée au bord ou étirée jusqu'au nouveau jour)
+        // reste sélectionnée.
+        if (isoJour !== jourMobileIso && !document.body.classList.contains("selection-multiple")) {
+          var idsSel = Object.keys(bullesSelectionnees);
+          if (idsSel.length && idsSel.every(function (id) {
+            return [].every.call(racineEl.querySelectorAll('.bulle[data-id="' + id + '"]'), function (b) { return b.classList.contains("hors-jour"); });
+          })) quitterModeSelection();
+        }
         jourMobileIso = isoJour;
         for (var iSem = 0; iSem < etat.semaines.length; iSem++) {
           var sem = etat.semaines[iSem];
@@ -3027,10 +3041,35 @@
       // du planning). Semaine voisine en principe déjà en cache
       // (prechargerVoisinesJourMobile) : reconstruction immédiate.
       var recentrerFenetreJourMobile = function () {
+        // Suite 97 — Lionel : « en multiple, la case reste sélectionnée »
+        // au changement de jour. La sélection était vidée d'office au
+        // recentrage : les id des bulles et leurs colonnes (giDebut) sont
+        // refaits avec la fenêtre. Chaque bulle sélectionnée est donc
+        // notée par son contenu (cleBulle_) et sa DATE de début, puis
+        // retrouvée dans la nouvelle fenêtre (la bulle de même contenu qui
+        // couvre cette date) ; celles qui en sortent sont désélectionnées.
+        // (La sélection simple d'une bulle absente du jour a déjà été
+        // vidée à l'arrêt, plus haut.)
+        var selAvant = [];
+        Object.keys(bullesSelectionnees).forEach(function (id) {
+          var p = itemParId(id), iso = p && isoDeGi(p.item.giDebut);
+          if (iso) selAvant.push({ cle: cleBulle_(p.item), iso: iso });
+        });
         debutFenetreMobile = null;
         if (fenetreLabGs().join(",") === labsRendus) return;
         bullesSelectionnees = {};
-        assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); majBarreSelection(); });
+        assurerFenetreChargee(function () {
+          construireVueDepuisCache();
+          var toutes = TACHES.concat(JALONS, NOTES);
+          selAvant.forEach(function (sel) {
+            var gi = giDepuisIso(sel.iso);
+            if (gi == null) return;
+            var it = toutes.filter(function (x) { return !bullesSelectionnees[x.id] && cleBulle_(x) === sel.cle && gi >= x.giDebut && gi < x.giDebut + x.duree; })[0];
+            if (it) bullesSelectionnees[it.id] = true;
+          });
+          if (!Object.keys(bullesSelectionnees).length) { modeSelectionMultiple = false; copieSelectionActive = false; }
+          render(false); majBarreSelection();
+        });
       };
       prechargerVoisinesJourMobile();
     }
