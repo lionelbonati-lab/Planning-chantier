@@ -102,7 +102,10 @@
   // ---- Registre --------------------------------------------------------
   function selectionClavier_() { return Object.keys(bullesSelectionnees); }
   function planningAffiche_() { var p = document.getElementById("page-planning"); return !!(p && p.classList.contains("actif")); }
-  function decalagePossible_() { return modeSelectionMultiple && selectionClavier_().length > 0; }
+  // Round du 29.09.2026 (suite 120) — Lionel : « Pas possible de bouger
+  // une bulle seule sélectionnée avec les flèches, marche en mode multi. »
+  // Toute sélection se décale, une bulle seule comme plusieurs.
+  function decalagePossible_() { return selectionClavier_().length > 0; }
   function cliquer_(id) { var b = document.getElementById(id); if (b && !b.disabled) b.click(); }
   // Calendrier de la barre visible (téléphone ou ordinateur) : ouvert sur
   // le jour affiché, comme un clic sur son icône (cf. cablerPagePlanning).
@@ -130,8 +133,8 @@
     { id: "modifier", groupe: "Modifier", nom: "Modifier la bulle sélectionnée", defaut: ["Entrée"],
       possible: function () { var ids = selectionClavier_(); return ids.length === 1 && !!itemParId(ids[0]); },
       faire: function () { var plage = itemParId(selectionClavier_()[0]); ouvrirBulle(plage.item, plage, Math.round(window.innerWidth / 2 - 110), Math.round(window.innerHeight / 2 - 90)); } },
-    // ← → (suite 7) : en mode sélection multiple seulement, comme la barre
-    // de sélection elle-même.
+    // ← → (suite 7) : dès qu'une bulle est sélectionnée (suite 120 ; avant,
+    // en mode sélection multiple seulement).
     { id: "decalerGauche", groupe: "Modifier", nom: "Décaler la sélection d’une demi-journée à gauche", defaut: ["←"], possible: decalagePossible_, faire: function () { decalerSelection(-1); } },
     { id: "decalerDroite", groupe: "Modifier", nom: "Décaler la sélection d’une demi-journée à droite", defaut: ["→"], possible: decalagePossible_, faire: function () { decalerSelection(1); } },
     { id: "decalerGaucheJour", groupe: "Modifier", nom: "Décaler la sélection d’un jour à gauche", defaut: ["Maj+←"], possible: decalagePossible_, faire: function () { decalerSelection(-2); } },

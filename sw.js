@@ -70,7 +70,7 @@ function copierFichiersManquants(cache, rep, tous) {
   return rep.text().then(function (html) {
     return Promise.all(fichiersDePage(html).map(function (u) {
       return (tous ? Promise.resolve(null) : cache.match(u, { ignoreSearch: true })).then(function (c) {
-        return c || cache.add(new Request(u, { cache: "no-cache" })).catch(function () {});
+        return c || rangerSiPasPlusVieux(cache, u);
       });
     }));
   }).catch(function () {});
@@ -102,8 +102,10 @@ function recopierTout() {
       var page = rep.clone();
       return rep.text().then(function (html) {
         var urls = EN_PLUS.filter(function (u) { return u !== "index.html"; }).concat(fichiersDePage(html));
-        return Promise.all(urls.map(function (u) { return cache.add(new Request(u, { cache: "no-cache" })).catch(function () {}); }));
-      }).then(function () { return cache.put("index.html", page); });
+        return Promise.all(urls.map(function (u) { return rangerSiPasPlusVieux(cache, u); }));
+      }).then(function () {
+        return cache.match("index.html").then(function (copie) { if (!copie || comparer(copie, page) >= 0) return cache.put("index.html", page); });
+      });
     });
   });
 }
@@ -125,13 +127,35 @@ function copiable(url) {
   if (url.origin === self.location.origin) return true;
   return /^(cdn\.jsdelivr\.net|fonts\.googleapis\.com|fonts\.gstatic\.com)$/.test(url.hostname);
 }
-// Même fichier ? ETag d'abord (GitHub Pages en donne un), sinon date de
-// modification ; sans l'un ni l'autre, on ne sait pas : pas d'alerte.
-function differe(a, b) {
+// Réponse du réseau `b` comparée à la copie `a` : 1 = plus récente, 0 =
+// même fichier (ou on ne sait pas), -1 = plus ANCIENNE.
+// Round du 29.09.2026 (suite 120) — Lionel : « Sur desktop, sans cesse une
+// demande de rechargement ». On ne regardait que « différent » (ETag).
+// Après une publication, GitHub Pages (Fastly) sert quelques minutes
+// l'ancienne version depuis certains serveurs et la nouvelle depuis
+// d'autres : chaque va-et-vient relançait le bandeau « Recharger » — et
+// rangeait l'ancienne version par-dessus la neuve, d'où un nouveau
+// bandeau au passage suivant. La date de modification (Last-Modified,
+// donnée par GitHub Pages) tranche : seule une version plus récente
+// alerte et remplace la copie ; une plus ancienne est ignorée. Sans date :
+// l'ETag, comme avant.
+function comparer(a, b) {
+  var la = Date.parse(a.headers.get("last-modified") || ""), lb = Date.parse(b.headers.get("last-modified") || "");
+  if (!isNaN(la) && !isNaN(lb) && la !== lb) return lb > la ? 1 : -1;
   var ea = a.headers.get("etag"), eb = b.headers.get("etag");
-  if (ea && eb) return ea.replace(/^W\//, "") !== eb.replace(/^W\//, "");
-  var la = a.headers.get("last-modified"), lb = b.headers.get("last-modified");
-  return !!(la && lb && la !== lb);
+  if (ea && eb) return ea.replace(/^W\//, "") !== eb.replace(/^W\//, "") ? 1 : 0;
+  return 0;
+}
+// Suite 120 : copie d'un fichier depuis le réseau, sauf si la réponse est
+// plus ancienne que la copie déjà là (serveur pas encore à jour).
+function rangerSiPasPlusVieux(cache, u) {
+  return fetch(new Request(u, { cache: "no-cache" })).then(function (rep) {
+    if (!rep || !(rep.ok || rep.type === "opaque")) return;
+    return cache.match(u, { ignoreSearch: true }).then(function (copie) {
+      if (copie && rep.ok && comparer(copie, rep) < 0) return;
+      return cache.put(u, rep);
+    });
+  }).catch(function () {});
 }
 function prevenirNouvelleVersion() {
   return self.clients.matchAll({ type: "window" }).then(function (cs) {
@@ -160,7 +184,9 @@ self.addEventListener("fetch", function (e) {
       var page = memeOrigine && rep.ok && /(\/|\.html)$/.test(url.pathname) ? rep.clone() : null;
       var aRanger = rep.clone();
       rangeP = copieP.then(function (copie) {
-        var nouvelle = copie && memeOrigine && rep.ok && differe(copie, rep);
+        var ordre = copie && memeOrigine && rep.ok ? comparer(copie, rep) : 0;
+        if (ordre < 0) return null; // suite 120 : serveur en retard, copie gardée
+        var nouvelle = ordre > 0;
         // Les fichiers d'une page d'abord (tous si elle a changé), la page
         // ensuite.
         return (page ? copierFichiersManquants(cache, page, nouvelle) : Promise.resolve()).then(function () {

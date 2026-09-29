@@ -225,6 +225,12 @@
   // un changement de jour en vue « 1 jour ».
   function signatureMembresAffiches_() { return personnesAffichees("personnel").map(function (p) { return p.id; }).join(","); }
   function personnesAfficheesToutes() { return personnesAffichees("personnel").concat(personnesAffichees("sous-traitant")); }
+  // Suite 120 : même ordre, sans pliage — un membre caché sous son équipe
+  // repliée reste dans les listes « Pour qui » de l'ajout.
+  function personnelOrdonneSansPliage() {
+    return ordrePersonnesEquipes(PERSONNES.filter(function (p) { return !p.sousTraitant; }), lundiCourantEquipes(), function (p) { return p.id; })
+      .map(function (e) { return e.p; });
+  }
 
   /* ---------- Couleur (round du 29.09.2026, suite 119) ----------
      Lionel : « mettre une couleur sur l'équipe, je vois qu'il y a une
