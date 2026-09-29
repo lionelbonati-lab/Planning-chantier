@@ -32,19 +32,42 @@
 var CACHE = "planning-appli-v2";
 var EN_PLUS = ["./", "index.html", "manifest.json", "functions/enregistrer-plage/logic.js", "icons/icon-32.png", "icons/icon-192.png", "icons/icon-512.png"];
 
+// Fichiers chargés par une page (scripts, feuilles de style, supabase-js,
+// polices).
+function fichiersDePage(html) {
+  var urls = [];
+  html.replace(/<(?:script|link)[^>]+(?:src|href)="([^"]+)"/g, function (_, u) {
+    if (/^(https:\/\/(cdn\.jsdelivr\.net|fonts\.googleapis\.com)\/|[^:]+$)/.test(u)) urls.push(u);
+    return _;
+  });
+  return urls;
+}
+
 self.addEventListener("install", function (e) {
   e.waitUntil(caches.open(CACHE).then(function (cache) {
     return fetch("index.html", { cache: "no-cache" }).then(function (rep) { return rep.text(); }).then(function (html) {
-      var urls = EN_PLUS.slice();
-      html.replace(/<(?:script|link)[^>]+(?:src|href)="([^"]+)"/g, function (_, u) {
-        if (/^(https:\/\/(cdn\.jsdelivr\.net|fonts\.googleapis\.com)\/|[^:]+$)/.test(u)) urls.push(u);
-        return _;
-      });
+      var urls = EN_PLUS.concat(fichiersDePage(html));
       // Un fichier introuvable ne bloque pas l'installation.
       return Promise.all(urls.map(function (u) { return cache.add(new Request(u, { cache: "no-cache" })).catch(function () {}); }));
     }).catch(function () { return cache.addAll(EN_PLUS).catch(function () {}); });
   }).then(function () { return self.skipWaiting(); }));
 });
+
+// Round du 29.09.2026 (suite 99) — découpage du planning en plusieurs
+// fichiers (js/grille-hauteurs.js…). Une page de l'appli revalidée
+// (index.html, consultation.html) peut charger un fichier que la copie
+// n'a jamais vu : servie depuis la copie à l'ouverture suivante, sans
+// réseau, elle le demandait en vain (le planning ne s'affichait plus).
+// Chaque page revalidée fait copier d'avance ceux qui manquent.
+function copierFichiersManquants(cache, rep) {
+  return rep.text().then(function (html) {
+    return Promise.all(fichiersDePage(html).map(function (u) {
+      return cache.match(u, { ignoreSearch: true }).then(function (c) {
+        return c || cache.add(new Request(u, { cache: "no-cache" })).catch(function () {});
+      });
+    }));
+  }).catch(function () {});
+}
 
 self.addEventListener("activate", function (e) {
   e.waitUntil(caches.keys().then(function (cles) {
@@ -85,7 +108,10 @@ self.addEventListener("fetch", function (e) {
       if (!rep || !(rep.ok || rep.type === "opaque")) return rep;
       return copieP.then(function (copie) {
         var nouvelle = copie && memeOrigine && rep.ok && differe(copie, rep);
+        var page = memeOrigine && rep.ok && /(\/|\.html)$/.test(url.pathname) ? rep.clone() : null;
         return cache.put(req, rep.clone()).catch(function () {}).then(function () {
+          return page ? copierFichiersManquants(cache, page) : null;
+        }).then(function () {
           return nouvelle ? prevenirNouvelleVersion() : null;
         }).then(function () { return rep; });
       });
