@@ -1793,7 +1793,7 @@
             var repDemi = bornes.demiDebut || bornes.demiFin || "matin";
             var cibles = [];
             for (var pi = pMin; pi <= pMax; pi++) cibles.push({ personne: personnesListe[pi], demi: repDemi });
-            ouvrirAjoutPlage(kind, cibles, bornes.giDebut, bornes.duree, bornes.demiDebut, bornes.demiFin);
+            ouvrirAjoutPlage(kind, cibles, bornes.giDebut, bornes.duree, bornes.demiDebut, bornes.demiFin, e2.clientX, e2.clientY);
           } else {
             if (halfDebut === halfCourant) { ouvrirAjout(cell, e2.clientX, e2.clientY); return; }
             ouvrirEditionPlage(kind, null, bornes.giDebut, bornes.duree, e2.clientX, e2.clientY, cell, bornes.demiDebut, bornes.demiFin);

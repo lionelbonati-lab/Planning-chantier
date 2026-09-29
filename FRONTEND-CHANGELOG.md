@@ -10773,3 +10773,17 @@ Lionel :
 
 ### Tests
 - Nouveau : tests/test_suite119.js (9 vérifications).
+
+## 233. Round du 29.09.2026 (suite 120) — Menu d'ajout, membres repliés, flèches, bandeau « Recharger »
+- Lionel : « en mode ajout multiple le menu ne se place pas à côté du curseur de souris ». Le menu d'un ajout sur plusieurs cases s'ouvrait centré sous la grille ; il s'ouvre maintenant là où le glisser se termine.
+- Lionel : « Pas possible de rajouter de tâches ou absence pour les ouvriers repliés sous la ligne équipe ».
+  - Menu d'ajout d'une case de la ligne d'équipe : nouvelle rubrique « Pour un membre », avec les membres de l'équipe cette semaine-là. Un nom ouvre le menu de ce membre (Tâche, Absence, entrées rapides, Coller), posé sur sa ligne, sans avoir à déplier l'équipe.
+  - « + » → Tâche ou Absence → « Pour qui » : les membres cachés sous une équipe repliée sont proposés aussi.
+- Lionel : « Pas possible de bouger une bulle seule sélectionnée avec les flèches, marche en mode multi ». ← → (et Maj+← →) décalent désormais la sélection dès qu'une bulle est sélectionnée, seule ou non.
+- Lionel : « Sur desktop, sans cesse une demande de rechargement ».
+  - Cause : après une publication, GitHub Pages sert encore quelques minutes l'ancienne version depuis certains serveurs. Le service worker (sw.js) ne regardait que « fichier différent » : chaque va-et-vient entre ancienne et nouvelle version relançait le bandeau « Recharger », et rangeait même l'ancienne version par-dessus la neuve.
+  - Désormais la date de modification tranche : seule une version plus récente affiche le bandeau et remplace la copie. Une version plus ancienne est ignorée, y compris pendant « Recharger ».
+
+### Tests
+- Nouveau : tests/test_suite120.js (7 vérifications).
+- Nouveau : tests/test_suite120_sw.js (4 vérifications ; l'ancien sw.js échoue sur la 2e).

@@ -174,6 +174,34 @@
       });
     });
   }
+  // Round du 29.09.2026 (suite 120) — Lionel : « Pas possible de rajouter
+  // de taches ou absence pour les ouvriers repliés sous la ligne équipe. »
+  // Menu d'ajout d'une ligne d'équipe (une seule ligne visée) : « Pour un
+  // membre » liste ses membres de la semaine ; un nom remplace le menu par
+  // celui de ce membre (Tâche, Absence, entrées rapides, Coller), posé au
+  // même endroit — sans avoir à déplier l'équipe.
+  function ajouterEntreesMembres_(pop, fermer, cell, x, y, cibles, giDebut, duree, plageInit, demiDebut, demiFin) {
+    if (cibles.length !== 1 || !estLigneEquipe(cibles[0].personne)) return;
+    var membres = membresEquipe(cibles[0].personne, lundiDeIso(isoDeGi(giDebut)));
+    if (!membres.length) return;
+    var bloc = document.createElement("div");
+    bloc.className = "mc-membres";
+    bloc.innerHTML = '<div class="mc-sep"></div><div class="cp-titre">Pour un membre</div>' + membres.map(function (id) {
+      var m = personneParAncre(id);
+      return '<button type="button" data-membre="' + esc(id) + '">' + esc(m ? m.nom : id) + ' ›</button>';
+    }).join("");
+    pop.appendChild(bloc);
+    bloc.querySelectorAll("button[data-membre]").forEach(function (b) {
+      b.addEventListener("click", function (e) {
+        e.stopPropagation();
+        var id = b.dataset.membre, m = personneParAncre(id);
+        var ciblesM = [{ personne: id, demi: cibles[0].demi }];
+        var plageM = Object.assign({ px: x, py: y }, plageInit || {}, { cibles: ciblesM, giDebut: giDebut, duree: duree, demiDebut: demiDebut || null, demiFin: demiFin || null });
+        pop.innerHTML = '<div class="cp-titre">Ajouter — ' + esc(m ? m.nom : id) + '</div>' + boutonsMenuAjout(id);
+        cablerBoutonsMenuAjout(pop, fermer, cell, x, y, ciblesM, giDebut, duree, plageM, demiDebut, demiFin);
+      });
+    });
+  }
   function ouvrirAjout(cell, x, y) {
     var kind = cell.dataset.kind;
     // Clic simple (sans glissé) sur jalon/note (round du 12.09.2026 — Lionel :
@@ -199,13 +227,18 @@
     var cibleRapide = [{ personne: cell.dataset.personne, demi: cell.dataset.demi }];
     var giRapide = +cell.dataset.jour;
     cablerBoutonsMenuAjout(pop, fermer, cell, x, y, cibleRapide, giRapide, 1, null, cell.dataset.demi, cell.dataset.demi);
+    ajouterEntreesMembres_(pop, fermer, cell, x, y, cibleRapide, giRapide, 1, null, cell.dataset.demi, cell.dataset.demi);
   }
-  function ouvrirAjoutPlage(kind, cibles, giDebut, duree, demiDebut, demiFin) {
+  // Round du 29.09.2026 (suite 120) — Lionel : « en mode ajout multiple le
+  // menu ne se place pas à côté du curseur de souris ». Il s'ouvrait sous
+  // la grille, centré : (x, y) = point où le glisser s'est terminé ; sans
+  // eux, l'ancienne place.
+  function ouvrirAjoutPlage(kind, cibles, giDebut, duree, demiDebut, demiFin, x, y) {
     var premiere = cibles[0];
     var cell = document.querySelector('.cell[data-kind="personne"][data-jour="' + giDebut + '"][data-personne="' + premiere.personne + '"][data-demi="' + premiere.demi + '"]');
     if (!cell) return;
     var grilleRect = cell.closest(".grille").getBoundingClientRect();
-    var px = grilleRect.left + grilleRect.width / 2 - 110, py = grilleRect.bottom + 10;
+    var px = x != null ? x + 8 : grilleRect.left + grilleRect.width / 2 - 110, py = y != null ? y + 8 : grilleRect.bottom + 10;
     // demiDebut/demiFin (round du 12.09.2026) : bords précis de la plage
     // "case par case" issue du glissé (bornesDepuisDemiSlots côté appelant),
     // désormais transportés jusqu'à ouvrirEdition (state.demiDebut/demiFin
@@ -219,6 +252,7 @@
     positionnerPop(pop, px, py);
     var fermer = fermerAuClicExterieur(pop);
     cablerBoutonsMenuAjout(pop, fermer, cell, null, null, cibles, giDebut, duree, plageInit, demiDebut, demiFin);
+    ajouterEntreesMembres_(pop, fermer, cell, px, py, cibles, giDebut, duree, plageInit, demiDebut, demiFin);
   }
 
   // §85 (round du 17.09.2026) — Lionel, mockup mockup-sous-menu-outils.html à

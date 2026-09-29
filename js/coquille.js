@@ -1086,7 +1086,11 @@
             '<button type="button" class="outil-menu-retour">‹ Retour</button>' +
             '<div class="outil-menu-titre">Pour qui — ' + (type === "tache" ? "Tâche" : "Absence") + '</div>';
           // Ordre affiché (suite 33) ; pas d'absence pour une équipe.
-          var liste = type === "absence" ? personnesAffichees("personnel").filter(function (p) { return !p.equipe; }) : personnesAfficheesToutes();
+          // Suite 120 (« pas possible de rajouter de tâches ou absence pour
+          // les ouvriers repliés sous la ligne équipe ») : les membres
+          // cachés par le pliage sont proposés aussi.
+          var liste = type === "absence" ? personnelOrdonneSansPliage().filter(function (p) { return !p.equipe; })
+            : personnelOrdonneSansPliage().concat(personnesAffichees("sous-traitant"));
           liste.forEach(function (p) {
             var it = document.createElement("button");
             it.type = "button";
