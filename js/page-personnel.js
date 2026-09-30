@@ -165,7 +165,7 @@
       btn.addEventListener("click", function () { echangerOrdrePersonnes(idDe(btn), 1, actifs); });
     });
     var btnAdd = zone.querySelector(".ligne-ajouter");
-    if (btnAdd) btnAdd.addEventListener("click", function () { ouvrirAjoutPersonne(btnAdd.dataset.sousTraitant === "1", btnAdd.dataset.equipe === "1"); });
+    if (btnAdd) btnAdd.addEventListener("click", function () { ouvrirAjoutPersonne(btnAdd.dataset.sousTraitant === "1", btnAdd.dataset.equipe === "1", btnAdd.dataset.groupe || null); });
     var btnRepli = zone.querySelector(".repli-desactives");
     if (btnRepli) btnRepli.addEventListener("click", function () {
       btnRepli.classList.toggle("ouvert");
@@ -184,32 +184,51 @@
   // non plus).
   // equipe (suite 33) : 3e liste, les équipes (page Personnel, au-dessus
   // des personnes) — mêmes lignes, flèches, interrupteur et suppression.
-  function renderListePersonnes(sousTraitant, equipe) {
-    var zone = document.getElementById(equipe ? "listeEquipes" : sousTraitant ? "listeIntervenants" : "listePersonnel");
+  // groupeId (round du 30.09.2026, suite 132 — js/groupes.js) : liste
+  // d'un groupe (Machines, Transports…), sous les personnes ; ses lignes
+  // ne sont plus dans « Personnes ».
+  function renderListePersonnes(sousTraitant, equipe, groupeId) {
+    var zone = document.getElementById(groupeId ? "listeGroupe-" + groupeId : equipe ? "listeEquipes" : sousTraitant ? "listeIntervenants" : "listePersonnel");
     if (!zone) return;
     listerPersonnesGestionServeur().then(function (toutes) {
-      var liste = toutes.filter(function (p) { return equipe ? p.equipe : (!p.equipe && !!p.sousTraitant === !!sousTraitant); });
+      var liste = toutes.filter(function (p) {
+        var groupe = !p.equipe && !p.sousTraitant && p.groupeId && groupeParId(p.groupeId) ? p.groupeId : null;
+        if (groupeId) return groupe === String(groupeId);
+        return equipe ? p.equipe : (!p.equipe && !groupe && !!p.sousTraitant === !!sousTraitant);
+      });
       var actifs = liste.filter(function (p) { return p.actif; });
       var inactifs = liste.filter(function (p) { return !p.actif; });
       var html = actifs.map(function (p, i) {
         return ligneFichePersonne(p, { premier: i === 0, dernier: i === actifs.length - 1 });
-      }).join("") + '<button type="button" class="ligne-ajouter" data-sous-traitant="' + (sousTraitant ? 1 : 0) + '"' + (equipe ? ' data-equipe="1"' : "") + ">" + (equipe ? "+ Nouvelle équipe" : "+ Ajouter") + "</button>";
+      }).join("") + '<button type="button" class="ligne-ajouter" data-sous-traitant="' + (sousTraitant ? 1 : 0) + '"' + (equipe ? ' data-equipe="1"' : "") + (groupeId ? ' data-groupe="' + esc2(groupeId) + '"' : "") + ">" + (equipe ? "+ Nouvelle équipe" : "+ Ajouter") + "</button>";
       if (inactifs.length) {
         html += '<button type="button" class="repli-desactives"><span class="chevron">›</span> Désactivés (' + inactifs.length + ')</button>' +
           '<div class="groupe-desactives" hidden>' + inactifs.map(function (p) { return ligneFichePersonne(p); }).join("") + '</div>';
       }
       zone.innerHTML = html;
-      cablerListePersonnes(zone, function () { renderListePersonnes(sousTraitant, equipe); }, actifs);
+      cablerListePersonnes(zone, function () { renderListePersonnes(sousTraitant, equipe, groupeId); }, actifs);
     }).catch(erreurFatale);
   }
-  function renderPersonnel() { renderListePersonnes(false, true); renderListePersonnes(false); }
+  function renderPersonnel() {
+    renderListePersonnes(false, true); renderListePersonnes(false);
+    // Suite 132 : une liste par groupe, dans l'ordre du planning.
+    var zone = document.getElementById("listesGroupes");
+    if (!zone) return;
+    var groupes = sectionsCorps().filter(function (s) { return /^groupe-/.test(s.cle); });
+    zone.innerHTML = groupes.map(function (s) {
+      var id = s.cle.slice(7);
+      return '<h2 class="titre-liste">' + esc(s.libelle) + '</h2><div class="liste-intervenants" id="listeGroupe-' + esc2(id) + '"></div>';
+    }).join("");
+    groupes.forEach(function (s) { renderListePersonnes(false, false, s.cle.slice(7)); });
+  }
   function renderIntervenants() { renderListePersonnes(true); }
-  function ouvrirAjoutPersonne(sousTraitant, equipe) {
+  function ouvrirAjoutPersonne(sousTraitant, equipe, groupeId) {
+    var groupe = groupeId ? groupeParId(groupeId) : null;
     var pop = document.createElement("div");
     pop.className = "pop form-pop";
     pop.innerHTML =
-      '<div class="cp-titre">Ajouter — ' + (equipe ? "Équipe" : sousTraitant ? "Intervenant" : "Personnel") + '</div>' +
-      '<input type="text" class="f-nom" placeholder="Nom' + (equipe ? " de l’équipe" : sousTraitant ? " de l’intervenant" : " de la personne") + '…">' +
+      '<div class="cp-titre">Ajouter — ' + (groupe ? esc(groupe.nom) : equipe ? "Équipe" : sousTraitant ? "Intervenant" : "Personnel") + '</div>' +
+      '<input type="text" class="f-nom" placeholder="Nom' + (groupe ? "" : equipe ? " de l’équipe" : sousTraitant ? " de l’intervenant" : " de la personne") + '…">' +
       '<div class="form-actions"><button type="button" class="f-annuler">Annuler</button><button type="button" class="f-ok">Enregistrer</button></div>';
     var px = Math.round(window.innerWidth / 2 - 110), py = Math.round(window.innerHeight / 2 - 90);
     positionnerPop(pop, px, py);
@@ -220,9 +239,9 @@
       var nom = inputNom.value.trim();
       if (!nom) { fermer(); return; }
       fermer();
-      ajouterPersonneServeur(nom, !!sousTraitant, !!equipe).then(function () {
+      ajouterPersonneServeur(nom, !!sousTraitant, !!equipe, groupe ? groupe.id : null).then(function () {
         rafraichirApresPersonnel();
-        toast(equipe ? "Équipe ajoutée — clique sur son nom dans le planning pour choisir ses membres." : sousTraitant ? "Intervenant ajouté." : "Personnel ajouté.");
+        toast(groupe ? "Ajouté à « " + groupe.nom + " »." : equipe ? "Équipe ajoutée — clique sur son nom dans le planning pour choisir ses membres." : sousTraitant ? "Intervenant ajouté." : "Personnel ajouté.");
       }).catch(function (err) { toast("Échec de l’ajout : " + (err && err.message ? err.message : err)); });
     });
     inputNom.focus();

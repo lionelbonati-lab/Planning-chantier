@@ -103,9 +103,9 @@
       rendu: "couleurs", vides: false, masques: {} };
   }
   function lireReglagesImpression_() {
-    var r = reglagesImpressionDefaut_();
+    var r = reglagesImpressionDefaut_(), lu = null;
     try {
-      var lu = JSON.parse(localStorage.getItem(CLE_REGLAGES_IMPRESSION) || "null");
+      lu = JSON.parse(localStorage.getItem(CLE_REGLAGES_IMPRESSION) || "null");
       if (lu && typeof lu === "object") {
         Object.keys(r).forEach(function (k) { if (lu[k] != null && typeof lu[k] === typeof r[k]) r[k] = lu[k]; });
         if (lu.rendu == null && lu.couleurs === false) r.rendu = "nb";
@@ -114,7 +114,16 @@
         r.horaires = lireOptionHorairesImpression_();
       }
     } catch (e) {}
+    // Suite 132 (js/groupes.js) : une case par groupe (Machines,
+    // Transports…), cochée d'office.
+    (etat.groupes || []).forEach(function (g) { var k = "groupe-" + g.id; r[k] = lu && typeof lu === "object" && typeof lu[k] === "boolean" ? lu[k] : true; });
     return r;
+  }
+  // Section imprimée ? (case Personnel, Intervenants ou du groupe.)
+  function sectionImprimee_(r, secteur) {
+    if (secteur === "sous-traitant") return !!r.intervenants;
+    if (secteur === "personnel") return !!r.personnel;
+    return r[secteur] !== false;
   }
   function ecrireReglagesImpression_(r) {
     try {
@@ -195,9 +204,16 @@
       // « Personnes sans tâche » (ses tâches sont sur la ligne d'équipe).
       var lundiImpr = (data.isoDates || [])[0];
       var idImpr = function (p) { return String(p.ancre); };
-      var personnelTous = (data.personnes || []).filter(function (p) { return !p.sousTraitant; });
-      var intervenantsTous = (data.personnes || []).filter(function (p) { return p.sousTraitant; });
-      var ordreComplet = ordrePersonnesEquipes(personnelTous, lundiImpr, idImpr).concat(intervenantsTous.map(function (p) { return { p: p, role: null }; }));
+      // Suite 132 (js/groupes.js) : sections dans l'ordre du planning
+      // (Personnel, Intervenants, Machines, Transports… glissés à l'écran).
+      var sectionsImpr = sectionsCorps();
+      function blocsParSection_(liste) {
+        return sectionsImpr.map(function (sec) {
+          var dans = liste.filter(function (p) { return secteurDe(p) === sec.secteur; });
+          return sec.secteur === "personnel" ? ordrePersonnesEquipes(dans, lundiImpr, idImpr) : dans.map(function (p) { return { p: p, role: null }; });
+        });
+      }
+      var ordreComplet = [].concat.apply([], blocsParSection_(data.personnes || []));
       var roleComplet = {};
       var equipeComplete = {};
       ordreComplet.forEach(function (e) { roleComplet[idImpr(e.p)] = e.role; if (e.role === "membre") equipeComplete[idImpr(e.p)] = e.equipeId; });
@@ -223,12 +239,10 @@
           var seuls = [], roles = {};
           if (avecEquipe) { seuls.push(eqP); roles[eqId] = "equipe"; }
           if (moi && (!avecEquipe || !videImpr_(moi))) { seuls.push(moi); roles[opt.pour] = avecEquipe ? "membre" : roleComplet[opt.pour] === "equipe" ? "equipe" : null; }
-          return { personnel: seuls.filter(function (p) { return !p.sousTraitant; }), intervenants: seuls.filter(function (p) { return p.sousTraitant; }),
-            role: roles, sautees: 0, decochees: 0 };
+          return { blocs: [seuls], role: roles, sautees: 0, decochees: 0 };
         }
         function garde(p) {
-          if (p.sousTraitant && !r.intervenants) return false;
-          if (!p.sousTraitant && !r.personnel) return false;
+          if (!sectionImprimee_(r, secteurDe(p))) return false;
           if (videImpr_(p) && !(r.vides && roleComplet[idImpr(p)] !== "membre")) { sautees++; return false; }
           if (r.masques[idImpr(p)]) { decochees++; return false; }
           return true;
@@ -242,10 +256,10 @@
         // quelque chose à lui (absence, tâche ailleurs) — les autres sont
         // sautés par personneVide, comme n'importe qui.
         var roleImpr = {};
-        var imprPersonnel = ordrePersonnesEquipes(imprimesTous.filter(function (p) { return !p.sousTraitant; }), lundiImpr, idImpr)
-          .map(function (e) { roleImpr[idImpr(e.p)] = e.role; return e.p; });
-        var imprIntervenants = imprimesTous.filter(function (p) { return p.sousTraitant; });
-        return { personnel: imprPersonnel, intervenants: imprIntervenants, role: roleImpr, sautees: sautees, decochees: decochees };
+        var blocs = blocsParSection_(imprimesTous).map(function (bloc) {
+          return bloc.map(function (e) { roleImpr[idImpr(e.p)] = e.role; return e.p; });
+        });
+        return { blocs: blocs, role: roleImpr, sautees: sautees, decochees: decochees };
       }
 
       // Horaires de la semaine (suite 27, cf. la ligne « Horaires » plus bas),
@@ -466,14 +480,17 @@
         }
         // Liste imprimée selon les réglages (cf. personnesImprimees_).
         var liste = personnesImprimees_(r, opt);
-        var imprPersonnel = liste.personnel, imprIntervenants = liste.intervenants, roleImpr = liste.role;
-        var imprimes = imprPersonnel.concat(imprIntervenants);
-        // Index (dans `imprimes`) du dernier "Personnel" avant le 1er
-        // "Intervenant" — sert plus bas à insérer une séparation plus large que
-        // le spacer ordinaire entre 2 personnes du même groupe (cf.
-        // "print-spacer-section" dans le CSS), seulement quand les 2 groupes
-        // sont représentés cette semaine-là.
-        var indexFrontiereSection = (imprPersonnel.length > 0 && imprIntervenants.length > 0) ? (imprPersonnel.length - 1) : -1;
+        var roleImpr = liste.role;
+        var blocsImpr = liste.blocs.filter(function (b) { return b.length; });
+        var imprimes = [].concat.apply([], blocsImpr);
+        // Index (dans `imprimes`) de la dernière ligne de chaque section
+        // suivie d'une autre — sert plus bas à insérer une séparation plus
+        // large que le spacer ordinaire entre 2 personnes du même groupe (cf.
+        // "print-spacer-section" dans le CSS). Suite 132 : entre chaque
+        // section représentée (Personnel, Intervenants, Machines…), dans
+        // l'ordre du planning.
+        var frontieresSection = {}, cumul = 0;
+        blocsImpr.forEach(function (b, i) { cumul += b.length; if (i < blocsImpr.length - 1) frontieresSection[cumul - 1] = true; });
         // Round du 16.09.2026 (sql/0010_taches_chantier_id.sql — Option A,
         // choisie par Lionel via AskUserQuestion : "bande de couleur par
         // tâche") : chaque tâche de la case a désormais son PROPRE chantier
@@ -687,7 +704,7 @@
             // spacer tranchait donc le trait en 2 (1px en bas de page, trait
             // orphelin ou personne collée à l'en-tête en page suivante). Entre
             // 2 demi-lignes vides, il n'y a plus aucun trait à trancher.
-            var section = idx === indexFrontiereSection ? " print-spacer-section" : "";
+            var section = frontieresSection[idx] ? " print-spacer-section" : "";
             h += '<tr class="print-spacer print-spacer-fin' + section + '"><td colspan="' + NB_COLS + '"></td></tr>';
             h += '<tr class="print-spacer print-spacer-personne' + section + '"><td colspan="' + NB_COLS + '"></td></tr>';
           }
@@ -801,10 +818,11 @@
           return '<option value="' + esc(idImpr(e.p)) + '">' + (e.role === "membre" ? "\u00a0\u00a0" : "") + esc(e.p.nom) + '</option>';
         }).join("");
       }
-      var perso = ordre.filter(function (e) { return !e.p.sousTraitant; }), inter = ordre.filter(function (e) { return e.p.sousTraitant; });
-      return '<option value="">Tout le monde</option>' +
-        (perso.length ? '<optgroup label="Personnel">' + liste(perso) + '</optgroup>' : '') +
-        (inter.length ? '<optgroup label="Intervenants">' + liste(inter) + '</optgroup>' : '');
+      // Suite 132 : un groupe d'options par section, dans l'ordre du planning.
+      return '<option value="">Tout le monde</option>' + sectionsCorps().map(function (sec) {
+        var dans = ordre.filter(function (e) { return secteurDe(e.p) === sec.secteur; });
+        return dans.length ? '<optgroup label="' + esc(sec.libelle) + '">' + liste(dans) + '</optgroup>' : '';
+      }).join("");
     }
     // Semaines de la période : celles du cache encore fraîches telles
     // quelles (la semaine affichée l'est toujours), les autres lues sur le
@@ -891,8 +909,13 @@
         return g + '</div></div>';
       }
       var choixPersonnes = choixPersonnes_();
-      h += groupe("personnel", "Personnel", choixPersonnes.filter(function (e) { return !e.p.sousTraitant; })) +
-        groupe("intervenants", "Intervenants", choixPersonnes.filter(function (e) { return e.p.sousTraitant; }));
+      // Suite 132 : une case par section, dans l'ordre du planning ; un
+      // groupe sans ligne n'en a pas.
+      sectionsCorps().forEach(function (sec) {
+        var dans = choixPersonnes.filter(function (e) { return secteurDe(e.p) === sec.secteur; });
+        if (/^groupe-/.test(sec.cle) && !dans.length) return;
+        h += groupe(sec.cle, esc(sec.libelle), dans);
+      });
       h += '</fieldset>';
       return h;
     }

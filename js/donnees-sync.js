@@ -268,6 +268,7 @@
       // = Samedi/Dimanche.
       return {
         ancre: p.id, nom: p.nom, sousTraitant: !!p.sous_traitant, equipe: !!p.equipe,
+        groupeId: p.groupe_id != null ? String(p.groupe_id) : null, // suite 132, js/groupes.js
         matin: matin, aprem: aprem,
         weekend: [celluleVue_(p.id, "matin", infos.weekendDates[0]), celluleVue_(p.id, "matin", infos.weekendDates[1])]
       };
@@ -365,7 +366,7 @@
     etat.aujourdhui = new Date().toISOString().slice(0, 10); // date du jour, UTC — même convention que le reste du chargement
 
     Promise.all([
-      sbClient.from("personnes").select("id, nom, sous_traitant, equipe, ordre, couleur").eq("actif", true).order("ordre", { ascending: true }),
+      sbClient.from("personnes").select("id, nom, sous_traitant, equipe, groupe_id, ordre, couleur").eq("actif", true).order("ordre", { ascending: true }),
       // actif/ordre (sql/0008) : la requête reste volontairement SANS
       // .eq("actif", true) — contrairement à celle des personnes juste
       // au-dessus — pour que chantiersParId (juste en dessous) reste
@@ -404,7 +405,11 @@
       // Exceptions d'équipe par demi-journée (round du 30.09.2026, suite 131
       // — sql/0032, js/equipes.js) : non bloquante, comme les compositions.
       // Sans elle, les équipes suivent leur seule composition de la semaine.
-      sbClient.from("equipes_exceptions").select(COLONNES_EXCEPTIONS)
+      sbClient.from("equipes_exceptions").select(COLONNES_EXCEPTIONS),
+      // Groupes de lignes Machines / Transports (round du 30.09.2026, suite
+      // 132 — sql/0033, js/groupes.js) : non bloquante. Sans elle, leurs
+      // lignes retombent dans le Personnel.
+      sbClient.from("groupes").select(COLONNES_GROUPES)
     ]).then(function (r) {
       r.slice(0, 4).forEach(function (res) { if (res.error) throw res.error; }); // ces 4-là restent bloquantes, comme avant
       var personnesBrutes = r[0].data || [], chantiersBruts = r[1].data || [], statutsBruts = r[2].data || [], feriesBruts = r[3].data || [];
@@ -440,6 +445,7 @@
       etat.horairesServeur = (r[6] && !r[6].error) ? normaliserHoraires(r[6].data || []) : [];
       etat.compositionsEquipes = (r[7] && !r[7].error) ? normaliserCompositions(r[7].data || []) : [];
       etat.exceptionsEquipes = (r[9] && !r[9].error) ? normaliserExceptions(r[9].data || []) : [];
+      etat.groupes = (r[10] && !r[10].error) ? normaliserGroupes(r[10].data || []) : [];
       // etat.reglages : { cle: valeur } — null si la requête a échoué (la
       // mise en page retombe alors sur son cache local, cf.
       // lireMiseEnPage, js/page-mise-en-page.js).
@@ -615,7 +621,7 @@
   // chargerSemaineDepuisServeur (qui filtre `.in("personne_id", ...)` sur
   // cette liste) reste synchrone avec ce qui vient d'être écrit.
   function rechargerPersonnesActives_() {
-    return sbClient.from("personnes").select("id, nom, sous_traitant, equipe, ordre, couleur").eq("actif", true).order("ordre", { ascending: true })
+    return sbClient.from("personnes").select("id, nom, sous_traitant, equipe, groupe_id, ordre, couleur").eq("actif", true).order("ordre", { ascending: true })
       .then(function (res) {
         if (res.error) throw res.error;
         etat.personnesActives = res.data || [];
@@ -623,8 +629,12 @@
   }
   // equipe (suite 33) : une équipe est une ligne `personnes` comme les
   // autres, marquée equipe = true (cf. sql/0015, js/equipes.js).
-  function ajouterPersonneServeur(nom, sousTraitant, equipe) {
-    return sbClient.from("personnes").insert({ nom: nom, sous_traitant: !!sousTraitant && !equipe, equipe: !!equipe, ordre: prochainOrdrePersonne_() })
+  // groupeId (suite 132, js/groupes.js) : ligne d'un groupe (Machines,
+  // Transports…), jamais équipe ni intervenant.
+  function ajouterPersonneServeur(nom, sousTraitant, equipe, groupeId) {
+    var ligne = { nom: nom, sous_traitant: !!sousTraitant && !equipe && !groupeId, equipe: !!equipe && !groupeId, ordre: prochainOrdrePersonne_() };
+    if (groupeId) ligne.groupe_id = +groupeId;
+    return sbClient.from("personnes").insert(ligne)
       .then(function (res) { if (res.error) throw res.error; });
   }
   // sousTraitant repris tel quel (jamais togglé depuis l'UI actuelle, cf.
@@ -675,11 +685,11 @@
   // grille elle-même ne doit jamais montrer une personne désactivée,
   // historique compris — comportement préexistant, inchangé).
   function listerPersonnesGestionServeur() {
-    return sbClient.from("personnes").select("id, nom, sous_traitant, equipe, actif, ordre, couleur").order("ordre", { ascending: true })
+    return sbClient.from("personnes").select("id, nom, sous_traitant, equipe, groupe_id, actif, ordre, couleur").order("ordre", { ascending: true })
       .then(function (res) {
         if (res.error) throw res.error;
         var liste = (res.data || []).map(function (p) {
-          return { id: String(p.id), nom: p.nom, sousTraitant: !!p.sous_traitant, equipe: !!p.equipe, actif: p.actif !== false, ordre: p.ordre || 0, couleur: p.couleur || null };
+          return { id: String(p.id), nom: p.nom, sousTraitant: !!p.sous_traitant, equipe: !!p.equipe, groupeId: p.groupe_id != null ? String(p.groupe_id) : null, actif: p.actif !== false, ordre: p.ordre || 0, couleur: p.couleur || null };
         });
         // Re-tri explicite côté client, en plus du .order() ci-dessus (qui
         // suffit déjà avec un vrai Supabase) : ceinture et bretelles, sans
@@ -1108,7 +1118,7 @@
     // recherchée par ancre dans l'éventuelle 2e semaine.
     PERSONNES = (d0.personnes || []).map(function (p) {
       // equipe (suite 33, js/equipes.js) : ligne d'équipe, pas une personne.
-      return { id: String(p.ancre), nom: p.nom, sousTraitant: !!p.sousTraitant, equipe: !!p.equipe };
+      return { id: String(p.ancre), nom: p.nom, sousTraitant: !!p.sousTraitant, equipe: !!p.equipe, groupeId: p.groupeId || null };
     });
 
     // CHANTIERS : clé = NOM (c'est la clé de reconnaissance réelle côté

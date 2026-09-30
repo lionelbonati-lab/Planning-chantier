@@ -422,8 +422,9 @@
   });
 
   function secteurPersonne(personneId) {
-    var p = personneParAncre(personneId);
-    return p && p.sousTraitant ? "sous-traitant" : "personnel";
+    // Suite 132 : "groupe-<id>" pour une ligne Machines / Transports…
+    // (js/groupes.js) — la tâche reste alors dans son groupe au glisser.
+    return secteurDe(personneParAncre(personneId));
   }
   // Round du 26.09.2026 (suite 66) — Lionel : « J'arrive à changer les
   // tâches entre intervenants alors que cela devrait être interdit. » Le
@@ -934,7 +935,8 @@
     var sc = racineEl && racineEl.querySelector(".scroller");
     var entete = racineEl && racineEl.querySelector(".entete-planning-figee");
     if (!sc || !entete || !sc.getClientRects().length) return;
-    var bandes = [sc.querySelector(".section-row-personnel"), sc.querySelector(".section-row-intervenants")].filter(Boolean);
+    // Suite 132 : toutes les sections (groupes compris), dans l'ordre affiché.
+    var bandes = [].slice.call(sc.querySelectorAll(".section-row[data-section]"));
     if (!bandes.length) return;
     // Lectures d'abord (positions sans le décalage déjà posé), écritures ensuite.
     var haut = entete.getBoundingClientRect().bottom, bas = sc.getBoundingClientRect().bottom;
@@ -1708,11 +1710,17 @@
       // pour un fond réglable indépendamment par section (cf. style.css et
       // js/page-couleurs.js) : "personnel" ou "intervenants", exactement
       // les 2 valeurs passées à ligneSection() plus bas.
-      lg.className = "section-row section-row-" + cle;
+      // Suite 132 (js/groupes.js) : un groupe (Machines, Transports…) a
+      // .section-row-groupe (fond du Personnel). Poignée ⠿ : glisser le
+      // titre pour ranger la section ailleurs (cablerGlisserSection).
+      lg.className = "section-row section-row-" + (/^groupe-/.test(cle) ? "groupe" : cle);
+      lg.dataset.section = cle;
       lg.innerHTML =
         '<div class="section-row-sticky">' +
+        '<span class="section-poignee" title="Glisser pour changer l’ordre des groupes" aria-hidden="true">⠿</span>' +
         '<span class="section-label">' + esc(texte) + '</span>' +
         '</div>';
+      cablerGlisserSection(lg, cle);
       // Bandeau fixe pendant le glissement de semaine (suite 72). Jours
       // voisins aux bords (suite 74) : les bandes entre semaines le coupent,
       // il glisse avec la grille ; seul son libellé reste fixe. Rétabli
@@ -1820,8 +1828,6 @@
     // Suite 33 : Personnel dans l'ordre des équipes (chaque équipe suivie
     // de ses membres, les membres repliés sans rien à eux cachés) — cf.
     // personnesAffichees, js/equipes.js.
-    var groupePersonnel = personnesAffichees("personnel");
-    var groupeIntervenants = personnesAffichees("sous-traitant");
 
     // §86 (round du 17.09.2026, suite) — Lionel : « les lignes de séparation
     // "personnel" et "intervenant" doivent aussi être masquées quand le
@@ -1833,14 +1839,19 @@
     // repliée ne doit plus exister DU TOUT dans la grille, libellé compris —
     // ligneSection() rejoint donc la même condition que le groupe qu'elle
     // annonce, au lieu d'être appelée inconditionnellement juste avant.
-    if (!replierSectionPersonnel) {
-      ligneSection("personnel", "Personnel");
-      ligneGroupePersonnes(groupePersonnel);
-    }
-    if (!replierSectionIntervenants) {
-      ligneSection("intervenants", "Intervenants");
-      ligneGroupePersonnes(groupeIntervenants);
-    }
+    // Round du 30.09.2026 (suite 132) — Lionel : « Les groupes machines
+    // et transports font leur apparitions. J'aimerai pouvoir réorganiser
+    // mes groupes dans le planning. » Les sections suivent l'ordre choisi
+    // (sectionsCorps, js/groupes.js) ; un groupe sans ligne n'est pas
+    // affiché, et ne se replie pas depuis la barre (pas de bouton).
+    sectionsCorps().forEach(function (sec) {
+      if (sec.cle === "personnel" && replierSectionPersonnel) return;
+      if (sec.cle === "intervenants" && replierSectionIntervenants) return;
+      var lignes = personnesAffichees(sec.secteur);
+      if (/^groupe-/.test(sec.cle) && !lignes.length) return;
+      ligneSection(sec.cle, sec.libelle);
+      ligneGroupePersonnes(lignes);
+    });
 
     // Round du 23.09.2026 (suite 4, puis suite 5) — cibleApresRendu (cf. son
     // commentaire dans js/core.js) recale le défilement horizontal plutôt

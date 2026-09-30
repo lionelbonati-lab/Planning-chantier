@@ -962,9 +962,12 @@
     PERSONNES.forEach(function (x) { if (x.id === idP) moi = x; });
     if (!moi) return [];
     var ids;
-    if (moi.sousTraitant) ids = PERSONNES.filter(function (x) { return x.sousTraitant; }).map(function (x) { return x.id; });
+    // Suite 132 (js/groupes.js) : une ligne de groupe (Machines…) parmi
+    // celles de son groupe.
+    var secteur = secteurDe(moi);
+    if (secteur !== "personnel") ids = PERSONNES.filter(function (x) { return secteurDe(x) === secteur; }).map(function (x) { return x.id; });
     else {
-      var ordre = ordrePersonnesEquipes(PERSONNES.filter(function (x) { return !x.sousTraitant; }), lundiCourantEquipes(), function (x) { return x.id; });
+      var ordre = ordrePersonnesEquipes(PERSONNES.filter(function (x) { return secteurDe(x) === "personnel"; }), lundiCourantEquipes(), function (x) { return x.id; });
       var e0 = ordre.filter(function (e) { return e.p.id === idP; })[0];
       if (!e0) return [];
       ids = ordre.filter(function (e) { return e.role === e0.role && (e.role !== "membre" || e.equipeId === e0.equipeId); }).map(function (e) { return e.p.id; });

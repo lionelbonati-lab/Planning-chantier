@@ -10992,3 +10992,43 @@ Lionel :
   - impression.
 - Suite complète : 135/135.
 
+
+
+
+## 245. Round du 30.09.2026 (suite 132) — Groupes Machines / Transports, ordre des groupes, arrivée / départ sans type
+- Lionel (page Améliorations et bugs, amélioration n° 4) :
+
+> Les groupes machines et transports font leur apparitions.
+> J'aimerai pouvoir réorganiser mes groupes dans le planning.
+> Pas besoin du type d'absence dans le nouveau formulaire arrivée/départ.
+
+- Ses choix :
+  - lignes Machines / Transports « Comme le personnel » : tâches, absences (panne, révision), tâches déplaçables entre les lignes du même groupe ;
+  - « Glisser les titres » : le titre d'une section du planning se glisse plus haut ou plus bas ; l'ordre est enregistré pour le compte et suivi à l'impression. Jalons et Notes restent en tête.
+- Groupes (voir BACKEND-CHANGELOG §36) : Machines et Transports créés d'office. Une ligne de groupe est une ligne `personnes` avec `groupe_id`.
+- Planning :
+  - une section par groupe (fond du Personnel), sous Personnel et Intervenants par défaut ; un groupe sans ligne n'est pas affiché ;
+  - poignée ⠿ devant chaque titre (Personnel, Intervenants, Machines, Transports) : glisser, un trait montre où la section va ; relâchée, elle y est rangée (« Ordre des groupes enregistré. ») ;
+  - ordre enregistré dans le réglage du compte « ordre_groupes » (table reglages), avec repli sur l'appareil si la base ne répond pas ;
+  - une tâche d'une machine ne se glisse que vers une autre ligne du même groupe ; réordonner les noms aussi ;
+  - menu d'ajout d'une machine : Tâche, Absence, Arrivée / départ, comme le personnel ; listes « Pour qui » dans l'ordre des sections, groupes compris.
+- Page Personnel : une liste par groupe (dans l'ordre du planning) sous « Personnes », avec « + Ajouter » ; les lignes d'un groupe ne sont plus dans « Personnes » ni proposées dans les équipes.
+- Impression :
+  - sections dans l'ordre du planning, séparation plus large entre chacune ;
+  - une case par groupe (cochée d'office) et un groupe d'options « Pour » par section.
+- Formulaire arrivée / départ : plus de choix du type d'absence ; texte « Arrivée 9h30 - Motif ».
+- Code : js/groupes.js (nouveau : secteurDe, sectionsCorps, glisser des titres), js/donnees-sync.js (chargement non bloquant, groupe_id), js/equipes.js, js/grille-rendu.js, js/grille-hauteurs.js, js/coquille.js, js/page-personnel.js, js/impression.js, js/formulaires-edition.js, style.css.
+
+### Tests
+- Nouveau : tests/test_suite132.js (11 vérifications) :
+  - sections et poignées, lignes dans leur groupe ;
+  - glisser « Machines » au-dessus de « Personnel » (réglage en base), « Intervenants » tout en bas ;
+  - ordre repris au chargement ;
+  - glisser une tâche : même groupe seulement ;
+  - absence proposée sur une machine ;
+  - arrivée / départ sans type ;
+  - impression : ordre, séparations, cases, « Pour » ; case décochée ;
+  - page Personnel : listes par groupe, ajout avec groupe_id.
+- tests/test_suite130.js : le départ plus tôt prend un motif au lieu d'un type.
+- tests/test_formulaires_assignation.js : charge aussi secteurDe / groupeParId (secteurPersonne passe par eux).
+- Suite complète : 136/136.

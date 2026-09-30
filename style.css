@@ -1364,6 +1364,17 @@
      propre fond indépendamment. */
   .section-row-personnel { background: var(--section-personnel-bg); }
   .section-row-intervenants { background: var(--section-intervenants-bg); }
+  /* Round du 30.09.2026 (suite 132, js/groupes.js) — groupes Machines,
+     Transports… au fond du Personnel (« Comme le personnel »). Poignée ⠿
+     devant chaque titre : glisser pour réordonner les sections ; le trait
+     .section-trait montre où la section va. */
+  .section-row-groupe { background: var(--section-personnel-bg); }
+  .section-poignee { cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; color: var(--ink-muted); font-size: 12px; line-height: 1; padding: 2px 2px; margin-left: -6px; opacity: .55; }
+  .section-row.section-glissee { opacity: .6; }
+  .section-row.section-glissee .section-poignee { cursor: grabbing; opacity: 1; }
+  .section-trait { position: fixed; height: 3px; margin-top: -1px; background: var(--accent); border-radius: 2px; z-index: 9999; pointer-events: none; }
+  @media (hover: hover) and (pointer: fine) { .section-poignee:hover { opacity: 1; color: var(--ink); } }
+  @media print { .section-poignee { display: none; } }
   .section-row-sticky { position: sticky; left: var(--noms-gauche, 0px); display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px; }
   .section-label { font-family: var(--police-mono); font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-muted); }
   /* .btn-plage-ligne (le "+" de fin de ligne section) a vécu : §85 (round du

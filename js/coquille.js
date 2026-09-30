@@ -630,6 +630,11 @@
       // aussi par le bouton de masquage de la toolbar). Cf. js/page-couleurs.js.
       htmlReglagesCouleurs('personnel') +
       '<div class="liste-intervenants" id="listePersonnel"></div>' +
+      // Groupes Machines, Transports… (round du 30.09.2026, suite 132 —
+      // js/groupes.js) : une liste par groupe, remplie par renderPersonnel
+      // (l'ordre des groupes se change en glissant leur titre ⠿ dans le
+      // planning, cf. l'info-bulle de la poignée).
+      '<div id="listesGroupes"></div>' +
       '</div></div>';
   }
   function htmlPageIntervenants() {
@@ -1099,8 +1104,13 @@
           // Suite 120 (« pas possible de rajouter de tâches ou absence pour
           // les ouvriers repliés sous la ligne équipe ») : les membres
           // cachés par le pliage sont proposés aussi.
-          var liste = type === "absence" ? personnelOrdonneSansPliage().filter(function (p) { return !p.equipe; })
-            : personnelOrdonneSansPliage().concat(personnesAffichees("sous-traitant"));
+          // Suite 132 : sections dans l'ordre du planning, groupes compris
+          // (absence possible sur une machine : panne, révision).
+          var liste = sectionsCorps().reduce(function (acc, sec) {
+            if (sec.cle === "personnel") return acc.concat(type === "absence" ? personnelOrdonneSansPliage().filter(function (p) { return !p.equipe; }) : personnelOrdonneSansPliage());
+            if (sec.cle === "intervenants") return type === "absence" ? acc : acc.concat(personnesAffichees("sous-traitant"));
+            return acc.concat(personnesAffichees(sec.secteur));
+          }, []);
           liste.forEach(function (p) {
             var it = document.createElement("button");
             it.type = "button";
