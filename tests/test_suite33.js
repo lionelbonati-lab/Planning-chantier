@@ -137,7 +137,11 @@ const etiquettes = (page) => page.evaluate(() => [...document.querySelectorAll('
 
     // Semaine suivante : l'ancienne composition revient.
     await page.evaluate(() => naviguerSemaine(1));
-    await page.waitForTimeout(400);
+    // Round du 30.09.2026 (suite 127) : attendre que la grille de la semaine 40
+    // soit dessinée (400 ms fixes ne suffisaient pas toujours sur la CI) ;
+    // la vérification ci-dessous échoue quand même si elle ne l'est jamais.
+    await page.waitForFunction(() => { const l = document.querySelector('.lbl-equipe[data-equipe="11"] .equipe-membres'); return l && l.textContent !== 'Aucun membre'; }, null, { timeout: 5000 }).catch(() => {});
+    await page.waitForTimeout(200);
     const s40 = await page.evaluate(() => ({ a: document.querySelector('.lbl-equipe[data-equipe="10"] .equipe-membres').textContent, b: document.querySelector('.lbl-equipe[data-equipe="11"] .equipe-membres').textContent }));
     verifier(s40.a === 'Marc, Luc, Paul' && s40.b === 'Jean', 'semaine 40 : A = Marc, Luc, Paul ; B = Jean (' + JSON.stringify(s40) + ')');
     toutesErreurs.push(...erreurs);

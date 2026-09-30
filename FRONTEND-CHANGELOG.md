@@ -10895,3 +10895,4 @@ Lionel :
 
 ### Tests
 - Suite complète : 131/131.
+- Rendus robustes (échecs sur la CI, plus lente, pas en local) : test_suite27.js (« sans rien écrire en base » ne compte plus les lectures faites en arrière-plan), test_suite33.js (attend que la grille de la semaine 40 soit dessinée au lieu de 400 ms fixes).

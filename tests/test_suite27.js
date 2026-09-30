@@ -117,11 +117,16 @@ const toastTexte = (page) => page.evaluate(() => document.getElementById('toast'
     const remplir = (sel, val) => page.evaluate(([sel, val]) => { const l = [...document.querySelectorAll('#horairesListe .horaire-ligne')].pop(); const i = l.querySelector('[data-champ="' + sel + '"]'); i.value = val; i.dispatchEvent(new Event('input', { bubbles: true })); }, [sel, val]);
     await remplir('du', '2026-09-24'); // chevauche le jeudi 24
     await remplir('matinFin', '12:00'); await remplir('apremDebut', '13:00'); await remplir('apremFin', '17:00');
-    const ecrituresAvant = await page.evaluate(() => window.__ECRITURES.length);
+    // Round du 30.09.2026 (suite 127) : seules les ÉCRITURES comptent — le
+    // journal note aussi les lectures (« taches:select »…), et celles faites
+    // en arrière-plan (importants relus après un rendu depuis la suite 125,
+    // semaines voisines préchargées) tombaient parfois ici sur la CI, plus lente.
+    const ecritures = () => page.evaluate(() => window.__ECRITURES.filter((e) => !/:select$/.test(e)).length);
+    const ecrituresAvant = await ecritures();
     await page.click('#btnEnregistrerHoraires');
     await page.waitForTimeout(200);
     verifier(/se chevauchent/.test(await toastTexte(page)), 'Enregistrer refuse 2 périodes qui se chevauchent (' + await toastTexte(page) + ')');
-    verifier(await page.evaluate((n) => window.__ECRITURES.length === n, ecrituresAvant), '… sans rien écrire en base');
+    verifier(await ecritures() === ecrituresAvant, '… sans rien écrire en base');
     verifier(await page.evaluate(() => document.querySelectorAll('#horairesListe .horaire-ligne.erreur').length === 2), '… et les 2 lignes en cause sont marquées');
 
     await remplir('du', '2026-09-28');
