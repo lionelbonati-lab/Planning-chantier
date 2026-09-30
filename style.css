@@ -3544,6 +3544,39 @@
   .push-appareil-nom { font-weight: 700; }
   .push-appareil-date { color: var(--ink-muted); flex: 1; }
 
+  /* Round du 30.09.2026 (suite 129) — Réglages › Améliorations et bugs
+     (js/page-retours.js). « Concerne » (même bascule que la page
+     Affichage, alignée à gauche), puis les 2 cases côte à côte sur un
+     écran large, l'une sous l'autre sur téléphone ; sous chaque case, ce
+     qui a déjà été envoyé. Une note « Traitée » est estompée. */
+  .retours-concerne { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 14px; }
+  .retours-concerne-nom { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-muted); }
+  .retours-concerne .bascule-appareil { margin: 0; max-width: 100%; flex-wrap: wrap; }
+  .retours-reconnu { font-size: 12px; color: var(--ink-muted); }
+  .retours-cases { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 8px 24px; align-items: start; max-width: 1100px; }
+  .retours-case { min-width: 0; }
+  .retours-case .titre-liste { margin-top: 6px; }
+  .retours-texte {
+    display: block; width: 100%; box-sizing: border-box; min-height: 96px; resize: vertical;
+    font: inherit; font-size: 14px; line-height: 1.45; padding: 10px 12px;
+    border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--ink);
+  }
+  /* 16 px sur téléphone : l'iPhone n'agrandit pas la page en y tapant. */
+  @media (max-width: 600px) { .retours-texte { font-size: 16px; } }
+  .retours-texte:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .retours-actions { display: flex; justify-content: flex-end; margin: 8px 0 12px; }
+  .retours-liste { display: flex; flex-direction: column; gap: 8px; }
+  .retours-plus { align-self: flex-start; }
+  .retours-vide { margin: 0; font-size: 12.5px; color: var(--ink-muted); }
+  .retour { padding: 9px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+  .retour[data-statut="traite"] { opacity: .6; }
+  .retour-tete { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 12px; color: var(--ink-muted); }
+  .retour-appareil { font-weight: 700; color: var(--ink); }
+  .retour-date { flex: 1; }
+  .retour-statut { padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+  .retour-texte { margin: 5px 0 0; font-size: 13.5px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .retour-reponse { margin: 6px 0 0; padding: 6px 10px; border-left: 3px solid var(--accent); font-size: 12.5px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink-muted); }
+
   /* Nouvelle version de l'appli copiée (sw.js, js/hors-ligne.js). */
   .maj-appli {
     position: fixed; z-index: 90; left: 50%; bottom: 18px; transform: translateX(-50%);
