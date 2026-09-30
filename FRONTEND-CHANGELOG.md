@@ -10848,3 +10848,16 @@ Lionel :
 ### Tests
 - Nouveau : tests/test_suite124.js (15 vérifications, tablette au doigt).
 - Mis à jour (appui long = menu) : test_selection_bulles.js, test_suite102.js.
+
+## 238. Round du 29.09.2026 (suite 125) — Importants des 7 prochains jours dans les notifications
+- Lionel : « Notification pour important dans le bouton notif. », puis « 7 prochains jours » à notre question sur la période.
+- Le bouton des notifications compte aussi ce qui porte le drapeau « important » d'aujourd'hui à dans 6 jours (week-end compris) : tâches et absences des personnes affichées, jalons, notes. Il apparaît dès qu'il y en a un, même sans demande d'absence ni statut « à réserver ».
+- Lu sur le serveur (une semaine pas encore chargée compte aussi), relu après chaque rendu, au plus toutes les 1,5 s.
+- Une tâche sur plusieurs jours de suite ne compte qu'une fois (même regroupement que « à réserver »).
+- Dans la fenêtre : section « Importants — 7 prochains jours », entre les demandes d'absence et « à réserver », seulement s'il y en a. Chaque ligne : jour(s), personne (ou « Jalon », « Note »), texte, chantier avec sa pastille.
+- Un clic sur une ligne : le planning va au jour, la bulle est sélectionnée, amenée à l'écran et clignote.
+- L'info-bulle du bouton ajoute « N importants (7 jours) ».
+
+### Tests
+- Nouveau : tests/test_suite125.js (9 vérifications).
+- Mis à jour : test_suite53.js (compteur 3 avec le jalon important, lignes « à réserver » visées seules), test_suite89.js (relecture des importants neutralisée là où l'on compte les relectures de la grille).

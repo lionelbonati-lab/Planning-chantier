@@ -80,6 +80,10 @@ const lectures = (page) => page.evaluate(() => window.__ECRITURES.filter((e) => 
   {
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 1400, height: 900 }, bd: BD() });
     await page.waitForTimeout(400);
+    // Suite 125 : la relecture des importants (1,5 s après chaque rendu,
+    // js/notifications.js) lit aussi « taches » ; neutralisée ici, où l'on
+    // compte les relectures de la grille.
+    await page.evaluate(() => { window.majImportants = () => Promise.resolve(); });
     const abonnements = await page.evaluate(() => (window.__TEMPS_REEL || []).map((h) => h.filtre.event + ' ' + h.filtre.table).sort().join(', '));
     verifier(abonnements === '* jalons, * notes, * taches', 'abonné aux changements de taches, jalons et notes (' + abonnements + ')');
 

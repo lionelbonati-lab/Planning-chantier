@@ -104,7 +104,12 @@
   function planifierMajAReserver() {
     majBoutonNotifications();
     clearTimeout(minuteurAReserver);
-    if (statutAReserverCle_()) minuteurAReserver = setTimeout(majAReserver, 1500);
+    // Suite 125 : les importants des 7 prochains jours (js/notifications.js)
+    // sont relus au même moment, qu'il existe un statut ou non.
+    minuteurAReserver = setTimeout(function () {
+      if (statutAReserverCle_()) majAReserver();
+      majImportants();
+    }, 1500);
   }
   function majAReserver() {
     if (!window.sbClient || !statutAReserverCle_()) return Promise.resolve();
