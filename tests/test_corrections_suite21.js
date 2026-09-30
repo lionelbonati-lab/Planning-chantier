@@ -1,5 +1,6 @@
 const { chromium } = require('playwright');
 const path = require('path');
+const { piluleCommeAuDoigt } = require('./aide_tests');
 
 // Round du 24.09.2026 (suite 21) — Lionel : « j'ai une bordure résiduelle
 // sur le bord gauche des note, uniquement quand elles font une demi
@@ -122,6 +123,7 @@ const journee = (date, texte, extra) => [tache(date, 'matin', texte, extra), tac
   });
   await page.goto('file://' + path.join(__dirname, '..', 'index.html'));
   await page.waitForSelector('#legendeBarre');
+  await piluleCommeAuDoigt(page); // suite 123 : pilule visible malgré la souris (cf. aide_tests.js)
   await page.waitForTimeout(400);
 
   let total = 0, echecs = 0;

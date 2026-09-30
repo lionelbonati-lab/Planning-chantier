@@ -2054,14 +2054,24 @@
     }
     document.addEventListener("pointerup", onUp);
   }
-  // items : [{ libelle, action, danger }] ; null = séparateur. La sélection
-  // est rendue avant l'action (fermer() la vide, cf. fermerAuClicExterieur).
+  // items : [{ libelle, action, danger, pastille, coche }] ; null =
+  // séparateur ; { section: "…" } = petit titre de groupe (suite 123).
+  // pastille : couleur d'un rond devant le libellé ("" = rond vide) ;
+  // coche : choix actuel, teinté et coché (✓). La sélection est rendue
+  // avant l'action (fermer() la vide, cf. fermerAuClicExterieur).
+  function htmlItemMenuContexte_(it, i, attr) {
+    if (!it) return '<div class="mc-sep"></div>';
+    if (it.section) return '<div class="cp-titre mc-section">' + esc(it.section) + '</div>';
+    var classes = (it.danger ? " danger" : "") + (it.pastille !== undefined || it.coche !== undefined ? " mc-choix" : "") + (it.coche ? " actif" : "");
+    return '<button type="button" ' + (attr || "data-i") + '="' + i + '"' + (classes ? ' class="' + classes.slice(1) + '"' : '') +
+      (it.coche !== undefined ? ' aria-pressed="' + (it.coche ? "true" : "false") + '"' : '') + '>' +
+      (it.pastille !== undefined ? '<span class="mc-rond' + (it.pastille ? '' : ' mc-rond-vide') + '"' + (it.pastille ? ' style="background:' + esc(it.pastille) + '"' : '') + '></span>' : '') +
+      '<span class="mc-libelle">' + esc(it.libelle) + '</span>' + (it.coche ? '<span class="mc-coche" aria-hidden="true">✓</span>' : '') + '</button>';
+  }
   function ouvrirMenuContexte_(x, y, titre, items, cellule) {
     var pop = document.createElement("div");
     pop.className = "pop menu-pop menu-contexte";
-    pop.innerHTML = (titre ? '<div class="cp-titre">' + esc(titre) + '</div>' : '') + items.map(function (it, i) {
-      return it ? '<button type="button" data-i="' + i + '"' + (it.danger ? ' class="danger"' : '') + '>' + esc(it.libelle) + '</button>' : '<div class="mc-sep"></div>';
-    }).join("");
+    pop.innerHTML = (titre ? '<div class="cp-titre">' + esc(titre) + '</div>' : '') + items.map(function (it, i) { return htmlItemMenuContexte_(it, i); }).join("");
     positionnerPop(pop, x, y);
     var fermer = fermerAuClicExterieur(pop, cellule);
     pop.addEventListener("click", function (e) {
@@ -2078,7 +2088,35 @@
     var n = Object.keys(bullesSelectionnees).length;
     if (!n) return [];
     var suffixe = " la sélection (" + n + ")";
-    return [null, { libelle: "Couper" + suffixe, action: couperSelection }, { libelle: "Copier" + suffixe, action: copierSelection }];
+    return [null, { libelle: "Couper" + suffixe, action: couperSelection }, { libelle: "Copier" + suffixe, action: copierSelection }].concat(itemsImportantStatut_());
+  }
+  // Round du 29.09.2026 (suite 123). Lionel : « Si Sélection/multi avec la
+  // souris, pas de menu sélection, par contre, il faut ajouter les éléments
+  // suivants au menu du clic droit: important, et statut si intervenant. »
+  // Ce que la pilule de sélection proposait (⚑ et étiquette de statut, cf.
+  // majBarreSelection, js/formulaires-communs.js) passe au clic droit, sur
+  // une bulle comme sur une case quand des bulles sont sélectionnées :
+  // - « Marquer important » / « Retirer important » (coché quand TOUT ce
+  //   qui porte le drapeau l'a déjà), absent si la sélection n'a que des
+  //   jalons — même règle que le ⚑ (basculerImportantSelection) ;
+  // - « Statut » : « Aucun » puis les statuts de la page Statuts, avec leur
+  //   pastille, le statut commun à la sélection coché — seulement si la
+  //   sélection a des tâches d'intervenant (appliquerStatutSelection).
+  // La sélection reste en place après le choix, comme depuis la pilule.
+  function itemsImportantStatut_() {
+    var items = [], marquables = plagesImportantSelection_();
+    if (marquables.length) {
+      var tous = marquables.every(function (p) { return !!p.item.important; });
+      items.push(null, { libelle: tous ? "Retirer important" : "Marquer important", coche: tous, action: basculerImportantSelection });
+    }
+    if (tachesStatutSelection_().length && STATUTS_ORDRE.length) {
+      var commun = statutCommunSelection_();
+      items.push(null, { section: "Statut" }, { libelle: "Aucun", pastille: "", coche: commun === "", action: function () { appliquerStatutSelection(null); } });
+      STATUTS_ORDRE.forEach(function (k) {
+        items.push({ libelle: STATUTS[k].nom, pastille: STATUTS[k].couleur || "", coche: commun === k, action: function () { appliquerStatutSelection(k); } });
+      });
+    }
+    return items;
   }
   function ouvrirMenuContexteCase(cell, x, y) {
     if (cell.dataset.kind === "personne") {
@@ -2086,20 +2124,17 @@
       ouvrirAjout(cell, x, y);
       var pops = document.querySelectorAll("body > .menu-pop"), pop = pops[pops.length - 1];
       if (!pop || !extras.length) return;
-      // Couper / Copier ajoutés au menu « Ajouter » de la case, qui vide la
-      // sélection en se fermant : elle est rendue avant l'action.
-      extras.forEach(function (it) {
-        if (!it) { var sep = document.createElement("div"); sep.className = "mc-sep"; pop.appendChild(sep); return; }
-        var b = document.createElement("button");
-        b.type = "button";
-        b.textContent = it.libelle;
+      // Couper / Copier (et, suite 123, Important / Statut) ajoutés au menu
+      // « Ajouter » de la case, qui vide la sélection en se fermant : elle
+      // est rendue avant l'action.
+      pop.insertAdjacentHTML("beforeend", extras.map(function (it, i) { return htmlItemMenuContexte_(it, i, "data-mce"); }).join(""));
+      pop.querySelectorAll("button[data-mce]").forEach(function (b) {
         b.addEventListener("click", function () {
           var sel = Object.assign({}, bullesSelectionnees), multiple = modeSelectionMultiple;
           if (popFermerActuel) popFermerActuel();
           bullesSelectionnees = sel; modeSelectionMultiple = multiple;
-          it.action();
+          extras[+b.dataset.mce].action();
         });
-        pop.appendChild(b);
       });
       positionnerPop(pop, x, y);
       return;
@@ -2124,6 +2159,7 @@
     if (n === 1) items.push({ libelle: "Modifier…", action: function () { ouvrirBulle(item, plage, x, y); } }, null);
     items.push({ libelle: "Couper" + suffixe, action: couperSelection }, { libelle: "Copier" + suffixe, action: copierSelection });
     if (pressePapier.length) items.push({ libelle: "Coller ici (" + pressePapier.length + ")", action: function () { collerSurCase(item.personneId, item.giDebut, item.demiDebut || "matin"); } });
+    items = items.concat(itemsImportantStatut_());
     items.push(null, { libelle: "Supprimer" + suffixe, danger: true, action: supprimerSelection });
     ouvrirMenuContexte_(x, y, n > 1 ? n + " bulles sélectionnées" : (item.texte || ""), items);
   }

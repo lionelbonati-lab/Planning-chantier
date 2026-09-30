@@ -125,12 +125,32 @@
   // mode multiple (réponse de Lionel, suite 7) ; ⧉ teinté quand "copier au
   // prochain déplacement" est armé. body.selection-active : sur téléphone,
   // la pilule prend la place de .nav-bas (cf. style-mobile.css).
+  // Round du 29.09.2026 (suite 123). Lionel : « Si Sélection/multi avec la
+  // souris, pas de menu sélection, par contre, il faut ajouter les éléments
+  // suivants au menu du clic droit: important, et statut si intervenant. »
+  // La pilule ne se montre plus quand le dernier appui dans l'appli vient
+  // de la souris : ses actions sont au clic droit (Modifier, Couper,
+  // Copier, Coller, Supprimer, et maintenant Important et Statut, cf.
+  // itemsImportantStatut_, js/grille-interactions.js) et au clavier (←/→,
+  // Entrée, Suppr…). Au doigt ou au stylet, elle reste. Un appui DANS la
+  // pilule ou son menu de statut ne compte pas (sur un écran tactile avec
+  // souris, cliquer la pilule ouverte au doigt ne la fait pas disparaître).
+  // Au chargement, avant tout appui : la souris si l'écran a un pointeur
+  // fin qui survole (ordinateur).
+  var selectionALaSouris_ = !!(window.matchMedia && window.matchMedia("(hover: hover) and (pointer: fine)").matches);
+  document.addEventListener("pointerdown", function (e) {
+    if (e.target.closest && e.target.closest("#panneauSelection")) return;
+    var souris = e.pointerType === "mouse";
+    if (souris === selectionALaSouris_) return;
+    selectionALaSouris_ = souris;
+    majBarreSelection();
+  }, true);
   function majBarreSelection() {
     var panneau = document.getElementById("panneauSelection");
     if (!panneau) return;
     var n = Object.keys(bullesSelectionnees).length;
-    panneau.hidden = !n;
-    document.body.classList.toggle("selection-active", n > 0);
+    panneau.hidden = !n || selectionALaSouris_;
+    document.body.classList.toggle("selection-active", !panneau.hidden);
     // Suite 95 — Lionel : « En multi-sélection ne pas agrandir la bulle
     // sélectionnée. » Plusieurs bulles, ou le mode multiple allumé (appui
     // long) : pas de dépliage (style.css, suite 93).
@@ -153,7 +173,7 @@
     var btnStatut = document.getElementById("selStatut");
     if (btnStatut) {
       btnStatut.hidden = !tachesStatutSelection_().length || !STATUTS_ORDRE.length;
-      if (btnStatut.hidden || !n) fermerMenuStatutSelection_();
+      if (btnStatut.hidden || panneau.hidden) fermerMenuStatutSelection_();
       else majMenuStatutSelection_();
     }
     // Case chantier de la barre d'outils (suite 92) : le chantier de la

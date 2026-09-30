@@ -10815,3 +10815,16 @@ Lionel :
 - Mis à jour : test_enregistrer_serie.js (une série de jalons garde son chantier).
 - Mis à jour (pastille au lieu du fond) : test_revue_suite22.js ; test_chargement.js (une note porte son chantier).
 - Mis à jour (bouton retiré) : test_toolbar_chevauchement.js, test_suite92.js, test_suite95.js, test_suite103.js, test_suite113.js.
+
+## 236. Round du 29.09.2026 (suite 123) — Sélection à la souris : pas de pilule, Important et Statut au clic droit
+- Lionel : « Si Sélection/multi avec la souris, pas de menu sélection, par contre, il faut ajouter les éléments suivants au menu du clic droit: important, et statut si intervenant. »
+  - La pilule de sélection ne s'affiche plus quand la sélection se fait à la souris (clic, Ctrl+clic, zone). Ses actions restent au clic droit et au clavier (← →, Entrée, Suppr, Ctrl+C/X/V).
+  - Au doigt ou au stylet, la pilule reste comme avant. Sur un écran tactile avec souris, elle suit le dernier appui : un clic de la souris la cache, un toucher la remontre. Un clic dans la pilule elle-même ne la cache pas.
+  - Menu du clic droit sur une bulle, et sur une case quand des bulles sont sélectionnées : « Marquer important » (ou « Retirer important », coché, quand tout est déjà important). Absent si la sélection n'a que des jalons.
+  - Même menu, quand la sélection a des tâches d'intervenant : groupe « Statut » avec « Aucun » puis les statuts de la page Statuts, chacun avec sa pastille. Le statut commun à la sélection est coché (✓).
+  - Le choix agit sur toute la sélection, en une étape d'annulation, et la sélection reste en place.
+
+### Tests
+- Nouveau : tests/test_suite123.js (26 vérifications).
+- Mis à jour (menu d'une bulle avec « Marquer important ») : test_suite114.js.
+- Mis à jour (tests de la pilule écrits à la souris, qui la gardent visible par l'assistant piluleCommeAuDoigt d'aide_tests.js) : test_corrections_suite21.js, test_important_selection.js, test_selection_bulles.js, test_series_agenda.js, test_suite69.js.

@@ -301,4 +301,18 @@ function sansViewTransitions(page) {
   return page.evaluate(() => { document.startViewTransition = undefined; });
 }
 
-module.exports = { FAUX_SUPABASE, ouvrirPlanning, verificateur, glisserDoigt, glisserBulleDoigt, lancerNavigateur, sourceApp, sansViewTransitions };
+// Round du 29.09.2026 (suite 123). Lionel : « Si Sélection/multi avec la
+// souris, pas de menu sélection » : la pilule de sélection ne se montre
+// plus quand le dernier appui vient de la souris (selectionALaSouris_,
+// js/formulaires-communs.js). Les tests de la pilule, écrits à la souris
+// (page.click), la gardent visible comme au doigt : un écouteur ajouté
+// APRÈS celui de l'appli repasse chaque appui en « pas la souris ». Le
+// comportement à la souris elle-même est vérifié par test_suite123.js.
+async function piluleCommeAuDoigt(page) {
+  await page.evaluate(() => {
+    document.addEventListener('pointerdown', () => { selectionALaSouris_ = false; majBarreSelection(); }, true);
+    selectionALaSouris_ = false; majBarreSelection();
+  });
+}
+
+module.exports = { FAUX_SUPABASE, ouvrirPlanning, verificateur, glisserDoigt, glisserBulleDoigt, lancerNavigateur, sourceApp, sansViewTransitions, piluleCommeAuDoigt };

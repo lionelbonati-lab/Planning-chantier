@@ -1,6 +1,6 @@
 const { chromium } = require('playwright');
 const path = require('path');
-const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests');
+const { ouvrirPlanning, verificateur, lancerNavigateur, piluleCommeAuDoigt } = require('./aide_tests');
 
 // Round du 27.09.2026 (suite 69). Lionel :
 //   « Certains texte gras ne fonctionnent pas. »
@@ -115,6 +115,7 @@ const poids = (page, sel) => page.evaluate((s) => { const n = document.querySele
       personnes: PERSONNES, statuts: STATUTS,
       taches: [T(1, 1, '2026-09-24', 'matin', 'Coffrage'), T(2, 3, '2026-09-24', 'matin', 'Câblage'), T(3, 4, '2026-09-25', 'matin', 'Montage', 1)]
     } });
+    await piluleCommeAuDoigt(page); // suite 123 : pilule visible malgré la souris
     await page.click(bulle('Coffrage')); await page.waitForTimeout(150);
     verifier(await page.evaluate(() => document.getElementById('selStatut').hidden), 'tâche du personnel seule : pas de bouton Statut');
     await page.click(bulle('Câblage'), { modifiers: ['Control'] });

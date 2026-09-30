@@ -56,7 +56,8 @@ const textes = (page) => page.evaluate(() => TACHES.map((t) => t.texte + '@' + t
   // 1. Bulle
   await clicDroit(page, await centreBulle(page, 'Un'));
   let m = await menu(page);
-  verifier(JSON.stringify(m) === JSON.stringify(['Modifier…', 'Couper', 'Copier', 'Supprimer']) && await selection(page) === 'Un',
+  // Suite 123 : « Marquer important » ajouté au menu d'une bulle.
+  verifier(JSON.stringify(m) === JSON.stringify(['Modifier…', 'Couper', 'Copier', 'Marquer important', 'Supprimer']) && await selection(page) === 'Un',
     'clic droit sur une bulle : sélectionnée, menu Modifier/Couper/Copier/Supprimer ' + JSON.stringify(m));
   await choisir(page, 'Copier');
   await page.waitForTimeout(150);
@@ -76,7 +77,7 @@ const textes = (page) => page.evaluate(() => TACHES.map((t) => t.texte + '@' + t
   await page.evaluate(() => { quitterModeSelection(); TACHES.forEach((x) => { if (x.texte === 'Deux' || (x.texte === 'Un' && x.personneId == 1)) bullesSelectionnees[x.id] = true; }); modeSelectionMultiple = true; render(false); majBarreSelection(); });
   await clicDroit(page, await centreBulle(page, 'Deux'));
   m = await menu(page);
-  verifier(JSON.stringify(m) === JSON.stringify(['Couper (2)', 'Copier (2)', 'Coller ici (1)', 'Supprimer (2)']), 'bulle d\'une sélection de 2 : menu pour les 2, sans Modifier ' + JSON.stringify(m));
+  verifier(JSON.stringify(m) === JSON.stringify(['Couper (2)', 'Copier (2)', 'Coller ici (1)', 'Marquer important', 'Supprimer (2)']), 'bulle d\'une sélection de 2 : menu pour les 2, sans Modifier ' + JSON.stringify(m));
   await page.keyboard.press('Escape');
   await page.evaluate(() => { TACHES.forEach((x) => { if (x.texte === 'Deux' || (x.texte === 'Un' && x.personneId == 1)) bullesSelectionnees[x.id] = true; }); modeSelectionMultiple = true; render(false); majBarreSelection(); });
   await clicDroit(page, await centreCase(page, { kind: 'personne', p: 1, demi: 'aprem', iso: '2026-09-25' }));
