@@ -186,6 +186,25 @@
   // navigateur coupe déjà aux espaces et aux tirets, pas après « / »
   // (« Béton/Armature » restait d'un bloc) — <wbr> l'y autorise.
   function nomSurDeuxLignes(nom) { return esc(nom).replace(/\//g, "/<wbr>"); }
+  // Absence partielle (round du 30.09.2026, suite 130 — Lionel, bug n° 2 de
+  // la page Améliorations et bugs : « Comment gérer un absence partiel, un
+  // départ anticipé ou un début de travail plus tard. » ; choix « Arrivée /
+  // départ à l'heure », puis « Ca deviendra le texte de la bulle »). Une
+  // absence est PARTIELLE sur une demi-journée quand son texte porte une
+  // heure de cette demi-journée (« Arrivée 9h30 », « Départ 16h15 »,
+  // « Rdv médical 13h00 - 14h00 » ; avant 12h00 = matin) : la personne y
+  // travaille une partie du temps. Sans `demi` : une heure quelconque.
+  // Même règle que absence_partielle_ côté base (sql/0031) — la vue
+  // ouvrier n'y cache pas la tâche de l'équipe. « 8 hommes », « 80% » ou
+  // « 2026 » ne sont pas des heures.
+  function heuresTexte(texte) {
+    var re = /(^|[^\d])([01]?\d|2[0-3]) ?[hH] ?([0-5]\d)?(?![A-Za-zÀ-ÿ])/g, m, heures = [];
+    while ((m = re.exec(String(texte || "")))) heures.push(+m[2]);
+    return heures;
+  }
+  function absencePartielle(texte, demi) {
+    return heuresTexte(texte).some(function (h) { return !demi || (h < 12 ? "matin" : "aprem") === demi; });
+  }
 
   var ICONS = {
     close: '<svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',

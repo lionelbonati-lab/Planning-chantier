@@ -120,6 +120,8 @@
     // telle quelle au personnel : ce n'est pas une entrée rapide mais un type
     // de bulle à part entière.
     if (!estIntervenant) html += '<button type="button" data-t="absence">Absence</button>';
+    // « Arrivée / départ » (suite 130, cf. ouvrirFormulaireArriveeDepart).
+    if (!estIntervenant) html += '<button type="button" data-partielle="1">Arrivée / départ</button>';
     // Congé / Vacances : codés en dur jusqu'ici, donc ni renommables, ni
     // assignables, ni supprimables (Lionel : "il faut ajouter les absences aux
     // ajouts rapides à éditer"). Ils viennent maintenant de la liste
@@ -157,6 +159,8 @@
     pop.querySelectorAll("button[data-t]").forEach(function (btn) {
       btn.addEventListener("click", function () { var type = btn.dataset.t; fermer(); ouvrirEdition(cell, null, type, x, y, plageInit, demiDebut, demiFin); });
     });
+    var btnPartielle = pop.querySelector("button[data-partielle]");
+    if (btnPartielle) btnPartielle.addEventListener("click", function () { fermer(); ouvrirFormulaireArriveeDepart(cibles, giDebut, duree, x, y, plageInit); });
     pop.querySelectorAll("button[data-rapide]").forEach(function (btn) {
       btn.addEventListener("click", function () { var texte = btn.dataset.rapide; fermer(); ajoutRapide(cibles, giDebut, duree, texte, "absence", demiDebut, demiFin); });
     });
@@ -497,6 +501,98 @@
       var texte = majApercu();
       sauvegarderUndo();
       creerGroupeTaches(cibles, giDebut, duree, { type: "tache", texte: texte, important: false, chantier: champChantierSel.value || null, statut: statutActuel, demiDebut: demiDebut, demiFin: demiFin });
+      fermer(); render(); toast("Ajouté.");
+    });
+  }
+  // Round du 30.09.2026 (suite 130) — Lionel (bug n° 2 de la page
+  // Améliorations et bugs) : « Comment gérer un absence partiel, un départ
+  // anticipé ou un début de travail plus tard. » Choix « Arrivée / départ à
+  // l'heure », puis : « Ca deviendra le texte de la bulle ». Absence posée
+  // par le bureau avec l'heure dans son texte, au format qu'il écrivait
+  // déjà à la main (« Départ 16h15 », « Rdv médical 13h00 - 14h00 ») :
+  //   - Arrivée plus tard : « Arrivée 9h30 », du matin à la demi-journée
+  //     de l'heure ;
+  //   - Départ plus tôt : « Départ 16h15 », de la demi-journée de l'heure
+  //     au soir ;
+  //   - Quelques heures : « Absent 13h00 - 14h00 », de la demi-journée de
+  //     la 1re heure à celle de la 2e ;
+  // suivi du type d'absence et du motif s'il y en a (« Arrivée 9h30 -
+  // Maladie - Médecin »). Posée sur chaque jour sélectionné (les
+  // demi-journées de la sélection ne comptent pas, c'est l'heure qui les
+  // donne ; des jours voisins au même texte se rejoignent, comme toute
+  // bulle). La
+  // demi-journée qui porte l'heure est partielle (absencePartielle) : bulle
+  // rayée, et la vue ouvrier y garde la tâche de l'équipe (sql/0031).
+  function heureVersTexte_(v) { var m = /^(\d{1,2}):(\d{2})/.exec(v || ""); return m ? (+m[1]) + "h" + m[2] : ""; }
+  function demiDeHeure_(v) { return +String(v).split(":")[0] < 12 ? "matin" : "aprem"; }
+  function ouvrirFormulaireArriveeDepart(cibles, giDebut, duree, x, y, plageInit) {
+    var types = FORMULAIRES_RAPIDES.filter(function (f) { return f.typeEntree === "absence"; }).map(function (f) { return f.nom; });
+    if (!types.length) types = ["Congé", "Vacances"];
+    var pop = document.createElement("div");
+    pop.className = "pop form-pop form-arrivee-depart";
+    var etat = { sorte: "arrivee" };
+    pop.innerHTML =
+      '<div class="cp-titre">Ajouter — Arrivée / départ</div>' +
+      '<div class="chip-row sorte-row">' +
+      '<button type="button" class="chip actif" data-sorte="arrivee">Arrivée plus tard</button>' +
+      '<button type="button" class="chip" data-sorte="depart">Départ plus tôt</button>' +
+      '<button type="button" class="chip" data-sorte="heures">Quelques heures</button>' +
+      '</div>' +
+      '<div class="ad-heures">' +
+      '<div><div class="label-champ ad-label-h1">Arrivée à</div><input type="time" class="f-h1" value="09:00" step="300"></div>' +
+      '<div class="ad-h2" hidden><div class="label-champ">Jusqu\'à</div><input type="time" class="f-h2" value="14:00" step="300"></div>' +
+      '</div>' +
+      '<div class="label-champ">Type</div>' +
+      '<select class="f-type"><option value="">(aucun)</option>' + types.map(function (t) { return '<option>' + esc(t) + '</option>'; }).join("") + '</select>' +
+      '<div class="label-champ">Motif</div>' +
+      '<input type="text" class="f-motif" placeholder="Facultatif">' +
+      '<div class="apercu"><span class="apercu-label">Aperçu du texte</span><span class="apercu-texte"></span></div>' +
+      '<div class="form-actions"><button type="button" class="f-annuler">Annuler</button><button type="button" class="f-ok">Enregistrer</button></div>';
+    var pos = positionFormulaire(x, y, plageInit);
+    positionnerPop(pop, pos.px, pos.py);
+    var fermer = fermerAuClicExterieur(pop, null, function () { pop.querySelector(".f-ok").click(); });
+    var h1 = pop.querySelector(".f-h1"), h2 = pop.querySelector(".f-h2"), apercuTexte = pop.querySelector(".apercu-texte");
+    var DEFAUTS = { arrivee: ["09:00"], depart: ["16:00"], heures: ["13:00", "14:00"] };
+    var LIBELLES = { arrivee: "Arrivée à", depart: "Départ à", heures: "De" };
+
+    function majApercu() {
+      var a = heureVersTexte_(h1.value), b = heureVersTexte_(h2.value);
+      var texte = etat.sorte === "arrivee" ? "Arrivée " + a : etat.sorte === "depart" ? "Départ " + a : "Absent " + a + " - " + b;
+      var type = pop.querySelector(".f-type").value, motif = pop.querySelector(".f-motif").value.trim();
+      if (type) texte += " - " + type;
+      if (motif) texte += " - " + motif;
+      apercuTexte.textContent = texte;
+      return texte;
+    }
+    cablerChipsExclusifs(pop.querySelector(".sorte-row"), "sorte", function (v) {
+      etat.sorte = v;
+      h1.value = DEFAUTS[v][0];
+      if (DEFAUTS[v][1]) h2.value = DEFAUTS[v][1];
+      pop.querySelector(".ad-label-h1").textContent = LIBELLES[v];
+      pop.querySelector(".ad-h2").hidden = v !== "heures";
+      majApercu();
+    });
+    [h1, h2, pop.querySelector(".f-type"), pop.querySelector(".f-motif")].forEach(function (el) {
+      el.addEventListener("input", majApercu); el.addEventListener("change", majApercu);
+    });
+    majApercu();
+
+    pop.querySelector(".f-annuler").addEventListener("click", fermer);
+    pop.querySelector(".f-ok").addEventListener("click", function () {
+      if (!h1.value || (etat.sorte === "heures" && !h2.value)) { toast("Indiquez l'heure."); return; }
+      if (etat.sorte === "heures" && h2.value <= h1.value) { toast("L'heure de fin doit suivre celle du début."); return; }
+      var texte = majApercu();
+      var demiDebut = etat.sorte === "arrivee" ? "matin" : demiDeHeure_(h1.value);
+      var demiFin = etat.sorte === "depart" ? "aprem" : demiDeHeure_(etat.sorte === "heures" ? h2.value : h1.value);
+      // Un seul jour : matin → après-midi = la journée (demi null, cf.
+      // demisOccupeesTache).
+      if (demiDebut !== demiFin) demiDebut = demiFin = null;
+      // Chaque jour sélectionné (week-end : un seul jour, cf. giWeekend).
+      var jours = estGiWeekend(giDebut) ? 1 : Math.max(1, duree || 1);
+      sauvegarderUndo();
+      for (var j = 0; j < jours; j++) {
+        creerGroupeTaches(cibles, giDebut + j, 1, { type: "absence", texte: texte, important: false, chantier: null, statut: null, demiDebut: demiDebut, demiFin: demiFin });
+      }
       fermer(); render(); toast("Ajouté.");
     });
   }

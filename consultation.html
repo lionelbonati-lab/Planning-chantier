@@ -104,6 +104,9 @@
   .tache .statut { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase;
     border-radius: 999px; padding: 1px 7px; background: var(--cs, rgba(255,255,255,.6)); }
   .tache.absence { background: repeating-linear-gradient(135deg, var(--surface-2) 0 8px, var(--surface) 8px 16px); color: var(--ink); }
+  /* Suite 130 : absence partielle (« Arrivée 9h30 »…) — cadre pointillé,
+     la tâche de l'équipe reste en dessous. */
+  .tache.absence.partielle { background: var(--surface); border: 1.5px dashed var(--border); border-left: 4px solid rgba(0,0,0,.18); }
   .tache .important { color: var(--danger); font-weight: 800; }
   /* Demandes d'absence (round du 27.09.2026, suite 69 — js/consultation.js).
      Suite 83 : le bloc « Mes absences » en tête de page est remplacé par
@@ -134,6 +137,7 @@
   .form-absence label[hidden] { display: none; }
   /* Suite 87 : une seule absence d’une série choisie → ligne « Répéter » masquée. */
   .form-absence .fa-ligne[hidden] { display: none; }
+  .form-absence select[hidden] { display: none; }
   .fa-actions { display: flex; justify-content: flex-end; gap: 8px; }
   .fa-erreur { margin: 0; color: var(--danger); font-weight: 700; font-size: 13.5px; }
   .fa-aide { margin: 0; color: var(--ink-faint); font-size: 12px; }
