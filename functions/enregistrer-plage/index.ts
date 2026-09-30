@@ -78,7 +78,8 @@ Deno.serve(async (req: Request) => {
     // de la grille, qui n'envoie ni l'un ni l'autre) ou la remplacer (appel
     // de la nouvelle page Jalons, qui envoie toujours les deux) — cf. le
     // commentaire de tête de planPlage dans logic.js.
-    const colonnes = params.kind === "jalon" ? "id, date, texte, demi, important, chantier_id" : "id, date, texte, important, demi";
+    // Suite 122 : chantier_id des notes aussi (sql/0026_notes_chantier.sql).
+    const colonnes = params.kind === "jalon" ? "id, date, texte, demi, important, chantier_id" : "id, date, texte, important, demi, chantier_id";
 
     const { data: existantes, error: erreurLecture } = await supabase
       .from(table)

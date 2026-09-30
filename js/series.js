@@ -305,6 +305,10 @@
       // aussi (null) — la condition `&& ap.chantier` l'ignorait sans rien
       // dire, l'occurrence gardait son ancien chantier.
       if ((ap.chantier || null) !== (av.chantier || null)) m.chantier_id = chantierIdDeNom_(ap.chantier);
+    } else if ((ap.chantierId || null) !== (av.chantierId || null)) {
+      // Jalon ou note (round du 29.09.2026, suite 122) : chantier choisi
+      // dans le formulaire, porté par l'id (pastille de la bulle).
+      m.chantier_id = ap.chantierId || null;
     }
     if (Object.keys(m).length) ch.modifs = m;
     return ch;

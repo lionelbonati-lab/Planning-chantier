@@ -452,18 +452,11 @@
             '<button type="button" class="zoom-btn" id="zoomPlus" title="Zoom avant" aria-label="Zoom avant">+</button>' +
           '</div>' +
         '</div>' +
-        // Round du 29.09.2026 (suite 92) — Lionel : « Un raccourcis dans la
-        // toolbar serait un plus. » Puis, à notre question : « bouton + petit
-        // panneau ». Les curseurs de hauteur des lignes (personnes, Jalons /
-        // Notes) de l'appareil, les mêmes que la page Affichage
-        // (majPanneauHauteurs, js/page-affichage.js). Replié dans « ⋮ »
-        // juste après le zoom (REPLIS_ORDRE, js/grille-rendu.js).
-        '<div class="toolbar-groupe sep-avant" id="groupeHauteurs" data-rang="65" data-rang-menu="25">' +
-          '<div class="outil-menu" id="menuHauteurs">' +
-            '<button type="button" class="toolbar-btn" id="btnHauteurs" title="Hauteur des lignes" aria-label="Hauteur des lignes">' + ICONS.hauteurLignes + '<span class="toolbar-btn-label">Hauteur des lignes</span></button>' +
-            '<div class="outil-menu-panneau hauteurs-panneau" id="panneauHauteurs"></div>' +
-          '</div>' +
-        '</div>' +
+        // Suite 92 : bouton « Hauteur des lignes » (curseurs de hauteur).
+        // Round du 29.09.2026 (suite 122) — Lionel : « Enlever le bouton
+        // pour ajuster les hauteur de ligne. » Retiré : les mêmes réglages
+        // sont dans la page Affichage, et chaque ligne se règle en glissant
+        // le trait sous son nom (ou par son menu, clic droit).
         // Insertions : "Ajouter une ligne" puis "+" collé derrière (pas de
         // séparateur entre les 2), toujours dans la barre sur desktop/
         // tablette. Sur téléphone, "Ajouter une ligne" rejoint le panneau

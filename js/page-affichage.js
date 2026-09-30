@@ -91,7 +91,7 @@
     // menu affichage. » Rangé par sujet : Planning (semaines, surlignage et
     // teintes, noms, coins), Dates, puis un groupe « Hauteur des lignes »
     // (bulles par personne, lignes de texte, Jalons et Notes — les mêmes
-    // réglages que le bouton de la barre, cf. majPanneauHauteurs), puis
+    // réglages que le bouton de la barre, retiré à la suite 122), puis
     // l'apparence des bulles (texte, statut, coins). Les réglages de
     // l'ordinateur et du téléphone d'un même sujet se suivent (un seul des
     // deux est montré, cf. majPageAffichage). Noms : « Bulles par personne »,
@@ -432,7 +432,7 @@
     enregistrerModifsAffichage_(m, profil);
     if (profil === profilAppareil_()) appliquerEffetOption_(id, leger);
     majPageAffichage();
-    majPanneauHauteurs();
+    majRetablirHauteurs();
   }
   function appliquerEffetOption_(id, leger) {
     appliquerStyleAffichage_();
@@ -538,7 +538,9 @@
         '<div class="affichage-options">' +
           groupes.map(function (g) {
             return '<h2 class="titre-liste">' + esc(g) + '</h2>' +
-              OPTIONS_AFFICHAGE.filter(function (o) { return o.groupe === g && !o.sousLigne; }).map(htmlLigneOption_).join("");
+              OPTIONS_AFFICHAGE.filter(function (o) { return o.groupe === g && !o.sousLigne; }).map(htmlLigneOption_).join("") +
+              // Suite 122 : ex-panneau de la barre (majRetablirHauteurs).
+              (g === "Planning" ? '<button type="button" class="lien-reset-tout hauteurs-retablir" id="btnHauteursRetablir" hidden></button>' : "");
           }).join("") +
           '<p class="page-sous affichage-note">« À l’ouverture » : pris en compte à la prochaine ouverture de l’appli.</p>' +
         '</div>' +
@@ -783,60 +785,18 @@
     if (!roApercu_ && window.ResizeObserver) { roApercu_ = new ResizeObserver(placerSepApercu_); roApercu_.observe(ap); }
   }
 
-  // Panneau « Hauteur des lignes » de la barre d'outils (suite 92, cf.
-  // #menuHauteurs dans js/coquille.js) : les réglages de hauteur du jeu de
-  // l'appareil — curseurs sur ordinateur et tablette, pastilles sur
-  // téléphone —, écrits comme ceux de la page (htmlLigneOption_), sans
-  // leur aide. Reconstruit au passage d'un jeu à l'autre ; valeurs remises
-  // à jour à chaque rendu (hauteur en pixels) et à chaque réglage.
-  function majPanneauHauteurs() {
-    var p = document.getElementById("panneauHauteurs");
-    if (!p) return;
-    var profil = profilAppareil_();
-    if (p.dataset.profil !== profil) {
-      // Suite 95 — Lionel : « Ajoute ligne de texte bulle au bouton hauteur
-      // de ligne. » « Lignes de texte » (commun aux deux jeux) après les
-      // bulles par personne.
-      // Suite 101 : hauteurs en pixels ; les lignes de texte (des bulles)
-      // restent au panneau, sans plus changer la hauteur des lignes.
-      // Suite 113 : « Espace entre les bulles » après les hauteurs.
-      var ids = profil === "ordi" ? ["hauteurLigneOrdi", "hauteurJalOrdi", "espaceBullesOrdi", "lignes", "lignesJal"] : ["hauteurLigneTel", "hauteurJalTel", "espaceBullesTel", "lignes", "lignesJal"];
-      p.innerHTML = '<div class="outil-menu-titre">Hauteur des lignes</div>' +
-        ids.map(function (id) { return htmlLigneOption_(optionAffichageParId_(id)); }).join("") +
-        // Suite 103 : lignes réglées à part (trait sous le nom) — toutes
-        // rendues à la hauteur commune d'un coup.
-        '<button type="button" class="outil-menu-item hauteurs-retablir" hidden></button>' +
-        '<button type="button" class="outil-menu-item hauteurs-tous" data-page-affichage>Tous les réglages d’affichage</button>';
-      // Identifiants des noms (aria-labelledby) : propres au panneau, la page
-      // Affichage a les siens.
-      p.querySelectorAll("[id^='nomAff-']").forEach(function (b) { b.id = b.id.replace("nomAff-", "nomHaut-"); });
-      p.querySelectorAll("[aria-labelledby^='nomAff-']").forEach(function (el) { el.setAttribute("aria-labelledby", el.getAttribute("aria-labelledby").replace("nomAff-", "nomHaut-")); });
-      p.dataset.profil = profil;
-    }
-    if (!p._cable) {
-      p._cable = true;
-      p.addEventListener("input", function (e) {
-        var c = e.target.closest(".curseur-option");
-        if (c) changerOptionAffichage(c.dataset.option, c.value, profilAppareil_(), true);
-      });
-      p.addEventListener("click", function (e) {
-        var b = e.target.closest(".choix-pastille");
-        if (b) { changerOptionAffichage(b.dataset.option, b.dataset.valeur, profilAppareil_(), true); return; }
-        if (e.target.closest(".hauteurs-retablir")) { changerHauteursLignes(Object.keys(hauteursLignesPerso_()), null); return; }
-        if (e.target.closest("[data-page-affichage]")) {
-          var m = document.getElementById("menuHauteurs");
-          if (m) m.classList.remove("ouvert");
-          if (typeof afficherPage === "function") afficherPage("affichage");
-        }
-      });
-    }
-    majValeursOptions_(p, profil);
+  // Suite 92 : panneau « Hauteur des lignes » de la barre d'outils.
+  // Round du 29.09.2026 (suite 122) — Lionel : « Enlever le bouton pour
+  // ajuster les hauteur de ligne. » Panneau retiré ; son « Rétablir les
+  // lignes réglées à part » (suite 103) passe dans la page, sous les
+  // réglages « Planning ». Tenu à jour à chaque réglage de ligne
+  // (changerHauteursLignes, js/grille-hauteurs.js) et à chaque rendu.
+  function majRetablirHauteurs() {
+    var br = document.getElementById("btnHauteursRetablir");
+    if (!br) return;
     var nPerso = typeof hauteursLignesPerso_ === "function" ? Object.keys(hauteursLignesPerso_()).length : 0;
-    var br = p.querySelector(".hauteurs-retablir");
-    if (br) {
-      br.hidden = !nPerso;
-      br.textContent = nPerso > 1 ? "Rétablir les " + nPerso + " lignes réglées à part" : "Rétablir la ligne réglée à part";
-    }
+    br.hidden = !nPerso;
+    br.textContent = nPerso > 1 ? "Rétablir les " + nPerso + " lignes réglées à part" : "Rétablir la ligne réglée à part";
   }
 
   // Ouverture de la page (afficherPage, js/coquille.js) : « la vue par
@@ -879,6 +839,7 @@
       }
       if (e.target.closest("#btnAffichageDefaut")) retablirAffichage();
       if (e.target.closest("#btnAffichageReprendre")) reprendreAutreJeuAffichage();
+      if (e.target.closest("#btnHauteursRetablir")) changerHauteursLignes(Object.keys(hauteursLignesPerso_()), null); // suite 122
     });
     // Flèches dans un groupe de pastilles (comme des boutons radio).
     page.addEventListener("keydown", function (e) {
@@ -894,7 +855,7 @@
     // Passage téléphone <-> écran large (rotation) : colonnes de l'aperçu.
     var mq = typeof window.matchMedia === "function" ? window.matchMedia("(max-width: 600px)") : null;
     // Suite 67 : l'appareil change de jeu de réglages en passant le seuil.
-    if (mq && mq.addEventListener) mq.addEventListener("change", function () { appliquerEffetOption_("weekends"); majPageAffichage(); majPanneauHauteurs(); });
+    if (mq && mq.addEventListener) mq.addEventListener("change", function () { appliquerEffetOption_("weekends"); majPageAffichage(); majRetablirHauteurs(); });
     majPageAffichage();
-    majPanneauHauteurs();
+    majRetablirHauteurs();
   }

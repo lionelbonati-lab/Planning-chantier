@@ -122,6 +122,14 @@ function planPlage(params, existantes) {
   var jalonImportantFourni = !estNote && Object.prototype.hasOwnProperty.call(params, "important");
   var jalonChantierIdFourni = !estNote && Object.prototype.hasOwnProperty.call(params, "chantierId");
   var jalonChantierIdVoulu = jalonChantierIdFourni ? (params.chantierId || null) : null;
+  // Chantier d'une NOTE (round du 29.09.2026, suite 122 — Lionel :
+  // « Pastille de couleur pour le chantier dans les notes et jalons […]
+  // ajouter le chantier aux formulaires note et jalons. »,
+  // sql/0026_notes_chantier.sql). Même règle que le jalon : fourni =>
+  // appliqué ; absent (ancien appelant) => celui de la note d'origine
+  // retrouvée sur le jour, sinon aucun.
+  var noteChantierIdFourni = estNote && Object.prototype.hasOwnProperty.call(params, "chantierId");
+  var noteChantierIdVoulu = noteChantierIdFourni ? (params.chantierId || null) : null;
 
   var origine = params.origine || null;
   var oNorm = origine ? normaliserPlage(origine.dateDebut, origine.dateFin, origine.demiDebut, origine.demiFin) : null;
@@ -155,14 +163,14 @@ function planPlage(params, existantes) {
     Object.keys(joursConcernes).sort().forEach(function (iso) {
       var dansNouvelle = iso >= d1 && iso <= d2;
       var dansOrigine = !!(o1 && iso >= o1 && iso <= o2);
-      var retireId = null;
+      var retireId = null, chantierRetire = null;
 
       if (dansOrigine && oTexteBrut !== "") {
         var demiOrigineIci = demiPourJourDePlage(iso, o1, o2, oNorm.demi1, oNorm.demi2);
         var match = lignesExistantesDuJour(iso).find(function (e) {
           return e.texte === oTexteBrut && !!e.important === oImportant && (e.demi || null) === (demiOrigineIci || null);
         });
-        if (match) { ops.push({ type: "delete", table: "notes", id: match.id }); retireId = match.id; }
+        if (match) { ops.push({ type: "delete", table: "notes", id: match.id }); retireId = match.id; chantierRetire = match.chantier_id || null; }
       }
 
       var ajouteIci = false;
@@ -176,7 +184,12 @@ function planPlage(params, existantes) {
         lignesDe(texteTrim).forEach(function (l) {
           var cle = l + "|" + (demiIci || "");
           if (dejaLa.indexOf(cle) === -1) {
-            ops.push({ type: "insert", table: "notes", date: iso, texte: l, important: important, demi: demiIci });
+            var ligneNote = { type: "insert", table: "notes", date: iso, texte: l, important: important, demi: demiIci };
+            // Suite 122 : colonne écrite seulement si la note a un chantier
+            // (sans chantier : null par défaut en base).
+            var chNote = noteChantierIdFourni ? noteChantierIdVoulu : (chantierRetire != null ? chantierRetire : (oChantierId || null));
+            if (chNote != null) ligneNote.chantier_id = chNote;
+            ops.push(ligneNote);
             dejaLa.push(cle);
             ajouteIci = true;
           }

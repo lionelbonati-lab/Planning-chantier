@@ -10798,3 +10798,20 @@ Lionel :
 - Nouveau : tests/test_suite121.js (5 vérifications ; l'ancien style.css échoue sur la case de l'année).
 - Mis à jour (balayage : même semaine) : test_swipe_tablette_1semaine.js, test_suite26.js, test_suite89.js, test_selection_multijour_tablette.js.
 - Mis à jour : test_suite62.js (noms de l'aperçu : sans les lignes Jalons et Notes).
+
+## 235. Round du 29.09.2026 (suite 122) — Bouton des hauteurs retiré, chantier des notes et jalons (pastille)
+- Lionel : « Enlever le bouton pour ajuster les hauteur de ligne. » Le bouton « Hauteur des lignes » et son panneau quittent la barre. Les mêmes réglages sont dans la page Affichage. Une ligne se règle toujours en glissant le trait sous son nom, ou par son menu (clic droit). « Rétablir les lignes réglées à part » passe dans la page Affichage ; il n'apparaît que si une ligne a été réglée à part.
+- Lionel : « Pastille de couleur pour le chantier dans les notes et jalons, pas de chantier = pas de pastille . ajouter le chantier aux formulaires note et jalons. »
+  - Une note peut maintenant avoir un chantier (nouvelle colonne `notes.chantier_id`, sql/0026_notes_chantier.sql, déjà appliquée), comme un jalon.
+  - Dans le planning, une bulle de jalon ou de note garde la couleur de son type. Son chantier s'affiche en pastille devant le texte. Sans chantier, pas de pastille. Avant, un jalon avec chantier prenait toute la couleur du chantier.
+  - Fiches jalon et note, dans la grille et dans les pages Jalons et Notes : choix du chantier dans le bandeau, avec « Aucun chantier » en tête, choisi par défaut. La pastille suit le choix.
+  - Listes des pages Jalons et Notes : pastille après le nom. Impression : pastille devant le texte, sauf en noir et blanc.
+  - Une note déplacée, copiée ou mise en série garde son chantier. Deux notes de même texte mais de chantiers différents restent deux bulles.
+  - Supprimer un chantier retire aussi son lien sur les notes.
+- Serveur : enregistrer-plage écrit le chantier des notes, et enregistrer-serie celui des séries de jalons et de notes. Les deux fonctions sont redéployées. La version en ligne d'enregistrer-plage était plus ancienne que celle du dépôt : elle ignorait le chantier d'un jalon déplacé depuis la grille, qui le perdait.
+
+### Tests
+- Nouveau : tests/test_suite122.js (20 vérifications).
+- Mis à jour : test_enregistrer_serie.js (une série de jalons garde son chantier).
+- Mis à jour (pastille au lieu du fond) : test_revue_suite22.js ; test_chargement.js (une note porte son chantier).
+- Mis à jour (bouton retiré) : test_toolbar_chevauchement.js, test_suite92.js, test_suite95.js, test_suite103.js, test_suite113.js.

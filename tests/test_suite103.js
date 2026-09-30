@@ -17,8 +17,8 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //      (planning.hauteursLignes.tel), appui long sur un nom = menu (simple
 //      toucher aux suites 104-105), trait
 //      glissé au doigt ;
-//   5. panneau « Hauteur des lignes » : « Rétablir les N lignes réglées à
-//      part ».
+//   5. « Rétablir les N lignes réglées à part » (panneau « Hauteur des
+//      lignes » de la barre ; page Affichage depuis la suite 122).
 //
 // Lancer : node test_suite103.js
 
@@ -117,14 +117,17 @@ const nom = (page, id) => page.evaluate((id) => { const r = document.querySelect
     verifier(await hauteur(page, 'p3') === 60 && await hauteur(page, 'jalon') === 50, 'nouveau rendu : hauteurs gardées');
     lsOrdi = await ls(page, 'planning.hauteursLignes');
 
-    // Panneau « Hauteur des lignes » : rétablir les lignes réglées à part.
-    await page.click('#btnHauteurs');
+    // Rétablir les lignes réglées à part : page Affichage (suite 122).
+    await page.evaluate(() => afficherPage('affichage'));
+    await page.waitForTimeout(200);
+    const br = await page.evaluate(() => { const b = document.getElementById('btnHauteursRetablir'); return b && !b.hidden && b.textContent; });
+    verifier(br === 'Rétablir les 3 lignes réglées à part', 'page Affichage : ' + br);
+    await page.click('#btnHauteursRetablir');
     await page.waitForTimeout(150);
-    const br = await page.evaluate(() => { const b = document.querySelector('#panneauHauteurs .hauteurs-retablir'); return b && !b.hidden && b.textContent; });
-    verifier(br === 'Rétablir les 3 lignes réglées à part', 'panneau Hauteur : ' + br);
-    await page.click('#panneauHauteurs .hauteurs-retablir');
-    await page.waitForTimeout(150);
-    const apres = await page.evaluate(() => [['p1', 'p3', 'jalon'].map((id) => document.querySelector('[data-ligne="' + id + '"]').offsetHeight), localStorage.getItem('planning.hauteursLignes'), document.querySelector('#panneauHauteurs .hauteurs-retablir').hidden]);
+    const cache = await page.evaluate(() => document.getElementById('btnHauteursRetablir').hidden);
+    await page.evaluate(() => afficherPage('planning'));
+    await page.waitForTimeout(300);
+    const apres = await page.evaluate((cache) => [['p1', 'p3', 'jalon'].map((id) => document.querySelector('[data-ligne="' + id + '"]').offsetHeight), localStorage.getItem('planning.hauteursLignes'), cache], cache);
     verifier(JSON.stringify(apres) === '[[117,117,32],"{}",true]', 'tout rétabli : hauteurs communes, bouton caché ' + JSON.stringify(apres));
     toutesErreurs.push(...erreurs);
     await page.close();

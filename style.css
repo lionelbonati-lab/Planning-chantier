@@ -1501,6 +1501,22 @@
     white-space: normal; overflow: hidden; text-overflow: ellipsis; overflow-wrap: anywhere;
   }
   .bulle.important .b-txt { color: var(--important-ink); }
+  /* Round du 29.09.2026 (suite 122) — Lionel : « Pastille de couleur pour
+     le chantier dans les notes et jalons, pas de chantier = pas de
+     pastille ». Dans le texte (reste collée à lui, sticky compris), cernée
+     pour rester visible sur un fond de couleur proche. */
+  .b-pastille {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin: 0 5px 1px 0; vertical-align: middle;
+    box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .85), 0 0 0 2px rgba(0, 0, 0, .25);
+  }
+  /* Même pastille dans les fiches jalon/note (devant le choix du chantier)
+     et dans les listes des pages Jalons/Notes (après le nom). */
+  .pastille-chantier-fiche, .pastille-chantier-liste {
+    display: inline-block; width: 9px; height: 9px; border-radius: 50%; vertical-align: middle; flex-shrink: 0;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, .2);
+  }
+  .pastille-chantier-fiche { margin: 0 6px 1px 0; }
+  .pastille-chantier-liste { margin-left: 7px; }
   /* Round du 23.09.2026 (suite ×10) — Lionel (vue mobile « 1 jour ») : « je
      ne vois pas le texte d'une bulle qui fait partie d'un jour avant ». Une
      bulle-plage (.bulle-plage) est un seul élément DOM couvrant TOUTE sa
@@ -3083,6 +3099,8 @@
   table.print-table td.print-nom-membre { padding-left: 14px; }
   .print-statut { display: inline-block; font-size: calc(9px * var(--impr-echelle, 1)); font-weight: 700; text-transform: uppercase; letter-spacing: .02em; padding: 0 5px; border: 1px solid var(--border-strong); border-radius: 999px; margin-top: 3px; }
   .print-important { color: var(--important-ink); font-weight: 700; }
+  /* Suite 122 : pastille du chantier d'un jalon / d'une note imprimé. */
+  .print-pastille { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin: 0 4px 1px 0; vertical-align: middle; box-shadow: 0 0 0 1px rgba(0,0,0,.25); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .print-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: var(--impr-esp-legende, 14px); padding-top: 12px; border-top: 1px solid var(--border); }
   .print-legend .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink); }
   .print-legend .legend-item .sw { width: 13px; height: 13px; border-radius: 3px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.15); }
@@ -3637,21 +3655,14 @@
   .choix-pastilles { flex-wrap: wrap; max-width: 100%; min-width: 0; }
   /* Curseur (suite 92 — Lionel : « Passer hauteur de ligne à un curseur
      sur ordinateur », « continu, au pixel ») : réglette, puis la valeur en
-     bulles et en pixels. Page Affichage et panneau « Hauteur des lignes »
-     de la barre d'outils (#panneauHauteurs, sans les aides, lignes
-     serrées). Suite 101 : valeur en pixels seulement. */
+     bulles et en pixels (page Affichage ; le panneau « Hauteur des
+     lignes » de la barre d'outils est retiré à la suite 122). Suite 101 :
+     valeur en pixels seulement. */
   .reglage-curseur { cursor: default; flex-wrap: wrap; row-gap: 10px; }
   .reglage-curseur .reglage-texte { flex: 1 1 220px; min-width: 0; }
   .curseur-bloc { display: flex; flex-direction: column; align-items: stretch; gap: 3px; flex: 1 1 180px; min-width: 150px; max-width: 240px; }
   .curseur-option { width: 100%; margin: 0; accent-color: var(--accent); cursor: pointer; }
   .curseur-valeur { font-family: var(--police-mono); font-size: 11px; font-weight: 600; color: var(--ink-muted); text-align: right; white-space: nowrap; }
-  .hauteurs-panneau { width: 270px; max-width: calc(100vw - 24px); box-sizing: border-box; }
-  .hauteurs-panneau .reglage-ligne { max-width: none; margin: 0 0 4px; padding: 8px 8px; border: none; background: none; gap: 8px; }
-  .hauteurs-panneau .reglage-texte > span:not(.reglage-nom) { display: none; }
-  .hauteurs-panneau .reglage-texte b { font-size: 12.5px; }
-  .hauteurs-panneau .curseur-bloc { flex-basis: 100%; max-width: none; }
-  .hauteurs-panneau .choix-pastille { padding: 5px 9px; font-size: 12px; }
-  .hauteurs-panneau .hauteurs-tous { color: var(--accent); font-weight: 600; }
 
   /* Mise en page : aperçu à droite (collé en haut au défilement) sur
      écran large, au-dessus des réglages sur téléphone. */

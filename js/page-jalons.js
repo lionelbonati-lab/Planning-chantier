@@ -108,11 +108,15 @@
     if (j.dateDebut === j.dateFin) return libelleDateIso(j.dateDebut, true);
     return libelleDateIso(j.dateDebut, debutAvecAnnee) + " → " + libelleDateIso(j.dateFin, true);
   }
+  // Suite 122 : pastille du chantier après le nom (aucune sans chantier),
+  // la vignette garde la couleur des jalons.
+  function pastilleChantierListeHTML(chantierId) {
+    var c = chantierId != null ? chantierParId(chantierId) : null;
+    return c ? '<span class="pastille-chantier-liste" style="background:' + esc2(c.couleur) + '" title="' + esc2(c.nom) + '"></span>' : '';
+  }
   function ligneFicheJalon(j) {
-    var c = chantierParId(j.chantierId);
-    var couleur = c ? c.couleur : "var(--jalon-bg)";
     return '<div class="ligne-intervenant" data-id-debut="' + esc2(j.idDebut) + '">' +
-      '<span class="gauche-chantier"><span class="swatch-chantier" style="background:' + esc2(couleur) + '"></span><b>' + esc(j.texte) + '</b></span>' +
+      '<span class="gauche-chantier"><span class="swatch-chantier" style="background:var(--jalon-bg)"></span><b>' + esc(j.texte) + '</b>' + pastilleChantierListeHTML(j.chantierId) + '</span>' +
       // Marque « important » : ICONS.important (suite 65 — le drapeau des
       // onglets, utilisé ici depuis la suite 53, se confondait avec l'icône
       // des jalons eux-mêmes).
@@ -265,15 +269,24 @@
   // sur ce jalon (édition d'un jalon existant qui pointait vers un chantier
   // depuis désactivé) : reste alors proposé/sélectionné, pour ne jamais
   // faire disparaître silencieusement le lien à l'enregistrement.
+  //
+  // Round du 29.09.2026 (suite 122) — Lionel : « Pastille de couleur pour
+  // le chantier dans les notes et jalons, pas de chantier = pas de pastille
+  // . ajouter le chantier aux formulaires note et jalons. » Partagé par les
+  // fiches jalon ET note (pages Jalons/Notes, fiches de la grille) : 1re
+  // option « Aucun chantier » (valeur "", lue comme null), et la pastille
+  // à la couleur du chantier choisi devant le nom (rien sans chantier).
   function champChantierJalonHTML(chantierIdInit) {
     var liste = etat.chantiers.filter(function (c) {
       return c.actif !== false || (chantierIdInit != null && String(chantierIdInit) === String(c.ligne));
     });
-    var options = liste.map(function (c) {
-      var sel = chantierIdInit != null && String(chantierIdInit) === String(c.ligne);
+    var choisi = chantierIdInit != null ? chantierParId(chantierIdInit) : null;
+    var options = '<option value=""' + (choisi ? "" : " selected") + '>Aucun chantier</option>' + liste.map(function (c) {
+      var sel = !!choisi && String(chantierIdInit) === String(c.ligne);
       return '<option value="' + esc2(c.ligne) + '"' + (sel ? " selected" : "") + '>' + esc(c.nom) + '</option>';
     }).join("");
-    return '<select class="f-chantier-jalon chantier-tag">' + options + '</select>';
+    return (choisi ? '<span class="pastille-chantier-fiche" style="background:' + esc2(choisi.couleur) + '"></span>' : '') +
+      '<select class="f-chantier-jalon chantier-tag">' + options + '</select>';
   }
   function ouvrirFormulaireJalon(itemExisting) {
     var aujourdhuiIso = premierJourOuvreDepuis(isoDeDate(new Date()));
@@ -281,22 +294,17 @@
       debutIso: itemExisting ? itemExisting.dateDebut : aujourdhuiIso,
       finIso: itemExisting ? itemExisting.dateFin : aujourdhuiIso,
       important: itemExisting ? itemExisting.important : false,
-      // Round du 14.09.2026 : le 1er chantier ACTIF (etat.chantiers peut
-      // désormais contenir des désactivés, triés par ordre sans distinction) —
-      // jamais un chantier désactivé comme choix par défaut d'un nouveau jalon.
-      chantierId: itemExisting ? itemExisting.chantierId : (function () {
-        var actifs = etat.chantiers.filter(function (c) { return c.actif !== false; });
-        return actifs.length ? actifs[0].ligne : null;
-      })()
+      // Suite 122 : un nouveau jalon part sans chantier (pas de pastille) ;
+      // avant, le 1er chantier actif était choisi d'office.
+      chantierId: itemExisting ? itemExisting.chantierId : null
     };
-    function couleurBandeau() {
-      var c = chantierParId(state.chantierId);
-      return c ? c.couleur : "var(--jalon-bg)";
-    }
+    // Suite 122 : bandeau à la couleur des jalons, le chantier est la
+    // pastille devant son nom (comme la bulle du planning).
+    function couleurBandeau() { return "var(--jalon-bg)"; }
     var pop = document.createElement("div");
     pop.className = "pop form-pop carte-item";
     pop.innerHTML =
-      bandeauHTML({ clair: !chantierParId(state.chantierId), fondStyle: "background:" + couleurBandeau(), important: state.important, chantierHTML: champChantierJalonHTML(state.chantierId), nomGrand: "Jalon" }) +
+      bandeauHTML({ clair: true, fondStyle: "background:" + couleurBandeau(), important: state.important, chantierHTML: champChantierJalonHTML(state.chantierId), nomGrand: "Jalon" }) +
       datesPlageJalonHTML(state.debutIso, state.finIso) +
       '<div class="corps"><div class="label-champ" style="margin:0 0 6px">Nom</div>' +
       '<input type="text" class="f-nom-jalon" value="' + esc2(itemExisting ? itemExisting.texte : "") + '" placeholder="ex. Livraison agglos"></div>' +
@@ -318,7 +326,7 @@
     }
     function rafraichirBandeau() {
       pop.querySelector(".bandeau").outerHTML = bandeauHTML({
-        clair: !chantierParId(state.chantierId), fondStyle: "background:" + couleurBandeau(),
+        clair: true, fondStyle: "background:" + couleurBandeau(),
         important: state.important, chantierHTML: champChantierJalonHTML(state.chantierId), nomGrand: "Jalon"
       });
       cablerBandeau();

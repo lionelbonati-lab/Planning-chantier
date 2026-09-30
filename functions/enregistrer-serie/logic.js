@@ -169,7 +169,9 @@ function champsSerie(payload) {
     // note ligne 4/5 n'a jamais eu de colonne dédiée pour ça non plus).
     statut_id: estTache ? (payload.statutId || null) : null,
     important: !!payload.important,
-    chantier_id: estTache ? (payload.chantierId || null) : null,
+    // Round du 29.09.2026 (suite 122) : un jalon ou une note en série garde
+    // aussi son chantier (pastille, sql/0026_notes_chantier.sql).
+    chantier_id: payload.chantierId || null,
     date_debut: String(payload.dateDebutIso || "").trim(),
     frequence: String(payload.frequence || ""),
     intervalle: parseInt(payload.intervalle, 10) || 1,
@@ -278,6 +280,7 @@ function construireOccurrencesSerie(champs, dates, serieId, existantes, existant
         var ligneJalon = { type: "insert", table: "jalons", date: iso, texte: champs.texte, serie_id: serieId };
         var demiIci = demiJalonNoteParJour(index, jours.length, demiDebut, demiFin);
         if (demiIci) ligneJalon.demi = demiIci;
+        if (champs.chantier_id) ligneJalon.chantier_id = champs.chantier_id; // suite 122
         ops.push(ligneJalon);
         posees++;
       });
@@ -294,6 +297,7 @@ function construireOccurrencesSerie(champs, dates, serieId, existantes, existant
         var ligneNote = { type: "insert", table: "notes", date: iso, texte: champs.texte, important: champs.important, serie_id: serieId };
         var demiIci = demiJalonNoteParJour(index, jours.length, demiDebut, demiFin);
         if (demiIci) ligneNote.demi = demiIci;
+        if (champs.chantier_id) ligneNote.chantier_id = champs.chantier_id; // suite 122
         ops.push(ligneNote);
         posees++;
       });

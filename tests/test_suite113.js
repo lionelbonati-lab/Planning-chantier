@@ -9,8 +9,8 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //      hauteur réelle, 3 px entre elles et au-dessus (plus la place d'une
 //      carte pleine) ;
 //   2. « Espace entre les bulles » à 10 puis 0 px : pile refaite tout de
-//      suite, sans reconstruire la grille ; curseur au panneau Hauteur et
-//      sur la page Affichage ;
+//      suite, sans reconstruire la grille ; curseur sur la page Affichage
+//      (le panneau Hauteur de la barre est retiré à la suite 122) ;
 //   3. téléphone : son propre réglage.
 //
 // Lancer : node test_suite113.js
@@ -37,14 +37,10 @@ const proche = (a, b) => Math.abs(a - b) <= 1;
     let p = await pile(page);
     verifier(proche(p.dessus, 3) && proche(p.entre, 3) && p.hA < p.u - 10, 'par défaut : 3 px au-dessus et entre les bulles, à leur hauteur réelle ' + JSON.stringify(p));
     await page.evaluate(() => { document.querySelector('#racine .scroller .grille').dataset.marque = '1'; });
-    await page.click('#btnHauteurs');
-    await page.waitForTimeout(150);
-    const tirer = (v) => page.evaluate((v) => {
-      const e = document.querySelector('#panneauHauteurs .curseur-option[data-option="espaceBullesOrdi"]');
-      e.value = v; e.dispatchEvent(new Event('input', { bubbles: true }));
-    }, v);
-    const curseur = await page.evaluate(() => !!document.querySelector('#panneauHauteurs .curseur-option[data-option="espaceBullesOrdi"]'));
-    verifier(curseur, 'panneau Hauteur : curseur « Espace entre les bulles »');
+    // Suite 122 : plus de panneau Hauteur dans la barre ; le curseur de la
+    // page Affichage fait le même appel (changerOptionAffichage, léger).
+    const tirer = (v) => page.evaluate((v) => changerOptionAffichage('espaceBullesOrdi', v, profilAppareil_(), true), v);
+    verifier(await page.evaluate(() => !document.getElementById('btnHauteurs')), 'suite 122 : plus de bouton « Hauteur des lignes » dans la barre');
     await tirer('10');
     await page.waitForTimeout(150);
     p = await pile(page);
@@ -54,11 +50,10 @@ const proche = (a, b) => Math.abs(a - b) <= 1;
     await page.waitForTimeout(150);
     p = await pile(page);
     verifier(proche(p.dessus, 0) && proche(p.entre, 0), 'curseur à 0 : bulles collées ' + JSON.stringify(p));
-    const lib = await page.evaluate(() => [optionAffichage('espaceBullesOrdi'), document.querySelector('#panneauHauteurs .curseur-valeur[data-pour="espaceBullesOrdi"]').textContent]);
-    verifier(lib[0] === '0' && lib[1] === '0 px', 'valeur retenue et libellé ' + JSON.stringify(lib));
-    await page.click('#btnHauteurs');
     await page.evaluate(() => afficherPage('affichage'));
     await page.waitForTimeout(200);
+    const lib = await page.evaluate(() => [optionAffichage('espaceBullesOrdi'), document.querySelector('#page-affichage .curseur-valeur[data-pour="espaceBullesOrdi"]').textContent]);
+    verifier(lib[0] === '0' && lib[1] === '0 px', 'valeur retenue et libellé ' + JSON.stringify(lib));
     const ligne = await page.evaluate(() => { const l = document.querySelector('#page-affichage .reglage-ligne[data-option="espaceBullesOrdi"]'); return l && !l.hidden && l.offsetHeight > 0; });
     verifier(ligne, 'page Affichage : réglage « Espace entre les bulles » de l\'ordinateur');
     toutesErreurs.push(...erreurs);
