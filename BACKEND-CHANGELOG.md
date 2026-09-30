@@ -1954,3 +1954,25 @@ Lionel : « Notification Push sur le téléphone et l'ordinateur avec différen
 - `{ jeton }` (pg_cron) : lit, décide (logic.js, `planEnvois`), note d'abord ce qui est annoncé, puis envoie (web-push, TTL 12 h). Abonnements 404 / 410 effacés.
 - `{ test: endpoint }` (bouton « Envoyer un essai ») : utilisateur connecté, cet appareil seulement.
 - Vérifié de bout en bout : chiffrement et signature acceptés par le service push, abonnement expiré retiré.
+
+
+---
+
+## 31. Round du 30.09.2026 (suite 127) — round de contrôle final
+
+Lionel : « Fait un round de contrôle à la fin »
+
+Fichier : sql/0028_controle_final.sql (migrations `controle_final_droits_fonctions` et `controle_final_policy_profils`).
+
+- Conseils de sécurité Supabase :
+  - abonnement_push_session_ et noter_modif_push_ : droit d'exécution retiré (fonctions de déclencheur, jamais appelées en direct). Vérifié : une écriture d'un utilisateur connecté est toujours notée ;
+  - tables_sauvegardees_ et nombre_lignes_sauvegarde_ : search_path fixé.
+- Conseil de performance : policy « soi_meme » de profils, auth.uid() évalué une fois par requête.
+- Notifications push : le cron `envoyer-push` tourne chaque minute sans échec (27 passages sur 24 h au moment du contrôle) ; il n'appelle la fonction Edge que s'il y a quelque chose à envoyer.
+- Laissés tels quels :
+  - fonctions de la page de consultation, appelables sans connexion : voulu, elles vérifient le jeton du lien ;
+  - fonctions des sauvegardes et de « Mon compte », réservées aux connectés : voulu ;
+  - cle_publique_push : voulu, la clé est publique ;
+  - pg_net dans le schéma public : ses fonctions sont dans le schéma net ; le déplacer demanderait de le réinstaller ;
+  - 10 index jamais utilisés : sur clés étrangères, peu de données ; ils serviront quand les tables grandiront ;
+  - « Leaked password protection » (Auth) : réglage du tableau de bord Supabase, à activer par Lionel s'il le souhaite.

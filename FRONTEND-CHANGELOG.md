@@ -10884,3 +10884,14 @@ Lionel :
 - Nouveau : tests/test_suite126.js (33 vérifications : logique d'envoi, service worker, page de réglages avec un faux navigateur).
 - Mis à jour : test_suite63.js (liste des pages de réglages avec « Notifications »).
 - aide_tests.js : option init / initArg (script posé avant le chargement de la page), faux rpc cle_publique_push et fausse fonction envoyer-push.
+
+## 240. Round du 30.09.2026 (suite 127) — Round de contrôle final
+- Lionel : « Fait un round de contrôle à la fin ».
+- Appli parcourue sur ordinateur (1400 px), tablette (1024 px, tactile) et téléphone (390 px, tactile) : toutes les pages (planning, onglets, les 7 pages de réglages), la fenêtre des notifications et l'aperçu d'impression. Aucune erreur JavaScript, aucune page qui déborde. Sur téléphone, l'aperçu d'impression défile de côté, comme voulu depuis la suite 40.
+- Scripts de l'appli relus ensemble (lint) : aucun nom indéfini.
+- Code mort retiré : gs() / gsP() (js/core.js), les appels google.script.run de l'ancienne version Apps Script. Plus rien ne les appelait.
+- Service worker : les nouveaux fichiers js/ sont copiés d'eux-mêmes (lus dans index.html) ; la nouvelle version (notifications push) s'installe à la prochaine ouverture.
+- Base : voir BACKEND-CHANGELOG §31.
+
+### Tests
+- Suite complète : 131/131.

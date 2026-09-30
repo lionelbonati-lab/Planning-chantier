@@ -356,29 +356,18 @@
   }
 
   /* ============ APPELS SERVEUR ============ */
-  // gs(fn, args, onOk, onErr) — wrapper conservé tel quel depuis Index.html V2.
-  function gs(fn, args, onOk, onErr) {
-    google.script.run
-      .withSuccessHandler(onOk)
-      .withFailureHandler(onErr || erreurFatale)
-      [fn].apply(null, args || []);
-  }
+  // Round du 30.09.2026 (suite 127, round de contrôle final — Lionel :
+  // « Fait un round de contrôle à la fin ») : gs() / gsP(), les appels
+  // google.script.run de la version Apps Script, retirés — plus aucun
+  // appel depuis l'hébergement sur GitHub Pages (Supabase + fonctions Edge,
+  // invoquerFonctionServeur ci-dessous).
   var occupations = 0;
   function occupe(actif) {
     occupations = Math.max(0, occupations + (actif ? 1 : -1));
     progressEl.classList.toggle("on", occupations > 0);
   }
-  // Petit wrapper "promesse" pour enchaîner/attendre une suite d'appels gs()
-  // sans réécrire la gestion occupe()/erreur à chaque fois (utilisé par le
-  // moteur de synchronisation, cf. plus bas).
-  function gsP(fn, args) {
-    return new Promise(function (resolve, reject) {
-      occupe(true);
-      gs(fn, args, function (r) { occupe(false); resolve(r); }, function (err) { occupe(false); reject(err); });
-    });
-  }
 
-  // invoquerFonctionServeur(nom, body) — équivalent gsP() pour les 4 Edge
+  // invoquerFonctionServeur(nom, body) — ex-équivalent de gsP() pour les 4 Edge
   // Functions déjà déployées (phase 4, étape 4, cf. MIGRATION-GITHUB-PLAN.md
   // §6bis) : appelle sbClient.functions.invoke(nom, {body}) et renvoie une
   // promesse qui résout avec `data` ou rejette avec une vraie Error, dans
