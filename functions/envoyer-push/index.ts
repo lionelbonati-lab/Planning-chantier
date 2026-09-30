@@ -17,11 +17,23 @@
 // Un abonnement que le service du navigateur dit disparu (404 / 410 :
 // notifications retirées, navigateur désinstallé) est effacé.
 // Envoi : bibliothèque web-push (chiffrement aes128gcm, signature VAPID).
+//
+// Round du 30.09.2026 (suite 128) — Lionel : « Notifications, notification
+// différents pour chaque groupe de libellé différents. Possibilité de pour
+// régler x jours avant et en fonction des horaires de travail. » Les
+// heures fixes (veille / matin) laissent place aux créneaux du début de
+// chaque demi-journée (push_creneaux_, sql/0029) : le créneau dû est noté
+// dans push_passages AVANT d'envoyer, puis logic.js cherche, pour chaque
+// appareil et chaque sorte, ce dont la date d'envoi (x jours de travail
+// avant, réglage de l'appareil) tombe sur ce créneau. Données lues sur
+// HORIZON_JOURS (réglage maximal : 10 jours de travail, vacances comprises).
 // ============================================================
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
 import { planEnvois, heureLocale, decalerIso } from "./logic.js";
+
+const HORIZON_JOURS = 90;
 
 const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -88,36 +100,45 @@ Deno.serve(async (req: Request) => {
     if (!params.jeton || params.jeton !== config.jeton) return json({ ok: false, erreur: "Accès refusé." }, 403);
     const maintenant = new Date();
     const local = heureLocale(maintenant);
-    const demain = decalerIso(local.iso, 1);
+    const fin = decalerIso(local.iso, HORIZON_JOURS);
     const lire = async (q: PromiseLike<{ data: unknown; error: unknown }>) => {
       const r = await q;
       if (r.error) throw r.error;
       return (r.data || []) as Record<string, unknown>[];
     };
-    const [abonnements, demandes, modifs, personnes, chantiers, statuts, taches, jalons, notes, aReserver] = await Promise.all([
-      lire(admin.from("abonnements_push").select("id, endpoint, p256dh, auth, session_id, types, heure_veille, heure_matin, derniere_veille, dernier_matin")),
+    const creneaux = await lire(admin.rpc("push_creneaux_"));
+    // Créneau noté d'abord : un passage suivant ne le reprend pas.
+    if (creneaux.length) {
+      const { error } = await admin.from("push_passages").upsert(creneaux.map((c) => ({ cle: c.cle })), { onConflict: "cle", ignoreDuplicates: true });
+      if (error) throw error;
+      await admin.from("push_passages").delete().lt("le", new Date(maintenant.getTime() - 30 * 86400000).toISOString());
+    }
+    const sansCreneau = async () => [] as Record<string, unknown>[];
+    const siCreneau = (q: PromiseLike<{ data: unknown; error: unknown }>) => creneaux.length ? lire(q) : sansCreneau();
+    const [abonnements, demandes, modifs, personnes, chantiers, statuts, demandesEnAttente, taches, jalons, notes, aReserver, horaires, feries] = await Promise.all([
+      lire(admin.from("abonnements_push").select("id, endpoint, p256dh, auth, session_id, types, reglages")),
       lire(admin.from("demandes_absence").select("id, personne_id, date_debut, date_fin, demi_debut, demi_fin, motif, type").eq("statut", "en_attente").eq("notifiee_push", false)),
       lire(admin.from("push_modifs").select("session_id, derniere")),
       lire(admin.from("personnes").select("id, nom, ordre").eq("actif", true).order("ordre")),
       lire(admin.from("chantiers").select("id, nom")),
       lire(admin.from("statuts").select("id, cle, nom, ordre")),
-      lire(admin.from("taches").select("personne_id, date, demi, texte, chantier_id, est_absence, important").eq("important", true).gte("date", local.iso).lte("date", demain)),
-      lire(admin.from("jalons").select("date, texte, chantier_id, important").eq("important", true).gte("date", local.iso).lte("date", demain)),
-      lire(admin.from("notes").select("date, texte, chantier_id, important").eq("important", true).gte("date", local.iso).lte("date", demain)),
-      lire(admin.from("taches").select("personne_id, date, texte, chantier_id, statut_id").not("statut_id", "is", null).gte("date", local.iso).order("date").limit(5000)),
+      siCreneau(admin.from("demandes_absence").select("id, personne_id, date_debut, date_fin, demi_debut, demi_fin, motif, type").eq("statut", "en_attente").gte("date_debut", local.iso).lte("date_debut", fin)),
+      siCreneau(admin.from("taches").select("personne_id, date, demi, texte, chantier_id, est_absence, important").eq("important", true).gte("date", local.iso).lte("date", fin)),
+      siCreneau(admin.from("jalons").select("date, texte, chantier_id, important").eq("important", true).gte("date", local.iso).lte("date", fin)),
+      siCreneau(admin.from("notes").select("date, demi, texte, chantier_id, important").eq("important", true).gte("date", local.iso).lte("date", fin)),
+      // Depuis un mois : une tâche commencée avant garde son vrai début.
+      siCreneau(admin.from("taches").select("personne_id, date, demi, texte, chantier_id, statut_id").not("statut_id", "is", null).gte("date", decalerIso(local.iso, -31)).lte("date", fin).order("date").limit(5000)),
+      siCreneau(admin.from("horaires").select("id, date_debut, date_fin, matin_debut, aprem_debut, aprem_fin")),
+      siCreneau(admin.from("feries").select("date, categorie").gte("date", decalerIso(local.iso, -7)).lte("date", fin)),
     ]);
 
-    const plan = planEnvois({ abonnements, demandes, modifs, personnes, chantiers, statuts, taches, jalons, notes, aReserver }, maintenant);
+    const plan = planEnvois({ abonnements, demandes, modifs, personnes, chantiers, statuts, demandesEnAttente, taches, jalons, notes, aReserver, horaires, feries, creneaux }, maintenant);
 
     // Noté d'abord : rien n'est annoncé deux fois.
     if (plan.demandesAnnoncees.length) await admin.from("demandes_absence").update({ notifiee_push: true }).in("id", plan.demandesAnnoncees);
     if (plan.modifsTraitees.length) {
       // Une session qui a encore écrit entre-temps reste pour le passage suivant.
       await admin.from("push_modifs").delete().in("session_id", plan.modifsTraitees).lte("derniere", new Date(maintenant.getTime() - 60000).toISOString());
-    }
-    for (const m of plan.majAbonnements) {
-      const { id, ...champs } = m;
-      await admin.from("abonnements_push").update(champs).eq("id", id);
     }
 
     const resultats = await Promise.all(plan.envois.map((e: { abonnement: Abonnement; message: Message }) => envoyer(e.abonnement, e.message).then((r) => ({ e, r }))));
@@ -129,6 +150,7 @@ Deno.serve(async (req: Request) => {
       envoyes: resultats.filter((x) => x.r.ok).length,
       echecs: resultats.filter((x) => !x.r.ok).map((x) => ({ abonnement: x.e.abonnement.id, tag: x.e.message.tag, statut: x.r.statut, erreur: x.r.erreur })),
       retires: disparus.length,
+      creneaux: plan.passages,
     });
   } catch (e) {
     return json({ ok: false, erreur: String((e as Error)?.message || e) }, 500);

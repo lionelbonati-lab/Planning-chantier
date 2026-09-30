@@ -20,10 +20,18 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //      notification (#notifications) ;
 //   C. sw.js : affichage d'un message reçu et clic.
 //
+// Round du 30.09.2026 (suite 128) : veille et matin à heure fixe remplacés
+// par « x jours avant, au début de la demi-journée », par sorte (Lionel :
+// « Notifications, notification différents pour chaque groupe de libellé
+// différents. Possibilité de pour régler x jours avant et en fonction des
+// horaires de travail. »). Les vérifications veille / matin / fenêtre de
+// 4 h passent dans test_suite128.js ; ici, les listes « Quand » remplacent
+// les heures, et le clic se fait sur « importants-matin ».
+//
 // Lancer : node test_suite126.js
 
 const SRC = fs.readFileSync(path.join(__dirname, '..', 'functions/envoyer-push/logic.js'), 'utf8').replace(/export \{[\s\S]*?\};\s*$/, '');
-const L = new Function(SRC + '; return { heureLocale, decalerIso, dateCourte, importantsDuJour, groupesAReserver, messageDemandes, planEnvois };')();
+const L = new Function(SRC + '; return { heureLocale, decalerIso, dateCourte, elementsImportants, groupesAReserver, messageDemandes, planEnvois };')();
 
 // Heures de Zurich (été : UTC+2) → instant UTC.
 const zurich = (iso, h, m) => new Date(iso + 'T' + String(h - 2).padStart(2, '0') + ':' + String(m || 0).padStart(2, '0') + ':00Z');
@@ -65,7 +73,8 @@ async function partieLogique(verifier) {
   p = L.planEnvois(base({ abonnements: abos, modifs: [{ session_id: '', derniere: zurich('2026-09-30', 15, 0).toISOString() }] }), zurich('2026-09-30', 15, 2));
   verifier(resume(p) === '1:modifs 2:modifs', 'écriture sans appareil connu (base) : tous les abonnés prévenus (' + resume(p) + ')');
 
-  // Importants : veille (demain) et matin (aujourd'hui).
+  // Importants d'un jour : ordre et regroupement (quand ils partent :
+  // test_suite128.js).
   const imp = {
     jalons: [{ date: '2026-10-01', texte: 'Réception', chantier_id: 7, important: true }],
     notes: [{ date: '2026-10-01', texte: 'Appeler le géomètre', chantier_id: null, important: true }],
@@ -77,26 +86,11 @@ async function partieLogique(verifier) {
       { personne_id: 1, date: '2026-09-30', demi: 'matin', texte: 'Coffrage', chantier_id: 7, important: true }
     ]
   };
-  const lignes = L.importantsDuJour('2026-10-01', base(imp));
+  const lignes = L.elementsImportants(base(imp)).filter((e) => e.date === '2026-10-01').sort((a, b) => a.rang - b.rang).map((e) => e.texte);
   verifier(lignes.join(' | ') === 'Jalon — Réception (Padel) | Note — Appeler le géomètre | Marco · absence — Congé | Lionel — Grue (Padel)',
     'importants d’un jour : jalons, notes, puis personnes dans l’ordre du planning ; matin + après-midi = une ligne ; personne masquée ignorée (' + lignes.join(' | ') + ')');
-  p = L.planEnvois(base(Object.assign({ abonnements: [{ id: 1, heure_veille: 18, heure_matin: 7, dernier_matin: '2026-09-30' }] }, imp)), zurich('2026-09-30', 18, 5));
-  m = p.envois[0] && p.envois[0].message;
-  verifier(m && m.tag === 'veille' && m.titre === 'Demain, jeu. 1 oct. : 4 importants' && m.corps.split('\n').length === 4 && JSON.stringify(p.majAbonnements) === '[{"id":1,"derniere_veille":"2026-09-30"}]',
-    'veille à 18 h 05 : importants de demain, jour noté (' + JSON.stringify(m) + ')');
-  p = L.planEnvois(base(Object.assign({ abonnements: [{ id: 1, heure_veille: 18, derniere_veille: '2026-09-30', dernier_matin: '2026-09-30' }] }, imp)), zurich('2026-09-30', 19));
-  verifier(!p.envois.length && !p.majAbonnements.length, 'veille déjà envoyée aujourd’hui : rien de plus');
-  p = L.planEnvois(base(Object.assign({ abonnements: [{ id: 1, heure_veille: 18, dernier_matin: '2026-09-30' }] }, imp)), zurich('2026-09-30', 17, 59));
-  verifier(!p.envois.length && !p.majAbonnements.length, 'avant l’heure de la veille : rien');
-  p = L.planEnvois(base(Object.assign({ abonnements: [{ id: 1, heure_matin: 7, derniere_veille: '2026-10-01' }] }, imp)), zurich('2026-10-01', 7, 1));
-  m = p.envois[0] && p.envois[0].message;
-  verifier(resume(p) === '1:matin' && m.titre === 'Aujourd’hui : 4 importants', 'matin à 7 h 01 : importants du jour (' + JSON.stringify(m) + ')');
-  p = L.planEnvois(base(Object.assign({ abonnements: [{ id: 1, heure_matin: 7, derniere_veille: '2026-10-01' }] }, imp)), zurich('2026-10-01', 11, 30));
-  verifier(!p.envois.length && JSON.stringify(p.majAbonnements) === '[{"id":1,"dernier_matin":"2026-10-01"}]', 'matin, mais abonné à 11 h 30 (plus de 4 h après) : rien envoyé, jour noté');
-  p = L.planEnvois(base(Object.assign({ abonnements: [{ id: 1, heure_veille: 18, dernier_matin: '2026-09-30', types: { importants: false } }] }, imp)), zurich('2026-09-30', 18, 5));
-  verifier(!p.envois.length && p.majAbonnements.length === 1, 'interrupteur « Importants » éteint : rien, le jour est quand même noté');
 
-  // À réserver : le matin, regroupé comme dans l'appli.
+  // À réserver : regroupé comme dans l'appli.
   const ar = { aReserver: [
     { personne_id: 1, date: '2026-10-02', texte: 'Pelle', chantier_id: 7, statut_id: 9 },
     { personne_id: 1, date: '2026-10-05', texte: 'Pelle', chantier_id: 7, statut_id: 9 },
@@ -107,12 +101,6 @@ async function partieLogique(verifier) {
   ] };
   const g = L.groupesAReserver(base(ar), '2026-10-01');
   verifier(g.length === 2 && g[0].texte === 'Nacelle' && g[1].du === '2026-10-02' && g[1].au === '2026-10-05', 'à réserver : vendredi + lundi = une tâche ; autre statut, personne masquée et jours passés ignorés (' + JSON.stringify(g.map((x) => [x.texte, x.du, x.au])) + ')');
-  p = L.planEnvois(base(Object.assign({ abonnements: [{ id: 1, derniere_veille: '2026-10-01' }, { id: 2, derniere_veille: '2026-10-01', types: { a_reserver: false } }] }, ar)), zurich('2026-10-01', 7, 1));
-  m = p.envois[0] && p.envois[0].message;
-  verifier(resume(p) === '1:a-reserver' && m.titre === 'À réserver : 2 tâches' && m.corps === 'Jeu. 1 oct. · Marco · Nacelle\nVen. 2 oct. · Lionel · Pelle', 'à réserver le matin, nom du statut en titre ; interrupteur éteint : rien (' + JSON.stringify(m) + ')');
-  const beaucoup = { aReserver: Array.from({ length: 7 }, (_, i) => ({ personne_id: 1, date: '2026-10-01', texte: 'T' + i, statut_id: 9 })) };
-  p = L.planEnvois(base(Object.assign({ abonnements: [{ id: 1, derniere_veille: '2026-10-01' }] }, beaucoup)), zurich('2026-10-01', 8));
-  verifier(p.envois[0].message.corps.split('\n').length === 5 && /… et 3 autres$/.test(p.envois[0].message.corps), '7 lignes : 4 affichées puis « … et 3 autres »');
 }
 
 // Service push simulé : navigator.serviceWorker, PushManager, Notification.
@@ -160,18 +148,18 @@ async function partieNavigateur(browser, verifier, erreursTout) {
     const l = (__BD.abonnements_push || []).find((a) => a.endpoint === 'https://push.exemple/cet-appareil');
     return { ligne: l ? { p: l.p256dh, a: l.auth, nom: l.nom_appareil } : null, cle: __FAUX_PUSH.cle, actif: document.getElementById('chkPushActif').checked,
       details: !document.getElementById('pushDetails').hidden, types: [...document.querySelectorAll('#pushDetails input[data-type]')].map((c) => c.dataset.type + '=' + c.checked).join(','),
-      veille: document.getElementById('selPushVeille').value, matin: document.getElementById('selPushMatin').value };
+      quand: [...document.querySelectorAll('#pushDetails select[data-reglage]')].map((c) => c.dataset.reglage + '=' + c.value).join(',') };
   });
   verifier(etat.ligne && etat.ligne.p === 'CLE-P256DH' && etat.ligne.a === 'CLE-AUTH' && etat.cle === 65 && etat.actif && etat.details,
     'activer : permission, abonnement avec la clé VAPID (65 octets), adresse rangée en base (' + JSON.stringify(etat.ligne) + ')');
-  verifier(etat.types === 'demandes=true,importants=true,a_reserver=true,modifs=true' && etat.veille === '18' && etat.matin === '7', 'réglages par défaut : les 4 sortes, veille 18 h, matin 7 h (' + etat.types + ' ' + etat.veille + '/' + etat.matin + ')');
+  verifier(etat.types === 'demandes=true,importants=true,a_reserver=true,modifs=true' && etat.quand === 'rappel_demandes=,importants=1,a_reserver=1', 'réglages par défaut : les 4 sortes ; importants et à réserver 1 jour avant, pas de rappel (' + etat.types + ' ' + etat.quand + ')');
 
   await page.click('label[for="chkPush-modifs"]');
-  await page.selectOption('#selPushVeille', '20');
-  await page.selectOption('#selPushMatin', '6');
+  await page.selectOption('#selPush-importants', '2');
+  await page.selectOption('#selPush-rappel_demandes', '1');
   await page.waitForTimeout(200);
-  etat = await page.evaluate(() => { const l = __BD.abonnements_push.find((a) => a.endpoint === 'https://push.exemple/cet-appareil'); return { types: l.types, veille: l.heure_veille, matin: l.heure_matin }; });
-  verifier(etat.types.modifs === false && etat.types.demandes === true && etat.veille === 20 && etat.matin === 6, 'interrupteur et heures enregistrés pour cet appareil (' + JSON.stringify(etat) + ')');
+  etat = await page.evaluate(() => { const l = __BD.abonnements_push.find((a) => a.endpoint === 'https://push.exemple/cet-appareil'); return { types: l.types, reglages: l.reglages }; });
+  verifier(etat.types.modifs === false && etat.types.demandes === true && JSON.stringify(etat.reglages) === '{"rappel_demandes":1,"importants":2,"a_reserver":1}', 'interrupteur et « Quand » enregistrés pour cet appareil (' + JSON.stringify(etat) + ')');
 
   await page.click('#btnPushEssai');
   await page.waitForTimeout(200);
@@ -239,7 +227,7 @@ async function partieSw(verifier) {
   const clic = (tag) => { let p = null; ecouteurs.notificationclick({ notification: { data: { tag }, close() {} }, waitUntil(x) { p = x; } }); return p; };
   await clic('demandes');
   clients.liste = [{ url: 'https://exemple.github.io/Planning-chantier/', focus() { focus++; return Promise.resolve(); }, postMessage(m) { messages.push(m.type); } }];
-  await clic('veille');
+  await clic('importants-matin');
   await clic('modifs');
   verifier(ouvertes.join() === 'https://exemple.github.io/Planning-chantier/#notifications' && focus === 2 && messages.join() === 'ouvrir-notifications',
     'sw.js : clic → appli ouverte (#notifications) ou ramenée au premier plan ; fenêtre Notifications pour demandes/importants, pas pour une modification (' + JSON.stringify({ ouvertes, focus, messages }) + ')');

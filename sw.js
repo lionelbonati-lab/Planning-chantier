@@ -216,7 +216,10 @@ self.addEventListener("fetch", function (e) {
    appli fermée. Même tag = la nouvelle remplace l'ancienne (une seule
    « Planning modifié » à la fois). Un clic ouvre l'appli ou la ramène au
    premier plan ; demandes, importants et à réserver ouvrent en plus la
-   fenêtre Notifications (js/page-notifications.js). */
+   fenêtre Notifications (js/page-notifications.js).
+   Suite 128 : une étiquette par sorte ET par demi-journée
+   (« importants-matin », « a-reserver-aprem », « rappel-demandes-matin »…) :
+   la notification de l'après-midi ne remplace pas celle du matin. */
 self.addEventListener("push", function (e) {
   var m = {};
   try { m = e.data ? e.data.json() : {}; } catch (err) { m = { corps: e.data ? e.data.text() : "" }; }
@@ -227,7 +230,7 @@ self.addEventListener("push", function (e) {
 self.addEventListener("notificationclick", function (e) {
   e.notification.close();
   var tag = (e.notification.data && e.notification.data.tag) || "";
-  var ouvrirNotifs = ["demandes", "veille", "matin", "a-reserver"].indexOf(tag) >= 0;
+  var ouvrirNotifs = /^(demandes|importants|a-reserver|rappel-demandes)/.test(tag);
   e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(function (cs) {
     var c = cs.filter(function (x) { return x.url.indexOf(self.registration.scope) === 0 && !/consultation\.html/.test(x.url); })[0];
     if (c) {

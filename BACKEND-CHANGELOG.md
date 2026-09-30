@@ -1976,3 +1976,26 @@ Fichier : sql/0028_controle_final.sql (migrations `controle_final_droits_fonctio
   - pg_net dans le schéma public : ses fonctions sont dans le schéma net ; le déplacer demanderait de le réinstaller ;
   - 10 index jamais utilisés : sur clés étrangères, peu de données ; ils serviront quand les tables grandiront ;
   - « Leaked password protection » (Auth) : réglage du tableau de bord Supabase, à activer par Lionel s'il le souhaite.
+
+
+---
+
+## 32. Round du 30.09.2026 (suite 128) — notifications : réglage par sorte, x jours avant, début de demi-journée
+
+Lionel : « Notifications, notification différents pour chaque groupe de libellé différents. Possibilité de pour régler x jours avant et en fonction des horaires de travail. » Ses réponses : chaque sorte actuelle a ses propres réglages ; l'heure d'envoi est le « Début de demi journée ».
+
+Fichier : sql/0029_notifications_par_sorte.sql (migrations `notifications_par_sorte` puis `notifications_par_sorte_nettoyage`, après le déploiement de la fonction Edge v2).
+
+- abonnements_push.reglages (jsonb) : « x jours avant » par sorte et par appareil — `importants` et `a_reserver` (1 par défaut), `rappel_demandes` (null = pas de rappel, par défaut).
+- heure_veille, heure_matin, derniere_veille, dernier_matin retirées.
+- push_creneaux_(t) : créneaux d'aujourd'hui à traiter — début du matin et de l'après-midi selon la table horaires (dernière période qui commence l'emporte ; sans période : 07:00 / 13:00 ; période sans après-midi : pas de créneau l'après-midi). Dû pendant les 4 h qui suivent son début, tant qu'il n'est pas dans push_passages. Réservée au rôle service.
+- push_passages (cle « 2026-10-01:matin », le) : créneaux déjà traités, notés par la fonction Edge AVANT d'envoyer ; effacés après 30 jours.
+- push_a_faire_ (cron `envoyer-push`, chaque minute) : appelle la fonction Edge aussi quand un créneau est dû (au lieu des heures de veille / matin de chaque abonnement).
+- Droits du rôle service : lecture de horaires et feries, push_passages, push_creneaux_.
+- Vérifié sur le projet : créneaux calculés pour 07:40 / 11:44 / 13:05 un jeudi d'octobre, un samedi (07:00), le 18 décembre (matin seul, pas d'après-midi).
+
+Fonction Edge envoyer-push v2 (functions/envoyer-push) :
+- lit les créneaux dus, les note, puis, seulement s'il y en a un, les importants et les tâches à statut sur 90 jours, les demandes en attente, horaires et fériés ;
+- logic.js : pour chaque appareil, chaque sorte et chaque créneau, ce dont le jour d'envoi (x jours de travail avant ; « 0 » = le jour même) et la demi-journée tombent sur ce créneau ;
+- demandes nouvelles et modifications : inchangées.
+- Vérifié : appel par la base, réponse `{ ok: true, creneaux: [] }` à 11:05 (créneau du matin passé, sans abonné).

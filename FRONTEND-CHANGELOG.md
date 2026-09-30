@@ -10896,3 +10896,26 @@ Lionel :
 ### Tests
 - Suite complète : 131/131.
 - Rendus robustes (échecs sur la CI, plus lente, pas en local) : test_suite27.js (« sans rien écrire en base » ne compte plus les lectures faites en arrière-plan), test_suite33.js (attend que la grille de la semaine 40 soit dessinée au lieu de 400 ms fixes).
+
+## 241. Round du 30.09.2026 (suite 128) — Notifications : réglage par sorte, x jours avant, au début de la demi-journée
+- Lionel : « Notifications, notification différents pour chaque groupe de libellé différents. Possibilité de pour régler x jours avant et en fonction des horaires de travail. »
+- Ses réponses : chaque sorte actuelle a ses propres réglages ; l'heure d'envoi est le « Début de demi journée ».
+- Réglages › Notifications : les 2 heures fixes (« La veille », « Le matin ») sont remplacées par une ligne sous chaque sorte, réglée appareil par appareil :
+  - Importants : « Quand » — le jour même, 1 à 5 ou 10 jours avant (1 par défaut) ;
+  - À réserver : même choix (1 par défaut) ;
+  - Demandes d'absence : toujours annoncées à leur arrivée ; en plus, « Rappel » si la demande attend encore — pas de rappel (par défaut), le jour même, 1, 2, 3 ou 5 jours avant le début de l'absence ;
+  - Modifications d'un autre appareil : inchangé (une minute après le dernier changement).
+- La ligne « Quand » / « Rappel » est cachée quand sa sorte est éteinte.
+- « Jours avant » = jours de travail : week-ends, fériés et vacances d'entreprise sautés ; un jour compensé compte seulement s'il a sa propre période d'horaires, comme la page Fériés. « 1 jour avant » un lundi ou un samedi = le vendredi.
+- Heure d'envoi : début du matin ou de l'après-midi du jour d'envoi, selon la page Horaires. Exemple : tâche importante jeudi après-midi, « 1 jour avant » → mercredi à 13:00 ; tâche du matin ou jalon (journée entière) → mercredi au début du matin. Jour sans après-midi (18 décembre) : au début du matin. Jour sans période d'horaires : 07:00 / 13:00.
+- Messages :
+  - un seul moment : « Demain après-midi : 2 importants », « Aujourd'hui après-midi : 1 important », « Mar. 6 oct. : 1 important » ;
+  - plusieurs moments (le vendredi pour le lundi, par ex.) : « 3 importants à venir », chaque ligne précédée de son moment ;
+  - à réserver : « À réserver : N tâches », une ligne par tâche (« Demain matin · Marco · Nacelle ») ;
+  - rappel : « Rappel : demande d'absence en attente ».
+- Une étiquette par sorte et par demi-journée : la notification de l'après-midi ne remplace plus celle du matin. Un toucher sur une notification d'importants, d'à réserver ou de rappel ouvre la fenêtre des notifications (sw.js).
+- Envoi (fonction Edge envoyer-push v2) et base : voir BACKEND-CHANGELOG §32.
+
+### Tests
+- Nouveau : tests/test_suite128.js (15 vérifications : jours de travail, jour et demi-journée d'envoi, importants, à réserver et rappel par créneau, réglage par appareil, page de réglages sur ordinateur et téléphone).
+- Mis à jour : test_suite126.js (veille / matin remplacés : les listes « Quand » au lieu des heures, clic sur « importants-matin » ; les vérifications de veille / matin passent dans test_suite128.js).
