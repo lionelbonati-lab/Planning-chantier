@@ -341,9 +341,18 @@ function lignes(date, demi, texte, extra) {
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await page.waitForTimeout(100);
   m = await mode();
-  verifier(pendantDoigt.selection === 'C' && pendantDoigt.panneau && pendantDoigt.actif && pendantDoigt.corps,
-    'téléphone, appui long au doigt : C sélectionnée et pilule affichée AVANT de lever le doigt');
-  verifier(await selection() === 'C' && m.panneau && m.actif, 'doigt levé : C toujours sélectionnée, mode multiple');
+  // Suite 124 (« Règle proposée » : appui long = menu) : au doigt, l'appui
+  // long sélectionne la bulle et, relâché, ouvre son menu ; la sélection
+  // multiple s'allume par « Sélection multiple » dans ce menu.
+  verifier(pendantDoigt.selection === 'C' && pendantDoigt.panneau && !pendantDoigt.actif && pendantDoigt.corps,
+    'téléphone, appui long au doigt : C sélectionnée et pilule affichée AVANT de lever le doigt (mode simple)');
+  const menuDoigt = await page.evaluate(() => { const mm = [...document.querySelectorAll('body > .menu-pop')].pop(); return mm ? [...mm.querySelectorAll('button')].map((b) => b.textContent.trim()) : null; });
+  verifier(await selection() === 'C' && m.panneau && menuDoigt && menuDoigt.includes('Sélection multiple') && menuDoigt.includes('Modifier…'),
+    'doigt levé : C toujours sélectionnée, menu de la bulle avec « Sélection multiple » ' + JSON.stringify(menuDoigt));
+  await page.evaluate(() => [...[...document.querySelectorAll('body > .menu-pop')].pop().querySelectorAll('button')].find((b) => b.textContent.trim() === 'Sélection multiple').click());
+  await page.waitForTimeout(100);
+  m = await mode();
+  verifier(await selection() === 'C' && m.panneau && m.actif, '« Sélection multiple » : C toujours sélectionnée, mode multiple');
 
   if (erreurs.length) { echecs++; console.error('ERREURS JS : ' + JSON.stringify(erreurs, null, 2)); }
   console.log((total - echecs) + '/' + total + ' vérifications' + (echecs ? ' — ' + echecs + ' ÉCHEC(S)' : ' — OK'));
