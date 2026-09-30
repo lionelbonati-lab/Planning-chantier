@@ -16,8 +16,7 @@
          cle_publique_push) et range l'adresse d'envoi ; éteint :
          désabonne et efface ;
        - les 4 sortes (interrupteurs) ;
-       - l'heure de la veille (importants de demain) et du matin
-         (importants du jour, « à réserver ») ;
+       - sous chaque sorte, quand l'envoyer (suite 128, ci-dessous) ;
        - « Envoyer un essai » : un message tout de suite, pour vérifier ;
        - les autres appareils abonnés (nom, retrait).
      L'envoi : fonction Edge envoyer-push, appelée par pg_cron. L'affichage
@@ -26,15 +25,48 @@
      depuis son icône (iOS 16.4 et plus).
      À chaque ouverture de l'appli, un appareil abonné met à jour sa ligne
      (session de connexion reprise par la base : c'est elle qui dit « un
-     autre appareil » pour les modifications).
+     autre appareil » pour les modifications).
+
+     Round du 30.09.2026 (suite 128) — Lionel : « Notifications,
+     notification différents pour chaque groupe de libellé différents.
+     Possibilité de pour régler x jours avant et en fonction des horaires
+     de travail. », puis, à nos questions : chaque sorte actuelle a ses
+     propres réglages ; l'heure d'envoi est le « Début de demi journée ».
+     Les 2 heures fixes (« La veille », « Le matin ») sont remplacées, sous
+     chaque sorte, par une liste « Quand » (colonne reglages de
+     abonnements_push, sql/0029) :
+       - Importants, À réserver : le jour même, 1 à 5 ou 10 jours de travail
+         avant (1 par défaut) ;
+       - Demandes d'absence : toujours annoncées à leur arrivée ; en plus,
+         « Rappel » x jours avant le début si elle attend encore (pas de
+         rappel par défaut) ;
+       - Modifications : pas de réglage (une minute après).
+     Jours de travail : week-ends, fériés et vacances d'entreprise sautés.
+     Envoi au début de la demi-journée concernée, selon la page Horaires
+     (functions/envoyer-push/logic.js). La ligne « Quand » est cachée quand
+     la sorte est éteinte.
      ============================================================ */
 
+  // Suite 128 : « reglage » = clé dans abonnements_push.reglages ; « choix »
+  // = [valeur, libellé] de la liste « Quand » ("" = pas d'envoi).
+  var JOURS_AVANT_PUSH_ = [["0", "Le jour même"], ["1", "1 jour avant"], ["2", "2 jours avant"], ["3", "3 jours avant"], ["4", "4 jours avant"], ["5", "5 jours avant"], ["10", "10 jours avant"]];
   var TYPES_PUSH_ = [
-    { cle: "demandes", nom: "Demandes d’absence", aide: "Dès qu’un ouvrier en envoie une depuis son lien." },
-    { cle: "importants", nom: "Importants", aide: "La veille : ceux de demain. Le matin : ceux du jour." },
-    { cle: "a_reserver", nom: "À réserver", aide: "Le matin : les tâches encore à réserver." },
+    { cle: "demandes", nom: "Demandes d’absence", aide: "Dès qu’un ouvrier en envoie une depuis son lien.",
+      reglage: "rappel_demandes", nomReglage: "Rappel", aideReglage: "Si la demande attend encore, avant le début de l’absence.",
+      choix: [["", "Pas de rappel"], ["0", "Le jour même"], ["1", "1 jour avant"], ["2", "2 jours avant"], ["3", "3 jours avant"], ["5", "5 jours avant"]] },
+    { cle: "importants", nom: "Importants", aide: "Tâches, jalons et notes marqués importants.",
+      reglage: "importants", nomReglage: "Quand", aideReglage: "Au début de la demi-journée concernée (page Horaires).", choix: JOURS_AVANT_PUSH_ },
+    { cle: "a_reserver", nom: "À réserver", aide: "Les tâches encore à réserver.",
+      reglage: "a_reserver", nomReglage: "Quand", aideReglage: "Au début de la demi-journée de la tâche (page Horaires).", choix: JOURS_AVANT_PUSH_ },
     { cle: "modifs", nom: "Modifications d’un autre appareil", aide: "Une minute après le dernier changement fait ailleurs." }
   ];
+  // Comme REGLAGES_DEFAUT de functions/envoyer-push/logic.js.
+  var REGLAGES_PUSH_DEFAUT_ = { importants: 1, a_reserver: 1, rappel_demandes: null };
+  function valeurReglagePush_(ligne, cle) {
+    var r = (ligne && ligne.reglages) || {};
+    var v = cle in r ? r[cle] : REGLAGES_PUSH_DEFAUT_[cle];
+    return v === null || v === undefined ? "" : String(v);
+  }
 
   function pushPrisEnCharge_() {
     return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
@@ -90,11 +122,6 @@
   }
 
   function htmlContenuPageNotificationsPush() {
-    var heures = function (id) {
-      var h = "";
-      for (var i = 0; i < 24; i++) h += '<option value="' + i + '">' + (i < 10 ? "0" : "") + i + ':00</option>';
-      return '<select class="push-heure" id="' + id + '">' + h + "</select>";
-    };
     return '<div class="page-titre"><h1>Notifications</h1></div>' +
       '<p class="page-sous">Messages reçus sur cet appareil, même appli fermée. Chaque appareil a ses propres réglages.</p>' +
       '<div class="push-reglages">' +
@@ -102,14 +129,18 @@
         '<label class="reglage-ligne" for="chkPushActif"><span class="reglage-texte"><span class="reglage-nom"><b>Recevoir les notifications sur cet appareil</b></span><span id="pushNomAppareil"></span></span>' +
           '<span class="interrupteur"><input type="checkbox" id="chkPushActif"><span class="interrupteur-piste"></span></span></label>' +
         '<div id="pushDetails" hidden>' +
-          '<h2 class="titre-liste">Quoi</h2>' +
+          '<h2 class="titre-liste">Quoi et quand</h2>' +
+          '<p class="page-sous push-note">« Jours avant » : jours de travail (week-ends, fériés et vacances sautés). Envoi au début du matin ou de l’après-midi, selon la page Horaires.</p>' +
           TYPES_PUSH_.map(function (t) {
-            return '<label class="reglage-ligne" for="chkPush-' + t.cle + '"><span class="reglage-texte"><span class="reglage-nom"><b>' + esc(t.nom) + '</b></span><span>' + esc(t.aide) + '</span></span>' +
+            var html = '<label class="reglage-ligne" for="chkPush-' + t.cle + '"><span class="reglage-texte"><span class="reglage-nom"><b>' + esc(t.nom) + '</b></span><span>' + esc(t.aide) + '</span></span>' +
               '<span class="interrupteur"><input type="checkbox" id="chkPush-' + t.cle + '" data-type="' + t.cle + '"><span class="interrupteur-piste"></span></span></label>';
+            if (t.reglage) {
+              html += '<label class="reglage-ligne push-quand" for="selPush-' + t.reglage + '" data-pour="' + t.cle + '"><span class="reglage-texte"><span class="reglage-nom"><b>' + esc(t.nomReglage) + '</b></span><span>' + esc(t.aideReglage) + '</span></span>' +
+                '<select class="push-choix" id="selPush-' + t.reglage + '" data-reglage="' + t.reglage + '">' +
+                t.choix.map(function (c) { return '<option value="' + c[0] + '">' + esc(c[1]) + '</option>'; }).join("") + '</select></label>';
+            }
+            return html;
           }).join("") +
-          '<h2 class="titre-liste">Quand</h2>' +
-          '<label class="reglage-ligne" for="selPushVeille"><span class="reglage-texte"><span class="reglage-nom"><b>La veille</b></span><span>Importants de demain.</span></span>' + heures("selPushVeille") + '</label>' +
-          '<label class="reglage-ligne" for="selPushMatin"><span class="reglage-texte"><span class="reglage-nom"><b>Le matin</b></span><span>Importants du jour et tâches à réserver.</span></span>' + heures("selPushMatin") + '</label>' +
           '<p class="push-actions"><button type="button" class="btn-calculer" id="btnPushEssai">Envoyer un essai</button></p>' +
         '</div>' +
         '<div id="pushAutres" hidden><h2 class="titre-liste">Autres appareils abonnés</h2><div class="liste-intervenants" id="pushListeAutres"></div></div>' +
@@ -136,9 +167,18 @@
     TYPES_PUSH_.forEach(function (t) {
       var c = document.getElementById("chkPush-" + t.cle);
       if (c) c.checked = types[t.cle] !== false;
+      if (!t.reglage) return;
+      var sel = document.getElementById("selPush-" + t.reglage);
+      if (sel) sel.value = valeurReglagePush_(lignePush_, t.reglage);
     });
-    document.getElementById("selPushVeille").value = String(lignePush_.heure_veille == null ? 18 : lignePush_.heure_veille);
-    document.getElementById("selPushMatin").value = String(lignePush_.heure_matin == null ? 7 : lignePush_.heure_matin);
+    majLignesQuandPush_();
+  }
+  // Ligne « Quand » / « Rappel » cachée quand sa sorte est éteinte.
+  function majLignesQuandPush_() {
+    document.querySelectorAll(".push-quand[data-pour]").forEach(function (l) {
+      var c = document.getElementById("chkPush-" + l.dataset.pour);
+      l.hidden = !!c && !c.checked;
+    });
   }
   function renderAutresAppareilsPush_() {
     var bloc = document.getElementById("pushAutres"), zone = document.getElementById("pushListeAutres");
@@ -253,10 +293,21 @@
         var types = {};
         TYPES_PUSH_.forEach(function (u) { types[u.cle] = document.getElementById("chkPush-" + u.cle).checked; });
         enregistrerReglagePush_({ types: types });
+        majLignesQuandPush_();
+      });
+      // « Quand » / « Rappel » (suite 128) : les 3 réglages enregistrés
+      // ensemble, tels qu'affichés ("" = pas de rappel → null).
+      var sel = t.reglage && document.getElementById("selPush-" + t.reglage);
+      if (sel) sel.addEventListener("change", function () {
+        var reglages = {};
+        TYPES_PUSH_.forEach(function (u) {
+          if (!u.reglage) return;
+          var v = document.getElementById("selPush-" + u.reglage).value;
+          reglages[u.reglage] = v === "" ? null : +v;
+        });
+        enregistrerReglagePush_({ reglages: reglages });
       });
     });
-    document.getElementById("selPushVeille").addEventListener("change", function (e) { enregistrerReglagePush_({ heure_veille: +e.target.value }); });
-    document.getElementById("selPushMatin").addEventListener("change", function (e) { enregistrerReglagePush_({ heure_matin: +e.target.value }); });
     document.getElementById("btnPushEssai").addEventListener("click", function () {
       if (!lignePush_) return;
       var b = this;
