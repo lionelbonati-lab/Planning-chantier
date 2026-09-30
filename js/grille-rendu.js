@@ -2171,6 +2171,10 @@
     // (.sans-chantier), au lieu du gris #e5e5e5 d'avant.
     var sansChantier = it.type === "tache" && !(it.chantier && CHANTIERS[it.chantier]);
     if (sansChantier) el.classList.add("sans-chantier");
+    // Absence partielle (suite 130, cf. absencePartielle) : « Arrivée 9h30 »,
+    // « Départ 16h15 »… rayée de clair — la personne travaille une partie
+    // de la demi-journée.
+    if (it.type === "absence" && absencePartielle(it.texte)) el.classList.add("absence-partielle");
     var bg = it.type === "tache" ? (sansChantier ? "var(--bg)" : CHANTIERS[it.chantier].couleur)
       : it.type === "absence" ? "var(--absence-bg)"
       : it.type === "jalon" ? "var(--jalon-bg)" : "var(--note-bg)";

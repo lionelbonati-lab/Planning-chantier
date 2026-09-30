@@ -2014,3 +2014,21 @@ Fichier : sql/0030_retours.sql (migration `retours`).
 - Lecture par Claude : `select * from retours where statut <> 'traite' order by cree_le` ; à la discussion, statut et reponse mis à jour (affichés sous la note).
 - Vérifié sur le projet : insertion avec le rôle authenticated (statut « nouveau » par défaut), annulée ensuite ; aucun nouveau conseil de sécurité Supabase.
 
+
+
+---
+
+## 34. Round du 30.09.2026 (suite 130) — vue ouvrier sous une absence, absences partielles
+
+Lionel (page Améliorations et bugs, bug n° 2) : « Dans la vue ouvrier, une personne qui à une absence sur sa case verra son absence et la tâche attibuée à l'équipe. Comment faire pour que cet ouvrier ne vois que son absence. Comment gérer un absence partiel, un départ anticipé ou un début de travail plus tard. Fait moi plusieurs propositions »
+Ses choix : « Masquer » et « Arrivée / départ à l'heure », puis : « Ca deviendra le texte de la bulle ».
+
+Fichier : sql/0031_absences_partielles.sql (migration `absences_partielles`).
+
+- absence_partielle_(texte, demi) : vrai quand le texte porte une heure de cette demi-journée (« Arrivée 9h30 », « Départ 16h15 », « Rdv médical 13h00 - 14h00 » ; avant 12h00 = matin). Même règle que absencePartielle (js/core.js). Pas de nouvelle colonne : le texte de la bulle suffit. Aucun droit pour anon / authenticated (appelée par consultation_planning).
+- consultation_planning :
+  - une tâche d'équipe n'est plus envoyée pour une demi-journée où la personne a une absence complète ; sous une absence partielle, elle reste ;
+  - chaque tâche dit si c'est une absence partielle (`partielle`).
+- Demandes d'arrivée / de départ des ouvriers : fonctions existantes, l'heure dans le type (limite de 60 caractères déjà en place).
+- Vérifié sur le projet : « Départ 16h15 » (17 sept.) et « Rdv médical 13h00 - 14h00 » (1er oct.) partielles, la tâche de l'équipe reste ; « Congé » et « 80% » complètes, la tâche de l'équipe disparaît.
+- Aucun nouveau conseil de sécurité Supabase.

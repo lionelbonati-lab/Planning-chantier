@@ -135,7 +135,9 @@
 
   function htmlTache(t) {
     if (t.absence) {
-      return '<div class="tache absence"><div class="texte">' + esc(t.texte || "Absent") + "</div></div>";
+      // Suite 130 : absence partielle (« Arrivée 9h30 »…, sql/0031) — la
+      // tâche de l'équipe reste affichée en dessous.
+      return '<div class="tache absence' + (t.partielle ? " partielle" : "") + '"><div class="texte">' + esc(t.texte || "Absent") + "</div></div>";
     }
     var fond = couleurSure(t.couleur);
     var details = [];
@@ -522,6 +524,29 @@
     if (i > 0 && motifs.indexOf(t.slice(0, i)) >= 0) return { motif: t.slice(0, i), remarque: t.slice(i + 3) };
     return { motif: t, remarque: "" };
   }
+  // Round du 30.09.2026 (suite 130) — Lionel (bug n° 2 de la page
+  // Améliorations et bugs) : « Comment gérer un absence partiel, un départ
+  // anticipé ou un début de travail plus tard. » ; choix « Arrivée /
+  // départ à l'heure », puis « Ca deviendra le texte de la bulle ».
+  // L'ouvrier choisit « Arrivée plus tard », « Départ plus tôt » ou
+  // « Absent quelques heures » : l'heure part en tête du type (« Arrivée
+  // 9h30 - Congé », « Absent 13h00 - 14h00 - Maladie ») par les fonctions
+  // de demande existantes, et le bureau l'accepte comme les autres — la
+  // bulle posée porte ce texte (texteDemandeAbsence). Demi-journées : de la
+  // 1re touchée à la dernière (avant 12h00 = matin), le même jour.
+  // analyserPartielle : le chemin inverse, pour pré-remplir « Modifier ».
+  var SORTES_PARTIELLES = [["", "Journée ou demi-journée"], ["arrivee", "Arrivée plus tard"], ["depart", "Départ plus tôt"], ["heures", "Absent quelques heures"]];
+  var PREFIXES_PARTIELS = { arrivee: "Arrivée", depart: "Départ", heures: "Absent" };
+  function heureTexte(v) { var m = /^(\d{1,2}):(\d{2})/.exec(v || ""); return m ? (+m[1]) + "h" + m[2] : ""; }
+  function demiHeure(v) { return +String(v).split(":")[0] < 12 ? "matin" : "aprem"; }
+  function analyserPartielle(texte) {
+    var m = /^(Arrivée|Départ|Absent) (\d{1,2})h(\d{2})(?: - (\d{1,2})h(\d{2}))?(?: - ([\s\S]*))?$/.exec(String(texte || ""));
+    if (!m) return null;
+    var sorte = { "Arrivée": "arrivee", "Départ": "depart", "Absent": "heures" }[m[1]];
+    if ((sorte === "heures") !== !!m[4]) return null;
+    var hh = function (h, mm) { return ("0" + h).slice(-2) + ":" + mm; };
+    return { sorte: sorte, h1: hh(m[2], m[3]), h2: m[4] ? hh(m[4], m[5]) : "", reste: m[6] || "" };
+  }
 
   // mode : "nouvelle" (barre du bas), "modifier" (demande en attente ou
   // absence acceptée) ou "refaire" (nouvelle demande pré-remplie depuis une
@@ -530,12 +555,19 @@
     var d = donnees, retour = feuilleOuverte === "demandes";
     var motifs = (d.motifs && d.motifs.length ? d.motifs : ["Congé", "Vacances", "Maladie"]).slice();
     var bloc = mode === "bureau" ? q : null;
-    if (bloc) { var lu = analyserTexte(bloc.texte, motifs); q = Object.assign({}, bloc, { motif: lu.motif, remarque: lu.remarque }); }
+    // Suite 130 : heure en tête (« Arrivée 9h30 - Congé ») → « Absence »,
+    // heure(s), et le type qui suit.
+    var partielle = analyserPartielle(bloc ? bloc.texte : q && q.motif);
+    if (bloc) { var lu = analyserTexte(partielle ? partielle.reste : bloc.texte, motifs); q = Object.assign({}, bloc, { motif: lu.motif, remarque: lu.remarque }); }
+    else if (q && partielle) q = Object.assign({}, q, { motif: partielle.reste || "Absence" });
     if (q && motifs.indexOf(q.motif) < 0) motifs.push(q.motif);
     var debutDefaut = d.lundi > d.aujourdhui ? d.lundi : d.aujourdhui;
     var v = q ? { motif: q.motif, debut: q.debut < d.aujourdhui ? d.aujourdhui : q.debut, demiDebut: q.demi_debut, demiFin: q.demi_fin, remarque: q.remarque || "" }
       : { motif: motifs[0], debut: debutDefaut, demiDebut: "matin", demiFin: "aprem", remarque: "" };
     v.fin = q ? (q.fin < v.debut ? v.debut : q.fin) : debutDefaut;
+    v.sorte = partielle ? partielle.sorte : "";
+    v.h1 = partielle ? partielle.h1 : "09:00";
+    v.h2 = partielle ? partielle.h2 || "14:00" : "14:00";
     // Suite 86 : série commencée → repart de sa prochaine absence (dates
     // de celle-ci), même règle et même fin.
     v.repeter = estSerie(q) ? q.serie_frequence + ":" + Math.max(1, +q.serie_intervalle || 1) : "";
@@ -566,8 +598,13 @@
       // « Motif » (id et colonne `remarque` inchangés). Bulle posée à
       // l'acceptation : « Congé - Motif » (texteDemandeAbsence, appli).
       '<label>Type<select id="faMotif">' + motifs.map(function (m) { return "<option" + (m === v.motif ? " selected" : "") + ">" + esc(m) + "</option>"; }).join("") + "</select></label>" +
-      '<div class="fa-ligne"><label>Du<input type="date" id="faDebut" required min="' + d.aujourdhui + '" value="' + v.debut + '"></label>' + choixDemi("faDemiDebut", v.demiDebut) + "</div>" +
-      '<div class="fa-ligne"><label>Au<input type="date" id="faFin" required min="' + d.aujourdhui + '" value="' + v.fin + '"></label>' + choixDemi("faDemiFin", v.demiFin) + "</div>" +
+      '<label>Absence<select id="faSorte">' + SORTES_PARTIELLES.map(function (c) {
+        return '<option value="' + c[0] + '"' + (c[0] === v.sorte ? " selected" : "") + ">" + esc(c[1]) + "</option>";
+      }).join("") + "</select></label>" +
+      '<div class="fa-ligne"><label><span id="faLibelleDebut">Du</span><input type="date" id="faDebut" required min="' + d.aujourdhui + '" value="' + v.debut + '"></label>' + choixDemi("faDemiDebut", v.demiDebut) + "</div>" +
+      '<div class="fa-ligne" id="faLigneFin"><label>Au<input type="date" id="faFin" required min="' + d.aujourdhui + '" value="' + v.fin + '"></label>' + choixDemi("faDemiFin", v.demiFin) + "</div>" +
+      '<div class="fa-ligne" id="faLigneHeures" hidden><label><span id="faLibelleH1">Arrivée à</span><input type="time" id="faH1" step="300" value="' + esc(v.h1) + '"></label>' +
+      '<label id="faLigneH2">Jusqu’à<input type="time" id="faH2" step="300" value="' + esc(v.h2) + '"></label></div>' +
       '<div class="fa-ligne fa-serie"><label>Répéter<select id="faRepeter">' + CHOIX_REPETER.map(function (c) {
         return '<option value="' + c[0] + '"' + (c[0] === v.repeter ? " selected" : "") + ">" + esc(c[1]) + "</option>";
       }).join("") + "</select></label>" +
@@ -615,6 +652,22 @@
       majJusquau();
     };
     if (portee) portee.addEventListener("change", majPortee);
+    // Suite 130 : arrivée / départ / quelques heures → « Le » jour et
+    // l'heure (ou les deux), sans « Au » ni matin / après-midi.
+    var sorte = document.getElementById("faSorte"), h1 = document.getElementById("faH1"), h2 = document.getElementById("faH2");
+    var DEFAUTS_HEURES = { arrivee: "09:00", depart: "16:00", heures: "13:00" };
+    var majSorte = function (changee) {
+      var s = sorte.value;
+      document.getElementById("faLigneHeures").hidden = !s;
+      document.getElementById("faLigneH2").hidden = s !== "heures";
+      document.getElementById("faLigneFin").hidden = !!s;
+      document.getElementById("faDemiDebut").hidden = !!s;
+      document.getElementById("faLibelleDebut").textContent = s ? "Le" : "Du";
+      document.getElementById("faLibelleH1").textContent = s === "depart" ? "Départ à" : s === "heures" ? "De" : "Arrivée à";
+      if (changee && s) h1.value = DEFAUTS_HEURES[s];
+    };
+    sorte.addEventListener("change", function () { majSorte(true); });
+    majSorte(false);
     debut.addEventListener("change", function () { if (fin.value < debut.value) fin.value = debut.value; majJusquau(); });
     if (portee) majPortee(); else majJusquau();
     var masquerErreur = function () { document.getElementById("faErreur").hidden = true; };
@@ -632,6 +685,15 @@
         p_demi_debut: document.getElementById("faDemiDebut").value, p_demi_fin: document.getElementById("faDemiFin").value,
         p_motif: document.getElementById("faMotif").value, p_remarque: document.getElementById("faRemarque").value
       };
+      if (sorte.value) {
+        if (!h1.value || (sorte.value === "heures" && !h2.value)) return montrer("Choisis l’heure.");
+        if (sorte.value === "heures" && h2.value <= h1.value) return montrer("L’heure de fin doit suivre celle du début.");
+        corps.p_fin = corps.p_debut;
+        corps.p_demi_debut = sorte.value === "arrivee" ? "matin" : demiHeure(h1.value);
+        corps.p_demi_fin = sorte.value === "depart" ? "aprem" : demiHeure(sorte.value === "heures" ? h2.value : h1.value);
+        corps.p_motif = PREFIXES_PARTIELS[sorte.value] + " " + heureTexte(h1.value) + (sorte.value === "heures" ? " - " + heureTexte(h2.value) : "") + " - " + corps.p_motif;
+        if (corps.p_motif.length > 60) return montrer("Type trop long avec l’heure : choisis-en un plus court.");
+      }
       if (!corps.p_debut || !corps.p_fin) return montrer("Choisis les dates.");
       if (corps.p_fin < corps.p_debut) return montrer("La fin est avant le début.");
       if (corps.p_debut === corps.p_fin && corps.p_demi_debut === "aprem" && corps.p_demi_fin === "matin") return montrer("Le même jour : de l’après-midi au matin, ce n’est pas possible.");

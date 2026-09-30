@@ -10935,3 +10935,26 @@ Lionel :
 - Nouveau : tests/test_suite129.js (14 vérifications : appareil reconnu sur ordinateur, téléphone et tablette ; bouton grisé, brouillon ; envoi — ligne en base avec appareil et détails, case vidée, note sous sa case ; « Tous » + Ctrl + Entrée ; notes relues avec « Lu » / « Traité » et réponse ; « Retirer » ; « Voir les N autres » ; mise en page sur téléphone).
 - Mis à jour : test_suite63.js (8e page de réglages).
 - Suite complète : 133/133.
+
+
+## 243. Round du 30.09.2026 (suite 130) — Vue ouvrier sous une absence, absences partielles (arrivée / départ)
+- Lionel (page Améliorations et bugs, bug n° 2) : « Dans la vue ouvrier, une personne qui à une absence sur sa case verra son absence et la tâche attibuée à l'équipe. Comment faire pour que cet ouvrier ne vois que son absence. Comment gérer un absence partiel, un départ anticipé ou un début de travail plus tard. Fait moi plusieurs propositions »
+- Ses choix : « Masquer » et « Arrivée / départ à l'heure », puis : « Ca deviendra le texte de la bulle ».
+- Vue ouvrier (lien de consultation) : sous une absence qui prend toute la demi-journée, la tâche de l'équipe n'apparaît plus ; l'ouvrier ne voit que son absence. Le planning du bureau ne change pas (voir BACKEND-CHANGELOG §34).
+- Absence partielle : une absence dont le texte porte une heure de la demi-journée (« Arrivée 9h30 », « Départ 16h15 », « Rdv médical 13h00 - 14h00 » ; avant 12h00 = matin). La personne travaille une partie de la demi-journée :
+  - la vue ouvrier garde la tâche de l'équipe sous l'absence, qui est en pointillé ;
+  - au bureau, la bulle d'absence est rayée de clair (même couleur) ;
+  - le texte de la bulle est la seule source : copier, déplacer, séries, annuler et impression la gardent ; ôter l'heure du texte en fait une absence complète. « 8 hommes », « 80% », « 2026 » ne sont pas des heures ;
+  - les absences déjà posées « Départ 16h15 » et « Rdv médical 13h00 - 14h00 » sont reconnues d'office.
+- Bureau : « Arrivée / départ » dans le menu d'ajout (après « Absence », pas pour une équipe ni un intervenant) :
+  - Arrivée plus tard (« Arrivée 9h30 », du matin à la demi-journée de l'heure), Départ plus tôt (« Départ 16h15 », de la demi-journée de l'heure au soir), Quelques heures (« Absent 13h00 - 14h00 ») ;
+  - type d'absence (facultatif, liste des entrées rapides d'absence) et motif, aperçu du texte : « Arrivée 9h30 - Maladie - Médecin » ;
+  - posée sur chaque jour sélectionné ; heures à l'envers refusées.
+- Page de l'ouvrier : « Absence » dans le formulaire de demande — Journée ou demi-journée (comme avant), Arrivée plus tard, Départ plus tôt, Absent quelques heures :
+  - « Le » jour et l'heure (ou les deux), sans « Au » ni matin / après-midi ; la répétition reste possible ;
+  - l'heure part en tête du type (« Arrivée 9h30 - Congé », 60 caractères au plus) par les demandes existantes ; acceptée au bureau comme les autres, la bulle porte ce texte ;
+  - « Modifier » d'une demande ou d'une absence du bureau partielle : heure, type et motif relus.
+
+### Tests
+- Nouveau : tests/test_suite130.js (15 vérifications : absencePartielle ; bulle rayée ; menu « Arrivée / départ » (pas pour une équipe) ; Arrivée, Départ, Quelques heures sur 2 jours, heures à l'envers ; page de l'ouvrier : pointillé, 3 sortes de demande envoyées, modifier une demande et une absence du bureau).
+- Suite complète : 134/134.
