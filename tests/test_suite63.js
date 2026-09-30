@@ -19,7 +19,8 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //
 // Lancer : node test_suite63.js
 
-const REGLAGES = 'Mon compte|Affichage|Couleurs|Mise en page d’impression|Raccourcis clavier|Sauvegardes';
+// Round du 29.09.2026 (suite 126) : page « Notifications » ajoutée après Raccourcis clavier.
+const REGLAGES = 'Mon compte|Affichage|Couleurs|Mise en page d’impression|Raccourcis clavier|Notifications|Sauvegardes';
 const presser = async (page, touche) => { await page.keyboard.press(touche); await page.waitForTimeout(150); };
 const etat = (page) => page.evaluate(() => {
   const vis = (e) => !!e && e.offsetWidth > 0 && getComputedStyle(e).visibility !== 'hidden';

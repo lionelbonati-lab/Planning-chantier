@@ -150,6 +150,8 @@ const FAUX_SUPABASE = LOGIQUE_PLAGE + '\n(' + function () {
           window.__ECRITURES.push('rpc:' + nom);
           return Promise.resolve({ data: idS, error: null });
         }
+        // Notifications push (sql/0027, suite 126) : clé publique VAPID.
+        if (nom === 'cle_publique_push') return Promise.resolve({ data: 'BOdf6zY073to_tfn7ThyN24EJPjYaxYkcWigQ4LgrzFqVqX_YV4w7dkpe-xdz8FV2RHnFORFSVcAugyS0nsmfTw', error: null });
         if (nom === 'restaurer_sauvegarde') console.log('RPC restaurer_sauvegarde ' + JSON.stringify(a));
         window.__ECRITURES.push('rpc:' + nom);
         return Promise.resolve({ data: null, error: null });
@@ -169,6 +171,8 @@ const FAUX_SUPABASE = LOGIQUE_PLAGE + '\n(' + function () {
             else BD[t].push(Object.assign({ id: prochainId++, serie_id: null }, v));
           });
         }
+        // envoyer-push (suite 126) : l'essai est seulement noté.
+        if (nom === 'envoyer-push') { window.__ECRITURES.push('fn:envoyer-push:' + JSON.stringify(b)); return Promise.resolve({ data: { ok: true }, error: null }); }
         return Promise.resolve({ data: {}, error: null });
       } },
       removeChannel: function () {}
@@ -203,7 +207,8 @@ function sourceApp() {
 //   viewport, hasTouch, date (ISO, défaut jeudi 24.09.2026 10:00),
 //   bd (tables de départ, fusionnées avec personnes/chantiers de test),
 //   localStorage (clés à poser AVANT le chargement de l'appli),
-//   tablesEnEchec (tables dont les requêtes échouent, cf. FAUX_SUPABASE).
+//   tablesEnEchec (tables dont les requêtes échouent, cf. FAUX_SUPABASE),
+//   init / initArg (script lancé avant l'appli).
 async function ouvrirPlanning(browser, options) {
   options = options || {};
   // Suite 60 : options.dpr = densité d'écran (3 comme un téléphone récent),
@@ -228,7 +233,10 @@ async function ouvrirPlanning(browser, options) {
     window.__TABLES_EN_ECHEC = d.echecs;
     try { Object.keys(d.ls).forEach(function (k) { localStorage.setItem(k, d.ls[k]); }); } catch (e) {}
   }, { bd: bd, ls: ls, echecs: options.tablesEnEchec || [] });
-  // Suite 88 : options.query = « ?raccourci=… » (raccourcis de l'icône, manifest.json).
+  // Suite 126 : options.init(options.initArg) exécuté avant l'appli (ex.
+  // service push simulé, test_suite126.js).
+  if (options.init) await page.addInitScript(options.init, options.initArg || {});
+  // Suite 88 : options.query = « ?raccourci=… » (raccourcis de l'icône, manifest.json).
   await page.goto('file://' + path.join(__dirname, '..', 'index.html') + (options.query || ''));
   // (raccourci « Mes notes » : page Notes affichée, barre du planning masquée)
   await page.waitForSelector('#legendeBarre', { state: options.query ? 'attached' : 'visible' });

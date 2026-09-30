@@ -1933,3 +1933,24 @@ avec ce round) : verte.
 
 Voir FRONTEND-CHANGELOG.md pour le pendant client (lecture/fusion de la vue, écriture, et rendu impression
 en bandes de couleur par tâche — Option A, choisie par Lionel).
+
+
+---
+
+## 30. Round du 29.09.2026 (suite 126) — notifications push (Web Push)
+
+Lionel : « Notification Push sur le téléphone et l'ordinateur avec différents paramètre à régler dans l'appli. »
+
+### 30.1. Base (sql/0027_notifications_push.sql)
+- `abonnements_push` : un par navigateur d'appareil (endpoint, clés p256dh / auth, nom, session, sortes en jsonb, heures veille / matin, dernier envoi veille / matin). RLS « connecte_tout ». Un déclencheur reprend la session du jeton (`auth.jwt()->>'session_id'`) à chaque écriture du client.
+- `push_modifs` : dernière écriture par session. Déclencheurs par instruction sur taches, jalons, notes (tables de transition : une écriture qui ne touche aucune ligne ne compte pas).
+- `demandes_absence.notifiee_push` : les demandes déjà en attente ont été marquées (pas annoncées après coup).
+- `push_config` (clés VAPID, jeton d'appel) : privée, lisible par le rôle service seulement ; valeurs posées à part, pas dans le dépôt. `cle_publique_push()` pour le navigateur.
+- Droits explicites au rôle service (il n'en a pas d'office dans ce projet).
+- pg_cron `envoyer-push` chaque minute, seulement si `push_a_faire_()` (requête légère) ; appel par pg_net.
+- Migrations appliquées : `notifications_push`, `notifications_push_droits_service`, `notifications_push_lignes_touchees`.
+
+### 30.2. Fonction Edge envoyer-push (v1, verify_jwt)
+- `{ jeton }` (pg_cron) : lit, décide (logic.js, `planEnvois`), note d'abord ce qui est annoncé, puis envoie (web-push, TTL 12 h). Abonnements 404 / 410 effacés.
+- `{ test: endpoint }` (bouton « Envoyer un essai ») : utilisateur connecté, cet appareil seulement.
+- Vérifié de bout en bout : chiffrement et signature acceptés par le service push, abonnement expiré retiré.
