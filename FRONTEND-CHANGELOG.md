@@ -10861,3 +10861,26 @@ Lionel :
 ### Tests
 - Nouveau : tests/test_suite125.js (9 vérifications).
 - Mis à jour : test_suite53.js (compteur 3 avec le jalon important, lignes « à réserver » visées seules), test_suite89.js (relecture des importants neutralisée là où l'on compte les relectures de la grille).
+
+## 239. Round du 29.09.2026 (suite 126) — Notifications push
+- Lionel : « Notification Push sur le téléphone et l'ordinateur avec différents paramètre à régler dans l'appli. », puis, à notre question sur ce qui doit arriver : les 4 sortes, chacune avec son interrupteur.
+- Nouvelle page Réglages › Notifications (icône cloche, après Raccourcis), propre à chaque appareil :
+  - interrupteur « Recevoir les notifications sur cet appareil » : demande l'autorisation du navigateur, abonne l'appareil, le range en base avec son nom (ex. « iPhone · Safari ») ; l'éteindre désabonne et efface ;
+  - « Quoi » : demandes d'absence, importants (la veille et le matin), tâches « à réserver » (le matin), modifications faites sur un autre appareil ;
+  - « Quand » : heure du rappel de la veille (18:00 par défaut) et du matin (07:00) ;
+  - « Envoyer un essai » : notification d'essai sur cet appareil ;
+  - « Autres appareils abonnés » : les autres appareils abonnés, avec « Retirer ».
+- Navigateur sans notifications : interrupteur grisé et explication. Sur iPhone / iPad : ajouter d'abord l'appli à l'écran d'accueil (Partager › Sur l'écran d'accueil), puis l'ouvrir depuis l'icône. Autorisation refusée : comment la rendre dans les réglages du navigateur.
+- Contenu :
+  - demande d'absence (nouvelle, annulation, modification) : nom, motif, dates ; plusieurs d'un coup : « N demandes d'absence » ;
+  - veille : « Demain, jeu. 1 oct. : N importants » avec la liste (5 lignes au plus, puis « … et N autres ») ; matin : « Aujourd'hui : N importants » ;
+  - matin : « À réserver : N tâches », jours de suite regroupés ;
+  - modifications : une notification après 1 minute sans nouvelle écriture, seulement aux appareils autres que celui qui a écrit ; une série non encore remise remplace la précédente.
+- Un toucher sur la notification ouvre (ou ramène) l'appli ; pour demandes, importants et « à réserver », la fenêtre des notifications s'ouvre.
+- Le service worker (sw.js) affiche les notifications reçues, même appli fermée.
+- À chaque ouverture, l'abonnement de l'appareil est relu et rafraîchi (session de connexion, voir BACKEND-CHANGELOG §30).
+
+### Tests
+- Nouveau : tests/test_suite126.js (33 vérifications : logique d'envoi, service worker, page de réglages avec un faux navigateur).
+- Mis à jour : test_suite63.js (liste des pages de réglages avec « Notifications »).
+- aide_tests.js : option init / initArg (script posé avant le chargement de la page), faux rpc cle_publique_push et fausse fonction envoyer-push.

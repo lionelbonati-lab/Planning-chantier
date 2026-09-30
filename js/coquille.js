@@ -114,6 +114,7 @@
     cablerNotifications();
     cablerDemandesAbsence();
     cablerPageSauvegardes();
+    cablerPageNotificationsPush();
     cablerPageRaccourcis();
     cablerPageNotes();
     cablerPageCompte();
@@ -162,6 +163,10 @@
     // aussi dans le menu réglage » — l'onglet Mise en page est retiré.
     { page: "mise-en-page", nom: "Mise en page d’impression", court: "Impression", icone: "miseEnPage" },
     { page: "raccourcis", nom: "Raccourcis clavier", court: "Raccourcis", icone: "clavier" },
+    // Suite 126 — Lionel : « Notification Push sur le téléphone et
+    // l'ordinateur avec différents paramètre à régler dans l'appli. »
+    // (js/page-notifications.js).
+    { page: "notifications-push", nom: "Notifications", icone: "cloche" },
     { page: "sauvegardes", nom: "Sauvegardes", icone: "sauvegarde" }
   ];
   function pageReglage_(nom) { return PAGES_REGLAGES.filter(function (r) { return r.page === nom; })[0] || null; }
@@ -198,6 +203,8 @@
         '<p class="page-sous">Touches du clavier et boutons de la souris d’un ordinateur, les mêmes sur tous les appareils du compte. « + » puis la combinaison voulue (ou le bouton du milieu, précédent, suivant de la souris) pour en ajouter une, « × » pour la retirer, « ↺ » pour revenir aux touches d’origine.</p>' +
         '<div id="listeRaccourcis"></div>' +
       '</div></div>' +
+      // Notifications push (suite 126, js/page-notifications.js).
+      '<div class="page page-reglages" id="page-notifications-push"><div class="page-scroll">' + htmlContenuPageNotificationsPush() + '</div></div>' +
       // Sauvegardes (round du 25.09.2026, suite 49 — js/page-sauvegardes.js,
       // sql/0017_sauvegardes.sql). Lionel, proposition 14 : « Sauvegarde
       // automatique [...] pour pouvoir revenir en arrière après une grosse
@@ -845,6 +852,7 @@
       // relues à chaque ouverture (suite 49), raccourcis et palettes
       // redessinés (un autre appareil a pu les changer).
       sauvegardes: renderSauvegardes,
+      "notifications-push": renderNotificationsPush,
       raccourcis: renderRaccourcis,
       couleurs: function () { if (typeof majReglagesCouleursAffiches === "function") majReglagesCouleursAffiches(); },
       compte: chargerInfosCompte,

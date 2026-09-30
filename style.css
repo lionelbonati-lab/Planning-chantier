@@ -3529,6 +3529,17 @@
   .bloc-compte-danger .compte-ligne { border-color: var(--important-ink); }
   .bloc-compte-danger .titre-liste { color: var(--important-ink); }
 
+  /* Round du 29.09.2026 (suite 126) — Réglages › Notifications
+     (js/page-notifications.js). Mêmes lignes que la page Affichage ;
+     l'heure dans une liste déroulante. */
+  .push-reglages { max-width: 540px; }
+  .push-etat { max-width: 540px; padding: 11px 14px; border-radius: 10px; background: var(--accent-soft); color: var(--ink); font-size: 12.5px; line-height: 1.5; margin: 0 0 12px; }
+  .push-heure { flex-shrink: 0; font: inherit; font-size: 13px; padding: 6px 8px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface); color: var(--ink); cursor: pointer; }
+  .push-actions { margin: 4px 0 0; }
+  .push-appareil { gap: 12px; margin-bottom: 8px; }
+  .push-appareil-nom { font-weight: 700; }
+  .push-appareil-date { color: var(--ink-muted); flex: 1; }
+
   /* Nouvelle version de l'appli copiée (sw.js, js/hors-ligne.js). */
   .maj-appli {
     position: fixed; z-index: 90; left: 50%; bottom: 18px; transform: translateX(-50%);

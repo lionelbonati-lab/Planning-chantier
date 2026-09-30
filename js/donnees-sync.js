@@ -495,6 +495,11 @@
       // Suite 88 : ouverte par un raccourci de l'icône (« Nouvelle note »,
       // « Mes notes », manifest.json) → fiche ou page demandée.
       if (typeof lancerRaccourciAppli === "function") lancerRaccourciAppli();
+      // Suite 126 : notifications push — ligne de cet appareil remise à
+      // jour, et fenêtre Notifications ouverte si l'appli l'a été par le
+      // clic sur une notification (js/page-notifications.js).
+      if (typeof rafraichirAbonnementPush === "function") rafraichirAbonnementPush();
+      if (typeof ouvrirNotificationsSiDemande === "function") ouvrirNotificationsSiDemande();
     }).catch(erreurFatale);
   }
 
