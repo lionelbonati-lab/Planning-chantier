@@ -2054,3 +2054,25 @@ Fichier : sql/0032_equipes_exceptions.sql (migration `equipes_exceptions`).
   - un ajout la fait apparaître.
 - Aucun nouveau conseil de sécurité Supabase.
 
+
+
+---
+
+## 36. Round du 30.09.2026 (suite 132) — groupes de lignes Machines / Transports
+
+Lionel (page Améliorations et bugs, amélioration n° 4) :
+
+> Les groupes machines et transports font leur apparitions.
+> J'aimerai pouvoir réorganiser mes groupes dans le planning.
+> Pas besoin du type d'absence dans le nouveau formulaire arrivée/départ.
+
+Son choix : « Comme le personnel ».
+
+Fichier : sql/0033_groupes.sql (migration `groupes`).
+
+- groupes : id, nom (non vide), ordre, actif, cree_le. Machines et Transports créés d'office si la table est vide.
+  - RLS : utilisateurs connectés (« connecte_tout »), rien pour anon.
+- personnes.groupe_id : référence groupes (on delete set null), index. Une ligne de groupe est une ligne `personnes` comme les autres : tâches, absences, assignations inchangées.
+- L'ordre des sections du planning est un réglage du compte (reglages, clé « ordre_groupes ») : pas de colonne.
+- Sauvegardes : groupes ajoutée à tables_sauvegardees_ (18 tables).
+- Aucun nouveau conseil de sécurité Supabase.

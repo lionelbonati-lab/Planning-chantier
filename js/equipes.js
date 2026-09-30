@@ -98,11 +98,12 @@
     return c ? c.membres.slice() : [];
   }
   // Membres affichables : personnel actif connu, jamais une équipe ni un
-  // intervenant — un id disparu (personne supprimée) est ignoré.
+  // intervenant — un id disparu (personne supprimée) est ignoré. Ni une
+  // ligne de groupe (Machines, Transports… suite 132, js/groupes.js).
   function membresEquipe(equipeId, lundi) {
     return membresBruts_(etat.compositionsEquipes || [], equipeId, lundi).filter(function (id) {
       var p = personneParAncre(id);
-      return p && !p.equipe && !p.sousTraitant;
+      return p && !p.equipe && secteurDe(p) === "personnel";
     });
   }
   // Équipe (active, donc dans PERSONNES) d'une personne cette semaine-là.
@@ -193,7 +194,7 @@
       var ids = membresBruts_(etat.compositionsEquipes || [], eid, lundi);
       liste.forEach(function (p) {
         var id = idDe(p);
-        if (!p.equipe && !p.sousTraitant && !pris[id] && ids.indexOf(id) >= 0) { pris[id] = true; out.push({ p: p, role: "membre", equipeId: eid }); }
+        if (!p.equipe && secteurDe(p) === "personnel" && !pris[id] && ids.indexOf(id) >= 0) { pris[id] = true; out.push({ p: p, role: "membre", equipeId: eid }); }
       });
     });
     liste.forEach(function (p) { if (!p.equipe && !pris[idDe(p)]) out.push({ p: p, role: null, equipeId: null }); });
@@ -203,9 +204,11 @@
   // source pour le rendu (grille-rendu.js) ET pour les gestes qui
   // parcourent les lignes (sélection au glissé, coller sur plusieurs
   // lignes) : un membre caché ne doit jamais recevoir un collage.
+  // Suite 132 (js/groupes.js) : secteur "groupe-<id>" = lignes du groupe
+  // (Machines, Transports…), dans l'ordre de la page Personnel, sans équipe.
   function personnesAffichees(secteur) {
-    if (secteur === "sous-traitant") return PERSONNES.filter(function (p) { return p.sousTraitant; });
-    var ordre = ordrePersonnesEquipes(PERSONNES.filter(function (p) { return !p.sousTraitant; }), lundiCourantEquipes(), function (p) { return p.id; });
+    if (secteur === "sous-traitant" || /^groupe-/.test(secteur)) return PERSONNES.filter(function (p) { return secteurDe(p) === secteur; });
+    var ordre = ordrePersonnesEquipes(PERSONNES.filter(function (p) { return secteurDe(p) === "personnel"; }), lundiCourantEquipes(), function (p) { return p.id; });
     // Round du 29.09.2026 (suite 118) — Lionel : « En vue un jour, le
     // pliage et le dépliage de l'équipe ne fonctionnent pas. » La vue
     // « 1 jour » charge 2 semaines : un membre qui avait quoi que ce soit
@@ -227,11 +230,14 @@
   // Membres affichés sous les équipes (suite 118) : comparés avant / après
   // un changement de jour en vue « 1 jour ».
   function signatureMembresAffiches_() { return personnesAffichees("personnel").map(function (p) { return p.id; }).join(","); }
-  function personnesAfficheesToutes() { return personnesAffichees("personnel").concat(personnesAffichees("sous-traitant")); }
+  // Suite 132 : toutes les sections, dans l'ordre du planning.
+  function personnesAfficheesToutes() {
+    return sectionsCorps().reduce(function (acc, s) { return acc.concat(personnesAffichees(s.secteur)); }, []);
+  }
   // Suite 120 : même ordre, sans pliage — un membre caché sous son équipe
   // repliée reste dans les listes « Pour qui » de l'ajout.
   function personnelOrdonneSansPliage() {
-    return ordrePersonnesEquipes(PERSONNES.filter(function (p) { return !p.sousTraitant; }), lundiCourantEquipes(), function (p) { return p.id; })
+    return ordrePersonnesEquipes(PERSONNES.filter(function (p) { return secteurDe(p) === "personnel"; }), lundiCourantEquipes(), function (p) { return p.id; })
       .map(function (e) { return e.p; });
   }
 
@@ -300,7 +306,7 @@
       lbl.querySelector(".equipe-repli").addEventListener("click", function (ev) { ev.stopPropagation(); basculerDepliageEquipe(p.id); });
       return;
     }
-    var eq = !p.sousTraitant && equipeDuMembre(p.id, lundi);
+    var eq = secteurDe(p) === "personnel" && equipeDuMembre(p.id, lundi);
     if (eq) {
       lbl.classList.add("lbl-membre");
       lbl.dataset.membreDe = eq;
@@ -314,7 +320,7 @@
     if (!equipe) return;
     var lundi = lundiCourantEquipes();
     var actuels = membresEquipe(equipeId, lundi);
-    var candidats = PERSONNES.filter(function (p) { return !p.sousTraitant && !p.equipe; });
+    var candidats = PERSONNES.filter(function (p) { return !p.equipe && secteurDe(p) === "personnel"; });
     var pop = document.createElement("div");
     pop.className = "pop form-pop composition-equipe";
     pop.innerHTML =
@@ -535,7 +541,7 @@
     var vus = {}, personnes = [], equipe = null;
     cibles.forEach(function (c) {
       var p = personneParAncre(c.personne);
-      if (!p || vus[p.id] || p.sousTraitant) return;
+      if (!p || vus[p.id] || secteurDe(p) !== "personnel") return;
       vus[p.id] = true;
       if (p.equipe) { if (cibles.length === 1) equipe = p; } else personnes.push(p);
     });
@@ -557,7 +563,7 @@
       } });
     });
     if (equipe) {
-      var candidats = PERSONNES.filter(function (p) { return !p.equipe && !p.sousTraitant; });
+      var candidats = PERSONNES.filter(function (p) { return !p.equipe && secteurDe(p) === "personnel"; });
       var aAjouter = candidats.filter(function (p) { return demis.some(function (s) { return !estMembreEquipeLe(equipe.id, p.id, s.iso, s.demi); }); });
       var aRetirer = candidats.filter(function (p) { return demis.some(function (s) { return estMembreEquipeLe(equipe.id, p.id, s.iso, s.demi); }); });
       var sousMenu = function (titre, liste, agir) {

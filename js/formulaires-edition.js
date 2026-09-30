@@ -518,8 +518,10 @@
   //     au soir ;
   //   - Quelques heures : « Absent 13h00 - 14h00 », de la demi-journée de
   //     la 1re heure à celle de la 2e ;
-  // suivi du type d'absence et du motif s'il y en a (« Arrivée 9h30 -
-  // Maladie - Médecin »). Posée sur chaque jour sélectionné (les
+  // suivi du motif s'il y en a (« Arrivée 9h30 - Médecin »). Round du
+  // 30.09.2026 (suite 132) — Lionel (retour n° 4) : « Pas besoin du type
+  // d'absence dans le nouveau formulaire arrivée/départ. » : le choix du
+  // type a disparu. Posée sur chaque jour sélectionné (les
   // demi-journées de la sélection ne comptent pas, c'est l'heure qui les
   // donne ; des jours voisins au même texte se rejoignent, comme toute
   // bulle). La
@@ -528,8 +530,6 @@
   function heureVersTexte_(v) { var m = /^(\d{1,2}):(\d{2})/.exec(v || ""); return m ? (+m[1]) + "h" + m[2] : ""; }
   function demiDeHeure_(v) { return +String(v).split(":")[0] < 12 ? "matin" : "aprem"; }
   function ouvrirFormulaireArriveeDepart(cibles, giDebut, duree, x, y, plageInit) {
-    var types = FORMULAIRES_RAPIDES.filter(function (f) { return f.typeEntree === "absence"; }).map(function (f) { return f.nom; });
-    if (!types.length) types = ["Congé", "Vacances"];
     var pop = document.createElement("div");
     pop.className = "pop form-pop form-arrivee-depart";
     var etat = { sorte: "arrivee" };
@@ -544,8 +544,6 @@
       '<div><div class="label-champ ad-label-h1">Arrivée à</div><input type="time" class="f-h1" value="09:00" step="300"></div>' +
       '<div class="ad-h2" hidden><div class="label-champ">Jusqu\'à</div><input type="time" class="f-h2" value="14:00" step="300"></div>' +
       '</div>' +
-      '<div class="label-champ">Type</div>' +
-      '<select class="f-type"><option value="">(aucun)</option>' + types.map(function (t) { return '<option>' + esc(t) + '</option>'; }).join("") + '</select>' +
       '<div class="label-champ">Motif</div>' +
       '<input type="text" class="f-motif" placeholder="Facultatif">' +
       '<div class="apercu"><span class="apercu-label">Aperçu du texte</span><span class="apercu-texte"></span></div>' +
@@ -560,8 +558,7 @@
     function majApercu() {
       var a = heureVersTexte_(h1.value), b = heureVersTexte_(h2.value);
       var texte = etat.sorte === "arrivee" ? "Arrivée " + a : etat.sorte === "depart" ? "Départ " + a : "Absent " + a + " - " + b;
-      var type = pop.querySelector(".f-type").value, motif = pop.querySelector(".f-motif").value.trim();
-      if (type) texte += " - " + type;
+      var motif = pop.querySelector(".f-motif").value.trim();
       if (motif) texte += " - " + motif;
       apercuTexte.textContent = texte;
       return texte;
@@ -574,7 +571,7 @@
       pop.querySelector(".ad-h2").hidden = v !== "heures";
       majApercu();
     });
-    [h1, h2, pop.querySelector(".f-type"), pop.querySelector(".f-motif")].forEach(function (el) {
+    [h1, h2, pop.querySelector(".f-motif")].forEach(function (el) {
       el.addEventListener("input", majApercu); el.addEventListener("change", majApercu);
     });
     majApercu();

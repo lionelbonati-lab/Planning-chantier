@@ -63,12 +63,16 @@ const sandbox = {
     { id: '14', nom: 'Électricien', sousTraitant: true },
     { id: '18', nom: 'Peintre', sousTraitant: true }
   ],
+  etat: {},
   String: String
 };
 vm.createContext(sandbox);
 vm.runInContext(
   ligneConstantes[1] + '\n' +
   extraireFonction('personneParAncre') + '\n' +
+  // Suite 132 : secteurPersonne passe par secteurDe (js/groupes.js).
+  extraireFonction('groupeParId') + '\n' +
+  extraireFonction('secteurDe') + '\n' +
   extraireFonction('secteurPersonne') + '\n' +
   extraireFonction('formulaireVisiblePour') + '\n' +
   extraireFonction('nomAssigneAffiche'),

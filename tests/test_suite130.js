@@ -96,20 +96,20 @@ const point = (page, pid, iso, demi) => page.evaluate(([pid, iso, demi]) => {
     verifier(ap1 === 'Arrivée 9h30 - Médecin' && l1 === '1:2026-09-25:matin:Arrivée 9h30 - Médecin:abs',
       'Arrivée plus tard 9h30 : absence « Arrivée 9h30 - Médecin » le matin seulement (' + ap1 + ' ; ' + l1 + ')');
 
-    // Départ plus tôt, avec un type.
+    // Départ plus tôt, avec un motif (suite 132 : plus de type d'absence).
     await menu('1', '2026-09-24', 'matin');
     await page.click('.menu-pop button[data-partielle]');
     await page.waitForTimeout(200);
     await page.click('.form-arrivee-depart [data-sorte="depart"]');
     const f2 = await page.evaluate(() => ({ h1: document.querySelector('.form-arrivee-depart .f-h1').value, lib: document.querySelector('.form-arrivee-depart .ad-label-h1').textContent,
-      types: [...document.querySelectorAll('.form-arrivee-depart .f-type option')].map((o) => o.textContent) }));
+      type: !!document.querySelector('.form-arrivee-depart .f-type') }));
     await page.fill('.form-arrivee-depart .f-h1', '16:15');
-    await page.selectOption('.form-arrivee-depart .f-type', f2.types[1]);
+    await page.fill('.form-arrivee-depart .f-motif', 'Dentiste');
     await page.click('.form-arrivee-depart .f-ok');
     await page.waitForTimeout(700);
     const l2 = await lignes('^Départ');
-    verifier(f2.h1 === '16:00' && f2.lib === 'Départ à' && f2.types[0] === '(aucun)' && l2 === '1:2026-09-24:aprem:Départ 16h15 - ' + f2.types[1] + ':abs,2:2026-09-22:aprem:Départ 16h15:abs',
-      'Départ plus tôt 16h15 + type : l’après-midi seulement (' + JSON.stringify(f2) + ' ; ' + l2 + ')');
+    verifier(f2.h1 === '16:00' && f2.lib === 'Départ à' && !f2.type && l2 === '1:2026-09-24:aprem:Départ 16h15 - Dentiste:abs,2:2026-09-22:aprem:Départ 16h15:abs',
+      'Départ plus tôt 16h15 + motif, sans type : l’après-midi seulement (' + JSON.stringify(f2) + ' ; ' + l2 + ')');
 
     // Quelques heures, sur 2 jours sélectionnés.
     const de = await point(page, '1', '2026-09-21', 'aprem'), vers = await point(page, '1', '2026-09-22', 'matin');
