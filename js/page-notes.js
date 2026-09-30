@@ -17,7 +17,8 @@
 
      Différence avec les jalons : un jour peut porter PLUSIEURS notes (une
      ligne de table chacune, cf. planPlage côté serveur). La fusion en
-     plages se fait donc par note — même texte, même « important » — et
+     plages se fait donc par note — même texte, même « important », même
+     chantier (suite 122) — et
      non jour par jour (fusionnerNotesTous). La modification et la
      suppression passent l'ancienne note en `origine` : le serveur ne
      retire QUE cette ligne-là sur chaque jour, les autres notes du même
@@ -26,7 +27,7 @@
   var NOTES_TOUTES = null; // null = pas encore chargées ; notes FUSIONNÉES sinon
 
   function chargerNotesToutesServeur() {
-    return sbClient.from("notes").select("id, date, texte, important, demi").order("date").then(function (r) {
+    return sbClient.from("notes").select("id, date, texte, important, demi, chantier_id").order("date").then(function (r) {
       if (r.error) throw new Error(r.error.message);
       return r.data || [];
     });
@@ -39,7 +40,8 @@
   function fusionnerNotesTous(lignes) {
     var groupes = {}, cles = [];
     lignes.forEach(function (l) {
-      var cle = l.texte + "\u0000" + (l.important ? 1 : 0);
+      // chantier_id (suite 122) : même texte sur 2 chantiers = 2 notes.
+      var cle = l.texte + "\u0000" + (l.important ? 1 : 0) + "\u0000" + (l.chantier_id != null ? l.chantier_id : "");
       if (!groupes[cle]) { groupes[cle] = []; cles.push(cle); }
       groupes[cle].push(l);
     });
@@ -58,7 +60,7 @@
           courant.idFin = l.id;
           courant.demiFin = demi;
         } else {
-          courant = { idDebut: l.id, idFin: l.id, dateDebut: l.date, dateFin: l.date, texte: l.texte, important: !!l.important, demiDebut: demi, demiFin: demi };
+          courant = { idDebut: l.id, idFin: l.id, dateDebut: l.date, dateFin: l.date, texte: l.texte, important: !!l.important, chantierId: l.chantier_id != null ? l.chantier_id : null, demiDebut: demi, demiFin: demi };
           items.push(courant);
         }
       });
@@ -72,7 +74,7 @@
   }
   function ligneFicheNote_(n) {
     return '<div class="ligne-intervenant ligne-note" data-id-debut="' + esc2(n.idDebut) + '">' +
-      '<span class="gauche-chantier"><span class="swatch-chantier swatch-note"></span><b>' + esc(n.texte) + '</b></span>' +
+      '<span class="gauche-chantier"><span class="swatch-chantier swatch-note"></span><b>' + esc(n.texte) + '</b>' + pastilleChantierListeHTML(n.chantierId) + '</span>' +
       (n.important ? '<span class="compte jalon-important" title="Important">' + ICONS.important + '</span>' : '') +
       '<span class="plage-jalon">' + esc(libellePlageNote_(n)) + '</span>' +
       '<span class="ligne-actions">' +
@@ -87,7 +89,7 @@
     renderNotes();
   }
   function origineNote_(n) {
-    return { dateDebut: n.dateDebut, dateFin: n.dateFin, texte: n.texte, important: n.important, demiDebut: n.demiDebut || null, demiFin: n.demiFin || null };
+    return { dateDebut: n.dateDebut, dateFin: n.dateFin, texte: n.texte, important: n.important, demiDebut: n.demiDebut || null, demiFin: n.demiFin || null, chantierId: n.chantierId || null };
   }
   function supprimerNoteServeur_(n) {
     demanderConfirmation("Supprimer la note « " + n.texte + " » ?", function () {
@@ -149,9 +151,11 @@
     var state = {
       debutIso: existante ? existante.dateDebut : aujourdhuiIso,
       finIso: existante ? existante.dateFin : aujourdhuiIso,
-      important: existante ? existante.important : false
+      important: existante ? existante.important : false,
+      // Suite 122 : chantier de la note (pastille), aucun par défaut.
+      chantierId: existante ? (existante.chantierId || null) : null
     };
-    var bandeau = function () { return bandeauHTML({ clair: true, fondStyle: "background:var(--note-bg)", important: state.important, nomGrand: "Note" }); };
+    var bandeau = function () { return bandeauHTML({ clair: true, fondStyle: "background:var(--note-bg)", important: state.important, chantierHTML: champChantierJalonHTML(state.chantierId), nomGrand: "Note" }); };
     var pop = document.createElement("div");
     pop.className = "pop form-pop carte-item fiche-note";
     pop.innerHTML = bandeau() +
@@ -166,6 +170,12 @@
       pop.querySelector(".f-annuler").addEventListener("click", fermer);
       pop.querySelector(".f-important").addEventListener("click", function () {
         state.important = !state.important;
+        pop.querySelector(".bandeau").outerHTML = bandeau();
+        cablerBandeau();
+      });
+      var sel = pop.querySelector(".f-chantier-jalon");
+      if (sel) sel.addEventListener("change", function () {
+        state.chantierId = sel.value ? +sel.value : null;
         pop.querySelector(".bandeau").outerHTML = bandeau();
         cablerBandeau();
       });
@@ -193,7 +203,7 @@
       occupe(true);
       invoquerFonctionServeur("enregistrer-plage", {
         kind: "note", dateDebut: state.debutIso, dateFin: state.finIso, texte: texte,
-        demiDebut: demiDebut, demiFin: demiFin, important: state.important, mode: "remplacement",
+        demiDebut: demiDebut, demiFin: demiFin, important: state.important, chantierId: state.chantierId, mode: "remplacement",
         origine: existante ? origineNote_(existante) : null
       }).then(function () {
         occupe(false);

@@ -378,14 +378,14 @@
         // lignes (même règle que assignerPistesCompact à l'écran : deux entrées
         // ne se gênent que si elles occupent une même demi-journée), une <tr>
         // par ligne.
-        function segmentsDemiImpression_(parJour, avecChantier) {
+        function segmentsDemiImpression_(parJour) {
           var consommes = parJour.map(function () { return {}; });
           function suivante(i, ref) {
             var arr = parJour[i] || [];
             for (var k = 0; k < arr.length; k++) {
               var e = arr[k];
               if (consommes[i][k] || e.texte !== ref.texte || !!e.important !== !!ref.important) continue;
-              if (avecChantier && (e.chantierId || null) !== (ref.chantierId || null)) continue;
+              if ((e.chantierId || null) !== (ref.chantierId || null)) continue; // chantier des notes aussi (suite 122)
               return k;
             }
             return -1;
@@ -407,7 +407,7 @@
                 demiCourant = parJour[fin][k2].demi || null;
               }
               var b = demiSlotsDepuisBornes(i, fin - i + 1, e.demi || null, demiCourant);
-              segs.push({ texte: e.texte, important: !!e.important, h0: b.halfStart, h1: b.halfFinIncl });
+              segs.push({ texte: e.texte, important: !!e.important, chantierId: e.chantierId || null, h0: b.halfStart, h1: b.halfFinIncl });
             });
           });
           return segs;
@@ -440,6 +440,10 @@
               if (sg) {
                 var span = Math.min(sg.h1, nbSlots - 1) - h + 1;
                 var txt = sg.important ? '<span class="print-important">' + esc(sg.texte) + '</span>' : esc(sg.texte);
+                // Suite 122 : pastille du chantier (jalon, note), sauf en
+                // noir et blanc où elle ne distinguerait rien.
+                var chSg = sg.chantierId != null && r.rendu !== "nb" ? CHANTIERS[etat.chantiersParId[sg.chantierId]] : null;
+                if (chSg) txt = '<span class="print-pastille" style="background:' + chSg.couleur + '"></span>' + txt;
                 out += '<td colspan="' + span + '" class="filled">' + txt + '</td>';
                 h += span;
               } else if (h % 2 === 0 && !ligne.occupe[h + 1]) {
@@ -489,7 +493,7 @@
         // Jalons masquables (suite 38) : sans eux, pas de spacer de fermeture
         // de leur ligne (print-spacer-jalons) au-dessus des notes.
         var jalonsParJour = (data.jalons || []).map(function (j) { return j && j.texte ? [j] : []; });
-        if (r.jalons) h += rangeesDemiImpression_("print-jalons", "Jalons", segmentsDemiImpression_(jalonsParJour, true));
+        if (r.jalons) h += rangeesDemiImpression_("print-jalons", "Jalons", segmentsDemiImpression_(jalonsParJour));
 
         // Portage mockup (rounds 7-9) — classes print-spacer-jalons/personne
         // (cf. leur commentaire CSS) : le PREMIER spacer qui suit la ligne
@@ -501,7 +505,7 @@
           // Sans jalons (suite 38) : simple espace sous l'en-tête, sans le
           // trait de fermeture de leur ligne.
           h += '<tr class="print-spacer' + (r.jalons ? ' print-spacer-jalons' : '') + '"><td colspan="' + NB_COLS + '"></td></tr>';
-          h += rangeesDemiImpression_("print-notes", "", segmentsDemiImpression_(data.notes || [], false));
+          h += rangeesDemiImpression_("print-notes", "", segmentsDemiImpression_(data.notes || []));
         }
 
         // print-spacer-personne (round 8) : ce spacer précède TOUJOURS la 1ère

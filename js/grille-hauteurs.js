@@ -536,7 +536,7 @@
     });
     try { localStorage.setItem(cleHauteursLignes_(), JSON.stringify(o)); } catch (e) {}
     appliquerHauteursLignes_();
-    if (typeof majPanneauHauteurs === "function") majPanneauHauteurs();
+    if (typeof majRetablirHauteurs === "function") majRetablirHauteurs();
   }
   /* Replier une ligne (round du 29.09.2026, suite 116) — Lionel, sur
      notre liste d'idées façon tableur : « Continue avec replier les lignes

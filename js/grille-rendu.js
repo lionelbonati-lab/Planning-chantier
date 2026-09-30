@@ -341,10 +341,11 @@
   // dans le menu 3points si manque de place. » La cloche quitte l'ordre de
   // repli (toujours dans la barre, entre Annuler/Refaire et Imprimer) ;
   // « Ajouter une ligne » y entre à sa place.
-  // Suite 92 : hauteur des lignes, repliée juste après le zoom.
+  // Suite 92 : hauteur des lignes, repliée juste après le zoom (bouton
+  // retiré à la suite 122).
   // Suite 112 : icône du mode ajout (#groupeModeAjout), repliée juste
   // avant « Ajouter une ligne » (sur téléphone, masquée hors mode ajout).
-  var REPLIS_ORDRE = ["groupeZoom", "groupeHauteurs", "controlesAffichage", "groupeModeAjout", "groupeAjoutLigne", "groupeNavSemaine", "groupeImprimer"];
+  var REPLIS_ORDRE = ["groupeZoom", "controlesAffichage", "groupeModeAjout", "groupeAjoutLigne", "groupeNavSemaine", "groupeImprimer"];
   // Téléphone : tout ce qui se replie va dans « ⋮ » ; la cloche est dans la
   // barre du bas (#btnNotificationsNavBas), masquée dans celle-ci.
   var REPLIS_TELEPHONE = REPLIS_ORDRE;
@@ -1931,11 +1932,11 @@
       document.fonts.ready.then(function () {
         if (!scroller.isConnected) return;
         mettreEnPlaceJourMobile_(G);
-        if (typeof majPanneauHauteurs === "function") majPanneauHauteurs();
+        if (typeof majRetablirHauteurs === "function") majRetablirHauteurs();
       });
     }
-    // Hauteur en pixels à côté des curseurs de la barre (suite 92).
-    if (typeof majPanneauHauteurs === "function") majPanneauHauteurs();
+    // « Rétablir » des lignes réglées à part (page Affichage, suite 122).
+    if (typeof majRetablirHauteurs === "function") majRetablirHauteurs();
     // Round du 24.09.2026 (suite 6) — défilement "infini" de la vue "1 jour"
     // (cf. fenetreLabGs, core.js). Une fois le défilement ARRÊTÉ (plus
     // d'événement "scroll" depuis 200ms, aucun doigt posé, aucun glisser de
@@ -2158,7 +2159,13 @@
     // semblent pas bien synchronisée ») : la page Jalons le peint de la
     // couleur de son chantier (c'est même la raison d'être de ce champ, cf.
     // son en-tête), la grille le laissait en violet — même couleur désormais.
-    var chJalon = it.type === "jalon" && it.chantierId != null ? CHANTIERS[etat.chantiersParId[it.chantierId]] : null;
+    //
+    // Round du 29.09.2026 (suite 122) — Lionel : « Pastille de couleur pour
+    // le chantier dans les notes et jalons, pas de chantier = pas de
+    // pastille ». Jalon ET note : fond à la couleur du type, le chantier
+    // devient une pastille devant le texte (.b-pastille), aucune sans
+    // chantier.
+    var chJalon = (it.type === "jalon" || it.type === "note") && it.chantierId != null ? CHANTIERS[etat.chantiersParId[it.chantierId]] : null;
     // Tâche sans chantier (suite 66 — Lionel : « Reste sans couleur ») :
     // fond de la page (blanc, comme à l'impression) cerclé d'un filet
     // (.sans-chantier), au lieu du gris #e5e5e5 d'avant.
@@ -2166,7 +2173,7 @@
     if (sansChantier) el.classList.add("sans-chantier");
     var bg = it.type === "tache" ? (sansChantier ? "var(--bg)" : CHANTIERS[it.chantier].couleur)
       : it.type === "absence" ? "var(--absence-bg)"
-      : it.type === "jalon" ? (chJalon ? chJalon.couleur : "var(--jalon-bg)") : "var(--note-bg)";
+      : it.type === "jalon" ? "var(--jalon-bg)" : "var(--note-bg)";
     // Étiquette (nom de chantier / "Absence"/"Jalon"/"Note") : n'est plus
     // affichée dans la bulle elle-même depuis le round du 02.09.2026 (retour
     // de Lionel : "on peut réduire les hauteurs de ligne en enlevant les
@@ -2176,13 +2183,13 @@
     // forçait une ligne de plus par bulle. Gardée en mémoire (`tag`) pour
     // l'infobulle au survol (title ci-dessous), qui garde l'info accessible.
     var tag = it.type === "tache" ? (sansChantier ? "Aucun chantier" : CHANTIERS[it.chantier].nom)
-      : it.type === "absence" ? "Absence" : it.type === "jalon" ? "Jalon" + (chJalon ? " · " + chJalon.nom : "") : "Note";
+      : it.type === "absence" ? "Absence" : (it.type === "jalon" ? "Jalon" : "Note") + (chJalon ? " · " + chJalon.nom : "");
     // Round du 23.09.2026 (suite 14) — .b-carte : nouvel enveloppe interne
     // portant tout le VISUEL (fond, coins arrondis, ombre — cf. son
     // commentaire CSS pour le bug Chromium que ça contourne). .bulle reste
     // l'item de grille "brut", jamais habillé ni sticky lui-même.
     var html = '<span class="poignee poignee-g" data-poignee="gauche"></span><span class="poignee poignee-d" data-poignee="droite"></span>' +
-      '<div class="b-carte"><span class="b-txt">' + esc(it.texte) + '</span>';
+      '<div class="b-carte"><span class="b-txt">' + (chJalon ? '<span class="b-pastille" style="background:' + chJalon.couleur + '"></span>' : '') + esc(it.texte) + '</span>';
     if (it.statut && STATUTS[it.statut]) html += '<span class="b-statut" style="background:' + STATUTS[it.statut].couleur + '"><span class="dot"></span>' + esc(STATUTS[it.statut].nom) + '</span>';
     if (it.serieId) html += '<span class="b-serie" title="Fait partie d\'une série">↻ série</span>';
     html += '</div>';

@@ -201,8 +201,9 @@ assertEqual(sandbox.lundiDeSemaineUTC('2026-09-13'), '2026-09-07', 'dimanche 13.
 
   // Notes du mercredi (index 2) : 2 entrées, demi reporté tel quel (y compris null).
   assertEqual(d.notes[2], [
-    { texte: 'Contrôle chantier', important: false, serieId: null, demi: 'aprem' },
-    { texte: 'RDV client', important: true, serieId: null, demi: null }
+    // chantierId : suite 122 (chantier des notes, sql/0026_notes_chantier.sql).
+    { texte: 'Contrôle chantier', important: false, serieId: null, demi: 'aprem', chantierId: null },
+    { texte: 'RDV client', important: true, serieId: null, demi: null, chantierId: null }
   ], 'notes du mercredi : 2 entrées indépendantes, ordre = ordre d\'id croissant');
   assertEqual(d.notes[0], [], 'jour sans note -> tableau vide, jamais undefined');
 

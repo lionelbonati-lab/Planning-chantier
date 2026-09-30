@@ -20,10 +20,10 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //   2. cascade par amas : 2 bulles l'une sous l'autre, 4 en cascade
 //      régulière, une bulle seule un autre jour en haut de sa ligne ; une
 //      tâche de 3 jours : une seule carte ; « ↻ série » en petit ↻ ;
-//   3. bouton « Hauteur des lignes » de la barre : panneau à curseurs ;
-//      le curseur change la hauteur sans reconstruire la grille, libellé
-//      en bulles et en pixels ; page Affichage : même curseur, même valeur,
-//      ancien réglage « Serrée / Normale / Aérée » retiré ;
+//   3. curseurs de hauteur (bouton « Hauteur des lignes » de la barre,
+//      retiré à la suite 122 : page Affichage) : le curseur change la
+//      hauteur sans reconstruire la grille, libellé en pixels ; ancien
+//      réglage « Serrée / Normale / Aérée » retiré ;
 //   4. case chantier synchronisée avec la sélection : une tâche, deux de
 //      chantiers différents (« Aucun chantier »), changement appliqué à
 //      toutes, « Aucun chantier » appliqué, chantier par défaut inchangé et
@@ -127,39 +127,27 @@ const hauteurs = (c, ts) => ts.map((t) => c[t][0].b - c[t][0].h);
     verifier(serie && serie.pos === 'absolute' && serie.taille === '0px' && serie.avant === '"↻"' && serie.dedans,
       '« ↻ série » : petit ↻ dans le coin bas de la carte (' + JSON.stringify(serie) + ')');
 
-    // --- 3. Bouton de la barre, curseurs, page Affichage ---
-    await page.click('#btnHauteurs');
-    await page.waitForTimeout(150);
-    // Suite 101 — Lionel : « réglage maintenant en pixels. même chose pour
-    // jalons et notes. » Curseurs en pixels (hauteurLigneOrdi,
+    // --- 3. Curseurs de hauteur ---
+    // Suite 101 — Lionel : « réglage maintenant en pixels. même chose pour
+    // jalons et notes. » Curseurs en pixels (hauteurLigneOrdi,
     // hauteurJalOrdi) ; lignes de texte des jalons : lignesJal.
-    const pan = await page.evaluate(() => ({
-      ouvert: document.getElementById('menuHauteurs').classList.contains('ouvert'),
-      curseurs: [...document.querySelectorAll('#panneauHauteurs .curseur-option')].map((e) => e.dataset.option + '=' + e.value),
-      lignesJal: !!document.querySelector('#panneauHauteurs [data-option="lignesJal"]'),
-      libelle: document.querySelector('#panneauHauteurs .curseur-valeur[data-pour="hauteurLigneOrdi"]').textContent,
-      tous: !!document.querySelector('#panneauHauteurs .hauteurs-tous')
-    }));
-    verifier(pan.ouvert && pan.curseurs.join(',') === 'hauteurLigneOrdi=117,hauteurJalOrdi=32,espaceBullesOrdi=3' /* suite 113 */ && pan.lignesJal && pan.tous,
-      'bouton « Hauteur des lignes » : panneau avec les curseurs Personnes et Jalons/Notes, les lignes de texte des jalons, le lien vers tous les réglages (' + JSON.stringify(pan) + ')');
-    verifier(pan.libelle === Math.round(r.H) + ' px', 'libellé du curseur en pixels (« ' + pan.libelle + ' »)');
-    // Curseur tiré à la place de 3 bulles : événement « input » comme au glisser du pouce.
+    // Suite 122 — Lionel : « Enlever le bouton pour ajuster les hauteur de
+    // ligne. » Plus de panneau : le curseur de la page Affichage fait le
+    // même appel (changerOptionAffichage, léger), tiré ici planning affiché.
+    verifier(await page.evaluate(() => !document.getElementById('btnHauteurs') && !document.getElementById('panneauHauteurs')), 'suite 122 : plus de bouton « Hauteur des lignes » dans la barre');
     const marque = async () => page.evaluate(() => document.querySelector('#racine .scroller .grille').dataset.marque === '1');
     await page.evaluate(() => { document.querySelector('#racine .scroller .grille').dataset.marque = '1'; });
-    const tirer = (id, v) => page.evaluate(([id, v]) => {
-      const e = document.querySelector('#panneauHauteurs .curseur-option[data-option="' + id + '"]');
-      e.value = v; e.dispatchEvent(new Event('input', { bubbles: true }));
-    }, [id, v]);
+    const tirer = (id, v) => page.evaluate(([id, v]) => changerOptionAffichage(id, v, profilAppareil_(), true), [id, v]);
     const px3 = String(Math.round(3 * r.u + 4 * M));
     await tirer('hauteurLigneOrdi', px3);
     await page.waitForTimeout(150);
     r = await releve(page);
-    const lib3 = await page.evaluate(() => [optionAffichage('hauteurLigneOrdi'), document.querySelector('#panneauHauteurs .curseur-valeur[data-pour="hauteurLigneOrdi"]').textContent]);
+    const lib3 = [await page.evaluate(() => optionAffichage('hauteurLigneOrdi'))];
     verifier(proche(r.H, 3 * r.u + 4 * M) && Object.values(r.lignes).every((l) => proche(l.hauteur, r.H)) && await marque(),
       'curseur à ' + px3 + ' px (3 bulles) : lignes de 3 bulles tout de suite, sans reconstruire la grille (H ' + r.H + ')');
     const att3 = hautsAttendus(hauteurs(r.cartes, ['X', 'Y', 'Z', 'W']), r.u, r.H), hX3 = ['X', 'Y', 'Z', 'W'].map((t) => r.cartes[t][0].h - r.lignes.Antoine.h);
     verifier(hX3.every((h, i) => proche(h, att3[i])), 'cascade refaite à la nouvelle hauteur (attendus ' + att3.map(Math.round).join('/') + ', hauts ' + hX3.map(Math.round).join('/') + ')');
-    verifier(lib3[0] === px3 && lib3[1] === px3 + ' px', 'valeur enregistrée et libellé à jour (' + lib3.join(' | ') + ')');
+    verifier(lib3[0] === px3, 'valeur enregistrée (' + lib3.join(' | ') + ')');
     await tirer('hauteurLigneOrdi', '88');
     await page.waitForTimeout(150);
     r = await releve(page);
@@ -170,10 +158,6 @@ const hauteurs = (c, ts) => ts.map((t) => c[t][0].b - c[t][0].h);
     r = await releve(page);
     verifier(proche(r.hJal, 2 * r.uJal + 3 * M) && proche(r.jal, r.hJal) && await marque(), 'curseur Jalons/Notes à ' + pxJ + ' px : ligne Jalons de 2 bulles (' + r.jal + ' px)');
     // Page Affichage : même curseur, même valeur ; anciens réglages retirés.
-    // Le panneau recouvre une partie de la grille : refermé par son bouton.
-    await page.click('#btnHauteurs');
-    await page.waitForTimeout(100);
-    verifier(await page.evaluate(() => !document.getElementById('menuHauteurs').classList.contains('ouvert')), 'le bouton referme le panneau');
     await page.evaluate(() => afficherPage('affichage'));
     await page.waitForTimeout(300);
     const pa = await page.evaluate(() => {
@@ -266,8 +250,8 @@ const hauteurs = (c, ts) => ts.map((t) => c[t][0].b - c[t][0].h);
     await page.waitForTimeout(500);
     const r = await releve(page);
     const hs = Object.values(r.lignes).map((l) => l.hauteur);
-    verifier(proche(r.H, 2 * r.u + 3 * M) && hs.every((h) => proche(h, r.H)) && r.cartes.Coffrage.length === 1 && await page.evaluate(() => !!document.getElementById('btnHauteurs')),
-      'tablette : hauteurs fixes de 2 bulles, une seule carte, bouton des hauteurs (H ' + r.H + ', lignes ' + hs.map(Math.round).join('/') + ')');
+    verifier(proche(r.H, 2 * r.u + 3 * M) && hs.every((h) => proche(h, r.H)) && r.cartes.Coffrage.length === 1,
+      'tablette : hauteurs fixes de 2 bulles, une seule carte (H ' + r.H + ', lignes ' + hs.map(Math.round).join('/') + ')');
     toutesErreurs.push(...erreurs);
     await page.close();
   }

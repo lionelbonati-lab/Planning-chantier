@@ -31,7 +31,7 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //      noms -> les 24 px à droite ;
 //   4. « + » : formulaire à la date du jour affiché (téléphone), à
 //      aujourd'hui (ordinateur) ;
-//   5. panneau « Hauteur des lignes » : « Lignes de texte » (ordinateur et
+//   5. (suite 122 : panneau retiré, plus de bouton) « Lignes de texte » (ordinateur et
 //      téléphone), qui change la hauteur des cartes ; page Affichage rangée
 //      par sujet.
 //
@@ -161,21 +161,17 @@ const echap = async (page) => { await page.keyboard.press('Escape'); await page.
     verifier(/24 sept/.test(dOrdi), '« + » sur ordinateur : aujourd\'hui (' + dOrdi + ')');
     await echap(page);
 
-    // 5. Panneau : « Lignes de texte » entre les bulles par personne et les Jalons.
-    await page.click('#btnHauteurs');
-    await page.waitForTimeout(150);
-    const pan = await page.evaluate(() => [...document.querySelectorAll('#panneauHauteurs .reglage-ligne[data-option]')].map((l) => l.dataset.option).join(','));
-    // Suite 101 : hauteurs en pixels d'abord, puis les lignes de texte.
-    verifier(pan === 'hauteurLigneOrdi,hauteurJalOrdi,espaceBullesOrdi,lignes,lignesJal', // suite 113
-      'panneau « Hauteur des lignes » : ' + pan);
+    // 5. « Lignes de texte » (panneau « Hauteur des lignes » de la barre
+    // retiré à la suite 122 — Lionel : « Enlever le bouton pour ajuster les
+    // hauteur de ligne. » ; le réglage reste sur la page Affichage).
+    verifier(await page.evaluate(() => !document.getElementById('btnHauteurs')), 'suite 122 : plus de bouton « Hauteur des lignes » dans la barre');
     const u2 = await page.evaluate(() => parseFloat(getComputedStyle(racineEl).getPropertyValue('--mob-carte-pers')));
     const h2 = await page.evaluate(() => getComputedStyle(racineEl).getPropertyValue('--mob-h-pers').trim());
-    await page.click('#panneauHauteurs .choix-pastille[data-option="lignes"][data-valeur="3"]');
+    await page.evaluate(() => changerOptionAffichage('lignes', '3', profilAppareil_(), true));
     await page.waitForTimeout(300);
-    const r3 = await page.evaluate(() => ({ u: parseFloat(getComputedStyle(racineEl).getPropertyValue('--mob-carte-pers')), h: getComputedStyle(racineEl).getPropertyValue('--mob-h-pers').trim(), actif: !!document.querySelector('#panneauHauteurs .choix-pastille.actif[data-option="lignes"][data-valeur="3"]'), opt: optionAffichage('lignes') }));
+    const r3 = await page.evaluate(() => ({ u: parseFloat(getComputedStyle(racineEl).getPropertyValue('--mob-carte-pers')), h: getComputedStyle(racineEl).getPropertyValue('--mob-h-pers').trim(), opt: optionAffichage('lignes') }));
     // Suite 101 : la hauteur des lignes, elle, ne change pas.
-    verifier(r3.opt === '3' && r3.actif && r3.u > u2 + 8 && r3.h === h2, 'panneau : « Lignes de texte » à 3, cartes plus hautes (U ' + u2 + ' -> ' + r3.u + '), lignes inchangées (' + h2 + ' -> ' + r3.h + ')');
-    await page.click('#btnHauteurs');
+    verifier(r3.opt === '3' && r3.u > u2 + 8 && r3.h === h2, '« Lignes de texte » à 3, cartes plus hautes (U ' + u2 + ' -> ' + r3.u + '), lignes inchangées (' + h2 + ' -> ' + r3.h + ')');
     // Page Affichage rangée par sujet.
     await page.evaluate(() => afficherPage('affichage'));
     await page.waitForTimeout(250);
@@ -207,10 +203,8 @@ const echap = async (page) => { await page.keyboard.press('Escape'); await page.
     const dj = await page.evaluate(() => { ouvrirAjoutElementBarre('jalon'); return document.querySelector('.form-pop .date-val').textContent; });
     verifier(/23 sept/.test(dj), '« + » jalon sur téléphone : le jour affiché (' + dj + ')');
     await echap(page);
-    // Panneau du téléphone.
-    const pan = await page.evaluate(() => { majPanneauHauteurs(); return [...document.querySelectorAll('#panneauHauteurs .reglage-ligne[data-option]')].map((l) => l.dataset.option).join(','); });
-    verifier(pan === 'hauteurLigneTel,hauteurJalTel,espaceBullesTel,lignes,lignesJal', // suite 113
-      'téléphone, panneau « Hauteur des lignes » : ' + pan);
+    // Panneau du téléphone : retiré à la suite 122.
+    verifier(await page.evaluate(() => !document.getElementById('btnHauteurs')), 'téléphone : plus de bouton « Hauteur des lignes » (suite 122)');
     toutesErreurs.push(...erreurs);
     await page.close();
   }

@@ -154,10 +154,11 @@ assertEqual(
   }),
   {
     type: 'jalon', cible_personne_id: null, cible_demi: null, texte: 'Visite architecte',
-    statut_id: null, important: true, chantier_id: null,
+    statut_id: null, important: true, chantier_id: 7,
     date_debut: '2026-09-07', frequence: 'mois', intervalle: 1, fin_type: 'occurrences', fin_valeur: '3',
   },
-  'série de jalon -> statut/chantier/cible forcés à null (colonnes sans objet pour un jalon), important conservé');
+  // Suite 122 : un jalon (ou une note) en série garde son chantier (pastille).
+  'série de jalon -> statut/cible forcés à null (sans objet pour un jalon), important et chantier conservés');
 
 assertEqual(
   sandbox.champsSerie({ type: 'note', texte: 'Livraison béton', dateDebutIso: '2026-09-07', frequence: 'jour', finType: 'occurrences', finValeur: 1 }).intervalle,

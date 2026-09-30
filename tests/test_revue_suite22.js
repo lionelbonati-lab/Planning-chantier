@@ -223,11 +223,15 @@ const journee = (date, texte, extra) => [tache(date, 'matin', texte, extra), tac
   verifier(!avantRetour && apresRetour, 'retour sur l’appli après 5 min : la semaine est relue (avant ' + avantRetour + ', après ' + apresRetour + ')');
 
   // 7) Grille <-> page Jalons.
+  // Round du 29.09.2026 (suite 122) — Lionel : « Pastille de couleur pour
+  // le chantier dans les notes et jalons » : le chantier n'est plus le fond
+  // de la bulle mais sa pastille (.b-pastille), comme sur la page Jalons.
   const couleur = await page.evaluate(() => {
     const b = Array.from(document.querySelectorAll('.grille .bulle')).find((x) => /Visite/.test(x.textContent));
-    return b ? getComputedStyle(b.querySelector('.b-carte')).backgroundColor : null;
+    const p = b && b.querySelector('.b-carte .b-pastille');
+    return p ? getComputedStyle(p).backgroundColor : null;
   });
-  verifier(couleur === 'rgb(247, 217, 168)', 'grille : jalon rattaché à un chantier peint de la couleur du chantier, comme sur la page Jalons (' + couleur + ')');
+  verifier(couleur === 'rgb(247, 217, 168)', 'grille : jalon rattaché à un chantier, pastille à la couleur du chantier, comme sur la page Jalons (' + couleur + ')');
   const ouvrirOnglet = async (nom) => { await page.locator('.onglet[data-page="' + nom + '"]:visible').first().click(); await page.waitForTimeout(500); };
   const ligneJalon = (tx) => page.evaluate((t) => {
     const l = Array.from(document.querySelectorAll('#listeJalons .ligne-intervenant')).find((x) => x.querySelector('b') && x.querySelector('b').textContent === t);

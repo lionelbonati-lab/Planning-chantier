@@ -251,7 +251,8 @@
     });
     var notes = infos.isoDates.map(function (iso) {
       return (notesParDate[iso] || []).map(function (n) {
-        return { texte: n.texte, important: !!n.important, serieId: n.serie_id || null, demi: n.demi || null };
+        // chantierId : suite 122 (pastille, sql/0026_notes_chantier.sql).
+        return { texte: n.texte, important: !!n.important, serieId: n.serie_id || null, demi: n.demi || null, chantierId: n.chantier_id || null };
       });
     });
 
@@ -813,6 +814,11 @@
       return sbClient.from("series").update({ chantier_id: null }).eq("chantier_id", id);
     }).then(function (res) {
       if (res.error) throw res.error;
+      // Suite 122 : notes.chantier_id est `on delete set null` (sql/0026),
+      // remis à null ici aussi par symétrie avec les jalons.
+      return sbClient.from("notes").update({ chantier_id: null }).eq("chantier_id", id);
+    }).then(function (res) {
+      if (res.error) throw res.error;
       return sbClient.from("chantiers").delete().eq("id", id);
     }).then(function (res) {
       if (res.error) throw res.error;
@@ -1058,7 +1064,10 @@
     // copié garde son chantier ») : toutes les copies (Ctrl+V, Maj+glisser,
     // ⧉ + flèches) passent par ici avec chantierId: it.chantierId — avant,
     // la copie d'un jalon rattaché à un chantier partait sans chantier.
-    if (type === "jalon") item.chantierId = opts.chantierId || null;
+    // Round du 29.09.2026 (suite 122) : une note porte aussi son chantier
+    // (Lionel : « Pastille de couleur pour le chantier dans les notes et
+    // jalons »).
+    if (type === "jalon" || type === "note") item.chantierId = opts.chantierId || null;
     return item;
   }
   // demiDebut/demiFin (round du 08.09.2026, suite — §49) : une tâche/absence
@@ -1242,12 +1251,14 @@
       var data = donnees[Math.floor(gi / 5)];
       return (data && data.notes && data.notes[gi % 5]) || [];
     }
-    function indexNonConsommeCorrespondant_(gi, texte, important) {
+    // chantierId (suite 122) : 2 notes de même texte mais de chantiers
+    // différents restent 2 bulles (pastilles différentes).
+    function indexNonConsommeCorrespondant_(gi, texte, important, chantierId) {
       var arr = notesArrayAuGi_(gi);
       var used = consommes[gi];
       for (var i = 0; i < arr.length; i++) {
         if (used && used[i]) continue;
-        if (arr[i].texte === texte && !!arr[i].important === !!important) return i;
+        if (arr[i].texte === texte && !!arr[i].important === !!important && (arr[i].chantierId || null) === (chantierId || null)) return i;
       }
       return -1;
     }
@@ -1276,14 +1287,14 @@
         while (fin2 + 1 < nJoursFenetre) {
           if (fin2 !== giStart && demiCourant !== null) break;
           if (limiteN && isoDeGiFenetre(donnees, fin2 + 1) >= limiteN) break;
-          var idxSuiv = indexNonConsommeCorrespondant_(fin2 + 1, entree.texte, entree.important);
+          var idxSuiv = indexNonConsommeCorrespondant_(fin2 + 1, entree.texte, entree.important, entree.chantierId);
           if (idxSuiv === -1) break;
           var suiv = notesArrayAuGi_(fin2 + 1)[idxSuiv];
           fin2++;
           marquerConsomme_(fin2, idxSuiv);
           demiCourant = suiv.demi || null;
         }
-        var itn = itemPlage("note", entree.texte, giStart, fin2 - giStart + 1, { important: entree.important, demiDebut: demiN, demiFin: demiCourant });
+        var itn = itemPlage("note", entree.texte, giStart, fin2 - giStart + 1, { important: entree.important, demiDebut: demiN, demiFin: demiCourant, chantierId: entree.chantierId });
         itn.serieId = entree.serieId || null;
         itn.dateDebutIso = isoDeGiFenetre(donnees, giStart);
         NOTES.push(itn);
@@ -1652,7 +1663,7 @@
   // série se gère par series.js, pas par le moteur de diff.
   function notesParId() {
     var out = {};
-    NOTES.forEach(function (n) { out[n.id] = { texte: n.texte, important: !!n.important, giDebut: n.giDebut, duree: n.duree, dateDebutIso: n.dateDebutIso, demiDebut: n.demiDebut || null, demiFin: n.demiFin || null, serieId: n.serieId || null }; });
+    NOTES.forEach(function (n) { out[n.id] = { texte: n.texte, important: !!n.important, giDebut: n.giDebut, duree: n.duree, dateDebutIso: n.dateDebutIso, demiDebut: n.demiDebut || null, demiFin: n.demiFin || null, chantierId: n.chantierId || null, serieId: n.serieId || null }; });
     return out;
   }
   // Nombre de semaines réellement chargées × 5 (et non plus deuxSemaines
@@ -1696,7 +1707,10 @@
     var out = [];
     Object.keys(local.jalonsById).forEach(function (id) {
       var a = local.jalonsById[id], b = base.jalonsById[id];
-      if (b && a.texte === b.texte && !!a.important === !!b.important && a.giDebut === b.giDebut && a.duree === b.duree && (a.demiDebut || null) === (b.demiDebut || null) && (a.demiFin || null) === (b.demiFin || null)) return;
+      // chantierId comparé depuis la suite 122 : le formulaire de la grille
+      // le modifie désormais (base et local viennent du même chargement, un
+      // changement fait par la page « Jalons » ne crée pas d'écart).
+      if (b && a.texte === b.texte && !!a.important === !!b.important && (a.chantierId || null) === (b.chantierId || null) && a.giDebut === b.giDebut && a.duree === b.duree && (a.demiDebut || null) === (b.demiDebut || null) && (a.demiFin || null) === (b.demiFin || null)) return;
       out.push({ action: b ? "modifier" : "creer", id: id, avant: b || null, apres: a });
     });
     Object.keys(base.jalonsById).forEach(function (id) {
@@ -1723,7 +1737,10 @@
     });
     Object.keys(local.notesById).forEach(function (id) {
       var a = local.notesById[id], b = base.notesById[id];
-      if (b && a.texte === b.texte && !!a.important === !!b.important && a.giDebut === b.giDebut && a.duree === b.duree && (a.demiDebut || null) === (b.demiDebut || null) && (a.demiFin || null) === (b.demiFin || null)) return;
+      // chantierId comparé depuis la suite 122 : le formulaire de la grille
+      // le modifie désormais (base et local viennent du même chargement, un
+      // changement fait par la page « Jalons » ne crée pas d'écart).
+      if (b && a.texte === b.texte && !!a.important === !!b.important && (a.chantierId || null) === (b.chantierId || null) && a.giDebut === b.giDebut && a.duree === b.duree && (a.demiDebut || null) === (b.demiDebut || null) && (a.demiFin || null) === (b.demiFin || null)) return;
       out.push({ action: b ? "modifier" : "creer", id: id, avant: b || null, apres: a });
     });
     return out;
@@ -2090,15 +2107,17 @@
         var demiFinNote = d.apres ? (d.apres.demiFin || null) : null;
         if (d.action === "supprimer") {
           dateDeb = d.avant.dateDebutIso; dateFin = isoDeApres(d.avant); texte = ""; important = false; mode = "remplacement";
-          origine = { dateDebut: dateDeb, dateFin: dateFin, texte: d.avant.texte, important: d.avant.important, demiDebut: d.avant.demiDebut || null, demiFin: d.avant.demiFin || null };
+          origine = { dateDebut: dateDeb, dateFin: dateFin, texte: d.avant.texte, important: d.avant.important, demiDebut: d.avant.demiDebut || null, demiFin: d.avant.demiFin || null, chantierId: d.avant.chantierId || null };
         } else {
           dateDeb = d.apres.dateDebutIso || isoDeGi(d.apres.giDebut); dateFin = isoDeApres(d.apres); texte = d.apres.texte; important = d.apres.important;
           mode = d.action === "creer" ? "ajout" : "remplacement";
-          origine = d.avant ? { dateDebut: d.avant.dateDebutIso, dateFin: isoDeApres(d.avant), texte: d.avant.texte, important: d.avant.important, demiDebut: d.avant.demiDebut || null, demiFin: d.avant.demiFin || null } : null;
+          origine = d.avant ? { dateDebut: d.avant.dateDebutIso, dateFin: isoDeApres(d.avant), texte: d.avant.texte, important: d.avant.important, demiDebut: d.avant.demiDebut || null, demiFin: d.avant.demiFin || null, chantierId: d.avant.chantierId || null } : null;
         }
         return invoquerFonctionServeur("enregistrer-plage", {
           kind: "note", dateDebut: dateDeb, dateFin: dateFin, demiDebut: demiDebNote, demiFin: demiFinNote,
-          texte: texte, important: important, mode: mode, origine: origine
+          // chantierId (suite 122) : celui de la bulle, envoyé à chaque
+          // écriture (null = sans chantier, pas de pastille).
+          texte: texte, important: important, chantierId: d.apres ? (d.apres.chantierId || null) : null, mode: mode, origine: origine
         }).then(function () { return d.apres ? reposerSerie_("notes", dateDeb, dateFin, texte, d.apres.serieId) : null; });
       });
     });

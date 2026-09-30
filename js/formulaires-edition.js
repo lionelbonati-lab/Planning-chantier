@@ -1096,12 +1096,18 @@
       debutHorsFenetreIso: null, finHorsFenetreIso: null,
       demiDebut: itemExisting ? (itemExisting.demiDebut || null) : (demiDebutArg !== undefined ? demiDebutArg : null),
       demiFin: itemExisting ? (itemExisting.demiFin || null) : (demiFinArg !== undefined ? demiFinArg : null),
-      important: itemExisting ? itemExisting.important : false
+      important: itemExisting ? itemExisting.important : false,
+      // Round du 29.09.2026 (suite 122) — Lionel : « ajouter le chantier aux
+      // formulaires note et jalons. » Aucun par défaut (pas de pastille).
+      chantierId: itemExisting ? (itemExisting.chantierId || null) : null
     };
 
     var pop = document.createElement("div");
     pop.className = "pop form-pop carte-item";
     var texteInit = itemExisting ? itemExisting.texte : "";
+    // Même champ que les pages Jalons/Notes (champChantierJalonHTML) : la
+    // pastille suit le choix sans redessiner le reste du bandeau.
+    var chantierFicheHTML = function () { return '<span class="chantier-fiche-zone">' + champChantierJalonHTML(state.chantierId) + '</span>'; };
     var libelles = { jalon: "Jalon", note: "Note" };
     // Série : jamais pour un jalon (Lionel, round du 08-11.09.2026 —
     // "Série sur Notes, tâches et absences", jalon volontairement exclu).
@@ -1113,7 +1119,7 @@
     var champSerie = itemExisting ? (itemExisting.serieId ? serieInfoExistanteHTML() : "") : (kind === "jalon" ? "" : serieChampsHTML());
 
     pop.innerHTML =
-      bandeauHTML({ clair: true, fondStyle: "background:var(--" + kind + "-bg)", important: state.important, chantierHTML: "", nomGrand: libelles[kind] }) +
+      bandeauHTML({ clair: true, fondStyle: "background:var(--" + kind + "-bg)", important: state.important, chantierHTML: chantierFicheHTML(), nomGrand: libelles[kind] }) +
       datesPlageHTML(state.giDebut, state.giFin, state.demiDebut, state.demiFin, state.debutHorsFenetreIso, state.finHorsFenetreIso) +
       '<div class="contenu-carte">' +
       '<div class="corps"><div class="label-champ" style="margin:0 0 6px">Descriptif</div>' +
@@ -1138,6 +1144,14 @@
       state.important = !state.important;
       this.classList.toggle("actif", state.important);
     });
+    (function cablerChantierFiche() {
+      var sel = pop.querySelector(".f-chantier-jalon");
+      if (sel) sel.addEventListener("change", function () {
+        state.chantierId = sel.value ? +sel.value : null;
+        pop.querySelector(".chantier-fiche-zone").outerHTML = chantierFicheHTML();
+        cablerChantierFiche();
+      });
+    })();
     function rafraichirDates() {
       pop.querySelector(".dates-plage").outerHTML = datesPlageHTML(state.giDebut, state.giFin, state.demiDebut, state.demiFin, state.debutHorsFenetreIso, state.finHorsFenetreIso);
       cablerDatesPlage(pop, state, rafraichirDates);
@@ -1168,7 +1182,7 @@
     pop.querySelector(".f-ok").addEventListener("click", function () {
       var texte = texteActuel.trim();
       if (!texte) { fermer(); return; }
-      var important = state.important;
+      var important = state.important, chantierId = state.chantierId;
       // §88 — isoDebutVrai/isoFinVrai (jamais isoDeGi(giDebutFinal) seul,
       // qui donnerait la date du bord VISIBLE clampé, pas la vraie date,
       // dès que l'une des 2 bornes est hors fenêtre) + dureeFinal en jours
@@ -1191,7 +1205,7 @@
       if (itemExisting) {
         function appliquerModifUnique() {
           sauvegarderUndo();
-          itemExisting.texte = texte; itemExisting.important = important;
+          itemExisting.texte = texte; itemExisting.important = important; itemExisting.chantierId = chantierId;
           itemExisting.giDebut = giDebutFinal; itemExisting.duree = dureeFinal;
           itemExisting.demiDebut = demiDebutFinal; itemExisting.demiFin = demiFinFinal;
           itemExisting.dateDebutIso = isoDebutVrai;
@@ -1203,7 +1217,7 @@
         if (itemExisting.serieId) {
           fermer();
           enregistrerFicheSerie(kind === "jalon" ? "JALONS" : "NOTES", itemExisting,
-            Object.assign({}, itemExisting, { texte: texte, important: important }),
+            Object.assign({}, itemExisting, { texte: texte, important: important, chantierId: chantierId }),
             { debut: isoDebutVrai, fin: isoFinVrai, demiDebut: demiDebutFinal, demiFin: demiFinFinal },
             !!(state.debutHorsFenetreIso || state.finHorsFenetreIso));
           return;
@@ -1216,14 +1230,16 @@
           // dureeFinal/demiDebutFinal/demiFinFinal (round du 15.09.2026) :
           // même correctif que côté ouvrirEdition ci-dessus, pour un
           // jalon/note en série couvrant plusieurs jours.
-          creerSerieServeur(kind, [{}], giDebutFinal, texte, important, null, null, choixSerie, function (r) {
+          // Chantier (suite 122) : passé par son nom, comme pour une tâche.
+          var chSerie = chantierId != null ? (etat.chantiers.filter(function (c) { return String(c.ligne) === String(chantierId); })[0] || null) : null;
+          creerSerieServeur(kind, [{}], giDebutFinal, texte, important, chSerie ? chSerie.nom : null, null, choixSerie, function (r) {
             apresEcritureSerie(r); toast("Série ajoutée.");
           }, dureeFinal, demiDebutFinal, demiFinFinal).catch(function (err) {
             toast("Échec de la création de la série : " + (err && err.message ? err.message : err));
           });
         } else {
           sauvegarderUndo();
-          liste.push(itemPlage(kind, texte, giDebutFinal, dureeFinal, { important: important, demiDebut: demiDebutFinal, demiFin: demiFinFinal }));
+          liste.push(itemPlage(kind, texte, giDebutFinal, dureeFinal, { important: important, chantierId: chantierId, demiDebut: demiDebutFinal, demiFin: demiFinFinal }));
           liste[liste.length - 1].dateDebutIso = isoDebutVrai;
           fermer(); render(); toast("Ajouté.");
         }
