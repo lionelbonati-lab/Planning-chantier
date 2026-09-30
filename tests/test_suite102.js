@@ -17,7 +17,7 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //      droit + glisser ne sélectionne rien (suite 109) ; rouvert : toujours appuyé ;
 //      rappuyé : mode sélection ;
 //   3. téléphone, mode sélection : appui long puis glisser = zone
-//      sélectionnée ; appui long sans bouger = rien ; glisser rapide =
+//      sélectionnée ; appui long sans bouger = menu de la case (suite 124) ; glisser rapide =
 //      défilement, rien de sélectionné ; mode ajout : appui long = popup.
 //
 // Suite 112 : le mode ajout a sa propre icône, #btnModeAjout ; le « + »
@@ -172,7 +172,10 @@ async function doigt(page, de, vers, attente) {
     verifier(t1 && t2, 'téléphone : cases du jeudi trouvées');
     await doigt(page, t1, null, 600);
     let s = await selection(page), p = await popup(page);
-    verifier(s.length === 0 && !p.menu && !p.form, 'mode sélection : appui long sans bouger = rien ' + JSON.stringify([s, p]));
+    // Suite 124 (« Règle proposée » : appui long = menu) : l'appui long
+    // sans bouger ouvre le menu de la case (le même qu'au clic droit).
+    verifier(s.length === 0 && p.menu && !p.form, 'mode sélection : appui long sans bouger = menu de la case, rien de sélectionné ' + JSON.stringify([s, p]));
+    await fermerPopups(page);
     // Suite 108 : fenêtre libre, de la case vide de la personne 2 jusqu'au
     // centre de « Quatre » (elle passe sur « Trois »).
     await doigt(page, t2, await centre(page, 'Quatre'), 500);

@@ -756,11 +756,22 @@
     // sélection telle qu'elle est maintenant affichée (même règle qu'au
     // pointerdown : bulle sélectionnée -> toute la sélection, sinon elle
     // seule) : cf. fantomesARefaire plus haut.
+    //
+    // Round du 29.09.2026 (suite 124). Lionel : « Uniformiser les gestes
+    // touch dans l'ensemble, », puis « Règle proposée » à notre proposition
+    // (toucher = sélectionner · double toucher = modifier · appui long =
+    // menu · appui long puis glisser = déplacer · glisser sur le vide =
+    // défiler). AU DOIGT, l'appui long ne sert plus à la sélection
+    // multiple : il fait de la bulle la sélection (ajoutée si le mode
+    // multiple est allumé), puis le relâchement sans glisser ouvre le menu
+    // de la bulle (le même qu'au clic droit, avec « Sélection multiple »),
+    // et un glisser la déplace. À la souris, rien ne change.
     var appuiLong = false;
     var minuteurAppuiLong = setTimeout(function () {
       if (bouge || enDefilement) return;
       appuiLong = true;
-      if (!modeSelectionMultiple && bullesSelectionnees[idClic]) { modeSelectionMultiple = true; majBarreSelection(); }
+      if (tactile) { if (!bullesSelectionnees[idClic]) basculerSelection(idClic, false); }
+      else if (!modeSelectionMultiple && bullesSelectionnees[idClic]) { modeSelectionMultiple = true; majBarreSelection(); }
       else basculerSelection(idClic, true);
       groupeIds = bullesSelectionnees[idClic] ? Object.keys(bullesSelectionnees) : [idClic];
       if (arme) { nettoyerFantomes(); fantomesARefaire = true; }
@@ -1464,7 +1475,27 @@
       detacher();
       if (enDefilement) { nettoyerFantomes(); return; }
       // appuiLong : la sélection a déjà été faite par le minuteur (suite 11).
-      if (!arme || !bouge) { nettoyerFantomes(); if (!appuiLong) resoudreClicBulle(idClic, !tactile && (e2.ctrlKey || e2.metaKey)); return; }
+      // Au doigt (suite 124) : appui long relâché sur place = menu de la
+      // bulle ; 2e toucher rapproché sur la même bulle = sa fiche.
+      if (!arme || !bouge) {
+        nettoyerFantomes();
+        if (tactile && appuiLong) { dernierToucherBulle_ = { id: null, t: -1e9 }; ouvrirMenuContexteBulle(bulleDom, e2.clientX, e2.clientY); return; }
+        if (tactile && !appuiLong) {
+          var tToucher = performance.now();
+          if (dernierToucherBulle_.id === idClic && tToucher - dernierToucherBulle_.t < DELAI_DOUBLE_TOUCHER) {
+            dernierToucherBulle_ = { id: null, t: -1e9 };
+            var pFiche = itemParId(idClic);
+            if (pFiche) {
+              if (!bullesSelectionnees[idClic]) basculerSelection(idClic, false);
+              ouvrirBulle(pFiche.item, pFiche, e2.clientX, e2.clientY);
+            }
+            return;
+          }
+          dernierToucherBulle_ = { id: idClic, t: tToucher };
+        }
+        if (!appuiLong) resoudreClicBulle(idClic, !tactile && (e2.ctrlKey || e2.metaKey));
+        return;
+      }
       if (cibleRang) {
         var viseeRang = cibleRang.item;
         cibleRang = null;
@@ -1489,6 +1520,10 @@
     document.addEventListener("pointercancel", onCancel);
   }
 
+  // Double toucher d'une bulle (suite 124) : 2 touchers de la même bulle
+  // à moins de DELAI_DOUBLE_TOUCHER ms (comme le double toucher d'un nom,
+  // js/grille-hauteurs.js, et d'une case, plus bas).
+  var DELAI_DOUBLE_TOUCHER = 400, dernierToucherBulle_ = { id: null, t: -1e9 };
   function onPointerDownBulle(e) {
     e.preventDefault(); e.stopPropagation();
     // Suite 114 : clic droit = menu de la bulle, au relâchement.
@@ -1735,9 +1770,12 @@
       }
       if (e.pointerType === "touch" && !modeAjoutPlanning) {
         var maintenant = Date.now();
-        var estDoubleTap = dernierTapCellule === cell && (maintenant - dernierTapTemps) < 400;
+        var estDoubleTap = dernierTapCellule === cell && (maintenant - dernierTapTemps) < DELAI_DOUBLE_TOUCHER;
         dernierTapCellule = cell; dernierTapTemps = maintenant;
-        if (estDoubleTap) { dernierTapCellule = null; e.preventDefault(); demarrerSelectionRapide(e, cell); return; }
+        // Suite 124 : double toucher = « modifier » la case, c'est-à-dire
+        // y ajouter (menu Ajouter, comme un clic en mode ajout), au
+        // relâchement sur place. Il ne sélectionnait plus que la case.
+        if (estDoubleTap) { dernierTapCellule = null; e.preventDefault(); menuContexteAuRelacher_(e, function (x, y) { ouvrirAjout(cell, x, y); }); return; }
       } else if (e.button !== 0) return;
       // Suite 102 : souris en mode sélection — le glisser gauche sélectionne
       // (y compris quand des bulles sont déjà sélectionnées : il n'y a plus
@@ -1748,7 +1786,7 @@
         demarrerSelectionRapide(e, cell, { clicSimple: true, remplacer: !(e.ctrlKey || e.metaKey || e.shiftKey) });
         return;
       }
-      if (Object.keys(bullesSelectionnees).length > 0) { e.preventDefault(); demarrerDefilementOuSortieSelection(e, cell); return; }
+      if (Object.keys(bullesSelectionnees).length > 0) { e.preventDefault(); demarrerDefilementOuSortieSelection(e, cell, modeAjoutPlanning ? null : function (x, y) { ouvrirMenuContexteCase(cell, x, y); }); return; }
       e.preventDefault();
       var sx = e.clientX, sy = e.clientY, dernierX = e.clientX, dernierY = e.clientY, dernierT = e.timeStamp;
       var kind = cell.dataset.kind;
@@ -1772,12 +1810,14 @@
 
       // Suite 102 : doigt en mode sélection — l'appui long passe la main à
       // demarrerSelectionRapide (même pointerId, suivi depuis la position
-      // courante du doigt) au lieu d'armer un ajout.
+      // courante du doigt) au lieu d'armer un ajout. Suite 124 : relâché
+      // sans glisser, l'appui long ouvre le menu de la case (le même qu'au
+      // clic droit) ; appui long puis glisser = zone, comme avant.
       var ajout = modeAjoutPlanning;
       function armerSelection() {
         if (!ajout && e.pointerType === "touch") {
           detacher();
-          demarrerSelectionRapide({ pointerId: pointerId, clientX: dernierX, clientY: dernierY }, cell, { clicSimple: true });
+          demarrerSelectionRapide({ pointerId: pointerId, clientX: dernierX, clientY: dernierY }, cell, { surClic: function (x, y) { ouvrirMenuContexteCase(cell, x, y); } });
           return;
         }
         arme = true; cell.classList.add("armement-selection"); document.body.classList.add("en-glissement");
@@ -2157,6 +2197,10 @@
     var n = Object.keys(bullesSelectionnees).length, item = plage.item, suffixe = n > 1 ? " (" + n + ")" : "";
     var items = [];
     if (n === 1) items.push({ libelle: "Modifier…", action: function () { ouvrirBulle(item, plage, x, y); } }, null);
+    // Suite 124 : au doigt, l'appui long ouvre ce menu au lieu d'allumer la
+    // sélection multiple ; elle s'allume ici (les touchers suivants
+    // ajoutent ou retirent des bulles, comme avant).
+    if (!selectionALaSouris_ && !modeSelectionMultiple) items.push({ libelle: "Sélection multiple", action: function () { modeSelectionMultiple = true; majBarreSelection(); toast("Sélection multiple : touchez d’autres bulles pour les ajouter."); } }, null);
     items.push({ libelle: "Couper" + suffixe, action: couperSelection }, { libelle: "Copier" + suffixe, action: copierSelection });
     if (pressePapier.length) items.push({ libelle: "Coller ici (" + pressePapier.length + ")", action: function () { collerSurCase(item.personneId, item.giDebut, item.demiDebut || "matin"); } });
     items = items.concat(itemsImportantStatut_());
@@ -2171,9 +2215,18 @@
   // qu'à armer un panoramique tactile (demarrerDefilementSimple) — un simple
   // clic/tap SANS glissé n'y déclenchait donc rigoureusement rien. Il quitte
   // désormais le mode sélection ; un vrai glissé (panoramique) reste inchangé.
-  function demarrerDefilementOuSortieSelection(e, cell) {
+  // surAppuiLong (suite 124, doigt en mode sélection) : appui long sur
+  // place = la main passe à demarrerSelectionRapide — relâché sans glisser,
+  // menu de la case (Coller, Couper / Copier la sélection, Important,
+  // Statut…) ; glisser = zone ajoutée à la sélection.
+  function demarrerDefilementOuSortieSelection(e, cell, surAppuiLong) {
     var pointerId = e.pointerId;
     var sx = e.clientX, sy = e.clientY, dernierX = sx, dernierY = sy, dernierT = e.timeStamp;
+    var minuteurAppui = e.pointerType === "touch" && surAppuiLong ? setTimeout(function () {
+      if (bouge) return;
+      detacher();
+      demarrerSelectionRapide({ pointerId: pointerId, clientX: dernierX, clientY: dernierY }, cell, { surClic: surAppuiLong });
+    }, DELAI_SELECTION) : null;
     var scroller = trouverScroller(cell);
     // defilementManuel (round du 23.09.2026, suite ×12) : cf. son
     // commentaire dans creerDefilementManuel plus haut — ce panoramique (en
@@ -2183,13 +2236,14 @@
     var bouge = false;
     function onMove(e2) {
       if (e2.pointerId !== pointerId) return;
-      if (Math.abs(e2.clientX - sx) + Math.abs(e2.clientY - sy) > 4) bouge = true;
+      if (Math.abs(e2.clientX - sx) + Math.abs(e2.clientY - sy) > 4) { bouge = true; clearTimeout(minuteurAppui); }
       defilementManuel.suivre(e2.clientX - dernierX, e2.clientY - dernierY, e2.timeStamp - dernierT);
       dernierX = e2.clientX; dernierY = e2.clientY; dernierT = e2.timeStamp;
     }
     function onUp(e2) { if (e2.pointerId !== pointerId) return; detacher(); if (!bouge) { quitterModeSelection(); render(false); } }
     function onCancel(e2) { if (e2.pointerId !== pointerId) return; detacher(); }
     function detacher() {
+      clearTimeout(minuteurAppui);
       if (bouge) defilementManuel.relacher();
       document.removeEventListener("pointermove", onMove);
       document.removeEventListener("pointerup", onUp);

@@ -10828,3 +10828,23 @@ Lionel :
 - Nouveau : tests/test_suite123.js (26 vérifications).
 - Mis à jour (menu d'une bulle avec « Marquer important ») : test_suite114.js.
 - Mis à jour (tests de la pilule écrits à la souris, qui la gardent visible par l'assistant piluleCommeAuDoigt d'aide_tests.js) : test_corrections_suite21.js, test_important_selection.js, test_selection_bulles.js, test_series_agenda.js, test_suite69.js.
+
+## 237. Round du 29.09.2026 (suite 124) — Gestes au doigt uniformisés
+- Lionel : « Uniformiser les gestes touch dans l'ensemble, », puis « Règle proposée » à notre proposition : toucher = sélectionner · double toucher = modifier · appui long = menu · appui long puis glisser = déplacer · glisser sur le vide = défiler.
+- Bulle, au doigt :
+  - toucher : la sélectionne (inchangé) ;
+  - double toucher : ouvre sa fiche ;
+  - appui long, relâché sur place : la bulle devient la sélection (ajoutée si la sélection multiple est allumée), puis son menu s'ouvre, le même qu'au clic droit ;
+  - appui long puis glisser : la déplace (inchangé).
+- L'appui long au doigt n'allume plus la sélection multiple. Elle s'allume par « Sélection multiple » dans le menu de la bulle ; les touchers suivants ajoutent ou retirent des bulles, comme avant. La sélection par zone (appui long puis glisser sur le vide) reste aussi.
+- Case vide, au doigt, en mode sélection :
+  - appui long relâché sur place : menu de la case (Ajouter, Coller, Couper / Copier la sélection, Important, Statut), aussi quand des bulles sont sélectionnées, qui le restent ;
+  - appui long puis glisser : zone sélectionnée (inchangé) ;
+  - double toucher : menu Ajouter. Il sélectionnait les bulles de la case ;
+  - glisser : défilement (inchangé).
+- Noms : déjà sur cette règle (toucher = choisir la ligne, double toucher = modifier le nom, appui long = menu).
+- Mode ajout et souris : rien ne change.
+
+### Tests
+- Nouveau : tests/test_suite124.js (15 vérifications, tablette au doigt).
+- Mis à jour (appui long = menu) : test_selection_bulles.js, test_suite102.js.
