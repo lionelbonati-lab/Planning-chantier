@@ -119,8 +119,8 @@ function mesurerLignes(page) {
         titre: bas.title, barreOutils: document.getElementById('groupeNotifications').getBoundingClientRect().width,
         menu: !!document.querySelector('#toolbarSecondaire #groupeNotifications') };
     });
-    verifier(m.visible && m.compte === '2' && m.fond === 'rgb(179, 55, 47)' && m.titre === 'Notifications — 2 tâches «\u00a0à réserver\u00a0»',
-      '390 px : « Notifications » (ex-« À réserver », suite 81) dans la barre du bas, compteur 2 en rouge (' + JSON.stringify(m) + ')');
+    verifier(m.visible && m.compte === '3' && m.fond === 'rgb(179, 55, 47)' && m.titre === 'Notifications — 1 important (7 jours), 2 tâches «\u00a0à réserver\u00a0»',
+      '390 px : « Notifications » (ex-« À réserver », suite 81) dans la barre du bas, compteur 3 en rouge (2 à réserver + le jalon important, suite 125) (' + JSON.stringify(m) + ')');
     verifier(m.barreOutils === 0 && !m.menu, '390 px : plus dans la barre d\'outils du planning ni dans « ⋮ »');
     if (CAPTURES) await page.screenshot({ path: CAPTURES + '/s53-a-reserver-bas.png' });
     // Depuis une autre page : ouvert, puis clic sur une ligne → planning, ce jour.
@@ -128,11 +128,11 @@ function mesurerLignes(page) {
     await page.waitForTimeout(300);
     verifier(await page.$eval('#btnNotificationsNavBas', (b) => b.getBoundingClientRect().width > 0), '390 px : visible aussi sur l\'onglet Chantiers');
     await page.click('#btnNotificationsNavBas');
-    await page.waitForSelector('.pop-notifications .ar-ligne');
+    await page.waitForSelector('.pop-notifications .ar-ligne:not(.imp-ligne)');
     if (CAPTURES) await page.screenshot({ path: CAPTURES + '/s53-a-reserver-resume.png' });
-    const lignes = await page.$$eval('.pop-notifications .ar-ligne', (ls) => ls.map((l) => l.textContent));
+    const lignes = await page.$$eval('.pop-notifications .ar-ligne:not(.imp-ligne)', (ls) => ls.map((l) => l.textContent));
     verifier(lignes.length === 2 && /Tableau électrique/.test(lignes[1]), '390 px : le résumé s\'ouvre depuis la barre du bas (' + lignes.join(' ‖ ') + ')');
-    await page.click('.pop-notifications .ar-ligne >> nth=1');
+    await page.click('.pop-notifications .ar-ligne:not(.imp-ligne) >> nth=1');
     await page.waitForTimeout(700);
     const apres = await page.evaluate(() => ({ planning: document.getElementById('page-planning').classList.contains('actif'), nom: document.getElementById('switcherNom').textContent,
       semaine: etat.semaines[etat.indexSemaine].debut, jour: typeof jourMobileIso !== 'undefined' ? jourMobileIso : null, pop: !!document.querySelector('.pop-notifications') }));
