@@ -10958,3 +10958,37 @@ Lionel :
 ### Tests
 - Nouveau : tests/test_suite130.js (15 vérifications : absencePartielle ; bulle rayée ; menu « Arrivée / départ » (pas pour une équipe) ; Arrivée, Départ, Quelques heures sur 2 jours, heures à l'envers ; page de l'ouvrier : pointillé, 3 sortes de demande envoyées, modifier une demande et une absence du bureau).
 - Suite complète : 134/134.
+
+
+## 244. Round du 30.09.2026 (suite 131) — Équipes modulables : exceptions par demi-journée
+- Lionel (page Améliorations et bugs, amélioration n° 3) : « J'aimerai que les équipes soient plus modulable, possibilité d'ajouter/retirer une personnes un ou plusieurs jours/demi-jour. Propose moi des solutions. »
+- Son choix : « Exceptions ». La composition de la semaine reste la base, et on retire ou ajoute une personne pour une ou plusieurs demi-journées.
+- Case d'un membre (clic, clic droit ou plage glissée en mode ajout) : section « Équipe » en bas du menu :
+  - « Retirer de l'équipe X » là où la personne en fait partie ; si elle y avait été ajoutée, l'ajout est effacé ;
+  - « Remettre dans l'équipe X » là où elle en a été retirée ;
+  - sur plusieurs lignes à la fois, le nombre de personnes concernées est indiqué.
+- Ligne d'équipe : « Ajouter quelqu'un › » (les personnes hors de l'équipe à ces demi-journées) et « Retirer quelqu'un › » (celles qui y sont), à côté de « Pour un membre ». Une personne n'est que dans une équipe à la fois : l'ajouter ici la sort de la sienne pour ces demi-journées.
+- Planning :
+  - case retirée hachurée de gris, « Hors équipe » en bas à droite ;
+  - case d'une personne ajoutée teintée à la couleur de l'équipe, « + Équipe A » ;
+  - l'équipe affiche « Luc, Marc, +Paul », avec le détail des exceptions de la semaine dans l'info-bulle ;
+  - un membre retiré reste visible sous son équipe repliée, comme un membre absent.
+- Les tâches restent sur la ligne d'équipe.
+- Vue ouvrier : l'ouvrier retiré ne voit plus la tâche de l'équipe ces demi-journées ; la personne ajoutée la voit (voir BACKEND-CHANGELOG §35).
+- Impression :
+  - « +Paul » dans les noms de l'équipe ;
+  - « Hors équipe » / « + Équipe A » dans les cases ;
+  - la ligne d'une personne concernée est imprimée même sans tâche.
+- Code : js/equipes.js (estMembreEquipeLe, exceptionCase, marquerExceptionsEquipes, ajouterEntreesExceptions_), chargement non bloquant dans js/donnees-sync.js, js/impression.js, style.css.
+
+### Tests
+- Nouveau : tests/test_suite131.js (11 vérifications) :
+  - la règle ;
+  - le chargement : « Hors équipe », membre visible sous l'équipe repliée, info-bulle ;
+  - « Ajouter quelqu'un › » : ligne en base, « + Équipe A », « +Paul » ;
+  - clic droit « Retirer de l'équipe » ;
+  - plage « Remettre » ;
+  - retirer une personne ajoutée ;
+  - impression.
+- Suite complète : 135/135.
+

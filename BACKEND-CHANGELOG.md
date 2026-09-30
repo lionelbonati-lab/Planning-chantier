@@ -2032,3 +2032,25 @@ Fichier : sql/0031_absences_partielles.sql (migration `absences_partielles`).
 - Demandes d'arrivée / de départ des ouvriers : fonctions existantes, l'heure dans le type (limite de 60 caractères déjà en place).
 - Vérifié sur le projet : « Départ 16h15 » (17 sept.) et « Rdv médical 13h00 - 14h00 » (1er oct.) partielles, la tâche de l'équipe reste ; « Congé » et « 80% » complètes, la tâche de l'équipe disparaît.
 - Aucun nouveau conseil de sécurité Supabase.
+
+---
+
+## 35. Round du 30.09.2026 (suite 131) — équipes modulables : exceptions par demi-journée
+
+Lionel (page Améliorations et bugs, amélioration n° 3) : « J'aimerai que les équipes soient plus modulable, possibilité d'ajouter/retirer une personnes un ou plusieurs jours/demi-jour. Propose moi des solutions. »
+Son choix : « Exceptions ».
+
+Fichier : sql/0032_equipes_exceptions.sql (migration `equipes_exceptions`).
+
+- equipes_exceptions : une ligne par (équipe, personne, date, demi), avec la sorte `retrait` ou `ajout`.
+  - Suppression en cascade avec l'équipe ou la personne.
+  - Unique sur les 4 colonnes.
+  - RLS : utilisateurs connectés (« connecte_tout »), rien pour anon.
+- equipe_membre_(équipe, personne, date, demi) : ajoutée ici → membre ; sinon membre de la composition en vigueur ET ni retirée ici, ni ajoutée à une autre équipe à cette demi-journée. Même règle que estMembreEquipeLe (js/equipes.js). Aucun droit pour anon / authenticated.
+- consultation_planning : les tâches d'équipe envoyées à l'ouvrier suivent equipe_membre_. La règle d'absence de la suite 130 est inchangée.
+- Sauvegardes : equipes_exceptions ajoutée à tables_sauvegardees_ (17 tables).
+- Vérifié sur le projet, dans une transaction annulée ensuite :
+  - un retrait du matin retire la tâche d'équipe de la vue de l'ouvrier ;
+  - un ajout la fait apparaître.
+- Aucun nouveau conseil de sécurité Supabase.
+

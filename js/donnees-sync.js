@@ -400,7 +400,11 @@
       // js/page-mise-en-page.js) : mise en page de l'impression. Non
       // bloquante : sans elle, le dernier réglage retenu sur l'appareil
       // (ou celui par défaut) s'applique.
-      sbClient.from("reglages").select("cle, valeur")
+      sbClient.from("reglages").select("cle, valeur"),
+      // Exceptions d'équipe par demi-journée (round du 30.09.2026, suite 131
+      // — sql/0032, js/equipes.js) : non bloquante, comme les compositions.
+      // Sans elle, les équipes suivent leur seule composition de la semaine.
+      sbClient.from("equipes_exceptions").select(COLONNES_EXCEPTIONS)
     ]).then(function (r) {
       r.slice(0, 4).forEach(function (res) { if (res.error) throw res.error; }); // ces 4-là restent bloquantes, comme avant
       var personnesBrutes = r[0].data || [], chantiersBruts = r[1].data || [], statutsBruts = r[2].data || [], feriesBruts = r[3].data || [];
@@ -435,6 +439,7 @@
       reconstruireFeriesParIso();
       etat.horairesServeur = (r[6] && !r[6].error) ? normaliserHoraires(r[6].data || []) : [];
       etat.compositionsEquipes = (r[7] && !r[7].error) ? normaliserCompositions(r[7].data || []) : [];
+      etat.exceptionsEquipes = (r[9] && !r[9].error) ? normaliserExceptions(r[9].data || []) : [];
       // etat.reglages : { cle: valeur } — null si la requête a échoué (la
       // mise en page retombe alors sur son cache local, cf.
       // lireMiseEnPage, js/page-mise-en-page.js).

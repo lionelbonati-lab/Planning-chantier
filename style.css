@@ -892,6 +892,26 @@
     background-image: repeating-linear-gradient(135deg, color-mix(in srgb, var(--absence-bg) 80%, transparent) 0 5px, transparent 5px 11px) !important;
     box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--absence-bg) 70%, var(--ink));
   }
+  /* Round du 30.09.2026 (suite 131) — Lionel : « J'aimerai que les équipes
+     soient plus modulable, possibilité d'ajouter/retirer une personnes un
+     ou plusieurs jours/demi-jour. » (choix « Exceptions », js/equipes.js).
+     Case d'un membre retiré de son équipe : hachures grises et « Hors
+     équipe » ; case d'une personne ajoutée à une équipe : teinte et
+     « + Équipe » à la couleur de l'équipe (l'accent sans couleur). Le mot
+     est posé en bas à droite, sous les bulles (z-index 1 < 2). */
+  .cell.hors-equipe {
+    background-image: repeating-linear-gradient(135deg, color-mix(in srgb, var(--ink-faint) 30%, transparent) 0 4px, transparent 4px 9px) !important;
+  }
+  .cell.ajout-equipe {
+    background-image: linear-gradient(color-mix(in srgb, var(--couleur-exception, var(--accent)) 16%, transparent), color-mix(in srgb, var(--couleur-exception, var(--accent)) 16%, transparent)) !important;
+    box-shadow: inset 3px 0 0 var(--couleur-exception, var(--accent));
+  }
+  .cell.hors-equipe::after, .cell.ajout-equipe::after {
+    content: attr(data-exception); position: absolute; right: 4px; bottom: 2px; z-index: 1; pointer-events: none;
+    max-width: calc(100% - 8px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-size: 10px; font-weight: 700; line-height: 1.2; color: var(--ink-muted);
+  }
+  .cell.ajout-equipe::after { color: color-mix(in srgb, var(--couleur-exception, var(--accent)) 70%, var(--ink)); }
   .da-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
   .da-liste li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 8px 10px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 9px; }
   .da-infos { flex: 1 1 220px; min-width: 0; display: flex; flex-wrap: wrap; gap: 2px 8px; overflow-wrap: anywhere; }
@@ -3200,6 +3220,8 @@
   /* Sans couleurs (réglage) : nom du chantier en petit sous la tâche —
      Lionel : « Si les couleurs sont enlevées, prévoir de noter le nom du
      chantier ». */
+  /* Suite 131 : « Hors équipe » / « + Équipe » dans la case imprimée. */
+  table.print-table .print-exception { display: block; font-size: calc(8.5px * var(--impr-echelle, 1)); font-weight: 700; font-style: italic; color: var(--ink-muted); }
   table.print-table .print-chantier { display: block; font-size: calc(8.5px * var(--impr-echelle, 1)); font-weight: 600; color: var(--ink-muted); margin-top: 1px; }
   /* Rendu Noir et blanc (round du 25.09.2026, suite 45 — Lionel :
      « impression noir et blanc à la place de couleurs chantiers » ; les
