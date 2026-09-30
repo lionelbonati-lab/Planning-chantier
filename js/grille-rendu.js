@@ -2147,6 +2147,7 @@
     if (sync !== false) synchroniser();
     planifierMajAReserver(); // tâches « À réserver » (suite 47, js/a-reserver.js), comptées dans « Notifications » (suite 81)
     apresRenduDemandes(); // demandes d'absence des liens de consultation (suite 69, js/demandes-absence.js)
+    marquerExceptionsEquipes(); // « Hors équipe » / « + Équipe » (suite 131, js/equipes.js)
   }
 
   function bulleEl(it) {

@@ -232,6 +232,7 @@
     var giRapide = +cell.dataset.jour;
     cablerBoutonsMenuAjout(pop, fermer, cell, x, y, cibleRapide, giRapide, 1, null, cell.dataset.demi, cell.dataset.demi);
     ajouterEntreesMembres_(pop, fermer, cell, x, y, cibleRapide, giRapide, 1, null, cell.dataset.demi, cell.dataset.demi);
+    ajouterEntreesExceptions_(pop, fermer, cibleRapide, giRapide, 1, cell.dataset.demi, cell.dataset.demi); // suite 131, js/equipes.js
   }
   // Round du 29.09.2026 (suite 120) — Lionel : « en mode ajout multiple le
   // menu ne se place pas à côté du curseur de souris ». Il s'ouvrait sous
@@ -257,6 +258,7 @@
     var fermer = fermerAuClicExterieur(pop);
     cablerBoutonsMenuAjout(pop, fermer, cell, null, null, cibles, giDebut, duree, plageInit, demiDebut, demiFin);
     ajouterEntreesMembres_(pop, fermer, cell, px, py, cibles, giDebut, duree, plageInit, demiDebut, demiFin);
+    ajouterEntreesExceptions_(pop, fermer, cibles, giDebut, duree, demiDebut, demiFin);
   }
 
   // §85 (round du 17.09.2026) — Lionel, mockup mockup-sous-menu-outils.html à

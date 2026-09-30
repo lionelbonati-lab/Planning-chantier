@@ -201,6 +201,12 @@
       var roleComplet = {};
       var equipeComplete = {};
       ordreComplet.forEach(function (e) { roleComplet[idImpr(e.p)] = e.role; if (e.role === "membre") equipeComplete[idImpr(e.p)] = e.equipeId; });
+      // Suite 131 (exceptions d'équipe, js/equipes.js) : une personne
+      // retirée de son équipe ou ajoutée à une autre cette semaine n'est
+      // pas « vide » — sa ligne dit « Hors équipe » / « + Équipe ».
+      function videImpr_(p) {
+        return personneVide(p) && !exceptionsSemaine(lundiImpr, function (x) { return x.personneId === idImpr(p) && !!exceptionCase(x.personneId, x.date, x.demi); }).length;
+      }
       function personnesImprimees_(r, opt) {
         var sautees = 0, decochees = 0;
         // Planning individuel (suite 48) : la personne choisie, même sans
@@ -216,14 +222,14 @@
           var avecEquipe = !!eqP && !personneVide(eqP);
           var seuls = [], roles = {};
           if (avecEquipe) { seuls.push(eqP); roles[eqId] = "equipe"; }
-          if (moi && (!avecEquipe || !personneVide(moi))) { seuls.push(moi); roles[opt.pour] = avecEquipe ? "membre" : roleComplet[opt.pour] === "equipe" ? "equipe" : null; }
+          if (moi && (!avecEquipe || !videImpr_(moi))) { seuls.push(moi); roles[opt.pour] = avecEquipe ? "membre" : roleComplet[opt.pour] === "equipe" ? "equipe" : null; }
           return { personnel: seuls.filter(function (p) { return !p.sousTraitant; }), intervenants: seuls.filter(function (p) { return p.sousTraitant; }),
             role: roles, sautees: 0, decochees: 0 };
         }
         function garde(p) {
           if (p.sousTraitant && !r.intervenants) return false;
           if (!p.sousTraitant && !r.personnel) return false;
-          if (personneVide(p) && !(r.vides && roleComplet[idImpr(p)] !== "membre")) { sautees++; return false; }
+          if (videImpr_(p) && !(r.vides && roleComplet[idImpr(p)] !== "membre")) { sautees++; return false; }
           if (r.masques[idImpr(p)]) { decochees++; return false; }
           return true;
         }
@@ -614,6 +620,14 @@
         // du dessus — un artefact d'1px de large, au bord partagé avec la case
         // voisine, jugé négligeable face à la complexité d'un vrai découpage
         // par bande.
+        // Suite 131 : « Hors équipe » / « + Équipe » en bas de la case d'une
+        // personne à cette demi-journée (cf. exceptionCase, js/equipes.js).
+        function avecException_(info, p, iso, demi) {
+          var x = !p.sousTraitant && iso && exceptionCase(String(p.ancre), iso, demi);
+          if (!x) return info;
+          var frag = { bg: "var(--surface-2)", txt: '<span class="print-exception">' + esc(x.texte) + '</span>' };
+          return { fragments: info.empty ? [frag] : info.fragments.concat([frag]), empty: false };
+        }
         function celluleTache(info, classeDemi, fusionnee) {
           var bandes = info.fragments.map(function (f) {
             return '<div class="print-bande" style="background:' + f.bg + '">' + f.txt + '</div>';
@@ -625,7 +639,11 @@
         imprimes.forEach(function (p, idx) {
           h += '<tr>';
           if (roleImpr[String(p.ancre)] === "equipe") {
-            var nomsEquipe = membresEquipe(p.ancre, lundiImpr).map(function (id) { var m = personneParAncre(id); return m ? m.nom : null; }).filter(Boolean);
+            var baseEquipe = membresEquipe(p.ancre, lundiImpr);
+            var nomsEquipe = baseEquipe.map(function (id) { var m = personneParAncre(id); return m ? m.nom : null; }).filter(Boolean);
+            // Suite 131 : les personnes ajoutées cette semaine, « +Paul ».
+            exceptionsSemaine(lundiImpr, function (x) { return x.equipeId === String(p.ancre) && x.sorte === "ajout" && baseEquipe.indexOf(x.personneId) < 0; })
+              .forEach(function (x) { var m = personneParAncre(x.personneId); if (m && nomsEquipe.indexOf("+" + m.nom) < 0) nomsEquipe.push("+" + m.nom); });
             h += '<td class="print-nom-equipe" style="font-weight:700;white-space:nowrap">' + esc(p.nom) +
               (nomsEquipe.length ? '<span class="print-membres">' + esc(nomsEquipe.join(", ")) + '</span>' : '') + '</td>';
           } else if (roleImpr[String(p.ancre)] === "membre") {
@@ -634,8 +652,8 @@
             h += '<td style="font-weight:700;white-space:nowrap">' + esc(p.nom) + '</td>';
           }
           for (var i = 0; i < jl.length; i++) {
-            var infoMatin = infoCase(p, (p.matin || [])[i]);
-            var infoAprem = infoCase(p, (p.aprem || [])[i]);
+            var infoMatin = avecException_(infoCase(p, (p.matin || [])[i]), p, jl[i].iso, "matin");
+            var infoAprem = avecException_(infoCase(p, (p.aprem || [])[i]), p, jl[i].iso, "aprem");
             // Fusion (round 12 ; étendue au tableau COMPLET de fragments round
             // du 16.09.2026, Option A) seulement si le contenu est RÉELLEMENT
             // identique des 2 côtés (mêmes tâches, mêmes chantiers, même ordre)
@@ -731,7 +749,7 @@
     function videPartout_(id) {
       return semaines.every(function (sem) {
         var p = (sem.data.personnes || []).filter(function (x) { return idImpr(x) === id; })[0];
-        return !p || personneVide(p);
+        return !p || (personneVide(p) && !exceptionsSemaine(sem.lundi, function (x) { return x.personneId === id && !!exceptionCase(id, x.date, x.demi); }).length); // suite 131
       });
     }
     // Personnes proposées : toutes celles de la semaine, dans l'ordre de
