@@ -10919,3 +10919,19 @@ Lionel :
 ### Tests
 - Nouveau : tests/test_suite128.js (15 vérifications : jours de travail, jour et demi-journée d'envoi, importants, à réserver et rappel par créneau, réglage par appareil, page de réglages sur ordinateur et téléphone).
 - Mis à jour : test_suite126.js (veille / matin remplacés : les listes « Quand » au lieu des heures, clic sur « importants-matin » ; les vérifications de veille / matin passent dans test_suite128.js).
+
+## 242. Round du 30.09.2026 (suite 129) — Réglages › Améliorations et bugs
+- Lionel : « J'aimerai avoir un endroit où je peux prendre des notes pour améliorer et signaler des bugs. 2 cases, améliorations et bug. Quand j'ai quelque chose à noter, je le note dans la case correspondante et j'envoie avec un bouton. Quand j'ai du temps pour discuter des améliorations et bug tu devras lire ce que j'ai envoyé. Idéalement il faudrait faire la distinction entre mobile, tablette et deskop. »
+- Nouvelle page de réglages « Améliorations et bugs » (après Sauvegardes, pastille des réglages ; js/page-retours.js) :
+  - « Concerne » : Téléphone, Tablette, Ordinateur ou Tous. L'appareil utilisé est reconnu et choisi d'office (système d'abord — iPhone, Android, iPad —, sinon doigt ou souris et taille d'écran) ; un toucher en choisit un autre ;
+  - 2 cases, « Améliorations » et « Bugs », chacune avec son bouton « Envoyer » (grisé tant qu'elle est vide ; Ctrl/Cmd + Entrée aussi) ;
+  - un texte pas encore envoyé reste dans sa case, même après fermeture de l'appli (brouillon gardé sur l'appareil) ; en cas d'échec d'envoi, il reste aussi ;
+  - sous chaque case, ce qui a été envoyé, le plus récent en haut : appareil, date et heure, état (« Envoyé », puis « Lu » / « Traité » quand on en a discuté, avec la réponse) ; 3 notes, « Voir les N autres » pour le reste ; « Retirer » efface une note (après confirmation) ;
+  - téléphone : les 2 cases l'une sous l'autre, texte en 16 px (l'iPhone n'agrandit pas la page en y tapant).
+- Avec chaque note partent aussi, pour comprendre un bug sans avoir à redemander : navigateur, taille de l'écran et de la fenêtre, densité, tactile, appli installée ou non, page d'où l'on venait.
+- Lecture : Claude lit les notes dans la base quand on en discute (table retours, voir BACKEND-CHANGELOG §33).
+
+### Tests
+- Nouveau : tests/test_suite129.js (14 vérifications : appareil reconnu sur ordinateur, téléphone et tablette ; bouton grisé, brouillon ; envoi — ligne en base avec appareil et détails, case vidée, note sous sa case ; « Tous » + Ctrl + Entrée ; notes relues avec « Lu » / « Traité » et réponse ; « Retirer » ; « Voir les N autres » ; mise en page sur téléphone).
+- Mis à jour : test_suite63.js (8e page de réglages).
+- Suite complète : 133/133.

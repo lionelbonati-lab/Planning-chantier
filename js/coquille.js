@@ -115,6 +115,7 @@
     cablerDemandesAbsence();
     cablerPageSauvegardes();
     cablerPageNotificationsPush();
+    cablerPageRetours();
     cablerPageRaccourcis();
     cablerPageNotes();
     cablerPageCompte();
@@ -167,7 +168,11 @@
     // l'ordinateur avec différents paramètre à régler dans l'appli. »
     // (js/page-notifications.js).
     { page: "notifications-push", nom: "Notifications", icone: "cloche" },
-    { page: "sauvegardes", nom: "Sauvegardes", icone: "sauvegarde" }
+    { page: "sauvegardes", nom: "Sauvegardes", icone: "sauvegarde" },
+    // Round du 30.09.2026 (suite 129) — Lionel : « J'aimerai avoir un
+    // endroit où je peux prendre des notes pour améliorer et signaler des
+    // bugs. 2 cases, améliorations et bug. » (js/page-retours.js).
+    { page: "retours", nom: "Améliorations et bugs", icone: "retours" }
   ];
   function pageReglage_(nom) { return PAGES_REGLAGES.filter(function (r) { return r.page === nom; })[0] || null; }
   // Onglets des réglages (suite 63) : mêmes .onglet que la rangée
@@ -218,7 +223,9 @@
         '</div></div>' +
         '<p class="page-sous">Tout le planning (tâches, jalons, notes, personnes, chantiers, horaires, réglages…) est copié chaque nuit, si quelque chose a changé ; les 30 dernières copies sont gardées. « Restaurer » remplace tout le planning par une copie, après avoir sauvegardé l’état actuel. « Télécharger » en garde un fichier sur cet appareil.</p>' +
         '<div class="liste-intervenants" id="listeSauvegardes"></div>' +
-      '</div></div>';
+      '</div></div>' +
+      // Améliorations et bugs (suite 129, js/page-retours.js).
+      '<div class="page page-reglages" id="page-retours"><div class="page-scroll">' + htmlContenuPageRetours() + '</div></div>';
   }
   // Pages quittées de part et d'autre (suite 63) : la pastille rouvre la
   // dernière page de réglages vue (Mon compte la première fois), la croix
@@ -853,6 +860,8 @@
       // redessinés (un autre appareil a pu les changer).
       sauvegardes: renderSauvegardes,
       "notifications-push": renderNotificationsPush,
+      // Suite 129 : notes relues à chaque ouverture (lues / traitées entre-temps).
+      retours: renderRetours,
       raccourcis: renderRaccourcis,
       couleurs: function () { if (typeof majReglagesCouleursAffiches === "function") majReglagesCouleursAffiches(); },
       compte: chargerInfosCompte,

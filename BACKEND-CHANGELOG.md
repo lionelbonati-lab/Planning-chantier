@@ -1999,3 +1999,18 @@ Fonction Edge envoyer-push v2 (functions/envoyer-push) :
 - logic.js : pour chaque appareil, chaque sorte et chaque créneau, ce dont le jour d'envoi (x jours de travail avant ; « 0 » = le jour même) et la demi-journée tombent sur ce créneau ;
 - demandes nouvelles et modifications : inchangées.
 - Vérifié : appel par la base, réponse `{ ok: true, creneaux: [] }` à 11:05 (créneau du matin passé, sans abonné).
+
+---
+
+## 33. Round du 30.09.2026 (suite 129) — table retours (améliorations et bugs)
+
+Lionel : « J'aimerai avoir un endroit où je peux prendre des notes pour améliorer et signaler des bugs. 2 cases, améliorations et bug. Quand j'ai quelque chose à noter, je le note dans la case correspondante et j'envoie avec un bouton. Quand j'ai du temps pour discuter des améliorations et bug tu devras lire ce que j'ai envoyé. Idéalement il faudrait faire la distinction entre mobile, tablette et deskop. »
+
+Fichier : sql/0030_retours.sql (migration `retours`).
+
+- retours : une ligne par note envoyée depuis Réglages › Améliorations et bugs — sorte (`amelioration` / `bug`), texte (non vide), appareil (`telephone` / `tablette` / `ordinateur` / `tous`), details (jsonb : navigateur, écran, fenêtre, densité, tactile, appli installée, page), statut (`nouveau` par défaut, puis `lu` / `traite`), reponse, cree_par (auth.uid()), cree_le.
+- RLS : utilisateurs connectés seulement (même policy « connecte_tout » que les autres tables) ; rien pour anon (liens de consultation).
+- Pas dans les sauvegardes (tables_sauvegardees_) : restaurer le planning n'efface pas les notes envoyées depuis.
+- Lecture par Claude : `select * from retours where statut <> 'traite' order by cree_le` ; à la discussion, statut et reponse mis à jour (affichés sous la note).
+- Vérifié sur le projet : insertion avec le rôle authenticated (statut « nouveau » par défaut), annulée ensuite ; aucun nouveau conseil de sécurité Supabase.
+
