@@ -2136,3 +2136,16 @@ Fichier : sql/0036_elements_groupes.sql (migration `elements_groupes`).
 - Transports : liste vide.
 - Sauvegardes : tables_sauvegardees_ inclut elements_groupes juste après groupes. Une ancienne sauvegarde restaurée donne des listes vides.
 - Aucun nouveau conseil de sécurité Supabase.
+
+
+---
+
+## 40. Round du 01.10.2026 (suite 139) — élément de liste masqué
+
+Lionel : « Chaque machine/transport a sa coche qui le fera apparaître ou non dans la liste clic droit. »
+
+Fichier : sql/0037_elements_groupes_masque.sql (migration `elements_groupes_masque`).
+
+- elements_groupes.masque (boolean, false par défaut) : l'élément n'est plus proposé au clic droit des lignes Machines / Transports, sans être supprimé. Les bulles déjà posées ne changent pas.
+  - Sur le projet : les 4 éléments (Karcher, Vibrateur, Plateau vide, Coffrage) restent affichés (masque = false).
+- Droits, RLS et sauvegardes inchangés (même table que sql/0036).

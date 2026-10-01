@@ -81,7 +81,7 @@ const masque = (page, id) => page.evaluate((i) => window.__BD.personnes.find((p)
   await page.evaluate(() => document.querySelector('#listesGroupes .chk-afficher-groupe').click());
   await page.waitForTimeout(1500);
   const remisM = [await masque(page, 20), await ligneAu(page, 20)];
-  verifier(mach && mach.checked && mach.apresTitre && mach.texte === 'Afficher dans le planning' && avantM &&
+  verifier(mach && mach.checked && mach.apresTitre && mach.texte === 'Afficher la ligne dans le planning' && avantM &&
     masqueM.join() === 'true,false,false' && remisM.join() === 'false,true',
     'page Machines : coche « Afficher » sous le titre, masque puis réaffiche la ligne Machines (' + JSON.stringify([mach, avantM, masqueM, remisM]) + ')');
 
