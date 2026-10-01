@@ -50,10 +50,10 @@
     var personnes = (etat.personnesActives || []).map(function (p) { return p.id; });
     function lire(q) { return Promise.resolve(q).then(function (res) { if (res.error) throw res.error; return res.data || []; }); }
     return Promise.all([
-      personnes.length ? lire(sbClient.from("taches").select("personne_id, date, demi, texte, chantier_id, est_absence")
+      personnes.length ? lire(sbClient.from("taches").select("id, personne_id, date, demi, texte, chantier_id, est_absence")
         .eq("important", true).in("personne_id", personnes).gte("date", du).lte("date", au).order("date").limit(2000)) : [],
-      lire(sbClient.from("jalons").select("date, demi, texte, chantier_id").eq("important", true).gte("date", du).lte("date", au).order("date").limit(500)),
-      lire(sbClient.from("notes").select("date, demi, texte, chantier_id").eq("important", true).gte("date", du).lte("date", au).order("date").limit(500))
+      lire(sbClient.from("jalons").select("id, date, demi, texte, chantier_id").eq("important", true).gte("date", du).lte("date", au).order("date").limit(500)),
+      lire(sbClient.from("notes").select("id, date, demi, texte, chantier_id").eq("important", true).gte("date", du).lte("date", au).order("date").limit(500))
     ]).then(function (r) {
       return r[0].map(function (t) { return Object.assign({ sorte: t.est_absence ? "absence" : "tache" }, t); })
         .concat(r[1].map(function (j) { return Object.assign({ sorte: "jalon" }, j); }))
@@ -74,8 +74,8 @@
       return (a.demi === "aprem" ? 1 : 0) - (b.demi === "aprem" ? 1 : 0);
     }).forEach(function (t) {
       var demi = t.demi === "matin" || t.demi === "aprem" ? t.demi : "jour";
-      if (g && g.k === cle(t) && (t.date === g.au || t.date === prochainJourOuvreIso_(g.au))) { g.au = t.date; g.demis[t.date + "|" + demi] = true; return; }
-      g = { k: cle(t), sorte: t.sorte, personneId: t.personne_id == null ? null : t.personne_id, texte: t.texte || "", chantierId: t.chantier_id == null ? null : t.chantier_id, du: t.date, au: t.date, demis: {} };
+      if (g && g.k === cle(t) && (t.date === g.au || t.date === prochainJourOuvreIso_(g.au))) { g.au = t.date; g.demis[t.date + "|" + demi] = true; g.ids.push(t.id); return; }
+      g = { k: cle(t), sorte: t.sorte, personneId: t.personne_id == null ? null : t.personne_id, texte: t.texte || "", chantierId: t.chantier_id == null ? null : t.chantier_id, du: t.date, au: t.date, demis: {}, ids: [t.id] };
       g.demis[t.date + "|" + demi] = true;
       groupes.push(g);
     });
@@ -111,12 +111,30 @@
     var p = g.personneId != null ? personneParAncre(g.personneId) : null;
     var qui = g.sorte === "jalon" ? "Jalon" : g.sorte === "note" ? "Note" : (p ? p.nom : "?") + (g.sorte === "absence" ? " · absence" : "");
     var ch = g.chantierId != null ? CHANTIERS[etat.chantiersParId[g.chantierId]] : null;
-    return '<li><button type="button" class="ar-ligne imp-ligne" data-i="' + i + '" title="Voir dans le planning">' +
+    return '<li class="imp-li"><button type="button" class="ar-ligne imp-ligne" data-i="' + i + '" title="Voir dans le planning">' +
       '<span class="ar-quand">' + esc(quandAReserver_(g)) + "</span>" +
       '<span class="ar-qui">' + esc(qui) + "</span>" +
       '<span class="ar-quoi">' + esc(g.texte || "(sans texte)") + "</span>" +
       (ch ? '<span class="ar-chantier"><span class="swatch" style="background:' + esc2(ch.couleur) + '"></span>' + esc(ch.nom) + "</span>" : "") +
-      "</button></li>";
+      "</button>" +
+      // Suite 137 : « Valider » = retirer le drapeau important.
+      '<button type="button" class="imp-valider" data-i="' + i + '" title="Valider : n’est plus important">Valider</button></li>';
+  }
+  // Round du 01.10.2026 (suite 137) — Lionel (retour n° 18) : « Pouvoir
+  // valider un important dans la liste des importants. » Son choix :
+  // « Retirer le drapeau important ». Les lignes en base du groupe (une par
+  // demi-journée, g.ids) perdent le drapeau : l'important quitte la liste,
+  // le compteur et l'icône de sa bulle dans le planning.
+  function validerImportant_(g) {
+    var table = g.sorte === "jalon" ? "jalons" : g.sorte === "note" ? "notes" : "taches";
+    return Promise.resolve(sbClient.from(table).update({ important: false }).in("id", g.ids)).then(function (res) {
+      if (res && res.error) throw res.error;
+      dernierImportants = (dernierImportants || []).filter(function (x) { return x !== g; });
+      majBoutonNotifications();
+      oublierCache(null);
+      assurerFenetreChargee(function () { construireVueDepuisCache(); render(false); });
+      toast("Important validé.");
+    }).catch(function (err) { toast("Échec : " + (err && err.message ? err.message : err)); });
   }
   // Un clic : le planning va au jour, la bulle est sélectionnée, amenée à
   // l'écran et clignote (comme une ligne « à réserver », suite 61).
@@ -228,6 +246,13 @@
           var g = imp[+b.dataset.i];
           fermer();
           if (g) allerAImportant_(g);
+        });
+      });
+      contenu.querySelectorAll(".imp-valider").forEach(function (b) {
+        b.addEventListener("click", function () {
+          var g = imp[+b.dataset.i];
+          b.disabled = true;
+          if (g) validerImportant_(g).then(function () { if (pop.isConnected) dessiner(); });
         });
       });
       contenu.querySelectorAll(".ar-ligne:not(.imp-ligne)").forEach(function (b) {

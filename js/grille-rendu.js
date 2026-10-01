@@ -1719,6 +1719,7 @@
       // qui ouvre le même ouvrirAjoutPersonne(sousTraitant) — ex-.btn-plage-
       // ligne/.section-row-sticky gap conservés tels quels pour ne pas avoir à
       // toucher leur CSS, simplement plus jamais peuplés d'un bouton ici.
+      premiereLigneCorps_ = false; // suite 137 : la bande a son trait (border-top)
       var lg = document.createElement("div");
       // Round du 23.09.2026 (suite ×3) — modificateur .section-row-<cle>
       // pour un fond réglable indépendamment par section (cf. style.css et
@@ -1784,6 +1785,13 @@
         // teintée seulement si l'option est choisie (html[data-aff-zebre]).
         var alt = iP % 2 === 1;
         var estTransports = secteurDe(p) === "transports";
+        // Round du 01.10.2026 (suite 137) — Lionel (bug n° 17) : « Si
+        // transport masqué, manque la ligne sous notes ». Le trait sous Notes
+        // (suite 135) suit la 1re ligne du corps, quelle qu'elle soit
+        // (Transports, Machines…), et plus seulement Transports. Une bande
+        // de section (Personnel…) en tête a déjà le sien (border-top).
+        var premiere = premiereLigneCorps_;
+        premiereLigneCorps_ = false;
         var lbl = document.createElement("div");
         lbl.className = "lbl lbl-compacte" + (alt ? " ligne-alt" : "");
         lbl.dataset.vt = "p" + p.id;
@@ -1796,6 +1804,7 @@
         remplirEtiquetteEquipe(lbl, p);
         // Suite 134 : la ligne Transports (fond réglable, page Transports).
         if (estTransports) lbl.classList.add("lbl-transports");
+        if (premiere) lbl.classList.add("ligne-premiere");
         // Suite 135 : la ligne Machines tient lieu de titre de sa section :
         // fond de la section, poignée ⠿ pour la ranger ailleurs.
         if (cleSection && iP === 0) {
@@ -1811,8 +1820,9 @@
           DEMIS.forEach(function (demi) {
             var c = creerCell(gi4, { personne: p.id, demi: demi });
             if (alt) c.classList.add("ligne-alt");
-            // Suite 135 : trait sous Notes, cf. .cell-transports (style.css).
-            if (estTransports) c.classList.add("cell-transports");
+            // Suite 135 : trait sous Notes, cf. .ligne-premiere (style.css ;
+            // suite 137 : 1re ligne du corps, pas seulement Transports).
+            if (premiere) c.classList.add("ligne-premiere");
             if (demi === "aprem") c.classList.add("cell-aprem");
             // .cell-matin (suite 64) : teinte du matin si « Colonnes teintées :
             // Matin » (page Affichage).
@@ -1831,7 +1841,7 @@
               // avec demiDebut=demiFin="matin".
               var cw = creerCell(giWeekend(semGi4, j), { personne: p.id, demi: "matin" });
               if (alt) cw.classList.add("ligne-alt");
-              if (estTransports) cw.classList.add("cell-transports");
+              if (premiere) cw.classList.add("ligne-premiere");
               poser(cw, colonneGrille(giWeekend(semGi4, j)), row, null, pistesGrille);
             });
           }
@@ -1879,6 +1889,7 @@
     // sous Notes ». La ligne Transports (groupe ligne_unique, js/groupes.js)
     // ouvre le corps du planning, sans titre de section, avant toutes les
     // sections : juste sous Notes. Bouton masquer/afficher : retour n° 10.
+    var premiereLigneCorps_ = true; // suite 137, cf. ligneGroupePersonnesCompact
     if (!replierTransports) {
       var ligneTransports = personnesAffichees("transports").slice(0, 1);
       if (ligneTransports.length) ligneGroupePersonnes(ligneTransports);

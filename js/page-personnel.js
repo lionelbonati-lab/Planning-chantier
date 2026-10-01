@@ -34,13 +34,12 @@
       });
     }).catch(erreurFatale);
   }
-  // opts.premier/opts.dernier : bornes du groupe ACTIF affiché (désactive
-  // ↑ en tête, ↓ en fin — même logique que .cf-monter/.cf-descendre
-  // d'Entrée rapide). Absents (undefined) pour une ligne désactivée, qui
-  // n'a pas de flèches — cf. commentaire de tête plus haut (round du
-  // 14.09.2026).
-  function ligneFichePersonne(p, opts) {
-    opts = opts || {};
+  // Round du 01.10.2026 (suite 137) — Lionel (retour n° 16) : « La la
+  // petite coche "afficher" tout à gauche. Le tri étant possible sur
+  // planning, enlever les flèches de tri des onglets. » Plus de ↑/↓ (l'ordre
+  // se règle en glissant les noms dans le planning, suite 115) : la coche
+  // « Afficher » prend leur place, devant le nom.
+  function ligneFichePersonne(p) {
     if (!p.actif) {
       return '<div class="ligne-intervenant ligne-desactivee" data-id="' + esc2(p.id) + '"><b>' + esc(p.nom) + '</b>' +
         '<span class="ligne-actions">' +
@@ -50,10 +49,8 @@
         '</span></div>';
     }
     return '<div class="ligne-intervenant" data-id="' + esc2(p.id) + '">' +
-      '<span class="cf-actions">' +
-      '<button type="button" class="cf-monter" title="Monter"' + (opts.premier ? " disabled" : "") + '>↑</button>' +
-      '<button type="button" class="cf-descendre" title="Descendre"' + (opts.dernier ? " disabled" : "") + '>↓</button>' +
-      '</span>' +
+      // Coche « Afficher » (suite 134), tout à gauche depuis la suite 137.
+      '<label class="champ-afficher" title="Afficher dans le planning"><input type="checkbox" class="chk-afficher" aria-label="Afficher dans le planning"' + (p.masque ? '' : ' checked') + '></label>' +
       // Suite 119 : couleur de l'équipe (pastille = sélecteur, comme Chantiers).
       (p.equipe ? pastilleCouleur("pastille-equipe", p.couleur, "Couleur de l’équipe") : '') +
       '<b>' + esc(p.nom) + '</b>' +
@@ -72,12 +69,6 @@
       // seulement pour le test.
       // « Actif » masqué sur téléphone (suite 53), gardé en title.
       '<label class="champ-actif" title="Actif"><span class="interrupteur"><input type="checkbox" checked><span class="interrupteur-piste"></span></span><span class="champ-actif-texte">Actif</span></label>' +
-      // Round du 01.10.2026 (suite 134) — Lionel : « Ajouter une coche pour
-      // masquer une ligne personnel/intervenant et machine sans les
-      // désactiver. » Son choix : sur tous les appareils (personnes.masque,
-      // sql/0035). Décochée : la ligne et ses tâches sortent du planning et
-      // de l'impression, rien n'est effacé ; recochée, tout revient.
-      '<label class="champ-afficher" title="Afficher dans le planning"><input type="checkbox" class="chk-afficher"' + (p.masque ? '' : ' checked') + '><span class="champ-afficher-texte">Afficher</span></label>' +
       // Lien de consultation en lecture seule (suite 51, js/liens-consultation.js).
       // Icônes (suite 53) — Lionel : « Des icônes seront mieux que des
       // textes car sur mobile les textes sortent de l'écran. »
@@ -85,26 +76,7 @@
       boutonIconeLigne("lien-modifier", ICONS.pencil, "Modifier") +
       '</span></div>';
   }
-  // ↑/↓ : échange l'ordre entre 2 lignes ACTIVES voisines (jamais les
-  // désactivées, qui n'ont pas de flèches) — 2 updates serveur puis
-  // rafraîchissement complet, même schéma que pour les chantiers plus bas
-  // (echangerOrdreChantiers). `actifs` = tableau déjà trié par ordre,
-  // capturé en fermeture au moment du rendu (cf. renderListePersonnes).
-  function echangerOrdrePersonnes(id, direction, actifs) {
-    var idx = -1;
-    for (var i = 0; i < actifs.length; i++) if (actifs[i].id === String(id)) { idx = i; break; }
-    var j = idx + direction;
-    if (idx < 0 || j < 0 || j >= actifs.length) return;
-    var a = actifs[idx], b = actifs[j];
-    Promise.all([
-      sbClient.from("personnes").update({ ordre: b.ordre }).eq("id", ancreDe(a.id)),
-      sbClient.from("personnes").update({ ordre: a.ordre }).eq("id", ancreDe(b.id))
-    ]).then(function (r) {
-      r.forEach(function (res) { if (res.error) throw res.error; });
-      rafraichirApresPersonnel();
-    }).catch(function (err) { toast("Échec du tri : " + (err && err.message ? err.message : err)); });
-  }
-  function cablerListePersonnes(zone, apresChangement, actifs) {
+  function cablerListePersonnes(zone, apresChangement) {
     function idDe(el) { return el.closest("[data-id]").dataset.id; }
     function nomDe(el) { return el.closest("[data-id]").querySelector("b").textContent; }
     zone.querySelectorAll(".lien-modifier").forEach(function (btn) {
@@ -173,12 +145,6 @@
         }).catch(function (err) { chk.checked = !chk.checked; toast("Échec : " + (err && err.message ? err.message : err)); });
       });
     });
-    zone.querySelectorAll(".cf-monter").forEach(function (btn) {
-      btn.addEventListener("click", function () { echangerOrdrePersonnes(idDe(btn), -1, actifs); });
-    });
-    zone.querySelectorAll(".cf-descendre").forEach(function (btn) {
-      btn.addEventListener("click", function () { echangerOrdrePersonnes(idDe(btn), 1, actifs); });
-    });
     var btnAdd = zone.querySelector(".ligne-ajouter");
     if (btnAdd) btnAdd.addEventListener("click", function () { ouvrirAjoutPersonne(btnAdd.dataset.sousTraitant === "1", btnAdd.dataset.equipe === "1", btnAdd.dataset.groupe || null); });
     var btnRepli = zone.querySelector(".repli-desactives");
@@ -213,15 +179,13 @@
       });
       var actifs = liste.filter(function (p) { return p.actif; });
       var inactifs = liste.filter(function (p) { return !p.actif; });
-      var html = actifs.map(function (p, i) {
-        return ligneFichePersonne(p, { premier: i === 0, dernier: i === actifs.length - 1 });
-      }).join("") + '<button type="button" class="ligne-ajouter" data-sous-traitant="' + (sousTraitant ? 1 : 0) + '"' + (equipe ? ' data-equipe="1"' : "") + (groupeId ? ' data-groupe="' + esc2(groupeId) + '"' : "") + ">" + (equipe ? "+ Nouvelle équipe" : "+ Ajouter") + "</button>";
+      var html = actifs.map(function (p) { return ligneFichePersonne(p); }).join("") + '<button type="button" class="ligne-ajouter" data-sous-traitant="' + (sousTraitant ? 1 : 0) + '"' + (equipe ? ' data-equipe="1"' : "") + (groupeId ? ' data-groupe="' + esc2(groupeId) + '"' : "") + ">" + (equipe ? "+ Nouvelle équipe" : "+ Ajouter") + "</button>";
       if (inactifs.length) {
         html += '<button type="button" class="repli-desactives"><span class="chevron">›</span> Désactivés (' + inactifs.length + ')</button>' +
           '<div class="groupe-desactives" hidden>' + inactifs.map(function (p) { return ligneFichePersonne(p); }).join("") + '</div>';
       }
       zone.innerHTML = html;
-      cablerListePersonnes(zone, function () { renderListePersonnes(sousTraitant, equipe, groupeId); }, actifs);
+      cablerListePersonnes(zone, function () { renderListePersonnes(sousTraitant, equipe, groupeId); });
     }).catch(erreurFatale);
   }
   function renderPersonnel() {
