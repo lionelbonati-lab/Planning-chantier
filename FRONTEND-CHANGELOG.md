@@ -11252,9 +11252,11 @@ Lionel, sur le récap de la suite 138 : « Chaque machine/transport a sa coche 
 - **Base** : `elements_groupes.masque` (sql/0037, cf. BACKEND §40) ; `COLONNES_ELEMENTS` / `normaliserElements` le lisent (`js/groupes.js`).
 - **Pages Machines / Transports** (`renderListeElements_`, `js/page-personnel.js`) : coche « Afficher » tout à gauche de chaque élément (même habillage que Personnel), décocher = masque en base, liste relue (`ecrireElements_`).
 - **Clic droit sur une case Machines / Transports** (`boutonsMenuAjoutGroupe_`, `js/formulaires-edition.js`) : seuls les éléments cochés sont proposés ; tout décoché → « Aucun élément coché : à cocher dans l'onglet … », « Autre… » reste.
-- La coche du groupe (suite 138) devient « Afficher la ligne dans le planning », pour la distinguer : elle reste le moyen de réafficher une ligne masquée par le clic droit sur son nom.
+- Lionel, ensuite : « pas de quantité sous machines ». Un élément Machines n'ouvre plus que le chantier (bulle « Karcher ») ; Transports garde la quantité (« Gravier - 10 m³ ») — cf. `cablerBoutonsMenuAjout`.
+- La coche du groupe (suite 138) devient « Afficher la ligne dans le planning », pour la distinguer : elle reste le moyen de réafficher une ligne masquée par le clic droit sur son nom.
 
 ### Tests
 
 - `tests/test_suite139.js` (nouveau, 5 vérifications) : coches en tête des éléments, clic droit limité aux cochés, décocher / cocher suit en base et au menu, Transports tout décoché, aucune erreur JS.
 - `tests/test_suite138.js` : libellé de la coche du groupe.
+- `tests/test_suite135.js` : Karcher sans quantité, bulle « Karcher ».

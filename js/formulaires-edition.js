@@ -194,7 +194,11 @@
       btn.addEventListener("click", function () {
         var el = (etat.elementsGroupes || []).filter(function (e) { return e.id === btn.dataset.element; })[0]; fermer();
         if (!el) return;
-        ouvrirFormulaireDynamique({ nom: el.nom, typeEntree: "tache", champs: [{ cle: "quantite", label: "Quantité", type: "texte" }] },
+        // Round du 01.10.2026 (suite 139) — Lionel : « pas de quantité sous
+        // machines ». Machines : chantier seul, bulle « Élément » ; la
+        // quantité reste pour Transports (groupe à ligne unique).
+        var groupe = groupeParId(el.groupeId), quantite = !!(groupe && groupe.ligneUnique);
+        ouvrirFormulaireDynamique({ nom: el.nom, typeEntree: "tache", champs: quantite ? [{ cle: "quantite", label: "Quantité", type: "texte" }] : [] },
           cibles, giDebut, duree, x, y, plageInit, demiDebut, demiFin);
       });
     });
