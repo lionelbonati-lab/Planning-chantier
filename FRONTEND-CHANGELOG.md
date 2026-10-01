@@ -11143,3 +11143,47 @@ Son choix : « Retirer de la liste ».
 - tests/test_suite132.js : listes des groupes sur la page Machines.
 - tests/test_formulaires_assignation.js : charge aussi typeRapidesDeLigne / formulaireDuType.
 - Suite complète : 138/138.
+
+
+
+## 248. Round du 01.10.2026 (suite 135) — ligne unique Machines, listes machines / matériaux au clic droit, bouton Réglages dans la cloche
+
+Lionel (page Améliorations et bugs, amélioration n° 13) :
+
+> Machine aussi en une seule ligne comme transport.
+> Pas d'ajouts rapide pour ces 2 groupe. la liste de matériaux de "transport" et des machines sera dans le clic droit de leurs lignes. ainsi les bulles seront des machine et des matériaux au lieu de tâches
+
+Ses choix : listes gérées sur les « Pages Machines / Transports (Recommandé) » ; bulle = « Élément + chantier + quantité » ; ligne Machines « À la place de la section Machines » ; PR précédente « Fusionner puis adapter (Recommandé) ».
+
+- Planning : la section Machines n'a plus de titre. Sa ligne unique « Machines » est posée à sa place, avec la poignée ⠿ et le fond de la section sur son étiquette ; elle se glisse parmi Personnel / Intervenants comme avant. Le bouton pelle de la barre la masque toujours.
+- Menu « Ajouter » d'une case des lignes Machines et Transports (clic droit, appui long, clic en mode ajout, plage glissée) : la liste du groupe, puis « Autre… » (texte libre) et « Coller ». Plus d'entrées rapides, ni d'absence, ni d'arrivée / départ sur ces lignes. Liste vide : une phrase renvoie à l'onglet du groupe.
+- Choisir un élément ouvre Chantier + Quantité (+ série). La bulle est une tâche « Élément - quantité » (ex. « Karcher - 2 », « Gravier - 10 m³ »), avec son chantier.
+- Pages Machines et Transports : plus de sous-onglets ni d'entrées rapides. Chacune gère sa liste (Machines ; Matériaux) : « + Ajouter », renommer, ↑ / ↓, supprimer (confirmation). Retirer un élément ne touche pas les bulles déjà posées. Le menu des cases suit tout de suite. Couleurs inchangées.
+- Code :
+  - js/groupes.js (normaliserElements, elementsDuGroupe, groupeDeLigne ; glisser une étiquette de ligne comme une section) ;
+  - js/donnees-sync.js (chargement de elements_groupes, non bloquant) ;
+  - js/formulaires-edition.js (boutonsMenuAjoutGroupe_, boutons data-element) ;
+  - js/grille-rendu.js (ligne Machines sans titre ; bandes collantes arrêtées par elle) ;
+  - js/page-personnel.js (renderMachines, renderTransports, renderListeElements_) ;
+  - js/coquille.js (pages Machines / Transports) ;
+  - style.css.
+
+Lionel (amélioration n° 12) :
+
+> un petit bouton raccourcis réglage notifications dans les notifications
+
+- Cloche : petit bouton « Réglages » (engrenage) à gauche de « Fermer ». Il ferme la fenêtre et ouvre Réglages › Notifications.
+- Code : js/notifications.js, style.css.
+
+### Tests
+- Nouveau : tests/test_suite135.js (8 vérifications) :
+  - ligne Machines à la place de la section (poignée, fond) ;
+  - clic droit sur Machines : liste et « Autre… » ; Karcher → « Karcher - 2 » avec chantier, écrite en base ;
+  - clic droit sur Transports : « Gravier - 10 m³ » ;
+  - page Machines : ajouter, renommer, ↓, supprimer, écrit en base ; menu repris aussitôt, bulles gardées ;
+  - page Transports : « + Ajouter » ;
+  - cloche : bouton « Réglages » → page Notifications ;
+  - aucune erreur JS.
+- tests/test_suite132.js : lignes de groupe sans titre (étiquette = section), menu d'une machine sans absence (arrivée / départ sur Paul), page Machines = listes d'éléments.
+- tests/test_suite134.js : §groupe-1 sur l'étiquette Machines, sous-onglets seulement sur Personnel / Intervenants, menus Machines / Transports = liste + « Autre… », plus de coche « Afficher » sur la page Machines.
+- Suite complète : 139/139.

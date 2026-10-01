@@ -23,6 +23,14 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //   8. formulaire arrivée / départ sans type d'absence ;
 //   9. aucune erreur JS (bilan).
 //
+// Adapté suite 135 (retour n° 13, « Machine aussi en une seule ligne comme
+// transport », son choix « À la place de la section Machines ») : un
+// groupe n'a plus de titre de section ; l'étiquette de sa 1re ligne porte
+// data-section et la poignée ⠿ (sections() les lit avec leur nom de
+// ligne). Le menu d'une case de machine propose la liste du groupe et
+// « Autre… », sans absence (arrivée / départ testé sur Paul). La page
+// Machines liste les éléments (elements_groupes), plus les lignes.
+//
 // Lancer : node test_suite132.js
 
 const P = (id, nom, ordre, x) => Object.assign({ id, nom, sous_traitant: false, equipe: false, groupe_id: null, ordre, actif: true }, x || {});
@@ -35,12 +43,12 @@ const BD = (reglages) => ({
   reglages: reglages || []
 });
 
-const sections = (page) => page.evaluate(() => [...document.querySelectorAll('#racine .section-row[data-section]')]
-  .map((s) => s.dataset.section + (s.querySelector('.section-poignee') ? '⠿' : '') + ':' + s.querySelector('.section-label').textContent).join(' '));
+const sections = (page) => page.evaluate(() => [...document.querySelectorAll('#racine .section-row[data-section], #racine .lbl[data-section]')]
+  .map((s) => s.dataset.section + (s.querySelector('.section-poignee') ? '⠿' : '') + ':' + s.querySelector('.section-label, b').textContent).join(' '));
 const lignes = (page) => page.evaluate(() => [...document.querySelectorAll('#racine .grille > .lbl[data-ligne^="p"]')].map((l) => l.dataset.ligne).join(','));
 const glisserTitre = async (page, cle, versCle, dessous) => {
   const [a, b] = await page.evaluate(([cle, versCle]) => [cle, versCle].map((k) => {
-    const s = document.querySelector('#racine .section-row[data-section="' + k + '"]');
+    const s = document.querySelector('#racine [data-section="' + k + '"]');
     const r = (k === cle ? s.querySelector('.section-poignee') : s).getBoundingClientRect();
     return { x: r.x + r.width / 2, y: r.y + r.height / 2, haut: r.top, bas: r.bottom };
   }), [cle, versCle]);
@@ -66,7 +74,7 @@ const glisserTitre = async (page, cle, versCle, dessous) => {
 
     // --- 1. Sections ------------------------------------------------------------------
     let s = await sections(page), l = await lignes(page);
-    verifier(s === 'personnel⠿:Personnel intervenants⠿:Intervenants groupe-1⠿:Machines groupe-2⠿:Transports' && l === 'p1,p2,p3,p20,p22,p21',
+    verifier(s === 'personnel⠿:Personnel intervenants⠿:Intervenants groupe-1⠿:Pelle groupe-2⠿:Camion' && l === 'p1,p2,p3,p20,p22,p21',
       'sections Personnel, Intervenants, Machines, Transports avec poignée ; chaque ligne dans son groupe (' + s + ' ; ' + l + ')');
 
     // --- 2. Glisser les titres ---------------------------------------------------------
@@ -74,13 +82,13 @@ const glisserTitre = async (page, cle, versCle, dessous) => {
     s = await sections(page); l = await lignes(page);
     const ecrit = await page.evaluate(() => JSON.stringify(((window.__BD.reglages || []).find((r) => r.cle === 'ordre_groupes') || {}).valeur));
     const toast1 = await page.evaluate(() => (document.querySelector('.toast') || {}).textContent);
-    verifier(trait && s.startsWith('groupe-1⠿:Machines personnel⠿:Personnel intervenants') && l === 'p20,p22,p1,p2,p3,p21' &&
+    verifier(trait && s.startsWith('groupe-1⠿:Pelle personnel⠿:Personnel intervenants') && l === 'p20,p22,p1,p2,p3,p21' &&
       ecrit === '["groupe-1","personnel","intervenants","groupe-2"]' && /Ordre des groupes enregistré/.test(toast1 || ''),
       '« Machines » glissé au-dessus de « Personnel » : trait de dépôt, ordre affiché, réglage « ordre_groupes » en base (' + s + ' ; ' + l + ' ; ' + ecrit + ' ; ' + toast1 + ')');
     await glisserTitre(page, 'intervenants', 'groupe-2', true);
     s = await sections(page);
     const ecrit2 = await page.evaluate(() => JSON.stringify(((window.__BD.reglages || []).find((r) => r.cle === 'ordre_groupes') || {}).valeur));
-    verifier(ecrit2 === '["groupe-1","personnel","groupe-2","intervenants"]' && /groupe-2⠿:Transports intervenants⠿:Intervenants$/.test(s),
+    verifier(ecrit2 === '["groupe-1","personnel","groupe-2","intervenants"]' && /groupe-2⠿:Camion intervenants⠿:Intervenants$/.test(s),
       '« Intervenants » glissé sous la dernière section : tout en bas (' + ecrit2 + ')');
 
     // --- 4. Glisser une tâche : dans le groupe seulement ----------------------------------
@@ -88,19 +96,25 @@ const glisserTitre = async (page, cle, versCle, dessous) => {
       .map(([a, b]) => (changementPersonneAutorise(a, b) ? 1 : 0)).join(''));
     verifier(regle === '100010', 'tâche d’une machine : vers une autre machine oui, vers un transport ou le personnel non (' + regle + ')');
 
-    // --- 5. Absence sur une machine ----------------------------------------------------------
+    // --- 5. Menu d'une machine (suite 135 : sa liste, sans absence) --------------------------
     await page.evaluate(() => changerModeAjoutPlanning(true));
     await page.waitForTimeout(150);
-    const c = await page.evaluate(() => {
-      const el = document.querySelector('.cell[data-kind="personne"][data-personne="22"][data-demi="matin"][data-jour="' + giDepuisIso('2026-09-24') + '"]');
+    const caseDe = (id) => page.evaluate((id) => {
+      const el = document.querySelector('.cell[data-kind="personne"][data-personne="' + id + '"][data-demi="matin"][data-jour="' + giDepuisIso('2026-09-24') + '"]');
       const r = el.getBoundingClientRect();
       return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
-    });
+    }, id);
+    let c = await caseDe('22');
     await page.mouse.click(c.x, c.y);
     await page.waitForTimeout(250);
     const b = await page.evaluate(() => { const m = document.querySelector('.menu-pop'); return m ? [...m.querySelectorAll('button')].map((x) => x.textContent.trim()) : null; });
-    verifier(b && b.includes('Tâche') && b.includes('Absence') && b.includes('Arrivée / départ'),
-      'menu d’ajout sur la Grue : « Tâche », « Absence », « Arrivée / départ », comme le personnel ' + JSON.stringify(b));
+    verifier(b && b.includes('Autre…') && !b.includes('Absence') && !b.includes('Arrivée / départ'),
+      'menu d’ajout sur la Grue : liste du groupe et « Autre… », sans absence ' + JSON.stringify(b));
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(150);
+    c = await caseDe('1');
+    await page.mouse.click(c.x, c.y);
+    await page.waitForTimeout(250);
 
     // --- 8. Arrivée / départ sans type ------------------------------------------------------
     await page.click('.menu-pop button[data-partielle]');
@@ -122,7 +136,7 @@ const glisserTitre = async (page, cle, versCle, dessous) => {
     const { page, erreurs } = await ouvrirPlanning(browser, { bd: BD([{ cle: 'ordre_groupes', valeur: ['groupe-2', 'personnel', 'groupe-1', 'intervenants'] }]) });
     await page.waitForTimeout(200);
     const s = await sections(page), l = await lignes(page);
-    verifier(s === 'groupe-2⠿:Transports personnel⠿:Personnel groupe-1⠿:Machines intervenants⠿:Intervenants' && l === 'p21,p1,p2,p20,p22,p3',
+    verifier(s === 'groupe-2⠿:Camion personnel⠿:Personnel groupe-1⠿:Pelle intervenants⠿:Intervenants' && l === 'p21,p1,p2,p20,p22,p3',
       'au chargement : l’ordre enregistré pour le compte est repris (' + s + ' ; ' + l + ')');
 
     // Impression.
@@ -155,20 +169,19 @@ const glisserTitre = async (page, cle, versCle, dessous) => {
     const pageP = await page.evaluate(() => ({
       titres: [...document.querySelectorAll('#listesGroupes h2')].map((h) => h.textContent).join(','),
       personnes: [...document.querySelectorAll('#listePersonnel .ligne-intervenant b')].map((x) => x.textContent).join(','),
-      machines: [...document.querySelectorAll('#listeGroupe-1 .ligne-intervenant b')].map((x) => x.textContent).join(','),
-      transports: [...document.querySelectorAll('#listeGroupe-2 .ligne-intervenant b')].map((x) => x.textContent).join(',')
+      listes: [...document.querySelectorAll('#listesGroupes .liste-elements')].map((x) => x.id).join(',')
     }));
-    verifier(pageP.titres === 'Transports,Machines' && pageP.personnes === 'Paul,Anne' && pageP.machines === 'Pelle,Grue' && pageP.transports === 'Camion',
-      'page Machines : une liste par groupe (ordre du planning), machines hors de « Personnes » (' + JSON.stringify(pageP) + ')');
-    await page.click('#listeGroupe-1 .ligne-ajouter');
+    verifier(pageP.titres === 'Transports,Machines' && pageP.personnes === 'Paul,Anne' && pageP.listes === 'listeElements-2,listeElements-1',
+      'page Machines : une liste d’éléments par groupe (ordre du planning), machines hors de « Personnes » (' + JSON.stringify(pageP) + ')');
+    await page.click('#listeElements-1 .ligne-ajouter');
     const titreAjout = await page.evaluate(() => document.querySelector('.form-pop .cp-titre').textContent);
     await page.fill('.form-pop .f-nom', 'Mini-pelle');
     await page.click('.form-pop .f-ok');
     await page.waitForTimeout(600);
-    const cree = await page.evaluate(() => { const r = window.__BD.personnes.find((p) => p.nom === 'Mini-pelle'); return r && { g: r.groupe_id, st: r.sous_traitant, eq: r.equipe }; });
-    const apres = await page.evaluate(() => [...document.querySelectorAll('#listeGroupe-1 .ligne-intervenant b')].map((x) => x.textContent).join(','));
-    verifier(titreAjout === 'Ajouter — Machines' && cree && cree.g === 1 && cree.st === false && cree.eq === false && apres === 'Pelle,Grue,Mini-pelle',
-      '« + Ajouter » sous Machines : ligne avec groupe_id = 1, listée dans Machines (' + titreAjout + ' ; ' + JSON.stringify(cree) + ' ; ' + apres + ')');
+    const cree = await page.evaluate(() => { const r = (window.__BD.elements_groupes || []).find((p) => p.nom === 'Mini-pelle'); return r && { g: r.groupe_id, o: r.ordre }; });
+    const apres = await page.evaluate(() => [...document.querySelectorAll('#listeElements-1 .ligne-intervenant b')].map((x) => x.textContent).join(','));
+    verifier(titreAjout === 'Ajouter — Machines' && cree && cree.g === 1 && cree.o === 1 && apres === 'Mini-pelle',
+      '« + Ajouter » sous Machines : élément de groupe_id = 1, listé dans Machines (' + titreAjout + ' ; ' + JSON.stringify(cree) + ' ; ' + apres + ')');
     toutesErreurs.push(...erreurs);
     await page.close();
   }

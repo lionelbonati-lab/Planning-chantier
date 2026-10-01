@@ -936,12 +936,16 @@
     var entete = racineEl && racineEl.querySelector(".entete-planning-figee");
     if (!sc || !entete || !sc.getClientRects().length) return;
     // Suite 132 : toutes les sections (groupes compris), dans l'ordre affiché.
-    var bandes = [].slice.call(sc.querySelectorAll(".section-row[data-section]"));
+    // Suite 135 : la ligne Machines (.lbl[data-section], sans bande) arrête
+    // la bande qui la précède, sans coller elle-même.
+    var sections = [].slice.call(sc.querySelectorAll(".section-row[data-section], .lbl[data-section]"));
+    var bandes = sections.filter(function (b) { return b.classList.contains("section-row"); });
     if (!bandes.length) return;
     // Lectures d'abord (positions sans le décalage déjà posé), écritures ensuite.
     var haut = entete.getBoundingClientRect().bottom, bas = sc.getBoundingClientRect().bottom;
-    var pos = bandes.map(function (b) { return { b: b, t: b.getBoundingClientRect().top - (b._decalSep || 0), h: b.offsetHeight }; });
+    var pos = sections.map(function (b) { return { b: b, t: b.getBoundingClientRect().top - (b._decalSep || 0), h: b.offsetHeight, bande: b.classList.contains("section-row") }; });
     pos.forEach(function (p, i) {
+      if (!p.bande) return;
       var limite = (i + 1 < pos.length ? pos[i + 1].t : bas) - p.h;
       var d = Math.round(Math.max(0, Math.min(haut, limite) - p.t));
       if (d === (p.b._decalSep || 0)) return;
@@ -1755,7 +1759,9 @@
     // plus besoin de fusionner quoi que ce soit après coup — construireRunsCompacts,
     // data-membres et data-slots disparaissent avec lui. Semaine/week-end :
     // case isolée à part (comme avant), toujours 1 seul demi-slot ("matin").
-    function ligneGroupePersonnesCompact(groupe) {
+    // cleSection (suite 135) : ligne posée à la place du titre de sa
+    // section (Machines) — sa 1re étiquette porte la poignée ⠿.
+    function ligneGroupePersonnesCompact(groupe, cleSection) {
       groupe.forEach(function (p, iP) {
         var itemsLigne = TACHES.filter(function (it) { return it.personneId === p.id && giVisible(it.giDebut, n); });
         assignerPistesCompact(itemsLigne);
@@ -1779,6 +1785,14 @@
         remplirEtiquetteEquipe(lbl, p);
         // Suite 134 : la ligne Transports (fond réglable, page Transports).
         if (secteurDe(p) === "transports") lbl.classList.add("lbl-transports");
+        // Suite 135 : la ligne Machines tient lieu de titre de sa section :
+        // fond de la section, poignée ⠿ pour la ranger ailleurs.
+        if (cleSection && iP === 0) {
+          lbl.classList.add("lbl-section");
+          lbl.dataset.section = cleSection;
+          lbl.insertAdjacentHTML("afterbegin", '<span class="section-poignee" title="Glisser pour changer l’ordre des groupes" aria-hidden="true">⠿</span>');
+          cablerGlisserSection(lbl, cleSection);
+        }
         lbl.dataset.hMob = "pers";
         lbl.dataset.ligne = "p" + p.id; // suite 103 : hauteur de cette ligne à part
         poser(lbl, 1, row, null, pistesGrille);
@@ -1825,7 +1839,7 @@
         row += pistesGrille;
       });
     }
-    function ligneGroupePersonnes(groupe) { ligneGroupePersonnesCompact(groupe); }
+    function ligneGroupePersonnes(groupe, cleSection) { ligneGroupePersonnesCompact(groupe, cleSection); }
 
     // Suite 33 : Personnel dans l'ordre des équipes (chaque équipe suivie
     // de ses membres, les membres repliés sans rien à eux cachés) — cf.
@@ -1861,6 +1875,11 @@
       if (/^groupe-/.test(sec.cle) && replierSectionMachines) return;
       var lignes = personnesAffichees(sec.secteur);
       if (/^groupe-/.test(sec.cle) && !lignes.length) return;
+      // Round du 01.10.2026 (suite 135) — Lionel (retour n° 13) : « Machine
+      // aussi en une seule ligne comme transport. » Son choix : « À la
+      // place de la section Machines » — pas de titre, la ligne seule, qui
+      // se glisse comme une section (cf. ligneGroupePersonnesCompact).
+      if (/^groupe-/.test(sec.cle)) { ligneGroupePersonnes(lignes, sec.cle); return; }
       ligneSection(sec.cle, sec.libelle);
       ligneGroupePersonnes(lignes);
     });

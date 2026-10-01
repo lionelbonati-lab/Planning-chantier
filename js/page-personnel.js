@@ -230,15 +230,106 @@
   // Suite 132 : une liste par groupe, dans l'ordre du planning. Suite 134 :
   // sur la page Machines (plus sur Personnel) ; la ligne Transports n'y est
   // pas (sectionsCorps ne garde que les groupes à lignes, cf. groupesLignes).
+  // Round du 01.10.2026 (suite 135) — Lionel (retour n° 13) : « Machine
+  // aussi en une seule ligne comme transport. Pas d'ajouts rapide pour ces
+  // 2 groupe. la liste de matériaux de "transport" et des machines sera
+  // dans le clic droit de leurs lignes. » Son choix : listes gérées sur les
+  // « Pages Machines / Transports ». Les pages ne listent plus de lignes
+  // (une seule par groupe, sql/0036) mais les éléments du groupe
+  // (elements_groupes) : ajouter, renommer, ↑/↓, supprimer. Supprimer un
+  // élément ne touche à aucune bulle déjà posée.
   function renderMachines() {
     var zone = document.getElementById("listesGroupes");
     if (!zone) return;
-    var groupes = sectionsCorps().filter(function (s) { return /^groupe-/.test(s.cle); });
-    zone.innerHTML = groupes.map(function (s) {
-      var id = s.cle.slice(7);
-      return '<h2 class="titre-liste">' + esc(s.libelle) + '</h2><div class="liste-intervenants" id="listeGroupe-' + esc2(id) + '"></div>';
+    var groupes = sectionsCorps().filter(function (s) { return /^groupe-/.test(s.cle); }).map(function (s) { return groupeParId(s.cle.slice(7)); }).filter(Boolean);
+    zone.innerHTML = groupes.map(function (g) {
+      return '<h2 class="titre-liste">' + esc(g.nom) + '</h2><div class="liste-intervenants liste-elements" id="listeElements-' + esc2(g.id) + '"></div>';
     }).join("");
-    groupes.forEach(function (s) { renderListePersonnes(false, false, s.cle.slice(7)); });
+    groupes.forEach(function (g) { renderListeElements_(g); });
+  }
+  function renderTransports() {
+    var zone = document.getElementById("listeTransports"), g = groupeTransports();
+    if (!zone) return;
+    zone.innerHTML = g ? '<div class="liste-intervenants liste-elements" id="listeElements-' + esc2(g.id) + '"></div>' : '';
+    if (g) renderListeElements_(g);
+  }
+  function renderListeElements_(groupe) {
+    var zone = document.getElementById("listeElements-" + groupe.id);
+    if (!zone) return;
+    var elements = elementsDuGroupe(groupe.id);
+    zone.innerHTML = elements.map(function (e, i) {
+      return '<div class="ligne-intervenant" data-id="' + esc2(e.id) + '">' +
+        '<span class="cf-actions">' +
+        '<button type="button" class="cf-monter" title="Monter"' + (i === 0 ? " disabled" : "") + '>↑</button>' +
+        '<button type="button" class="cf-descendre" title="Descendre"' + (i === elements.length - 1 ? " disabled" : "") + '>↓</button>' +
+        '</span><b>' + esc(e.nom) + '</b><span class="ligne-actions">' +
+        boutonIconeLigne("lien-modifier", ICONS.pencil, "Renommer") +
+        boutonIconeLigne("lien-supprimer-el", ICONS.trash, "Supprimer") +
+        '</span></div>';
+    }).join("") + '<button type="button" class="ligne-ajouter">+ Ajouter</button>';
+    function elDe(btn) { var id = btn.closest("[data-id]").dataset.id; return elements.filter(function (e) { return e.id === id; })[0]; }
+    zone.querySelector(".ligne-ajouter").addEventListener("click", function () {
+      saisirNomElement_("Ajouter — " + groupe.nom, "", function (nom) {
+        var ordre = elements.reduce(function (m, e) { return Math.max(m, e.ordre); }, 0) + 1;
+        return ecrireElements_([sbClient.from("elements_groupes").insert({ groupe_id: +groupe.id, nom: nom, ordre: ordre })], "Ajouté à « " + groupe.nom + " ».");
+      });
+    });
+    zone.querySelectorAll(".lien-modifier").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var e = elDe(btn);
+        saisirNomElement_("Renommer", e.nom, function (nom) {
+          return ecrireElements_([sbClient.from("elements_groupes").update({ nom: nom }).eq("id", +e.id)], "Renommé.");
+        });
+      });
+    });
+    zone.querySelectorAll(".lien-supprimer-el").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var e = elDe(btn);
+        demanderConfirmation("Retirer « " + e.nom + " » de la liste ? Les bulles déjà posées restent.", function () {
+          ecrireElements_([sbClient.from("elements_groupes").delete().eq("id", +e.id)], "Retiré de la liste.");
+        });
+      });
+    });
+    // ↑/↓ : rangs renumérotés 1..n (un rang en double ne bloque rien).
+    zone.querySelectorAll(".cf-monter, .cf-descendre").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var e = elDe(btn), i = elements.indexOf(e), j = i + (btn.classList.contains("cf-monter") ? -1 : 1);
+        if (j < 0 || j >= elements.length) return;
+        var ordre = elements.slice();
+        ordre[i] = elements[j]; ordre[j] = e;
+        ecrireElements_(ordre.map(function (x, k) { return sbClient.from("elements_groupes").update({ ordre: k + 1 }).eq("id", +x.id); }), null);
+      });
+    });
+  }
+  function saisirNomElement_(titre, valeur, ok) {
+    var pop = document.createElement("div");
+    pop.className = "pop form-pop";
+    pop.innerHTML = '<div class="cp-titre">' + esc(titre) + '</div>' +
+      '<input type="text" class="f-nom" value="' + esc2(valeur) + '" placeholder="Nom…">' +
+      '<div class="form-actions"><button type="button" class="f-annuler">Annuler</button><button type="button" class="f-ok">Enregistrer</button></div>';
+    positionnerPop(pop, Math.round(window.innerWidth / 2 - 110), Math.round(window.innerHeight / 2 - 90));
+    var fermer = fermerAuClicExterieur(pop, null, function () { pop.querySelector(".f-ok").click(); });
+    var input = pop.querySelector(".f-nom");
+    pop.querySelector(".f-annuler").addEventListener("click", fermer);
+    pop.querySelector(".f-ok").addEventListener("click", function () {
+      var nom = input.value.trim();
+      fermer();
+      if (nom && nom !== valeur) ok(nom);
+    });
+    input.focus();
+  }
+  // Écritures puis liste relue (etat.elementsGroupes : menus des cases et
+  // pages Machines / Transports).
+  function ecrireElements_(requetes, message) {
+    return Promise.all(requetes).then(function (r) {
+      r.forEach(function (res) { if (res.error) throw res.error; });
+      return sbClient.from("elements_groupes").select(COLONNES_ELEMENTS);
+    }).then(function (res) {
+      if (res.error) throw res.error;
+      etat.elementsGroupes = normaliserElements(res.data || []);
+      renderMachines(); renderTransports();
+      if (message) toast(message);
+    }).catch(function (err) { toast("Échec : " + (err && err.message ? err.message : err)); });
   }
   function renderIntervenants() { renderListePersonnes(true); }
   function ouvrirAjoutPersonne(sousTraitant, equipe, groupeId) {

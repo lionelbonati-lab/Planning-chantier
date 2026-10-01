@@ -186,13 +186,18 @@
     if (popFermerActuel) popFermerActuel();
     var pop = document.createElement("div");
     pop.className = "pop form-pop pop-notifications";
+    // Round du 01.10.2026 (suite 135) — Lionel (retour n° 12) : « un petit
+    // bouton raccourcis réglage notifications dans les notifications ».
+    // « Réglages » ouvre la page Réglages › Notifications (push).
     pop.innerHTML = '<div class="cp-titre">Notifications</div><div class="notif-contenu"></div>' +
-      '<div class="form-actions"><button type="button" class="f-annuler">Fermer</button></div>';
+      '<div class="form-actions"><button type="button" class="notif-reglages" title="Réglages des notifications">' + ICONS.gear + '<span>Réglages</span></button>' +
+      '<button type="button" class="f-annuler">Fermer</button></div>';
     var btn = document.getElementById("btnNotifications");
     var r = btn && btn.getBoundingClientRect().width ? btn.getBoundingClientRect() : { left: window.innerWidth / 2 - 240, bottom: 80 };
     positionnerPop(pop, Math.round(r.left), Math.round(r.bottom + 6));
     var fermer = fermerAuClicExterieur(pop, null, null);
     pop.querySelector(".f-annuler").addEventListener("click", fermer);
+    pop.querySelector(".notif-reglages").addEventListener("click", function () { fermer(); afficherPage("notifications-push"); });
     var contenu = pop.querySelector(".notif-contenu");
 
     function titreSection(classe, icone, nom, n) {
