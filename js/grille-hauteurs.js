@@ -930,6 +930,45 @@
     else if (dernierPointeur_ === "touch" && joursChoisis_.length) choisirJour_(iso, "basculer");
     else choisirJour_(iso, "seul");
   });
+  /* Round du 01.10.2026 (suite 142) — Lionel : « Un clic dans la case de la
+     colonne à gauche des horaires sélectionne toutes les lignes. Un clic sur
+     une ligne de séparation sélectionne tout le groupe ». Comme le coin d'un
+     tableur : la case sous le mois (.th-demi du coin) choisit toutes les
+     lignes ; une bande de section (Personnel, Intervenants, un groupe)
+     choisit les lignes qui la suivent jusqu'à la section suivante (la ligne
+     Machines, qui tient lieu de titre, en est une). Ctrl (Cmd) / Maj :
+     ajoutées aux lignes déjà choisies. Pas en mode ajout (suite 109). */
+  function lignesDeSection_(bande) {
+    var g = bande.parentNode, r = plageGrille_(bande.style.gridRow);
+    if (!r) return [];
+    var fin = Infinity;
+    [].forEach.call(g.querySelectorAll(":scope > .section-row, :scope > .lbl[data-section]"), function (b) {
+      var rb = plageGrille_(b.style.gridRow);
+      if (rb && rb[0] > r[0]) fin = Math.min(fin, rb[0]);
+    });
+    return etiquettesLignes_().filter(function (l) {
+      var rl = plageGrille_(l.style.gridRow);
+      return l.parentNode === g && rl && rl[0] > r[0] && rl[0] < fin;
+    }).map(function (l) { return l.dataset.ligne; });
+  }
+  function choisirLignesEnBloc_(ids, ajouter) {
+    if (!ids.length) return;
+    var jours = ajouter ? joursChoisis_.slice() : [];
+    var l = ajouter ? lignesChoisies_.concat(ids.filter(function (i) { return lignesChoisies_.indexOf(i) < 0; })) : ids;
+    if (!ajouter) quitterModeSelection();
+    ancreLigne_ = null;
+    changerChoix_(l, jours);
+  }
+  document.addEventListener("click", function (e) {
+    if (e.button !== 0 || modeAjoutPlanning || !e.target.closest) return;
+    var ajouter = e.ctrlKey || e.metaKey || e.shiftKey;
+    if (e.target.closest("#racine .th.coin.th-demi")) {
+      choisirLignesEnBloc_(etiquettesLignes_().map(function (l) { return l.dataset.ligne; }), ajouter);
+      return;
+    }
+    var bande = e.target.closest("#racine .grille > .section-row");
+    if (bande && !e.target.closest(".section-poignee")) choisirLignesEnBloc_(lignesDeSection_(bande), ajouter);
+  });
 
   // Suite 119 — menu du nom d'une équipe : « Couleur de l'équipe », une
   // rangée de pastilles (COULEURS_EQUIPES), le sélecteur du système pour

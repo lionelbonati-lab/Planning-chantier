@@ -1529,6 +1529,7 @@
     var coinDemi = document.createElement("div");
     coinDemi.className = "th coin th-demi";
     coinDemi.dataset.vt = "coin-demi";
+    coinDemi.title = "Sélectionner toutes les lignes"; // suite 142
     if (ligneDemiAff !== "masquee") poser(coinDemi, 1, row);
     for (var giD = 0; giD < n && ligneDemiAff !== "masquee"; giD++) {
       DEMIS.forEach(function (demi) {
@@ -1730,6 +1731,7 @@
       // titre pour ranger la section ailleurs (cablerGlisserSection).
       lg.className = "section-row section-row-" + (/^groupe-/.test(cle) ? "groupe" : cle);
       lg.dataset.section = cle;
+      lg.title = "Clic : sélectionner les lignes du groupe"; // suite 142
       lg.innerHTML =
         '<div class="section-row-sticky">' +
         '<span class="section-poignee" title="Glisser pour changer l’ordre des groupes" aria-hidden="true">⠿</span>' +
