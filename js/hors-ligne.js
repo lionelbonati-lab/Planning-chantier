@@ -621,7 +621,11 @@
       if (Date.now() - derniere < 120000) return false;
       sessionStorage.setItem("reparationAppli", String(Date.now()));
     } catch (e) { return false; }
-    if (typeof afficherChargement === "function") afficherChargement("Mise à jour de l’appli…");
+    // Round du 01.10.2026 (suite 140) — Lionel : « J'ai toujour 2 messages
+    // qui s'affichent a chaque mise à jours. recharger et mise à jour ». Son
+    // choix : « Un seul message ». Ici, l'écran de chargement ordinaire,
+    // plus « Mise à jour de l'appli… ».
+    if (typeof afficherChargement === "function") afficherChargement();
     rechargerAppliNeuve_();
     return true;
   }
@@ -634,9 +638,12 @@
     bandeau.innerHTML = '<span>Nouvelle version de l’appli prête.</span>' +
       '<button type="button" class="maj-recharger">Recharger</button>' +
       '<button type="button" class="maj-fermer" aria-label="Plus tard" title="Plus tard">×</button>';
+    // Suite 140 : « Recharger » est le seul message. Le bandeau s'efface
+    // et l'écran de chargement ordinaire prend la place pendant la recopie
+    // (plus de « Mise à jour… »).
     bandeau.querySelector(".maj-recharger").addEventListener("click", function () {
-      this.disabled = true;
-      this.textContent = "Mise à jour…";
+      bandeau.remove();
+      if (typeof afficherChargement === "function") afficherChargement();
       rechargerAppliNeuve_();
     });
     bandeau.querySelector(".maj-fermer").addEventListener("click", function () { bandeau.remove(); });
