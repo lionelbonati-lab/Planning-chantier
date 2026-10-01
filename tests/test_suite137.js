@@ -15,7 +15,9 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //   2. pages Personnel / Intervenants : plus de ↑/↓, coche « Afficher » en
 //      tête de ligne (avant le nom), toujours active ;
 //   3. clic droit sur un nom : « Masquer la ligne » (masque en base, ligne
-//      retirée du planning) et « Désactiver… » (confirmation, actif=false) ;
+//      retirée du planning) ; « Désactiver… » retiré à la suite 138 (Lionel :
+//      « Je n'aime pas cette fonction désactiver sur personnel et
+//      intervenants, la supprimer. ») ;
 //   4. cloche : « Valider » retire le drapeau important (toutes ses
 //      demi-journées), la ligne quitte la liste et le compteur, la bulle
 //      perd son icône ;
@@ -95,23 +97,14 @@ const clicMenu = (page, libelle) => page.evaluate((l) => [...document.querySelec
   const remis = await page.evaluate(() => window.__BD.personnes.find((p) => p.id === 2).masque);
   verifier(masqueCoche === true && remis === false, 'coche « Afficher » à sa nouvelle place : masque puis réaffiche (' + [masqueCoche, remis] + ')');
 
-  // --- 3. Clic droit sur un nom : Masquer / Désactiver --------------------------------
+  // --- 3. Clic droit sur un nom : Masquer (Désactiver retiré, suite 138) ----------------
   await allerPage(page, 'planning');
-  let boutons = await menuNom(page, 2);
-  const aLes2 = boutons.includes('Masquer la ligne') && boutons.includes('Désactiver…');
+  const boutons = await menuNom(page, 2);
+  const aLes2 = boutons.includes('Masquer la ligne') && !boutons.includes('Désactiver…');
   await clicMenu(page, 'Masquer la ligne');
   await page.waitForTimeout(800);
   const apresMasque = await page.evaluate(() => [window.__BD.personnes.find((p) => p.id === 2).masque, !!document.querySelector('#racine .grille > .lbl[data-ligne="p2"]')]);
   verifier(aLes2 && apresMasque[0] === true && !apresMasque[1], 'clic droit sur Anne : « Masquer la ligne » → masque en base, ligne retirée (' + JSON.stringify([boutons, apresMasque]) + ')');
-  boutons = await menuNom(page, 3);
-  await clicMenu(page, 'Désactiver…');
-  await page.waitForTimeout(250);
-  const confirm = await page.evaluate(() => (document.querySelector('.confirm-texte') || {}).textContent);
-  await page.evaluate(() => document.querySelector('.c-ok').click());
-  await page.waitForTimeout(800);
-  const apresDesact = await page.evaluate(() => [window.__BD.personnes.find((p) => p.id === 3).actif, !!document.querySelector('#racine .grille > .lbl[data-ligne="p3"]')]);
-  verifier(/Désactiver «\s?Béton SA\s?»/.test(confirm || '') && apresDesact[0] === false && !apresDesact[1],
-    'clic droit sur Béton SA : « Désactiver… » → confirmation, actif=false, ligne retirée (' + JSON.stringify([confirm, apresDesact]) + ')');
 
   // --- 4. Cloche : valider un important ----------------------------------------------
   // Anne est masquée (étape 3) : on la réaffiche pour voir « Visite ».

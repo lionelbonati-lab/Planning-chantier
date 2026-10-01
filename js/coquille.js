@@ -725,7 +725,8 @@
     return htmlPageSimple_("transports", "Transports",
       '<p class="page-sous">Une seule ligne, en haut du planning sous les notes. L’icône camion de la barre du planning la masque. Clic droit (ou appui long) sur une de ses cases : cette liste, puis chantier et quantité.</p>' +
       htmlReglagesCouleurs('transports') +
-      '<h2 class="titre-liste">Matériaux</h2>' +
+      // Suite 138 : titre « Matériaux » posé par renderTransports, sous la
+      // coche « Afficher ».
       '<div id="listeTransports"></div>');
   }
   function htmlPageChantiers() {

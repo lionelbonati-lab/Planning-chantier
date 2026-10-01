@@ -82,8 +82,15 @@ function mesurerLignes(page) {
       const m = await mesurerLignes(page);
       verifier(m.lignes > 0 && m.boutons > 0 && m.pb.length === 0 && !m.deborde,
         largeur + ' px, ' + p + ' : ' + m.boutons + ' boutons en icônes, dans la ligne et dans l\'écran (' + JSON.stringify(m) + ')');
-      if (['personnel', 'chantiers'].includes(p)) {
+      // Suite 138 : plus d'interrupteur « Actif » sur Personnel (Lionel :
+      // « Je n'aime pas cette fonction désactiver sur personnel et
+      // intervenants, la supprimer. ») ; Chantiers le garde.
+      if (p === 'chantiers') {
         verifier(tel ? m.actifTexte === 0 : m.actifTexte > 0, largeur + ' px, ' + p + ' : libellé « Actif » ' + (tel ? 'masqué' : 'affiché') + ' (' + m.actifTexte + ')');
+      }
+      if (p === 'personnel') {
+        const actif = await page.evaluate(() => document.querySelectorAll('#page-personnel .champ-actif').length);
+        verifier(actif === 0, largeur + ' px, personnel : plus d’interrupteur « Actif » (' + actif + ')');
       }
       if (CAPTURES && largeur !== 360) await page.screenshot({ path: CAPTURES + '/s53-' + p + '-' + largeur + '.png' });
     }

@@ -11223,3 +11223,22 @@ Lionel (amélioration n° 12) :
   - cloche : « Valider » retire le drapeau (2 demi-journées), l'autre important reste ;
   - aucune erreur JS.
 
+
+
+
+## 251. Round du 01.10.2026 (suite 138) — Machines / Transports masquables, plus de « Désactiver » sur Personnel / Intervenants
+
+Lionel : « machine et transport doivent aussi pourvoir être masqué.
+Je n'aime pas cette fonction désactiver sur personnel et intervenants, la supprimer. »
+Ses choix : « L'interrupteur « Actif » des pages » et « Coche « Afficher » + clic droit ».
+
+- **Personnel / Intervenants (et Équipes)** (`js/page-personnel.js`) : plus d'interrupteur « Actif » ni de liste repliée « Désactivés » ; une ligne inactive n'est plus listée (aucune ne l'était chez Lionel). La coche « Afficher » cache une ligne ; la corbeille « Supprimer définitivement » (même confirmation qu'avant) est maintenant sur chaque ligne, puisque l'interrupteur était le seul chemin vers elle.
+- **Clic droit sur un nom** (`js/grille-hauteurs.js`) : « Désactiver… » retiré, « Masquer la ligne » reste — il marche aussi sur les lignes Machines et Transports (ce sont des personnes).
+- **Pages Machines / Transports** : coche « Afficher dans le planning » sous le titre du groupe (Machines) ou au-dessus de « Matériaux » (Transports, titre déplacé de `js/coquille.js` vers `renderTransports`). Même effet que la coche de Personnel (`personnes.masque` des lignes du groupe) ; `rafraichirApresPersonnel` redessine aussi la page Transports, pour que la coche suive le clic droit.
+- La page Chantiers garde son interrupteur « Actif » (hors demande).
+
+### Tests
+
+- `tests/test_suite138.js` (nouveau, 6 vérifications) : plus d'« Actif » ni de « Désactivés », corbeille sur chaque ligne ; corbeille → confirmation et suppression ; coche Machines et coche Transports masquent puis réaffichent leur ligne ; clic droit sur Machines → « Masquer la ligne » sans « Désactiver… », la coche suit ; aucune erreur JS.
+- `tests/test_suite137.js` : le clic droit vérifie l'absence de « Désactiver… » (au lieu de le cliquer).
+- `tests/test_suite53.js` : libellé « Actif » vérifié sur Chantiers seulement ; Personnel vérifie qu'il n'y a plus d'interrupteur.

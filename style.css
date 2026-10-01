@@ -2547,6 +2547,9 @@
     font-family: var(--police-mono); text-transform: uppercase; letter-spacing: .03em;
   }
   .champ-afficher input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+  /* Suite 138 : même coche sur les pages Machines / Transports, sous le
+     titre du groupe, pour sa ligne. */
+  .champ-afficher.afficher-groupe { width: max-content; margin: 0 0 8px; }
   .ligne-desactivee { opacity: .62; }
   .ligne-desactivee b { font-weight: 700; text-decoration: line-through; text-decoration-color: var(--ink-faint); }
   .lien-reactiver { font-size: 12px; font-weight: 700; color: var(--accent); cursor: pointer; background: none; border: none; font-family: inherit; padding: 0; }
@@ -2554,7 +2557,8 @@
   /* Suppression définitive (irréversible, cascade sur l'historique côté
      personnes — cf. supprimerPersonnePermanenceServeur) : uniquement
      proposée sur une ligne déjà désactivée, jamais sur une ligne active
-     (il faut d'abord désactiver). Icône rouge + libellé, pas de 2e niveau
+     (il faut d'abord désactiver). Suite 138 : sur chaque ligne de
+     Personnel / Intervenants (plus d'interrupteur « Actif »). Icône rouge + libellé, pas de 2e niveau
      d'UI — Lionel : « bouton supprimer avec icone rouge suffit ». */
   .lien-supprimer-def {
     display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600;
