@@ -16,6 +16,11 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //
 // Lancer : node test_suite115.js
 
+// Round du 01.10.2026 (suite 133) : une équipe repliée cache tous ses
+// membres (retour 6, « J'aimerai pouvoir replier complètement les
+// équipes. ») ; l'équipe A est donc ouverte dépliée pour voir son membre.
+const DEPLIEE = { 'planning.equipesDepliees': '{"10":true}' };
+
 const P = (id, nom, ordre, x) => Object.assign({ id, nom, sous_traitant: false, equipe: false, ordre, actif: true }, x || {});
 const BD = () => ({
   personnes: [
@@ -48,7 +53,7 @@ async function glisser(page, de, versY) {
   const toutesErreurs = [];
 
   {
-    const { page, erreurs } = await ouvrirPlanning(browser, { bd: BD() });
+    const { page, erreurs } = await ouvrirPlanning(browser, { bd: BD(), localStorage: DEPLIEE });
     let l = await lignes(page);
     verifier(l.startsWith('Équipe A,Membre,Équipe B,Anne,Bruno,Chloé'), 'ordre de départ : ' + l);
 
@@ -106,7 +111,7 @@ async function glisser(page, de, versY) {
 
   // --- 6. Téléphone : Monter / Descendre dans le menu du nom ----------------------------
   {
-    const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 390, height: 800 }, hasTouch: true, bd: BD() });
+    const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 390, height: 800 }, hasTouch: true, bd: BD(), localStorage: DEPLIEE });
     const r = await page.evaluate(() => {
       const lbl = document.querySelector('#racine .grille > [data-ligne="p1"]');
       ouvrirMenuHauteurLigne(lbl, 100, 100);

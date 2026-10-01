@@ -11032,3 +11032,40 @@ Lionel :
 - tests/test_suite130.js : le départ plus tôt prend un motif au lieu d'un type.
 - tests/test_formulaires_assignation.js : charge aussi secteurDe / groupeParId (secteurPersonne passe par eux).
 - Suite complète : 136/136.
+
+
+## 246. Round du 01.10.2026 (suite 133) — repli total des équipes, types « Absence » / « Congé » de l'ouvrier
+
+Lionel (page Améliorations et bugs, amélioration n° 6) :
+
+> J'aimerai pouvoir replier complètement les équipes. Pour pouvoir travailler sur plusieurs équipes différentes en même temps sans cases intermédiaires.
+
+Son choix : « Repli total par équipe » — « Le ▸ d'une équipe cache TOUS ses membres, même ceux qui ont une tâche ou une absence ; les lignes d'équipe se suivent sans cases entre elles. ▾ ré-affiche. Un petit point sur l'équipe signale qu'un membre caché a quelque chose. »
+
+- Équipe repliée : tous ses membres sont cachés (avant : un membre avec une tâche, une absence ou une exception d'équipe dans la semaine — ou ce jour-là en vue « 1 jour » — restait affiché sous l'équipe). Deux équipes repliées se suivent sans ligne entre elles.
+- Point « • » (couleur d'accent) après le nom de l'équipe quand un membre caché a une tâche, une absence ou une exception d'équipe dans la semaine affichée (en vue « 1 jour » : ce jour-là) ; info-bulle « Membre caché avec une tâche ou une absence : Marc » (« Membres cachés … » s'ils sont plusieurs), reprise dans l'info-bulle de l'équipe.
+- Vue « 1 jour » : le point et son info-bulle suivent le jour affiché (la grille est reconstruite quand ils changent, même si le point reste).
+- ▾ ré-affiche tous les membres, comme avant.
+- Code : js/equipes.js (personnesAffichees, membreOccupe_, membresCachesOccupes_, signatureMembresAffiches_, étiquette d'équipe), style.css (.equipe-point).
+
+Lionel (amélioration n° 5) :
+
+> Typed demande d'absence: Absence, congé
+
+Son choix : « Liste ouvrier » — dans la demande d'absence du lien de consultation, les types sont exactement « Absence » et « Congé ».
+
+- Le serveur envoie cette liste (sql/0034, BACKEND §37) ; la page de consultation prend la même par défaut (avant : Congé / Vacances / Maladie). Une demande plus ancienne d'un autre type (« Vacances »…) garde son type quand on la modifie.
+- Code : js/consultation.js.
+
+### Tests
+- Nouveau : tests/test_suite133.js (10 vérifications) :
+  - ordinateur : équipes repliées, membres cachés même avec absence ou tâche, lignes d'équipe qui se suivent ;
+  - point sur l'équipe concernée seulement, noms dans l'info-bulle ;
+  - ▾ / ▸ ;
+  - téléphone, vue « 1 jour » : le point suit le jour (absence le 24, tâche le 25, rien le 23) ;
+  - consultation : « Absence » / « Congé », avec et sans liste du serveur ;
+  - aucune erreur JS.
+- tests/test_suite33.js, tests/test_suite118.js, tests/test_suite131.js : membre occupé caché sous l'équipe repliée, point sur l'équipe à la place (test_suite131 déplie l'équipe avant de cliquer dans les cases de Marc).
+- tests/test_suite115.js, tests/test_suite119.js : l'équipe A s'ouvre dépliée (réglage de l'appareil) pour voir son membre.
+- Suite complète : 137/137.
+

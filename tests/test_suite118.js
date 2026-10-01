@@ -8,11 +8,12 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //      est caché, même s'il a une tâche un autre jour des 2 semaines
 //      chargées (avant : toujours affiché, ▸/▾ sans effet) ;
 //   2. ▸ le montre, ▾ le cache ;
-//   3. changement de jour par défilement : sur le jour de sa tâche, il
-//      réapparaît sous l'équipe repliée (bulle comprise), le jour reste
-//      posé ; de retour sur le jour d'avant, il est de nouveau caché ;
-//   4. ordinateur, « 1 semaine » : inchangé (tâche dans la semaine =
-//      membre affiché sous l'équipe repliée).
+//   3. changement de jour par défilement : le jour reste posé.
+//   4. ordinateur, « 1 semaine ».
+// Round du 01.10.2026 (suite 133) : repli total (retour 6, « J'aimerai
+// pouvoir replier complètement les équipes. ») — sur le jour de sa tâche
+// (3) comme sur ordinateur (4), le membre reste caché sous l'équipe
+// repliée ; un point « • » sur l'équipe le signale à la place.
 //
 // Lancer : node test_suite118.js
 
@@ -29,6 +30,7 @@ const BD = () => ({
 const etat = (page) => page.evaluate(() => ({
   lignes: [...document.querySelectorAll('#racine .grille > .lbl[data-ligne^="p"]')].map((l) => l.dataset.ligne).join(','),
   jour: jourMobileIso,
+  point: !!document.querySelector('#racine .lbl-equipe[data-equipe="10"] .equipe-point'),
   ailleurs: [...document.querySelectorAll('#racine .bulle')].some((b) => b.textContent.includes('Ailleurs') && b.getClientRects().length > 0 && !b.classList.contains('hors-jour'))
 }));
 async function fleche(page) {
@@ -68,10 +70,10 @@ async function defilerVers(page, iso) {
     // --- 3. Changement de jour -----------------------------------------------------
     await defilerVers(page, '2026-09-25');
     e = await etat(page);
-    verifier(e.jour === '2026-09-25' && e.lignes === 'p10,p4,p1' && e.ailleurs, 'jour de sa tâche : le membre réapparaît avec sa bulle ' + JSON.stringify(e));
+    verifier(e.jour === '2026-09-25' && e.lignes === 'p10,p1' && e.point && !e.ailleurs, 'jour de sa tâche : membre caché, point sur l\'équipe ' + JSON.stringify(e));
     await defilerVers(page, '2026-09-24');
     e = await etat(page);
-    verifier(e.jour === '2026-09-24' && e.lignes === 'p10,p1', 'retour au jour d\'avant : membre caché ' + JSON.stringify(e));
+    verifier(e.jour === '2026-09-24' && e.lignes === 'p10,p1' && !e.point, 'retour au jour d\'avant : membre caché, pas de point ' + JSON.stringify(e));
     toutesErreurs.push(...erreurs);
     await page.close();
   }
@@ -80,7 +82,7 @@ async function defilerVers(page, iso) {
   {
     const { page, erreurs } = await ouvrirPlanning(browser, { bd: BD() });
     const e = await etat(page);
-    verifier(e.lignes === 'p10,p4,p1', 'ordinateur, « 1 semaine » : membre avec une tâche dans la semaine affiché (' + e.lignes + ')');
+    verifier(e.lignes === 'p10,p1' && e.point, 'ordinateur, « 1 semaine » : membre caché, point sur l\'équipe ' + JSON.stringify(e));
     toutesErreurs.push(...erreurs);
     await page.close();
   }

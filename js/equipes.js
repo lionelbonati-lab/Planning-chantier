@@ -216,20 +216,42 @@
     // chantier, tous ; ▸/▾ ne changeait donc rien. Dans cette vue, seul
     // compte le jour affiché (lignes refaites au changement de jour,
     // cf. defilementArrete, grille-telephone.js).
-    var jour = modeJourMobileActif() ? (jourMobileIso || etat.aujourdhui) : null;
+    // Round du 01.10.2026 (suite 133) — Lionel (retour n° 6) : « J'aimerai
+    // pouvoir replier complètement les équipes. Pour pouvoir travailler sur
+    // plusieurs équipes différentes en même temps sans cases
+    // intermédiaires. » Son choix : « Repli total par équipe » — une équipe
+    // repliée (▸) cache TOUS ses membres, même ceux qui ont une tâche ou une
+    // absence (avant : ils restaient visibles) ; un point sur l'équipe le
+    // signale (membresCachesOccupes_). ▾ les ré-affiche tous.
     return ordre.filter(function (e) {
-      if (e.role !== "membre" || equipesDepliees[e.equipeId]) return true;
-      // Suite 131 : un membre retiré de l'équipe (ou ajouté à une autre)
-      // reste visible, pour que sa case « Hors équipe » se voie.
-      if (aExceptionAffichee_(e.p.id, jour)) return true;
-      return TACHES.some(function (it) {
-        return it.personneId === e.p.id && (!jour || ((it.dateDebutIso || isoDeGi(it.giDebut)) <= jour && isoDeApres(it) >= jour));
-      });
+      return e.role !== "membre" || !!equipesDepliees[e.equipeId];
     }).map(function (e) { return e.p; });
   }
+  // Le membre a-t-il quelque chose dans la fenêtre affichée (en vue « 1
+  // jour », ce jour-là, cf. suite 118) : tâche, absence, ou exception
+  // d'équipe (suite 131) ?
+  function membreOccupe_(personneId) {
+    var jour = modeJourMobileActif() ? (jourMobileIso || etat.aujourdhui) : null;
+    if (aExceptionAffichee_(personneId, jour)) return true;
+    return TACHES.some(function (it) {
+      return it.personneId === personneId && (!jour || ((it.dateDebutIso || isoDeGi(it.giDebut)) <= jour && isoDeApres(it) >= jour));
+    });
+  }
+  // Suite 133 : équipe repliée dont un membre caché a quelque chose → point
+  // « • » sur son étiquette (noms des membres concernés dans l'info-bulle).
+  function membresCachesOccupes_(equipeId) {
+    if (equipesDepliees[equipeId]) return [];
+    return ordrePersonnesEquipes(PERSONNES.filter(function (p) { return secteurDe(p) === "personnel"; }), lundiCourantEquipes(), function (p) { return p.id; })
+      .filter(function (e) { return e.role === "membre" && e.equipeId === equipeId && membreOccupe_(e.p.id); })
+      .map(function (e) { return e.p.nom; });
+  }
   // Membres affichés sous les équipes (suite 118) : comparés avant / après
-  // un changement de jour en vue « 1 jour ».
-  function signatureMembresAffiches_() { return personnesAffichees("personnel").map(function (p) { return p.id; }).join(","); }
+  // un changement de jour en vue « 1 jour ». Suite 133 : avec, par équipe,
+  // les membres cachés occupés ce jour-là (point « • » et son info-bulle,
+  // qui changent même quand le point reste d'un jour à l'autre).
+  function signatureMembresAffiches_() {
+    return personnesAffichees("personnel").map(function (p) { return p.id + (p.equipe ? "•" + membresCachesOccupes_(p.id).join("|") : ""); }).join(",");
+  }
   // Suite 132 : toutes les sections, dans l'ordre du planning.
   function personnesAfficheesToutes() {
     return sectionsCorps().reduce(function (acc, s) { return acc.concat(personnesAffichees(s.secteur)); }, []);
@@ -298,10 +320,13 @@
       poserCouleurEquipe_(lbl, p.id);
       // Suite 104 : le menu de la ligne (grille-hauteurs.js) propose
       // « Composition de l'équipe… » ; suite 106 : il s'ouvre au clic droit.
-      lbl.title = p.nom + (noms.length ? " — " + noms.join(", ") : "") + (detail.length ? "\n" + detail.join("\n") : "") + "\nClic droit : composition de la semaine, hauteur de la ligne";
+      var occupes = membresCachesOccupes_(p.id);
+      var texteOccupes = occupes.length ? (occupes.length > 1 ? "Membres cachés" : "Membre caché") + " avec une tâche ou une absence : " + occupes.join(", ") : "";
+      lbl.title = p.nom + (noms.length ? " — " + noms.join(", ") : "") + (detail.length ? "\n" + detail.join("\n") : "") + (texteOccupes ? "\n" + texteOccupes : "") + "\nClic droit : composition de la semaine, hauteur de la ligne";
       lbl.innerHTML =
         '<div class="equipe-titre"><button type="button" class="equipe-repli" aria-expanded="' + ouverte + '" title="' + (ouverte ? "Replier les membres" : "Déplier les membres") + '">' + (ouverte ? "▾" : "▸") + "</button>" +
-        "<b>" + nomSurDeuxLignes(p.nom) + "</b></div>" +
+        "<b>" + nomSurDeuxLignes(p.nom) + "</b>" +
+        (occupes.length ? '<span class="equipe-point" title="' + esc(texteOccupes) + '" aria-label="' + esc(texteOccupes) + '">•</span>' : "") + "</div>" +
         '<span class="equipe-membres">' + (noms.length ? esc(noms.join(", ")) : "Aucun membre") + "</span>";
       lbl.querySelector(".equipe-repli").addEventListener("click", function (ev) { ev.stopPropagation(); basculerDepliageEquipe(p.id); });
       return;
@@ -428,9 +453,9 @@
       return x.date >= lundi && x.date <= fin && (!filtre || filtre(x));
     });
   }
-  // Une exception de la personne dans la fenêtre affichée (en vue « 1
-  // jour », ce jour-là) : un membre retiré reste visible sous son équipe
-  // repliée, comme un membre absent (cf. personnesAffichees).
+  // Une exception de la personne dans la fenêtre affichée (en vue « 1
+  // jour », ce jour-là) : un membre retiré compte comme « occupé » (point
+  // sur l'équipe repliée, cf. membreOccupe_ ; suite 133).
   function aExceptionAffichee_(personneId, jour) {
     personneId = String(personneId);
     return (etat.exceptionsEquipes || []).some(function (x) {

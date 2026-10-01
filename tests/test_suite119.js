@@ -16,6 +16,11 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //
 // Lancer : node test_suite119.js
 
+// Round du 01.10.2026 (suite 133) : une équipe repliée cache tous ses
+// membres (retour 6, « J'aimerai pouvoir replier complètement les
+// équipes. ») ; l'équipe A est donc ouverte dépliée pour voir son membre.
+const DEPLIEE = { 'planning.equipesDepliees': '{"10":true}' };
+
 const P = (id, nom, ordre, x) => Object.assign({ id, nom, sous_traitant: false, equipe: false, ordre, actif: true }, x || {});
 const BD = () => ({
   personnes: [P(1, 'Anne', 1), P(4, 'Membre', 2), P(10, 'Équipe A', 3, { equipe: true }), P(11, 'Équipe B', 4, { equipe: true })],
@@ -39,7 +44,7 @@ async function menu(page, id) {
   const toutesErreurs = [];
 
   {
-    const { page, erreurs } = await ouvrirPlanning(browser, { bd: BD() });
+    const { page, erreurs } = await ouvrirPlanning(browser, { bd: BD(), localStorage: DEPLIEE });
     // --- 1. Sans couleur ----------------------------------------------------------
     const e0 = await bandes(page);
     const accent = await page.evaluate(() => { const d = document.createElement('div'); d.style.color = 'var(--accent)'; document.body.appendChild(d); const c = getComputedStyle(d).color; d.remove(); return c; });
