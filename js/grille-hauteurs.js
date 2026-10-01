@@ -290,6 +290,13 @@
         el.classList.toggle("ligne-repliee", repliee);
         if (repliee) el.title = "Ligne repliée — clic : la déplier";
         else if (el.dataset.titreNormal != null) { el.title = el.dataset.titreNormal; delete el.dataset.titreNormal; }
+        // Suite 141 : chevron des lignes Transports / Machines.
+        var bRepli = el.querySelector(":scope > .ligne-repli");
+        if (bRepli) {
+          bRepli.textContent = repliee ? "▸" : "▾";
+          bRepli.title = repliee ? "Déplier la ligne" : "Replier la ligne";
+          bRepli.setAttribute("aria-expanded", String(!repliee));
+        }
         if (!el.querySelector(":scope > .poignee-ligne")) {
           var pg = document.createElement("span");
           pg.className = "poignee-ligne";
@@ -670,6 +677,17 @@
     var id = idPersonneLigne_(lbl);
     if (id != null && typeof ouvrirModifierPersonne === "function") ouvrirModifierPersonne(id, function () {});
   }
+  // Round du 01.10.2026 (suite 141) — Lionel : « déplier et replier ligne
+  // machine et transport ». Clic sur le chevron (lignes Transports /
+  // Machines) : replier ou déplier cette ligne seule, sans la choisir.
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest && e.target.closest("#racine .grille > [data-ligne] > .ligne-repli");
+    if (!b) return;
+    e.preventDefault();
+    e.stopPropagation();
+    var lbl = etiquetteLigne_(b);
+    replierLignes([lbl.dataset.ligne], !lbl.classList.contains("ligne-repliee"));
+  }, true);
   document.addEventListener("contextmenu", function (e) {
     var lbl = etiquetteLigne_(e.target);
     if (!lbl) return;
@@ -704,7 +722,7 @@
   document.addEventListener("pointerdown", function (e) {
     if (e.pointerType !== "touch") return;
     var lbl = etiquetteLigne_(e.target);
-    if (!lbl || e.target.closest(".poignee-ligne")) return;
+    if (!lbl || e.target.closest(".poignee-ligne, .ligne-repli")) return;
     var pointerId = e.pointerId, x0 = e.clientX, y0 = e.clientY;
     var minuteur = setTimeout(function () {
       detacher();
@@ -1041,7 +1059,7 @@
   document.addEventListener("pointerdown", function (e) {
     if (e.pointerType === "touch" || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey) return;
     var lbl = etiquetteLigne_(e.target);
-    if (!lbl || e.target.closest(".poignee-ligne") || idPersonneLigne_(lbl) == null) return;
+    if (!lbl || e.target.closest(".poignee-ligne, .ligne-repli") || idPersonneLigne_(lbl) == null) return;
     var pointerId = e.pointerId, y0 = e.clientY, voisins = null, trait = null, cible = null;
     function viser(y) {
       var rs = voisins.map(function (l) { return l.getBoundingClientRect(); }), k = 0;

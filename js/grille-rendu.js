@@ -1805,6 +1805,15 @@
         // Suite 134 : la ligne Transports (fond réglable, page Transports).
         if (estTransports) lbl.classList.add("lbl-transports");
         if (premiere) lbl.classList.add("ligne-premiere");
+        // Round du 01.10.2026 (suite 141) — Lionel : « déplier et replier
+        // ligne machine et transport ». Chevron ▾/▸ devant le nom des
+        // lignes Transports et Machines : un clic replie la ligne en fine
+        // bande (suite 116, replierLignes) ou la déplie ; son état suit
+        // poserPistesFixes_ (grille-hauteurs.js), sans nouveau rendu.
+        if (estTransports || cleSection) {
+          lbl.classList.add("lbl-repliable");
+          lbl.insertAdjacentHTML("afterbegin", '<button type="button" class="ligne-repli" aria-expanded="true" title="Replier la ligne">▾</button>');
+        }
         // Suite 135 : la ligne Machines tient lieu de titre de sa section :
         // fond de la section, poignée ⠿ pour la ranger ailleurs.
         if (cleSection && iP === 0) {

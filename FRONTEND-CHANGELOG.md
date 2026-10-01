@@ -11274,3 +11274,17 @@ Lionel : « J'ai toujour 2 messages qui s'affichent a chaque mise à jours. rec
 
 - `tests/test_suite140.js` (nouveau, 3 vérifications) : un seul bandeau ; « Recharger » efface le bandeau et montre l'écran de chargement ordinaire, sans « Mise à jour » ; aucune erreur JS.
 - Parcours complets avec service worker inchangés et verts : `test_suite96`, `test_suite100`, `test_suite120_sw`.
+
+
+## 254. Round du 01.10.2026 (suite 141) — Chevron pour replier / déplier les lignes Machines et Transports
+
+Lionel : « déplier et replier ligne machine et transport ».
+
+- `js/grille-rendu.js` (`ligneGroupePersonnesCompact`) : les lignes Transports et Machines reçoivent un chevron `.ligne-repli` (▾ dépliée, ▸ repliée) devant le nom, classe `.lbl-repliable`.
+- `js/grille-hauteurs.js` : un clic (toucher) sur le chevron replie la ligne en fine bande ou la déplie (`replierLignes`, suite 116), sans choisir la ligne ni ouvrir le menu ; l'appui long et le glisser d'un nom ne partent pas du chevron. `poserPistesFixes_` met à jour le chevron (texte, titre, `aria-expanded`) à chaque repli, sans nouveau rendu. Le menu du nom (« Replier la ligne ») et le clic sur un nom replié restent.
+- `style.css` : chevron posé dans la marge gauche de l'étiquette, sur toute sa hauteur — le nom garde toute la largeur de la colonne (« Transports » n'est plus coupé).
+
+### Tests
+
+- `tests/test_suite141.js` (nouveau, 8 vérifications, ordinateur puis téléphone au doigt) : chevron ▾ sur Machines et Transports seulement ; un clic replie (18 px, ▸, ni ligne choisie ni menu), un 2e déplie (▾) ; aucune erreur JS.
+
