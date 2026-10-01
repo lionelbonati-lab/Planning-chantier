@@ -174,7 +174,12 @@
        « peut disparaitre en mode portable car moins utile ». Masquée tant
        qu'elle est éteinte ; allumée (mode ajout retenu par l'appareil),
        elle reste (dans « ⋮ ») pour pouvoir en sortir. */
-    body:not(.planning-mode-ajout) #groupeModeAjout { display: none; }
+    /* Round du 01.10.2026 (suite 136) — Lionel (retour n° 15) : « Rajouter
+       le bouton mode ajout. » Son choix : « Barre, à côté du « + » ». Plus
+       masquée ni repliée (REPLIS_TELEPHONE, grille-rendu.js) : l'icône
+       reste dans la barre, poussée à droite avec le « + » qu'elle précède. */
+    #legendeBarre > #groupeModeAjout { margin-left: auto; }
+    #legendeBarre > #groupeModeAjout + .toolbar-groupe-droite { margin-left: 0; }
     /* Pilule de sélection sur téléphone (round du 24.09.2026, suite 8 —
        Lionel : « Sur mobile une pilule vient remplacer la barre d'onglet en
        bas ») : même pilule fixe qu'ailleurs (style.css), étirée sur toute

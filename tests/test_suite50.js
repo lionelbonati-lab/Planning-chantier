@@ -92,6 +92,10 @@ function mesurer(page) {
     await page.evaluate(() => ajusterDebordementToolbar());
     const m2 = await mesurer(page);
     verifier(!m2.deborde, '360 px, texte agrandi : rien ne dépasse de la barre (' + m2.ecart + ' px)');
+    // Suite 136 (retour n° 15) : l'icône du mode ajout, dans la barre sinon,
+    // rejoint alors « ⋮ » plutôt que de déborder.
+    const repli = await page.evaluate(() => [!!document.getElementById('groupeModeAjout').closest('#toolbarSecondaire')]);
+    verifier(repli[0], '360 px, texte agrandi : icône du mode ajout repliée dans « ⋮ » (' + JSON.stringify(repli) + ')');
     toutesErreurs.push(...erreurs);
     await page.close();
   }

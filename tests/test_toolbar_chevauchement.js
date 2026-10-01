@@ -205,9 +205,11 @@ function mesurer() {
     return Array.from(b.children).filter((c) => c !== p && c.getBoundingClientRect().width > 0)
       .sort((a, c) => a.getBoundingClientRect().left - c.getBoundingClientRect().left).map((c) => c.id);
   });
-  verifier(JSON.stringify(ordreVisuel) === JSON.stringify(['groupeAnnulerRefaire', 'groupeAujourdhui', 'groupeChantier', 'groupeAjoutElement', 'btnPlusOutils']), 'barre téléphone inchangée : ' + ordreVisuel);
-  // Suite 112 : #groupeModeAjout rangé dans « ⋮ » (masqué hors mode ajout).
-  verifier(JSON.stringify(e.menu) === JSON.stringify(['groupeImprimer', 'groupeZoom', 'groupeNavSemaine', 'groupeAjoutLigne', 'groupeModeAjout', 'controlesAffichage']), 'menu téléphone : ' + e.menu);
+  // Suite 136 — Lionel (retour n° 15) : « Rajouter le bouton mode ajout. » ;
+  // son choix : « Barre, à côté du « + » » : #groupeModeAjout juste avant
+  // le « + » (suite 112 : rangé dans « ⋮ », masqué hors mode ajout).
+  verifier(JSON.stringify(ordreVisuel) === JSON.stringify(['groupeAnnulerRefaire', 'groupeAujourdhui', 'groupeChantier', 'groupeModeAjout', 'groupeAjoutElement', 'btnPlusOutils']), 'barre téléphone : ' + ordreVisuel);
+  verifier(JSON.stringify(e.menu) === JSON.stringify(['groupeImprimer', 'groupeZoom', 'groupeNavSemaine', 'groupeAjoutLigne', 'controlesAffichage']), 'menu téléphone : ' + e.menu);
   // Imprimer et Ajouter une ligne referment le menu (Lionel : « Bonne idée
   // de fermer le menu avec imprimé et ajouter ligne »). Clics via le DOM :
   // la fenêtre ouverte par chacun recouvre ensuite l'écran.
