@@ -146,8 +146,11 @@ const glisserTitre = async (page, cle, versCle, dessous) => {
     await page.evaluate(() => { const f = document.querySelector('.print-sheet .f-annuler, .impr-fermer'); if (f) f.click(); });
     await page.waitForTimeout(200);
 
-    // Page Personnel.
+    // Page Personnel. Suite 134 : les groupes sont sur la page Machines (ici
+    // « Transports » n'a pas ligne_unique : c'est un groupe comme Machines).
     await page.evaluate(() => document.querySelector('.onglet[data-page="personnel"]').click());
+    await page.waitForTimeout(400);
+    await page.evaluate(() => document.querySelector('.onglet[data-page="machines"]').click());
     await page.waitForTimeout(400);
     const pageP = await page.evaluate(() => ({
       titres: [...document.querySelectorAll('#listesGroupes h2')].map((h) => h.textContent).join(','),
@@ -156,7 +159,7 @@ const glisserTitre = async (page, cle, versCle, dessous) => {
       transports: [...document.querySelectorAll('#listeGroupe-2 .ligne-intervenant b')].map((x) => x.textContent).join(',')
     }));
     verifier(pageP.titres === 'Transports,Machines' && pageP.personnes === 'Paul,Anne' && pageP.machines === 'Pelle,Grue' && pageP.transports === 'Camion',
-      'page Personnel : une liste par groupe (ordre du planning), machines hors de « Personnes » (' + JSON.stringify(pageP) + ')');
+      'page Machines : une liste par groupe (ordre du planning), machines hors de « Personnes » (' + JSON.stringify(pageP) + ')');
     await page.click('#listeGroupe-1 .ligne-ajouter');
     const titreAjout = await page.evaluate(() => document.querySelector('.form-pop .cp-titre').textContent);
     await page.fill('.form-pop .f-nom', 'Mini-pelle');

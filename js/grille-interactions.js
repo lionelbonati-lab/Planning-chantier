@@ -2323,7 +2323,8 @@
     if (!cont) return;
     var etats = {
       jalon: replierJalons, note: replierNotes,
-      personnel: replierSectionPersonnel, intervenants: replierSectionIntervenants
+      personnel: replierSectionPersonnel, intervenants: replierSectionIntervenants,
+      machines: replierSectionMachines, transports: replierTransports
     };
     Object.keys(etats).forEach(function (cle) {
       var btn = cont.querySelector('[data-affichage-cible="' + cle + '"]');

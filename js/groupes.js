@@ -23,23 +23,48 @@
      Intervenants, puis chaque groupe — dans l'ordre choisi (réglage du
      compte « ordre_groupes », table reglages ; repli sur cet appareil si
      la base ne répond pas). Jalons et Notes restent en tête, figés.
+
+     Round du 01.10.2026 (suite 134 — sql/0035). Lionel (retour n° 9) :
+     « Machine et transports doivent avoir leurs propre onglet. [...]
+     Transport ne sera q'une ligne comme note et jalons. [...] Ajouter une
+     coche pour masquer une ligne personnel/intervenant et machine sans les
+     désactiver. » Ses choix : masquage « Tous les appareils », ligne
+     Transports « En haut, sous Notes ».
+       - Un groupe « ligne_unique » (Transports) n'est plus une section :
+         sa ligne (secteur "transports") est posée en tête du corps du
+         planning, juste sous Notes, sans titre de section (cf.
+         ligneTransports, js/grille-rendu.js). Ses tâches restent des
+         tâches (plusieurs jours, chantier, important, séries).
+       - personnes.masque (ligneMasquee) : la ligne n'est plus posée dans
+         le planning ni imprimée, sans être désactivée.
      ============================================================ */
-  var COLONNES_GROUPES = "id, nom, ordre, actif";
+  var COLONNES_GROUPES = "id, nom, ordre, actif, ligne_unique";
   function normaliserGroupes(lignes) {
     return (lignes || []).filter(function (g) { return g.actif !== false; }).map(function (g) {
-      return { id: String(g.id), nom: g.nom, ordre: g.ordre || 0 };
+      return { id: String(g.id), nom: g.nom, ordre: g.ordre || 0, ligneUnique: !!g.ligne_unique };
     }).sort(function (a, b) { return a.ordre - b.ordre || (+a.id) - (+b.id); });
+  }
+  // Suite 134 : groupes de lignes (Machines…) et groupe de la ligne
+  // Transports (ligne_unique).
+  function groupesLignes() { return (etat.groupes || []).filter(function (g) { return !g.ligneUnique; }); }
+  function groupeTransports() { return (etat.groupes || []).filter(function (g) { return g.ligneUnique; })[0] || null; }
+  // Suite 134 : ligne cachée par la coche « Afficher » (personnes.masque).
+  function ligneMasquee(id) {
+    id = String(id);
+    return (etat.personnesActives || []).some(function (p) { return String(p.id) === id && !!p.masque; });
   }
   function groupeParId(id) {
     id = String(id);
     return (etat.groupes || []).filter(function (g) { return g.id === id; })[0] || null;
   }
-  // Secteur d'une ligne : "personnel", "sous-traitant" ou "groupe-<id>".
+  // Secteur d'une ligne : "personnel", "sous-traitant", "groupe-<id>" ou
+  // "transports" (suite 134 : ligne du groupe ligne_unique).
   // Un groupe disparu ou désactivé : la ligne retombe dans le Personnel.
   function secteurDe(p) {
     if (!p) return "personnel";
     if (p.sousTraitant) return "sous-traitant";
-    if (p.groupeId && !p.equipe && groupeParId(p.groupeId)) return "groupe-" + p.groupeId;
+    var g = p.groupeId && !p.equipe ? groupeParId(p.groupeId) : null;
+    if (g) return g.ligneUnique ? "transports" : "groupe-" + p.groupeId;
     return "personnel";
   }
 
@@ -58,7 +83,7 @@
     var defaut = [
       { cle: "personnel", secteur: "personnel", libelle: "Personnel" },
       { cle: "intervenants", secteur: "sous-traitant", libelle: "Intervenants" }
-    ].concat((etat.groupes || []).map(function (g) { return { cle: "groupe-" + g.id, secteur: "groupe-" + g.id, libelle: g.nom }; }));
+    ].concat(groupesLignes().map(function (g) { return { cle: "groupe-" + g.id, secteur: "groupe-" + g.id, libelle: g.nom }; }));
     var ordre = ordreSectionsEnregistre_();
     var rang = function (s) { var i = ordre.indexOf(s.cle); return i < 0 ? ordre.length + defaut.indexOf(s) : i; };
     return defaut.slice().sort(function (a, b) { return rang(a) - rang(b); });

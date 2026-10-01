@@ -206,8 +206,10 @@
   // lignes) : un membre caché ne doit jamais recevoir un collage.
   // Suite 132 (js/groupes.js) : secteur "groupe-<id>" = lignes du groupe
   // (Machines, Transports…), dans l'ordre de la page Personnel, sans équipe.
+  // Suite 134 : secteur "transports" (la ligne Transports) ; une ligne
+  // masquée (coche « Afficher », ligneMasquee) n'est jamais posée.
   function personnesAffichees(secteur) {
-    if (secteur === "sous-traitant" || /^groupe-/.test(secteur)) return PERSONNES.filter(function (p) { return secteurDe(p) === secteur; });
+    if (secteur === "sous-traitant" || secteur === "transports" || /^groupe-/.test(secteur)) return PERSONNES.filter(function (p) { return secteurDe(p) === secteur && !ligneMasquee(p.id); });
     var ordre = ordrePersonnesEquipes(PERSONNES.filter(function (p) { return secteurDe(p) === "personnel"; }), lundiCourantEquipes(), function (p) { return p.id; });
     // Round du 29.09.2026 (suite 118) — Lionel : « En vue un jour, le
     // pliage et le dépliage de l'équipe ne fonctionnent pas. » La vue
@@ -224,7 +226,7 @@
     // absence (avant : ils restaient visibles) ; un point sur l'équipe le
     // signale (membresCachesOccupes_). ▾ les ré-affiche tous.
     return ordre.filter(function (e) {
-      return e.role !== "membre" || !!equipesDepliees[e.equipeId];
+      return (e.role !== "membre" || !!equipesDepliees[e.equipeId]) && !ligneMasquee(e.p.id);
     }).map(function (e) { return e.p; });
   }
   // Le membre a-t-il quelque chose dans la fenêtre affichée (en vue « 1
@@ -241,7 +243,8 @@
   // « • » sur son étiquette (noms des membres concernés dans l'info-bulle).
   function membresCachesOccupes_(equipeId) {
     if (equipesDepliees[equipeId]) return [];
-    return ordrePersonnesEquipes(PERSONNES.filter(function (p) { return secteurDe(p) === "personnel"; }), lundiCourantEquipes(), function (p) { return p.id; })
+    // Suite 134 : sans les lignes masquées (case « Afficher »).
+    return ordrePersonnesEquipes(PERSONNES.filter(function (p) { return secteurDe(p) === "personnel" && !ligneMasquee(p.id); }), lundiCourantEquipes(), function (p) { return p.id; })
       .filter(function (e) { return e.role === "membre" && e.equipeId === equipeId && membreOccupe_(e.p.id); })
       .map(function (e) { return e.p.nom; });
   }
@@ -252,14 +255,16 @@
   function signatureMembresAffiches_() {
     return personnesAffichees("personnel").map(function (p) { return p.id + (p.equipe ? "•" + membresCachesOccupes_(p.id).join("|") : ""); }).join(",");
   }
-  // Suite 132 : toutes les sections, dans l'ordre du planning.
+  // Suite 132 : toutes les sections, dans l'ordre du planning. Suite 134 :
+  // la ligne Transports en tête, comme à l'écran (sous les notes).
   function personnesAfficheesToutes() {
-    return sectionsCorps().reduce(function (acc, s) { return acc.concat(personnesAffichees(s.secteur)); }, []);
+    return sectionsCorps().reduce(function (acc, s) { return acc.concat(personnesAffichees(s.secteur)); }, personnesAffichees("transports").slice(0, 1));
   }
   // Suite 120 : même ordre, sans pliage — un membre caché sous son équipe
   // repliée reste dans les listes « Pour qui » de l'ajout.
   function personnelOrdonneSansPliage() {
-    return ordrePersonnesEquipes(PERSONNES.filter(function (p) { return secteurDe(p) === "personnel"; }), lundiCourantEquipes(), function (p) { return p.id; })
+    // Suite 134 : sans les lignes masquées (case « Afficher »).
+    return ordrePersonnesEquipes(PERSONNES.filter(function (p) { return secteurDe(p) === "personnel" && !ligneMasquee(p.id); }), lundiCourantEquipes(), function (p) { return p.id; })
       .map(function (e) { return e.p; });
   }
 

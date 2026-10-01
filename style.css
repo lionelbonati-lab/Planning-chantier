@@ -90,6 +90,8 @@
        propre réglage indépendant, inchangées : seule la toolbar est
        concernée par ce round. */
     --section-personnel-bg: var(--surface); --section-intervenants-bg: var(--surface);
+    /* Suite 134 (retour 10) : Machines et ligne Transports. */
+    --section-machines-bg: var(--surface); --transports-bg: var(--surface);
     /* Fond des cases "zoom" (#btnZoom) et "semaine" (#btnSemainePill,
        .zoom-pill partagée) — Lionel : « toujours en blanc », y compris en
        thème sombre et quel que soit le fond de la toolbar qui les entoure
@@ -137,6 +139,7 @@
       --succes-bg: #1c3a20; --succes-ink: #7fd88c;
       --weekend-bg: #232b34;
       --section-personnel-bg: var(--surface); --section-intervenants-bg: var(--surface);
+      --section-machines-bg: var(--surface); --transports-bg: var(--surface);
       color-scheme: dark;
     }
   }
@@ -576,6 +579,9 @@
      couleur choisie par Lionel. */
   .toolbar-toggle.actif[data-affichage-cible="personnel"] { background: var(--section-personnel-bg); color: var(--ink); }
   .toolbar-toggle.actif[data-affichage-cible="intervenants"] { background: var(--section-intervenants-bg); color: var(--ink); }
+  /* Suite 134 (retour 10) : idem pour Machines et Transports. */
+  .toolbar-toggle.actif[data-affichage-cible="machines"] { background: var(--section-machines-bg); color: var(--ink); }
+  .toolbar-toggle.actif[data-affichage-cible="transports"] { background: var(--transports-bg); color: var(--ink); }
   .toolbar-toggle.desactive { opacity: .5; background: none; color: var(--ink-faint); }
 
   /* .outil-menu/.outil-menu-panneau/.outil-menu-item — §85 (round du
@@ -1370,7 +1376,12 @@
      Transports… au fond du Personnel (« Comme le personnel »). Poignée ⠿
      devant chaque titre : glisser pour réordonner les sections ; le trait
      .section-trait montre où la section va. */
-  .section-row-groupe { background: var(--section-personnel-bg); }
+  /* Round du 01.10.2026 (suite 134) — Lionel (retour n° 10) : « Pouvoir
+     masquer et choisir les couleurs de séparation de machine et
+     transport » : fond propre aux Machines (page Machines), et à
+     l'étiquette de la ligne Transports, posée sous Notes (page Transports). */
+  .section-row-groupe { background: var(--section-machines-bg); }
+  .grille > .lbl.lbl-transports { background: var(--transports-bg); }
   .section-poignee { cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; color: var(--ink-muted); font-size: 12px; line-height: 1; padding: 2px 2px; margin-left: -6px; opacity: .55; }
   .section-row.section-glissee { opacity: .6; }
   .section-row.section-glissee .section-poignee { cursor: grabbing; opacity: 1; }
@@ -2501,6 +2512,14 @@
     display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--ink-faint);
     font-family: var(--police-mono); text-transform: uppercase; letter-spacing: .03em;
   }
+  /* Coche « Afficher » (round du 01.10.2026, suite 134 — Lionel :
+     « Ajouter une coche pour masquer une ligne personnel/intervenant et
+     machine sans les désactiver. ») : même habillage que « Actif ». */
+  .champ-afficher {
+    display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--ink-faint); cursor: pointer; margin-right: 6px;
+    font-family: var(--police-mono); text-transform: uppercase; letter-spacing: .03em;
+  }
+  .champ-afficher input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); cursor: pointer; }
   .ligne-desactivee { opacity: .62; }
   .ligne-desactivee b { font-weight: 700; text-decoration: line-through; text-decoration-color: var(--ink-faint); }
   .lien-reactiver { font-size: 12px; font-weight: 700; color: var(--accent); cursor: pointer; background: none; border: none; font-family: inherit; padding: 0; }
@@ -2526,6 +2545,17 @@
   .repli-desactives.ouvert .chevron { transform: rotate(90deg); }
   .groupe-desactives { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; max-width: 520px; }
 
+  /* Sous-onglets des pages Personnel, Intervenants, Machines, Transports
+     (suite 134 — Lionel : « On déplace les ajouts rapides de chaques type
+     dans leurs onglets correspondant 2 onglet en haut des pages ») : les
+     lignes, et les entrées rapides du type. */
+  .sous-onglets { display: inline-flex; gap: 2px; padding: 3px; margin: 8px 0 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); max-width: 100%; }
+  .sous-onglet { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border: none; border-radius: 7px; background: none; color: var(--ink-muted); font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+  .sous-onglet.actif { background: var(--surface); color: var(--accent); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+  @media (hover: hover) and (pointer: fine) { .sous-onglet:not(.actif):hover { color: var(--ink); } }
+  .sous-page { display: none; }
+  .sous-page.actif { display: block; }
+  .aide-rapides { color: var(--ink-muted); font-size: 12.5px; line-height: 1.55; margin: 3px 0 16px; max-width: 62ch; }
   .liste-formulaires { display: flex; flex-direction: column; gap: 8px; max-width: 640px; }
   .carte-form { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); gap: 10px; flex-wrap: wrap; }
   .carte-form .gauche { display: flex; flex-direction: column; gap: 3px; min-width: 0; }

@@ -234,6 +234,10 @@
     flag: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M5 2v16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M5 3h9.5l-2.2 3.5L14.5 10H5" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>',
     note: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M5 2.5h7l3 3v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-13a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M12 2.5v3h3" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M6.5 11h6M6.5 14h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
     hardhat: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M3 15h14a1 1 0 0 0 1-1v-.5a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v.5a1 1 0 0 0 1 1z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M4.5 12.5C4.5 8 7.5 5 10 5s5.5 3 5.5 7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M10 5V3.3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    // Suite 134 : onglets et boutons masquer/afficher Machines (pelle) et
+    // Transports (camion).
+    machine: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="9" height="4" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M4.5 11V8h4l1.5 3" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M9 8l4.5-4 3 3-1.5 4.5h-2.5" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg>',
+    camion: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M2 5h10v8H2zM12 8h3.2l2.3 2.6V13H12z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="5.5" cy="14.5" r="1.6" stroke="currentColor" stroke-width="1.4"/><circle cx="14.5" cy="14.5" r="1.6" stroke="currentColor" stroke-width="1.4"/></svg>',
     calendar: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><rect x="2.5" y="4" width="15" height="13" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 8h15" stroke="currentColor" stroke-width="1.5"/><path d="M6 2.5v3M14 2.5v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
     gear: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="2.6" stroke="currentColor" stroke-width="1.5"/><path d="M10 2.5v2M10 15.5v2M17.5 10h-2M4.5 10h-2M15.4 4.6l-1.4 1.4M6 12.6l-1.4 1.4M15.4 15.4l-1.4-1.4M6 7.4 4.6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
     building: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M3 17V5.5L9 3v14M9 6h5.5a1 1 0 0 1 1 1v10" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M5.5 7h1.5M5.5 10h1.5M5.5 13h1.5M11.5 9.5h2M11.5 12.5h2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
@@ -904,6 +908,11 @@
   // l'utilisateur préservée comme avant).
   var cibleApresRendu = "aujourdhui";
   var replierSectionPersonnel = false, replierSectionIntervenants = false;
+  // Suite 134 (retour 10 — Lionel : « Pouvoir masquer et choisir les
+  // couleurs de séparation de machine et transport ») : mêmes boutons
+  // masquer/afficher pour les Machines (toutes les sections de groupe) et
+  // la ligne Transports.
+  var replierSectionMachines = false, replierTransports = false;
   // §80 (round du 16.09.2026, encore un autre, suite, suite) — Lionel :
   // « avoir la possibilité de masquer jalons et note avec une petite flèche
   // comme le personnel et les intervenants ». Même principe que

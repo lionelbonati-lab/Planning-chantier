@@ -139,6 +139,12 @@
     { id: "decalerDroite", groupe: "Modifier", nom: "Décaler la sélection d’une demi-journée à droite", defaut: ["→"], possible: decalagePossible_, faire: function () { decalerSelection(1); } },
     { id: "decalerGaucheJour", groupe: "Modifier", nom: "Décaler la sélection d’un jour à gauche", defaut: ["Maj+←"], possible: decalagePossible_, faire: function () { decalerSelection(-2); } },
     { id: "decalerDroiteJour", groupe: "Modifier", nom: "Décaler la sélection d’un jour à droite", defaut: ["Maj+→"], possible: decalagePossible_, faire: function () { decalerSelection(2); } },
+    // Round du 01.10.2026 (suite 134) — Lionel : « raccourcis mode
+    // sélection ». Son choix : une touche qui passe du mode ajout au mode
+    // sélection et inversement, comme le bouton de la barre (« M » d'office,
+    // modifiable ici).
+    { id: "modeAjout", groupe: "Modifier", nom: "Mode ajout / mode sélection", defaut: ["M"], planning: true,
+      faire: function () { changerModeAjoutPlanning(!modeAjoutPlanning); } },
 
     // Suite 64 : les boutons de côté de la souris feuillettent les semaines
     // (au lieu de quitter l'appli par « Page précédente » du navigateur).
@@ -164,11 +170,14 @@
     { id: "pageNotes", groupe: "Pages", nom: "Notes", defaut: [], faire: allerPage_("notes") },
     { id: "pagePersonnel", groupe: "Pages", nom: "Personnel", defaut: [], faire: allerPage_("personnel") },
     { id: "pageIntervenants", groupe: "Pages", nom: "Intervenants", defaut: [], faire: allerPage_("intervenants") },
+    // Suite 134 : pages Machines et Transports ; l'ex-page « Entrée
+    // rapide » est le 2e sous-onglet de chacune.
+    { id: "pageMachines", groupe: "Pages", nom: "Machines", defaut: [], faire: allerPage_("machines") },
+    { id: "pageTransports", groupe: "Pages", nom: "Transports", defaut: [], faire: allerPage_("transports") },
     { id: "pageChantiers", groupe: "Pages", nom: "Chantiers", defaut: [], faire: allerPage_("chantiers") },
     { id: "pageStatuts", groupe: "Pages", nom: "Statuts", defaut: [], faire: allerPage_("statuts") },
     { id: "pageHoraires", groupe: "Pages", nom: "Horaires", defaut: [], faire: allerPage_("horaires") },
     { id: "pageMiseEnPage", groupe: "Pages", nom: "Mise en page", defaut: [], faire: allerPage_("mise-en-page") },
-    { id: "pageEntreeRapide", groupe: "Pages", nom: "Entrée rapide", defaut: [], faire: allerPage_("entree-rapide") },
     { id: "pageRaccourcis", groupe: "Pages", nom: "Raccourcis clavier (cette page)", defaut: ["?"], faire: allerPage_("raccourcis") }
   ];
   var TOUCHES_FIXES_ = [

@@ -1777,6 +1777,8 @@
         lbl.innerHTML = "<b>" + nomSurDeuxLignes(p.nom) + "</b>";
         lbl.title = p.nom;
         remplirEtiquetteEquipe(lbl, p);
+        // Suite 134 : la ligne Transports (fond réglable, page Transports).
+        if (secteurDe(p) === "transports") lbl.classList.add("lbl-transports");
         lbl.dataset.hMob = "pers";
         lbl.dataset.ligne = "p" + p.id; // suite 103 : hauteur de cette ligne à part
         poser(lbl, 1, row, null, pistesGrille);
@@ -1844,9 +1846,19 @@
     // mes groupes dans le planning. » Les sections suivent l'ordre choisi
     // (sectionsCorps, js/groupes.js) ; un groupe sans ligne n'est pas
     // affiché, et ne se replie pas depuis la barre (pas de bouton).
+    // Round du 01.10.2026 (suite 134) — Lionel (retour n° 9) : « Transport
+    // ne sera q'une ligne comme note et jalons. » Son choix : « En haut,
+    // sous Notes ». La ligne Transports (groupe ligne_unique, js/groupes.js)
+    // ouvre le corps du planning, sans titre de section, avant toutes les
+    // sections : juste sous Notes. Bouton masquer/afficher : retour n° 10.
+    if (!replierTransports) {
+      var ligneTransports = personnesAffichees("transports").slice(0, 1);
+      if (ligneTransports.length) ligneGroupePersonnes(ligneTransports);
+    }
     sectionsCorps().forEach(function (sec) {
       if (sec.cle === "personnel" && replierSectionPersonnel) return;
       if (sec.cle === "intervenants" && replierSectionIntervenants) return;
+      if (/^groupe-/.test(sec.cle) && replierSectionMachines) return;
       var lignes = personnesAffichees(sec.secteur);
       if (/^groupe-/.test(sec.cle) && !lignes.length) return;
       ligneSection(sec.cle, sec.libelle);

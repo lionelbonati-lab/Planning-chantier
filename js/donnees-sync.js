@@ -366,7 +366,7 @@
     etat.aujourdhui = new Date().toISOString().slice(0, 10); // date du jour, UTC — même convention que le reste du chargement
 
     Promise.all([
-      sbClient.from("personnes").select("id, nom, sous_traitant, equipe, groupe_id, ordre, couleur").eq("actif", true).order("ordre", { ascending: true }),
+      sbClient.from("personnes").select("id, nom, sous_traitant, equipe, groupe_id, ordre, couleur, masque").eq("actif", true).order("ordre", { ascending: true }),
       // actif/ordre (sql/0008) : la requête reste volontairement SANS
       // .eq("actif", true) — contrairement à celle des personnes juste
       // au-dessus — pour que chantiersParId (juste en dessous) reste
@@ -621,7 +621,7 @@
   // chargerSemaineDepuisServeur (qui filtre `.in("personne_id", ...)` sur
   // cette liste) reste synchrone avec ce qui vient d'être écrit.
   function rechargerPersonnesActives_() {
-    return sbClient.from("personnes").select("id, nom, sous_traitant, equipe, groupe_id, ordre, couleur").eq("actif", true).order("ordre", { ascending: true })
+    return sbClient.from("personnes").select("id, nom, sous_traitant, equipe, groupe_id, ordre, couleur, masque").eq("actif", true).order("ordre", { ascending: true })
       .then(function (res) {
         if (res.error) throw res.error;
         etat.personnesActives = res.data || [];
@@ -685,11 +685,11 @@
   // grille elle-même ne doit jamais montrer une personne désactivée,
   // historique compris — comportement préexistant, inchangé).
   function listerPersonnesGestionServeur() {
-    return sbClient.from("personnes").select("id, nom, sous_traitant, equipe, groupe_id, actif, ordre, couleur").order("ordre", { ascending: true })
+    return sbClient.from("personnes").select("id, nom, sous_traitant, equipe, groupe_id, actif, ordre, couleur, masque").order("ordre", { ascending: true })
       .then(function (res) {
         if (res.error) throw res.error;
         var liste = (res.data || []).map(function (p) {
-          return { id: String(p.id), nom: p.nom, sousTraitant: !!p.sous_traitant, equipe: !!p.equipe, groupeId: p.groupe_id != null ? String(p.groupe_id) : null, actif: p.actif !== false, ordre: p.ordre || 0, couleur: p.couleur || null };
+          return { id: String(p.id), nom: p.nom, sousTraitant: !!p.sous_traitant, equipe: !!p.equipe, groupeId: p.groupe_id != null ? String(p.groupe_id) : null, actif: p.actif !== false, ordre: p.ordre || 0, couleur: p.couleur || null, masque: !!p.masque };
         });
         // Re-tri explicite côté client, en plus du .order() ci-dessus (qui
         // suffit déjà avec un vrai Supabase) : ceinture et bretelles, sans

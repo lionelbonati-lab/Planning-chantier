@@ -74,6 +74,9 @@ vm.runInContext(
   extraireFonction('groupeParId') + '\n' +
   extraireFonction('secteurDe') + '\n' +
   extraireFonction('secteurPersonne') + '\n' +
+  // Suite 134 : catégories Machines / Transports (js/page-statuts-entree-rapide.js).
+  extraireFonction('typeRapidesDeLigne') + '\n' +
+  extraireFonction('formulaireDuType') + '\n' +
   extraireFonction('formulaireVisiblePour') + '\n' +
   extraireFonction('nomAssigneAffiche'),
   sandbox

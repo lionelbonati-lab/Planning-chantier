@@ -11069,3 +11069,77 @@ Son choix : « Liste ouvrier » — dans la demande d'absence du lien de consu
 - tests/test_suite115.js, tests/test_suite119.js : l'équipe A s'ouvre dépliée (réglage de l'appareil) pour voir son membre.
 - Suite complète : 137/137.
 
+
+
+
+## 247. Round du 01.10.2026 (suite 134) — onglets Machines et Transports, entrées rapides par type, coche « Afficher », touche « M », importants passés
+
+Lionel (page Améliorations et bugs, amélioration n° 9) :
+
+> Machine et transports doivent avoir leurs propre onglet.
+> Machine aura ses propres ajout rapides.
+> Transport ne sera q'une ligne comme note et jalons.
+> Elle aura aussi ses propres ajout rapides.
+> On déplace les ajouts rapides de chaques type dans leurs onglets correspondant 2 onglet en haut des pages ne pas avoir trop de donnée sur une pages.
+> Ajouter une coche pour masquer une ligne personnel/intervenant et machine sans les désactiver.
+
+Ses choix : masquage « Tous les appareils (Recommandé) » ; ligne Transports « En haut, sous Notes ».
+
+- Onglets : Machines et Transports après Intervenants (barre du haut et liste « Pages » du téléphone). L'onglet « Entrée rapide » disparaît. Avec 10 onglets, la barre passe en icônes seules dès 1024 px (l'onglet ouvert garde son nom).
+- Pages Personnel, Intervenants, Machines, Transports : 2 sous-onglets en haut — les lignes (Personnes / Intervenants / Machines / Ligne), et « Entrées rapides ».
+  - Les entrées rapides n'y montrent que celles du type de la page.
+  - « Assigné à » ne propose que les choix du type, par défaut toute la catégorie :
+    - Personnel : Tout le monde, Personnel ;
+    - Intervenants : Tout le monde, Tous les intervenants, chaque intervenant ;
+    - Machines : Toutes les machines, chaque machine ;
+    - Transports : Transports.
+  - Pas de type « Absence » pour Transports.
+- Nouvelles catégories « @machines » et « @transports ». « Tout le monde » ne vaut plus que pour le personnel et les intervenants : les machines (avant : celles du personnel aussi) et la ligne Transports n'ont que les leurs. Une assignation à une ligne précise va sur la page de son type.
+- Page Machines : les listes des groupes (avant : sur la page Personnel), avec leur couleur. La ligne Transports n'y est pas.
+- Ligne Transports : groupe marqué « ligne unique » (sql/0035, BACKEND §38). Une seule ligne, en haut du corps du planning juste sous les notes, sans titre de section et non déplaçable parmi les sections. Elle défile avec le planning (comme les noms), elle ne reste pas figée avec les jalons et les notes. Ses tâches sont des tâches ordinaires : menu « Ajouter » avec Tâche et ses entrées rapides, sans absence ni arrivée / départ. Elle figure en tête de « Pour qui » de l'ajout par la barre (tâche).
+- Coche « Afficher » sur chaque ligne active des pages Personnel (équipes comprises), Intervenants et Machines. Décochée, la ligne et ses tâches sortent du planning, des listes « Pour qui » et de l'impression, sur tous les appareils (personnes.masque). Rien n'est effacé, la ligne reste active ; recochée, tout revient.
+- Impression : la ligne Transports en tête, avec sa case ; lignes masquées ni imprimées ni proposées dans « Pour ».
+- Code : js/coquille.js (onglets, pages, sous-onglets), js/page-statuts-entree-rapide.js (formulaireDuType, typeRapidesDeLigne, afficherEntreesRapides, choix « Assigné à »), js/page-personnel.js (coche, renderMachines), js/groupes.js (ligneUnique, groupesLignes, groupeTransports, ligneMasquee), js/equipes.js, js/grille-rendu.js, js/formulaires-edition.js, js/impression.js, js/donnees-sync.js (colonne masque), style.css.
+
+Lionel (amélioration n° 10) :
+
+> Pouvoir masquer et choisir les couleurs de séparation de machine et transport et transport
+
+- Barre du planning : 2 boutons de plus après Intervenants, pelle (masque les sections Machines) et camion (masque la ligne Transports), comme Personnel / Intervenants.
+- Couleurs : « Séparation « Machines » » sur la page Machines et « Ligne « Transports » » sur la page Transports, comme Personnel / Intervenants (fond des titres de section des machines, fond du nom de la ligne Transports).
+- Code : js/core.js (icônes, replierSectionMachines / replierTransports), js/coquille.js, js/grille-interactions.js, js/page-couleurs.js, style.css.
+
+Lionel (amélioration n° 7) :
+
+> raccourcis mode sélection
+
+Son choix : « Touche mode ajout/sélection (Recommandé) ».
+
+- Nouveau raccourci « Mode ajout / mode sélection », touche « M » d'office, modifiable dans Raccourcis clavier : passe d'un mode à l'autre comme le bouton de la barre (planning affiché). Raccourcis de pages : Machines et Transports ; « Entrée rapide » retiré.
+- Code : js/raccourcis.js.
+
+Lionel (amélioration n° 8) :
+
+> Affichée note importante comme passée dès que l'horaire de la tâche est dépassé.
+
+Son choix : « Retirer de la liste ».
+
+- Cloche, « Importants — 7 prochains jours » : un important quitte la liste et le compteur dès la fin de sa dernière demi-journée, selon la page Horaires — fin du matin s'il ne porte que sur le matin ce jour-là, sinon fin de la journée. Jour sans horaire : 12:00 pour le matin, 18:00 sinon. Revu chaque minute. Les notifications push ne changent pas.
+- Code : js/notifications.js (finImportant_, importantsEnCours_).
+
+### Tests
+- Nouveau : tests/test_suite134.js (16 vérifications) :
+  - ligne Transports seule, au-dessus des sections, sous les notes ; ligne masquée absente ;
+  - boutons camion / pelle ;
+  - couleurs réglables sur les pages et appliquées ;
+  - onglets ; sous-onglets ; entrées rapides par type ; « Assigné à » ; pas d'absence pour Transports ; 2 descriptions sur Personnel ;
+  - menu « Ajouter » de chaque type ;
+  - coche « Afficher » (personnel, machines), lignes toujours actives ;
+  - impression : Transports en tête, ligne masquée absente ;
+  - touche « M » ;
+  - cloche à 10:00, 12:30 et 17:30 ;
+  - aucune erreur JS.
+- tests/test_suite53.js : 10 onglets, icônes seules dès 1024 px.
+- tests/test_suite132.js : listes des groupes sur la page Machines.
+- tests/test_formulaires_assignation.js : charge aussi typeRapidesDeLigne / formulaireDuType.
+- Suite complète : 138/138.
