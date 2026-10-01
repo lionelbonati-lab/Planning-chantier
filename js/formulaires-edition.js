@@ -119,11 +119,14 @@
   // appui long, plage glissée) propose la liste de son groupe (page
   // Machines / Transports), puis « Autre… » (texte libre) et « Coller » :
   // ni absence ni entrée rapide.
+  // Round du 01.10.2026 (suite 139) — Lionel : « Chaque machine/transport
+  // a sa coche qui le fera apparaître ou non dans la liste clic droit. »
+  // Un élément décoché (masque, sql/0037) n'est pas proposé ici.
   function boutonsMenuAjoutGroupe_(groupe) {
-    var elements = elementsDuGroupe(groupe.id);
+    var tous = elementsDuGroupe(groupe.id), elements = tous.filter(function (e) { return !e.masque; });
     var html = elements.length ? elements.map(function (e) {
       return '<button type="button" data-element="' + esc2(e.id) + '">' + esc(e.nom) + '</button>';
-    }).join("") : '<p class="mc-vide">Liste vide : à remplir dans l’onglet ' + esc(groupe.nom) + '.</p>';
+    }).join("") : '<p class="mc-vide">' + (tous.length ? 'Aucun élément coché' : 'Liste vide') + ' : à ' + (tous.length ? 'cocher' : 'remplir') + ' dans l’onglet ' + esc(groupe.nom) + '.</p>';
     html += '<button type="button" data-t="tache">Autre…</button>';
     if (pressePapier.length) html += '<button type="button" class="btn-coller" data-coller="1">Coller (' + pressePapier.length + ')</button>';
     return html;
@@ -191,7 +194,11 @@
       btn.addEventListener("click", function () {
         var el = (etat.elementsGroupes || []).filter(function (e) { return e.id === btn.dataset.element; })[0]; fermer();
         if (!el) return;
-        ouvrirFormulaireDynamique({ nom: el.nom, typeEntree: "tache", champs: [{ cle: "quantite", label: "Quantité", type: "texte" }] },
+        // Round du 01.10.2026 (suite 139) — Lionel : « pas de quantité sous
+        // machines ». Machines : chantier seul, bulle « Élément » ; la
+        // quantité reste pour Transports (groupe à ligne unique).
+        var groupe = groupeParId(el.groupeId), quantite = !!(groupe && groupe.ligneUnique);
+        ouvrirFormulaireDynamique({ nom: el.nom, typeEntree: "tache", champs: quantite ? [{ cle: "quantite", label: "Quantité", type: "texte" }] : [] },
           cibles, giDebut, duree, x, y, plageInit, demiDebut, demiFin);
       });
     });

@@ -72,11 +72,12 @@
     id = String(id);
     return (etat.personnesActives || []).some(function (p) { return String(p.id) === id && !!p.masque; });
   }
-  // Suite 135 : listes d'éléments des groupes (sql/0036).
-  var COLONNES_ELEMENTS = "id, groupe_id, nom, ordre";
+  // Suite 135 : listes d'éléments des groupes (sql/0036). Suite 139 :
+  // masque (sql/0037), élément retiré du clic droit sans être supprimé.
+  var COLONNES_ELEMENTS = "id, groupe_id, nom, ordre, masque";
   function normaliserElements(lignes) {
     return (lignes || []).map(function (e) {
-      return { id: String(e.id), groupeId: String(e.groupe_id), nom: e.nom, ordre: e.ordre || 0 };
+      return { id: String(e.id), groupeId: String(e.groupe_id), nom: e.nom, ordre: e.ordre || 0, masque: !!e.masque };
     }).sort(function (a, b) { return a.ordre - b.ordre || (+a.id) - (+b.id); });
   }
   function elementsDuGroupe(groupeId) {

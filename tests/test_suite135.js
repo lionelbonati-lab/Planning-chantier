@@ -15,8 +15,9 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //   1. planning : la ligne Machines à la place de la section (pas de titre
 //      §groupe-1), poignée ⠿ sur son étiquette, fond de la section ;
 //   2. clic droit sur une case Machines : la liste (Karcher, Vibrateur),
-//      « Autre… », ni absence ni entrée rapide ; Karcher → Chantier +
-//      Quantité ; bulle « Karcher - 2 » avec son chantier ;
+//      « Autre… », ni absence ni entrée rapide ; Karcher → Chantier seul
+//      (suite 139 — Lionel : « pas de quantité sous machines ») ; bulle
+//      « Karcher » avec son chantier ;
 //   3. clic droit sur la ligne Transports : Gravier → « Gravier - 10 m³ » ;
 //   4. page Machines : liste, ajouter, renommer, ↓, supprimer — écrit en
 //      base et repris aussitôt dans le menu de la case ;
@@ -98,15 +99,14 @@ async function saisir(page, nom) {
     return { titre: f.querySelector('.cp-titre').textContent, labels: [...f.querySelectorAll('.label-champ')].map((x) => x.textContent).join(','), chantier: !!f.querySelector('.f-chantier') };
   });
   await page.selectOption('.form-pop .f-chantier', '26182 - Terrain de Padel');
-  await page.fill('.form-pop .champ-dyn[data-champ="quantite"]', '2');
   const apercu = await page.evaluate(() => document.querySelector('.form-pop .apercu-texte').textContent);
   await page.click('.form-pop .f-ok');
   await page.waitForTimeout(800);
   const bulle = await page.evaluate(() => TACHES.filter((t) => t.personneId === '30').map((t) => t.texte + '|' + t.chantier + '|' + isoDeGi(t.giDebut) + '|' + t.demiDebut).join(','));
   const enBase = await page.evaluate(() => (window.__BD.taches || []).filter((t) => t.personne_id === 30).map((t) => t.texte + '|' + t.chantier_id).join(','));
-  verifier(form.titre === 'Ajouter — Karcher' && /^Quantité(,|$)/.test(form.labels) && form.chantier && apercu === 'Karcher - 2' &&
-    /^Karcher - 2\|26182 - Terrain de Padel\|2026-09-24\|(matin|null)$/.test(bulle) && enBase === 'Karcher - 2|1',
-    'Karcher : chantier + quantité, bulle « Karcher - 2 » sur la case, écrite en base (' + JSON.stringify(form) + ' ; ' + apercu + ' ; ' + bulle + ' ; ' + enBase + ')');
+  verifier(form.titre === 'Ajouter — Karcher' && !/Quantité/.test(form.labels) && form.chantier && apercu === 'Karcher' &&
+    /^Karcher\|26182 - Terrain de Padel\|2026-09-24\|(matin|null)$/.test(bulle) && enBase === 'Karcher|1',
+    'Karcher : chantier seul (pas de quantité sous Machines), bulle « Karcher » sur la case, écrite en base (' + JSON.stringify(form) + ' ; ' + apercu + ' ; ' + bulle + ' ; ' + enBase + ')');
 
   // --- 3. Ligne Transports --------------------------------------------------------------
   await clicDroit(page, await centreCase(page, '31', '2026-09-25', 'aprem'));
@@ -143,7 +143,7 @@ async function saisir(page, nom) {
   m = await menu(page);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(150);
-  const bulleGardee = await page.evaluate(() => TACHES.some((t) => t.texte === 'Karcher - 2'));
+  const bulleGardee = await page.evaluate(() => TACHES.some((t) => t.texte === 'Karcher'));
   verifier(JSON.stringify(m.boutons) === JSON.stringify(['Vibreur', 'Karcher', 'Autre…']) && bulleGardee,
     'menu de la case repris aussitôt ; les bulles déjà posées restent (' + JSON.stringify(m) + ')');
 

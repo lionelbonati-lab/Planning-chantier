@@ -177,7 +177,7 @@
     var lignes = lignesDuGroupe_(g);
     if (!lignes.length) return '';
     return '<label class="champ-afficher afficher-groupe" title="Afficher dans le planning"><input type="checkbox" class="chk-afficher-groupe" data-groupe="' + esc2(g.id) + '"' +
-      (lignes.some(function (p) { return p.masque; }) ? '' : ' checked') + '> Afficher dans le planning</label>';
+      (lignes.some(function (p) { return p.masque; }) ? '' : ' checked') + '> Afficher la ligne dans le planning</label>';
   }
   function cablerAfficherGroupe_(zone) {
     zone.querySelectorAll(".chk-afficher-groupe").forEach(function (chk) {
@@ -196,6 +196,10 @@
     var elements = elementsDuGroupe(groupe.id);
     zone.innerHTML = elements.map(function (e, i) {
       return '<div class="ligne-intervenant" data-id="' + esc2(e.id) + '">' +
+        // Round du 01.10.2026 (suite 139) — Lionel : « Chaque
+        // machine/transport a sa coche qui le fera apparaître ou non dans la
+        // liste clic droit. » Même coche que Personnel, tout à gauche.
+        '<label class="champ-afficher" title="Proposer au clic droit"><input type="checkbox" class="chk-afficher-el" aria-label="Proposer au clic droit"' + (e.masque ? '' : ' checked') + '></label>' +
         '<span class="cf-actions">' +
         '<button type="button" class="cf-monter" title="Monter"' + (i === 0 ? " disabled" : "") + '>↑</button>' +
         '<button type="button" class="cf-descendre" title="Descendre"' + (i === elements.length - 1 ? " disabled" : "") + '>↓</button>' +
@@ -217,6 +221,11 @@
         saisirNomElement_("Renommer", e.nom, function (nom) {
           return ecrireElements_([sbClient.from("elements_groupes").update({ nom: nom }).eq("id", +e.id)], "Renommé.");
         });
+      });
+    });
+    zone.querySelectorAll(".chk-afficher-el").forEach(function (chk) {
+      chk.addEventListener("change", function () {
+        ecrireElements_([sbClient.from("elements_groupes").update({ masque: !chk.checked }).eq("id", +elDe(chk).id)], null);
       });
     });
     zone.querySelectorAll(".lien-supprimer-el").forEach(function (btn) {
