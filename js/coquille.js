@@ -28,10 +28,15 @@
             '<button type="button" class="onglet" data-page="notes" title="Notes">' + ICONS.note + '<span class="onglet-nom">Notes</span></button>' +
             '<button type="button" class="onglet" data-page="personnel" title="Personnel">' + ICONS.people + '<span class="onglet-nom">Personnel</span></button>' +
             '<button type="button" class="onglet" data-page="intervenants" title="Intervenants">' + ICONS.hardhat + '<span class="onglet-nom">Intervenants</span></button>' +
+            // Round du 01.10.2026 (suite 134) — Lionel : « Machine et
+            // transports doivent avoir leurs propre onglet. » L'onglet
+            // « Entrée rapide » disparaît : chaque page a ses entrées rapides
+            // (2e sous-onglet, cf. htmlSousOnglets_).
+            '<button type="button" class="onglet" data-page="machines" title="Machines">' + ICONS.machine + '<span class="onglet-nom">Machines</span></button>' +
+            '<button type="button" class="onglet" data-page="transports" title="Transports">' + ICONS.camion + '<span class="onglet-nom">Transports</span></button>' +
             '<button type="button" class="onglet" data-page="chantiers" title="Chantiers">' + ICONS.building + '<span class="onglet-nom">Chantiers</span></button>' +
             '<button type="button" class="onglet" data-page="statuts" title="Statuts">' + ICONS.tag + '<span class="onglet-nom">Statuts</span></button>' +
             '<button type="button" class="onglet" data-page="horaires" title="Horaires">' + ICONS.clock + '<span class="onglet-nom">Horaires</span></button>' +
-            '<button type="button" class="onglet" data-page="entree-rapide" title="Entrée rapide">' + ICONS.bolt + '<span class="onglet-nom">Entrée rapide</span></button>' +
           '</div>' +
           // Suite 63 — Lionel : « Le menu setting vient se placer à la place
           // du menu principal en haut de l'écran quand badge activé. Même
@@ -50,7 +55,8 @@
         '</nav>' +
         '<div class="app-main">' +
           htmlPagePlanning() + htmlPageJalons() + htmlPageNotes() + htmlPagePersonnel() + htmlPageIntervenants() +
-          htmlPageChantiers() + htmlPageStatuts() + htmlPageEntreeRapide() + htmlPageHoraires() + htmlPageMiseEnPage() +
+          htmlPageMachines() + htmlPageTransports() +
+          htmlPageChantiers() + htmlPageStatuts() + htmlPageHoraires() + htmlPageMiseEnPage() +
           htmlPagesReglages() +
         '</div>' +
         // §91 (round du 22.09.2026, suite) — Lionel, mockup mockup-nav-mobile.html
@@ -97,10 +103,11 @@
             '<button type="button" class="onglet switcher-item" data-page="notes">' + ICONS.note + 'Notes</button>' +
             '<button type="button" class="onglet switcher-item" data-page="personnel">' + ICONS.people + 'Personnel</button>' +
             '<button type="button" class="onglet switcher-item" data-page="intervenants">' + ICONS.hardhat + 'Intervenants</button>' +
+            '<button type="button" class="onglet switcher-item" data-page="machines">' + ICONS.machine + 'Machines</button>' +
+            '<button type="button" class="onglet switcher-item" data-page="transports">' + ICONS.camion + 'Transports</button>' +
             '<button type="button" class="onglet switcher-item" data-page="chantiers">' + ICONS.building + 'Chantiers</button>' +
             '<button type="button" class="onglet switcher-item" data-page="statuts">' + ICONS.tag + 'Statuts</button>' +
             '<button type="button" class="onglet switcher-item" data-page="horaires">' + ICONS.clock + 'Horaires</button>' +
-            '<button type="button" class="onglet switcher-item" data-page="entree-rapide">' + ICONS.bolt + 'Entrée rapide</button>' +
             '</div>' +
           '</div>' +
         '</div>' +
@@ -120,6 +127,7 @@
     cablerPageNotes();
     cablerPageCompte();
     cablerPageEntreeRapide();
+    cablerSousOnglets_();
     cablerPageFeries();
     cablerPageHoraires();
     cablerPageMiseEnPage();
@@ -524,6 +532,9 @@
           '<button type="button" class="toolbar-toggle actif" data-affichage-cible="note" title="Masquer/afficher Notes" aria-label="Masquer/afficher Notes">' + ICONS.note + '</button>' +
           '<button type="button" class="toolbar-toggle actif" data-affichage-cible="personnel" title="Masquer/afficher Personnel" aria-label="Masquer/afficher Personnel">' + ICONS.people + '</button>' +
           '<button type="button" class="toolbar-toggle actif" data-affichage-cible="intervenants" title="Masquer/afficher Intervenants" aria-label="Masquer/afficher Intervenants">' + ICONS.hardhat + '</button>' +
+          // Suite 134 (retour 10) : Machines et Transports.
+          '<button type="button" class="toolbar-toggle actif" data-affichage-cible="machines" title="Masquer/afficher Machines" aria-label="Masquer/afficher Machines">' + ICONS.machine + '</button>' +
+          '<button type="button" class="toolbar-toggle actif" data-affichage-cible="transports" title="Masquer/afficher Transports" aria-label="Masquer/afficher Transports">' + ICONS.camion + '</button>' +
         '</div>' +
         // "⋮" : visible seulement quand au moins un groupe est replié
         // (#legendeBarre.toolbar-compacte, posée par ajusterDebordementToolbar)
@@ -614,14 +625,59 @@
       '<div id="listeNotes"></div>' +
       '</div></div>';
   }
+  // Suite 134 — Lionel : « On déplace les ajouts rapides de chaques type
+  // dans leurs onglets correspondant 2 onglet en haut des pages ne pas avoir
+  // trop de donnée sur une pages. » Personnel, Intervenants, Machines et
+  // Transports ont 2 sous-onglets : leurs lignes, et leurs entrées rapides.
+  // Le bloc d'édition des entrées rapides est unique (ids inchangés) :
+  // afficherEntreesRapides (js/page-statuts-entree-rapide.js) le pose dans
+  // le 2e sous-onglet de la page ouverte, filtré sur son type.
+  function htmlSousOnglets_(type, libelle) {
+    return '<div class="sous-onglets" data-type="' + type + '" role="tablist">' +
+      '<button type="button" class="sous-onglet actif" data-sous="lignes" role="tab">' + libelle + '</button>' +
+      '<button type="button" class="sous-onglet" data-sous="rapides" role="tab">' + ICONS.bolt + 'Entrées rapides</button>' +
+      '</div>';
+  }
+  function htmlPageAvecRapides_(type, titre, libelle, contenu) {
+    return '<div class="page" id="page-' + type + '"><div class="page-scroll">' +
+      '<div class="page-titre"><h1>' + titre + '</h1></div>' +
+      htmlSousOnglets_(type, libelle) +
+      '<div class="sous-page actif" data-sous="lignes">' + contenu + '</div>' +
+      '<div class="sous-page" data-sous="rapides">' + (type === "personnel" ? htmlBlocEntreesRapides_() : '') + '</div>' +
+      '</div></div>';
+  }
+  // Clic sur un sous-onglet : bascule dans SA page, entrées rapides posées
+  // et filtrées sur le type de la page.
+  function cablerSousOnglets_() {
+    document.querySelectorAll(".sous-onglets").forEach(function (barre) {
+      barre.querySelectorAll(".sous-onglet").forEach(function (b) {
+        b.addEventListener("click", function () { montrerSousPage_(barre.dataset.type, b.dataset.sous); });
+      });
+    });
+  }
+  function montrerSousPage_(type, sous) {
+    var page = document.getElementById("page-" + type);
+    if (!page) return;
+    page.querySelectorAll(".sous-onglet").forEach(function (b) { b.classList.toggle("actif", b.dataset.sous === sous); });
+    page.querySelectorAll(".sous-page").forEach(function (z) { z.classList.toggle("actif", z.dataset.sous === sous); });
+    if (sous === "rapides") afficherEntreesRapides(type);
+  }
+  // Rendu d'une page à sous-onglets : ses lignes, et ses entrées rapides si
+  // c'est le sous-onglet ouvert.
+  function renduAvecRapides_(type, rendreLignes) {
+    return function () {
+      rendreLignes();
+      var actif = document.querySelector("#page-" + type + " .sous-onglet.actif");
+      if (actif && actif.dataset.sous === "rapides") afficherEntreesRapides(type);
+    };
+  }
   function htmlPagePersonnel() {
-    return '<div class="page" id="page-personnel"><div class="page-scroll">' +
-      '<div class="page-titre"><h1>Personnel</h1></div>' +
+    return htmlPageAvecRapides_("personnel", "Personnel", "Personnes",
       '<p class="page-sous">L’équipe interne.</p>' +
       // Équipes (round du 25.09.2026, suite 33 — js/equipes.js) : au-dessus
       // du personnel, qu'elles regroupent dans le planning.
       '<h2 class="titre-liste">Équipes</h2>' +
-      // Suite 54 — Lionel : « personnel, description équipe plus brève ».
+      // Suite 54 — Lionel : « personnel, description équipe plus brève ».
       '<p class="page-sous">Membres choisis chaque semaine en touchant le nom de l’équipe dans le planning.</p>' +
       '<div class="liste-intervenants" id="listeEquipes"></div>' +
       '<h2 class="titre-liste">Personnes</h2>' +
@@ -629,22 +685,35 @@
       // séparation Personnel, placé ici à la demande de Lionel (réutilisé
       // aussi par le bouton de masquage de la toolbar). Cf. js/page-couleurs.js.
       htmlReglagesCouleurs('personnel') +
-      '<div class="liste-intervenants" id="listePersonnel"></div>' +
-      // Groupes Machines, Transports… (round du 30.09.2026, suite 132 —
-      // js/groupes.js) : une liste par groupe, remplie par renderPersonnel
-      // (l'ordre des groupes se change en glissant leur titre ⠿ dans le
-      // planning, cf. l'info-bulle de la poignée).
-      '<div id="listesGroupes"></div>' +
-      '</div></div>';
+      '<div class="liste-intervenants" id="listePersonnel"></div>');
   }
   function htmlPageIntervenants() {
-    return '<div class="page" id="page-intervenants"><div class="page-scroll">' +
-      '<div class="page-titre"><h1>Intervenants</h1></div>' +
+    return htmlPageAvecRapides_("intervenants", "Intervenants", "Intervenants",
       '<p class="page-sous">Les sous-traitants.</p>' +
       // Round du 23.09.2026 (suite) — idem Personnel, cf. js/page-couleurs.js.
       htmlReglagesCouleurs('intervenants') +
-      '<div class="liste-intervenants" id="listeIntervenants"></div>' +
-      '</div></div>';
+      '<div class="liste-intervenants" id="listeIntervenants"></div>');
+  }
+  // Suite 134 : les groupes Machines… (suite 132, js/groupes.js) quittent
+  // la page Personnel pour la leur — une liste par groupe, remplie par
+  // renderMachines (l'ordre des groupes se change en glissant leur titre ⠿
+  // dans le planning). Couleur de leur séparation ici (retour 10 de
+  // Lionel : « Pouvoir masquer et choisir les couleurs de séparation de
+  // machine et transport »).
+  function htmlPageMachines() {
+    return htmlPageAvecRapides_("machines", "Machines", "Machines",
+      '<p class="page-sous">Une ligne par machine dans le planning, sous les intervenants.</p>' +
+      htmlReglagesCouleurs('machines') +
+      '<div id="listesGroupes"></div>');
+  }
+  // Suite 134 — Lionel : « Transport ne sera q'une ligne comme note et
+  // jalons. Elle aura aussi ses propres ajout rapides. » Une seule ligne,
+  // en haut du planning sous les notes (son choix) : rien à lister, seule
+  // sa couleur se règle ici.
+  function htmlPageTransports() {
+    return htmlPageAvecRapides_("transports", "Transports", "Ligne",
+      '<p class="page-sous">Une seule ligne, en haut du planning sous les notes. L’icône camion de la barre du planning la masque.</p>' +
+      htmlReglagesCouleurs('transports'));
   }
   function htmlPageChantiers() {
     return '<div class="page" id="page-chantiers"><div class="page-scroll">' +
@@ -662,10 +731,12 @@
       '<div class="liste-intervenants" id="listeStatuts"></div>' +
       '</div></div>';
   }
-  function htmlPageEntreeRapide() {
-    return '<div class="page" id="page-entree-rapide"><div class="page-scroll">' +
-      '<div class="page-titre"><h1>Entrée rapide</h1></div>' +
-      '<p class="page-sous">Ces formulaires apparaissent dans le menu « Ajouter » de chaque case du planning, personnel et intervenants confondus. Chantier (et, pour un intervenant, Statut) sont toujours proposés en plus des champs ci-dessous.</p>' +
+  // Bloc d'édition des entrées rapides (ex-page « Entrée rapide »,
+  // suite 134) : un seul exemplaire, déplacé de page en page par
+  // afficherEntreesRapides. Sa description dépend du type (#aideRapides).
+  function htmlBlocEntreesRapides_() {
+    return '<div id="blocEntreesRapides">' +
+      '<p class="aide-rapides" id="aideRapides"></p>' +
       '<div class="liste-formulaires" id="listeFormulaires"></div>' +
       '<div class="panneau-nouveau-form" id="panneauNouveauForm" hidden>' +
         '<h3 id="titreNouveauForm">Nouveau formulaire</h3>' +
@@ -694,7 +765,7 @@
         '<div class="note-panneau">Le nom du formulaire + le nom (ou la valeur) de chaque champ rempli forment le texte de la tâche, dans l’ordre (ex. « Béton murs - 50 »). Sans aucun champ, l’entrée s’ajoute directement en un clic, sans formulaire.</div>' +
         '<div class="panneau-boutons"><button type="button" class="btn-reset nf-annuler">Annuler</button><button type="button" class="btn-ajout-st nf-ok">Enregistrer</button></div>' +
       '</div>' +
-      '</div></div>';
+      '</div>';
   }
   // Page Horaires = ancienne page Fériés + ancienne page Horaires (round du
   // 25.09.2026, suite 47). Lionel : « Regrouper les onglets fériés et
@@ -853,9 +924,13 @@
       jalons: function () { JALONS_TOUS = null; renderJalons(); },
       // Suite 65 : relue à chaque ouverture, comme Jalons.
       notes: function () { NOTES_TOUTES = null; renderNotes(); },
-      personnel: renderPersonnel, intervenants: renderIntervenants,
+      // Suite 134 : Machines et Transports ont leur page ; les entrées
+      // rapides sont le 2e sous-onglet de chacune des 4 (renduAvecRapides_).
+      personnel: renduAvecRapides_("personnel", renderPersonnel),
+      intervenants: renduAvecRapides_("intervenants", renderIntervenants),
+      machines: renduAvecRapides_("machines", renderMachines),
+      transports: renduAvecRapides_("transports", function () {}),
       chantiers: renderChantiers, statuts: renderStatuts,
-      "entree-rapide": renderFormulaires,
       // Suite 47 : un seul onglet Horaires pour le calendrier (ex-Fériés) et
       // les horaires de travail.
       horaires: function () { renderFeries(); renderHoraires(); },
@@ -1106,11 +1181,12 @@
           // cachés par le pliage sont proposés aussi.
           // Suite 132 : sections dans l'ordre du planning, groupes compris
           // (absence possible sur une machine : panne, révision).
+          // Suite 134 : la ligne Transports en tête (tâche seulement).
           var liste = sectionsCorps().reduce(function (acc, sec) {
             if (sec.cle === "personnel") return acc.concat(type === "absence" ? personnelOrdonneSansPliage().filter(function (p) { return !p.equipe; }) : personnelOrdonneSansPliage());
             if (sec.cle === "intervenants") return type === "absence" ? acc : acc.concat(personnesAffichees("sous-traitant"));
             return acc.concat(personnesAffichees(sec.secteur));
-          }, []);
+          }, type === "tache" ? personnesAffichees("transports").slice(0, 1) : []);
           liste.forEach(function (p) {
             var it = document.createElement("button");
             it.type = "button";
@@ -1321,6 +1397,8 @@
           else if (cible === "note") replierNotes = !replierNotes;
           else if (cible === "personnel") replierSectionPersonnel = !replierSectionPersonnel;
           else if (cible === "intervenants") replierSectionIntervenants = !replierSectionIntervenants;
+          else if (cible === "machines") replierSectionMachines = !replierSectionMachines;
+          else if (cible === "transports") replierTransports = !replierTransports;
           render(false);
         });
       });

@@ -29,7 +29,7 @@
     return {
       demandes: demandesAbsence.length,
       aReserver: dernierResumeAReserver ? dernierResumeAReserver.length : 0,
-      importants: dernierImportants ? dernierImportants.length : 0
+      importants: importantsEnCours_().length
     };
   }
 
@@ -81,6 +81,24 @@
     });
     var rang = function (x) { var r = x.personneId != null ? ordre["p" + x.personneId] : ordre[x.sorte]; return r == null ? 999 : r; };
     return groupes.sort(function (a, b) { return a.du !== b.du ? (a.du < b.du ? -1 : 1) : rang(a) - rang(b); });
+  }
+  // Round du 01.10.2026 (suite 134) — Lionel : « Affichée note importante
+  // comme passée dès que l'horaire de la tâche est dépassé. » Son choix :
+  // « Retirer de la liste ». Un important sort de la liste (et du compteur)
+  // dès la fin de sa dernière demi-journée, selon la page Horaires : fin du
+  // matin s'il ne porte que sur le matin ce jour-là, sinon fin de la
+  // journée. Jour sans horaire (week-end, période non saisie) : 12:00 pour
+  // le matin, 18:00 sinon. Revu chaque minute (cf. cablerNotifications).
+  function finImportant_(g) {
+    var h = horaireDuJour(g.au);
+    var matinSeul = g.demis[g.au + "|matin"] && !g.demis[g.au + "|aprem"] && !g.demis[g.au + "|jour"];
+    if (matinSeul) return h ? h.matin.split("–")[1] : "12:00";
+    return h ? h.fin : "18:00";
+  }
+  function importantsEnCours_() {
+    var d = new Date(), deux = function (n) { return (n < 10 ? "0" : "") + n; };
+    var jour = d.getFullYear() + "-" + deux(d.getMonth() + 1) + "-" + deux(d.getDate()), heure = deux(d.getHours()) + ":" + deux(d.getMinutes());
+    return (dernierImportants || []).filter(function (g) { return g.au > jour || (g.au === jour && heure < finImportant_(g)); });
   }
   function majImportants() {
     if (!window.sbClient || !etat.aujourdhui) return Promise.resolve();
@@ -186,7 +204,7 @@
         htmlDemandesAbsence_() + "</section>";
       // Suite 125 : importants des 7 prochains jours — la section n'apparaît
       // que s'il y en a.
-      var imp = dernierImportants || [];
+      var imp = importantsEnCours_(); // suite 134 : sans les passés
       if (imp.length) html += '<section class="notif-section notif-importants">' + titreSection("", ICONS.important, "Importants — 7 prochains jours", imp.length) +
         '<ul class="ar-liste">' + imp.map(htmlLigneImportant_).join("") + "</ul></section>";
       var nomStatut = nomStatutAReserver_();
@@ -202,7 +220,7 @@
       cablerListeDemandes_(contenu, fermer, function () { majBoutonNotifications(); if (pop.isConnected) dessiner(); });
       contenu.querySelectorAll(".imp-ligne").forEach(function (b) {
         b.addEventListener("click", function () {
-          var g = (dernierImportants || [])[+b.dataset.i];
+          var g = imp[+b.dataset.i];
           fermer();
           if (g) allerAImportant_(g);
         });
@@ -224,4 +242,7 @@
     if (btn) btn.addEventListener("click", function () { ouvrirNotifications(); });
     var btnBas = document.getElementById("btnNotificationsNavBas");
     if (btnBas) btnBas.addEventListener("click", function (e) { e.stopPropagation(); ouvrirNotifications(); });
+    // Suite 134 : un important dont l'horaire est passé quitte le compteur
+    // sans attendre le prochain rendu du planning.
+    setInterval(function () { if (dernierImportants && dernierImportants.length) majBoutonNotifications(); }, 60000);
   }

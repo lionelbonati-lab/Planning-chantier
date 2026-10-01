@@ -2093,3 +2093,24 @@ Fichier : sql/0034_motifs_demande_absence.sql (migration `motifs_demande_absence
 - Vérifié sur le projet : un appel renvoie `"motifs": ["Absence", "Congé"]`.
 - consultation_demander_absence inchangée : un type plus ancien reste accepté (modification d'une demande existante).
 
+
+
+---
+
+## 38. Round du 01.10.2026 (suite 134) — lignes masquées, ligne unique Transports
+
+Lionel (page Améliorations et bugs, amélioration n° 9) :
+
+> Transport ne sera q'une ligne comme note et jalons.
+> Ajouter une coche pour masquer une ligne personnel/intervenant et machine sans les désactiver.
+
+Ses choix : masquage « Tous les appareils (Recommandé) » ; ligne Transports « En haut, sous Notes ».
+
+Fichier : sql/0035_lignes_masquees_transports.sql (migration `lignes_masquees_transports`).
+
+- personnes.masque (boolean, false par défaut) : ligne masquée du planning et de l'impression, sans être désactivée.
+- groupes.ligne_unique (boolean, false par défaut) : le groupe n'a qu'une ligne, affichée en haut du planning. « Transports » est marqué.
+- Pour chaque groupe à ligne unique : s'il n'a pas de ligne active « Transports », ses lignes actives sont désactivées (pas effacées) et une ligne « Transports » est créée ; sinon les autres lignes actives sont désactivées.
+  - Sur le projet : la ligne « Test » (Transports) désactivée, ligne « Transports » créée. Machines inchangé.
+- Pas de nouvelle table : les tâches de la ligne Transports sont des tâches ordinaires (tables, droits, sauvegardes, fonctions push inchangés).
+- Aucun nouveau conseil de sécurité Supabase.

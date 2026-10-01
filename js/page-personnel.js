@@ -30,7 +30,7 @@
       assurerFenetreChargee(function () {
         construireVueDepuisCache();
         render(false);
-        renderPersonnel(); renderIntervenants();
+        renderPersonnel(); renderIntervenants(); renderMachines();
       });
     }).catch(erreurFatale);
   }
@@ -72,6 +72,12 @@
       // seulement pour le test.
       // « Actif » masqué sur téléphone (suite 53), gardé en title.
       '<label class="champ-actif" title="Actif"><span class="interrupteur"><input type="checkbox" checked><span class="interrupteur-piste"></span></span><span class="champ-actif-texte">Actif</span></label>' +
+      // Round du 01.10.2026 (suite 134) — Lionel : « Ajouter une coche pour
+      // masquer une ligne personnel/intervenant et machine sans les
+      // désactiver. » Son choix : sur tous les appareils (personnes.masque,
+      // sql/0035). Décochée : la ligne et ses tâches sortent du planning et
+      // de l'impression, rien n'est effacé ; recochée, tout revient.
+      '<label class="champ-afficher" title="Afficher dans le planning"><input type="checkbox" class="chk-afficher"' + (p.masque ? '' : ' checked') + '><span class="champ-afficher-texte">Afficher</span></label>' +
       // Lien de consultation en lecture seule (suite 51, js/liens-consultation.js).
       // Icônes (suite 53) — Lionel : « Des icônes seront mieux que des
       // textes car sur mobile les textes sortent de l'écran. »
@@ -158,6 +164,15 @@
         });
       });
     });
+    // « Afficher » (suite 134) : masque / réaffiche la ligne, sans confirmation.
+    zone.querySelectorAll(".chk-afficher").forEach(function (chk) {
+      chk.addEventListener("change", function () {
+        sbClient.from("personnes").update({ masque: !chk.checked }).eq("id", ancreDe(idDe(chk))).then(function (res) {
+          if (res.error) throw res.error;
+          rafraichirApresPersonnel();
+        }).catch(function (err) { chk.checked = !chk.checked; toast("Échec : " + (err && err.message ? err.message : err)); });
+      });
+    });
     zone.querySelectorAll(".cf-monter").forEach(function (btn) {
       btn.addEventListener("click", function () { echangerOrdrePersonnes(idDe(btn), -1, actifs); });
     });
@@ -211,7 +226,11 @@
   }
   function renderPersonnel() {
     renderListePersonnes(false, true); renderListePersonnes(false);
-    // Suite 132 : une liste par groupe, dans l'ordre du planning.
+  }
+  // Suite 132 : une liste par groupe, dans l'ordre du planning. Suite 134 :
+  // sur la page Machines (plus sur Personnel) ; la ligne Transports n'y est
+  // pas (sectionsCorps ne garde que les groupes à lignes, cf. groupesLignes).
+  function renderMachines() {
     var zone = document.getElementById("listesGroupes");
     if (!zone) return;
     var groupes = sectionsCorps().filter(function (s) { return /^groupe-/.test(s.cle); });

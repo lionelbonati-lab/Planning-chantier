@@ -182,23 +182,73 @@
   // (assignation individuelle du round précédent) — toujours honorée à
   // l'affichage comme au filtrage, pour ne rien casser de ce qui a déjà pu
   // être enregistré, même si l'interface ne propose plus de la créer.
-  var ASSIGNE_TOUS = "", ASSIGNE_PERSONNEL = "@personnel", ASSIGNE_INTERVENANTS = "@intervenants";
+  // Round du 01.10.2026 (suite 134) — Lionel : « Machine aura ses propres
+  // ajout rapides. [...] Elle aura aussi ses propres ajout rapides. » Deux
+  // catégories de plus :
+  //   "@machines"   -> toutes les lignes des groupes Machines… (js/groupes.js)
+  //   "@transports" -> la ligne Transports
+  // et "Tout le monde" ne vaut plus que pour le personnel et les
+  // intervenants : les machines et les transports n'ont que les leurs.
+  var ASSIGNE_TOUS = "", ASSIGNE_PERSONNEL = "@personnel", ASSIGNE_INTERVENANTS = "@intervenants", ASSIGNE_MACHINES = "@machines", ASSIGNE_TRANSPORTS = "@transports";
   function nomAssigneAffiche(f) {
     var a = String(f.assigneA || "");
     if (a === ASSIGNE_TOUS) return "Tout le monde";
     if (a === ASSIGNE_PERSONNEL) return "Personnel";
     if (a === ASSIGNE_INTERVENANTS) return "Intervenants";
+    if (a === ASSIGNE_MACHINES) return "Machines";
+    if (a === ASSIGNE_TRANSPORTS) return "Transports";
     var p = personneParAncre(a); // ancienne assignation individuelle
     return p ? p.nom : ("#" + a);
+  }
+  // Type d'une ligne du planning (suite 134) : celui de la page qui porte
+  // ses entrées rapides. Une équipe est du personnel.
+  function typeRapidesDeLigne(personneId) {
+    var s = secteurPersonne(personneId);
+    return s === "sous-traitant" ? "intervenants" : s === "transports" ? "transports" : /^groupe-/.test(s) ? "machines" : "personnel";
+  }
+  // Ce formulaire appartient-il aux entrées rapides du type `type` ?
+  // ("personnel", "intervenants", "machines", "transports" — une page
+  // chacun.) Une assignation individuelle va au type de sa ligne.
+  function formulaireDuType(f, type) {
+    var a = String(f.assigneA || "");
+    if (a === ASSIGNE_TOUS) return type === "personnel" || type === "intervenants";
+    if (a === ASSIGNE_PERSONNEL) return type === "personnel";
+    if (a === ASSIGNE_INTERVENANTS) return type === "intervenants";
+    if (a === ASSIGNE_MACHINES) return type === "machines";
+    if (a === ASSIGNE_TRANSPORTS) return type === "transports";
+    return typeRapidesDeLigne(a) === type;
   }
   // Ce formulaire doit-il apparaître dans le menu "Ajouter" de cette personne ?
   function formulaireVisiblePour(f, personneId) {
     var a = String(f.assigneA || "");
-    if (a === ASSIGNE_TOUS) return true;
-    var estIntervenant = secteurPersonne(personneId) === "sous-traitant";
-    if (a === ASSIGNE_PERSONNEL) return !estIntervenant;
-    if (a === ASSIGNE_INTERVENANTS) return estIntervenant;
-    return a === String(personneId); // ancienne assignation individuelle
+    if (/^\d+$/.test(a)) return a === String(personneId); // ancienne assignation individuelle
+    return formulaireDuType(f, typeRapidesDeLigne(personneId));
+  }
+  // Page dont les entrées rapides sont affichées (suite 134), cf.
+  // afficherEntreesRapides.
+  var typeRapides = "personnel";
+  var AIDE_RAPIDES = {
+    personnel: "Le menu « Ajouter » des cases du personnel et des équipes les propose. « Tout le monde » : aussi chez les intervenants. Chantier est toujours proposé en plus des champs.",
+    intervenants: "Le menu « Ajouter » des cases des intervenants les propose. « Tout le monde » : aussi chez le personnel. Chantier et Statut sont toujours proposés en plus des champs.",
+    machines: "Le menu « Ajouter » des cases des machines les propose. Chantier est toujours proposé en plus des champs.",
+    transports: "Le menu « Ajouter » de la ligne Transports les propose. Chantier et Statut sont toujours proposés en plus des champs."
+  };
+  // Pose le bloc d'édition (unique, cf. htmlBlocEntreesRapides_ dans
+  // js/coquille.js) dans le sous-onglet « Entrées rapides » de la page
+  // `type`, et n'y liste que ses formulaires. Un formulaire en cours
+  // d'édition pour un autre type est refermé.
+  function afficherEntreesRapides(type) {
+    var bloc = document.getElementById("blocEntreesRapides");
+    var zone = document.querySelector('#page-' + type + ' .sous-page[data-sous="rapides"]');
+    if (!bloc || !zone) return;
+    if (type !== typeRapides && !document.getElementById("panneauNouveauForm").hidden) fermerPanneauFormulaire();
+    typeRapides = type;
+    if (bloc.parentNode !== zone) zone.appendChild(bloc);
+    var aide = document.getElementById("aideRapides");
+    if (aide) aide.textContent = AIDE_RAPIDES[type] || "";
+    var opt = document.querySelector('.nf-type option[value="absence"]');
+    if (opt) opt.hidden = opt.disabled = type === "transports"; // pas d'absence sur la ligne Transports
+    renderFormulaires();
   }
   function renderFormulaires() {
     var zone = document.getElementById("listeFormulaires");
@@ -207,7 +257,9 @@
     // chargé/en cours (cas normal, le chargement d'arrière-plan démarré à
     // l'ouverture de l'appli a presque toujours déjà fini ici).
     chargerFormulairesRapides();
-    var liste = etat.formulairesRapidesServeur.slice().sort(function (a, b) { return (a.ordre || 0) - (b.ordre || 0); });
+    var tous = etat.formulairesRapidesServeur.slice().sort(function (a, b) { return (a.ordre || 0) - (b.ordre || 0); });
+    // Suite 134 : seulement ceux de la page ouverte.
+    var liste = tous.filter(function (f) { return formulaireDuType(f, typeRapides); });
     zone.innerHTML = liste.map(function (f) {
       return '<div class="carte-form" data-nom="' + esc2(f.nom) + '">' +
         '<div class="gauche"><b>' + esc(f.nom) + '</b><span class="champs">' + esc(champsResumeAffiche(f)) + ' · Assigné à : ' + esc(nomAssigneAffiche(f)) + (f.typeEntree === "absence" ? ' · Absence' : '') + '</span></div>' +
@@ -228,7 +280,7 @@
     // codées en dur dans le menu "Ajouter" et donc impossibles à éditer. Un
     // bouton explicite plutôt qu'une création automatique : rien n'est écrit
     // dans sa feuille sans qu'il l'ait demandé. Disparaît une fois faites.
-    if (!liste.some(function (f) { return f.typeEntree === "absence"; })) {
+    if (typeRapides === "personnel" && !tous.some(function (f) { return f.typeEntree === "absence"; })) {
       var btnAbs = document.createElement("button");
       btnAbs.type = "button";
       btnAbs.className = "ligne-ajouter";
@@ -365,16 +417,21 @@
   // différent (électricien, peintre, chauffagiste…), d'où une entrée par
   // intervenant. Repeuplé à CHAQUE ouverture du panneau : la liste des
   // intervenants a pu changer depuis la dernière fois.
+  // Suite 134 : choix limités au type de la page ouverte (typeRapides).
   function remplirSelectAssigneFormulaire(assigneActuel) {
     var sel = document.querySelector(".nf-assigne");
     if (!sel) return;
     var a = String(assigneActuel || "");
-    var intervenants = PERSONNES.filter(function (p) { return p.sousTraitant; });
-    var html = '<option value="' + ASSIGNE_TOUS + '">Tout le monde</option>' +
-      '<option value="' + ASSIGNE_PERSONNEL + '">Personnel</option>';
-    if (intervenants.length) {
-      html += '<optgroup label="Un intervenant en particulier">' +
-        intervenants.map(function (p) { return '<option value="' + esc2(p.id) + '">' + esc(p.nom) + '</option>'; }).join("") +
+    var choix = typeRapides === "machines" ? [[ASSIGNE_MACHINES, "Toutes les machines"]]
+      : typeRapides === "transports" ? [[ASSIGNE_TRANSPORTS, "Transports"]]
+      : typeRapides === "intervenants" ? [[ASSIGNE_TOUS, "Tout le monde"], [ASSIGNE_INTERVENANTS, "Tous les intervenants"]]
+      : [[ASSIGNE_TOUS, "Tout le monde"], [ASSIGNE_PERSONNEL, "Personnel"]];
+    var html = choix.map(function (c) { return '<option value="' + c[0] + '">' + c[1] + '</option>'; }).join("");
+    var lignes = typeRapides === "intervenants" || typeRapides === "machines"
+      ? PERSONNES.filter(function (p) { return typeRapidesDeLigne(p.id) === typeRapides && !p.equipe; }) : [];
+    if (lignes.length) {
+      html += '<optgroup label="' + (typeRapides === "machines" ? "Une machine en particulier" : "Un intervenant en particulier") + '">' +
+        lignes.map(function (p) { return '<option value="' + esc2(p.id) + '">' + esc(p.nom) + '</option>'; }).join("") +
         '</optgroup>';
     }
     // Valeur déjà enregistrée qui ne figure pas dans la liste ci-dessus :
@@ -382,8 +439,8 @@
     // personnel, ou un intervenant supprimé depuis. On la conserve comme
     // option pour qu'ouvrir puis enregistrer un formulaire ne change jamais
     // son réglage à l'insu de Lionel.
-    var dejaListee = (a === ASSIGNE_TOUS || a === ASSIGNE_PERSONNEL) ||
-      intervenants.some(function (p) { return p.id === a; });
+    var dejaListee = choix.some(function (c) { return c[0] === a; }) ||
+      lignes.some(function (p) { return p.id === a; });
     if (!dejaListee) {
       html += '<option value="' + esc2(a) + '">' + esc(nomAssigneAffiche({ assigneA: a })) + ' (réglage actuel)</option>';
     }
@@ -447,7 +504,8 @@
     inputNom.disabled = false;
     var noteSpec = document.getElementById("noteFormSpecial");
     if (noteSpec) noteSpec.hidden = true;
-    remplirSelectAssigneFormulaire(ASSIGNE_TOUS);
+    // Suite 134 : par défaut, toute la catégorie de la page ouverte.
+    remplirSelectAssigneFormulaire({ personnel: ASSIGNE_PERSONNEL, intervenants: ASSIGNE_INTERVENANTS, machines: ASSIGNE_MACHINES, transports: ASSIGNE_TRANSPORTS }[typeRapides] || ASSIGNE_TOUS);
     var selTypeN = document.querySelector(".nf-type");
     if (selTypeN) selTypeN.value = "tache";
     rendreListeChampsForm();

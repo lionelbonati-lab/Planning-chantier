@@ -127,6 +127,21 @@
       defautClair: "#f0f0f0", defautSombre: "#171f28"
     },
     {
+      // Round du 01.10.2026 (suite 134) — Lionel (retour n° 10) : « Pouvoir
+      // masquer et choisir les couleurs de séparation de machine et
+      // transport ». Réglées sur leurs pages, comme Personnel/Intervenants.
+      id: "section-machines", nom: "Séparation « Machines »", page: "machines",
+      // Fond des lignes de titre des machines dans le planning, et du bouton « afficher/masquer Machines » de la barre d'outils quand il est activé.
+      champs: [{ v: "--section-machines-bg" }],
+      defautClair: "#f0f0f0", defautSombre: "#171f28"
+    },
+    {
+      id: "ligne-transports", nom: "Ligne « Transports »", page: "transports",
+      // Fond du nom de la ligne Transports dans le planning, et du bouton « afficher/masquer Transports » de la barre d'outils quand il est activé.
+      champs: [{ v: "--transports-bg" }],
+      defautClair: "#f0f0f0", defautSombre: "#171f28"
+    },
+    {
       id: "halo-suppression", nom: "Halo de suppression",
       // Contour au clic sur « Supprimer », et fond au survol du bouton « Effacer ».
       champs: [{ v: "--interdit-bg" }],

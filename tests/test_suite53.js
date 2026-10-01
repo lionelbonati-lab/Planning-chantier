@@ -163,9 +163,11 @@ function mesurerLignes(page) {
     const a = await onglets();
     // Suite 61 : Général et Mise en page passés dans le menu de la pastille —
     // 8 onglets, leurs noms tiennent dès 1024 px.
-    const large = vp.width >= 1024;
+    // Suite 134 : 10 onglets (Machines, Transports ; plus d'Entrée rapide)
+    // — à 1024 px, icônes seules désormais.
+    const large = vp.width >= 1400;
     // Suite 65 : 9 onglets avec Notes — à 1024 px, resserrés, noms gardés.
-    verifier(a.dedans && a.titres && (large ? !a.compact && a.noms.length === 9 : a.compact && a.noms.join() === 'planning'),
+    verifier(a.dedans && a.titres && (large ? !a.compact && a.noms.length === 10 : a.compact && a.noms.join() === 'planning'),
       vp.width + ' px : ' + (large ? 'onglets avec leur nom' : 'onglets en icônes, nom de l\'onglet actif seul') + ', tous visibles (' + JSON.stringify(a) + ')');
     if (!large) {
       await allerPage(page, 'horaires'); // suite 61 : Mise en page est passée dans le menu de la pastille

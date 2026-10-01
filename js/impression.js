@@ -117,7 +117,16 @@
     // Suite 132 (js/groupes.js) : une case par groupe (Machines,
     // Transports…), cochée d'office.
     (etat.groupes || []).forEach(function (g) { var k = "groupe-" + g.id; r[k] = lu && typeof lu === "object" && typeof lu[k] === "boolean" ? lu[k] : true; });
+    // Suite 134 : la ligne Transports a sa case, cochée d'office.
+    r.transports = lu && typeof lu === "object" && typeof lu.transports === "boolean" ? lu.transports : true;
     return r;
+  }
+  // Sections imprimées, dans l'ordre (suite 134) : la ligne Transports en
+  // tête — à l'écran, elle est sous les notes, au-dessus des sections —
+  // puis celles du planning (sectionsCorps, js/groupes.js).
+  function sectionsImpression_() {
+    var t = groupeTransports();
+    return (t ? [{ cle: "transports", secteur: "transports", libelle: t.nom }] : []).concat(sectionsCorps());
   }
   // Section imprimée ? (case Personnel, Intervenants ou du groupe.)
   function sectionImprimee_(r, secteur) {
@@ -206,11 +215,15 @@
       var idImpr = function (p) { return String(p.ancre); };
       // Suite 132 (js/groupes.js) : sections dans l'ordre du planning
       // (Personnel, Intervenants, Machines, Transports… glissés à l'écran).
-      var sectionsImpr = sectionsCorps();
+      // Suite 134 : ligne Transports en tête (sectionsImpression_), et les
+      // lignes masquées (case « Afficher » de leur page, personnes.masque)
+      // ne s'impriment pas — ni dans la liste, ni dans « Pour ».
+      var sectionsImpr = sectionsImpression_();
       function blocsParSection_(liste) {
         return sectionsImpr.map(function (sec) {
           var dans = liste.filter(function (p) { return secteurDe(p) === sec.secteur; });
-          return sec.secteur === "personnel" ? ordrePersonnesEquipes(dans, lundiImpr, idImpr) : dans.map(function (p) { return { p: p, role: null }; });
+          var ordre = sec.secteur === "personnel" ? ordrePersonnesEquipes(dans, lundiImpr, idImpr) : dans.map(function (p) { return { p: p, role: null }; });
+          return ordre.filter(function (e) { return !ligneMasquee(idImpr(e.p)); });
         });
       }
       var ordreComplet = [].concat.apply([], blocsParSection_(data.personnes || []));
@@ -819,7 +832,7 @@
         }).join("");
       }
       // Suite 132 : un groupe d'options par section, dans l'ordre du planning.
-      return '<option value="">Tout le monde</option>' + sectionsCorps().map(function (sec) {
+      return '<option value="">Tout le monde</option>' + sectionsImpression_().map(function (sec) {
         var dans = ordre.filter(function (e) { return secteurDe(e.p) === sec.secteur; });
         return dans.length ? '<optgroup label="' + esc(sec.libelle) + '">' + liste(dans) + '</optgroup>' : '';
       }).join("");
@@ -911,9 +924,9 @@
       var choixPersonnes = choixPersonnes_();
       // Suite 132 : une case par section, dans l'ordre du planning ; un
       // groupe sans ligne n'en a pas.
-      sectionsCorps().forEach(function (sec) {
+      sectionsImpression_().forEach(function (sec) {
         var dans = choixPersonnes.filter(function (e) { return secteurDe(e.p) === sec.secteur; });
-        if (/^groupe-/.test(sec.cle) && !dans.length) return;
+        if ((/^groupe-/.test(sec.cle) || sec.cle === "transports") && !dans.length) return;
         h += groupe(sec.cle, esc(sec.libelle), dans);
       });
       h += '</fieldset>';
