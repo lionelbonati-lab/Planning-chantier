@@ -25,7 +25,9 @@
    doit valider dans mon planning. » Bloc « Mes absences » en tête de page
    (personnel seulement : ni intervenant ni équipe, peut_demander) :
    « Demander une absence » ouvre un petit formulaire — type (entrées
-   rapides d'absence de l'appli, sinon Congé / Vacances / Maladie), du …
+   rapides d'absence de l'appli, sinon Congé / Vacances / Maladie ; round
+   du 01.10.2026 (suite 133), Lionel : « Typed demande d'absence:
+   Absence, congé » → exactement Absence / Congé, sql/0034), du …
    (matin / après-midi) au … (matin / après-midi), motif (suite 80 ; avant
    « remarque ») —, envoyé par
    consultation_demander_absence (sql/0020). Rien n'est écrit dans le
@@ -553,7 +555,10 @@
   // demande refusée ou une absence supprimée). q : la demande visée.
   function ouvrirFormulaire(q, mode) {
     var d = donnees, retour = feuilleOuverte === "demandes";
-    var motifs = (d.motifs && d.motifs.length ? d.motifs : ["Congé", "Vacances", "Maladie"]).slice();
+    // Suite 133 : le serveur envoie ["Absence", "Congé"] (sql/0034) ; même
+    // liste par défaut. Le type d'une demande plus ancienne (« Vacances »…)
+    // reste ajouté à la liste ci-dessous pour la modifier sans le perdre.
+    var motifs = (d.motifs && d.motifs.length ? d.motifs : ["Absence", "Congé"]).slice();
     var bloc = mode === "bureau" ? q : null;
     // Suite 130 : heure en tête (« Arrivée 9h30 - Congé ») → « Absence »,
     // heure(s), et le type qui suit.
@@ -594,7 +599,7 @@
       (accepteeModifiee ? '<p class="fa-origine">' + (bloc ? "Absence posée par le bureau : " : estSerie(q) ? "Série acceptée : " : "Absence acceptée : ") +
         esc(texteDemande(q)) + " — " + esc(libelleDemande(bloc ? bloc : q)) + "</p>" : "") + (avecPortee ? htmlPortee(q) : "") +
       // Suite 80 — Lionel : « Motif à la place de remarque. » Le choix
-      // Congé / Vacances… devient le « Type » ; le texte libre, le
+      // Absence / Congé (suite 133) devient le « Type » ; le texte libre, le
       // « Motif » (id et colonne `remarque` inchangés). Bulle posée à
       // l'acceptation : « Congé - Motif » (texteDemandeAbsence, appli).
       '<label>Type<select id="faMotif">' + motifs.map(function (m) { return "<option" + (m === v.motif ? " selected" : "") + ">" + esc(m) + "</option>"; }).join("") + "</select></label>" +

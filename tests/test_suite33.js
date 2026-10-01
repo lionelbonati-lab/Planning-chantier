@@ -74,8 +74,11 @@ const etiquettes = (page) => page.evaluate(() => [...document.querySelectorAll('
     // case vide pour AJOUTER : mode ajout (« + » appuyé).
     const { page, erreurs } = await ouvrirPlanning(browser, { bd: BD, localStorage: { 'planning.modeAjout': '1' } });
     let e = await etiquettes(page);
-    verifier(e.join(' | ') === 'E:Équipe A | M:Luc | E:Équipe B | Lionel | Pierre | Électricien',
-      'repliées : chaque équipe en tête, seul Luc (absent mardi) visible sous A, Marc/Paul/Jean cachés (' + e.join(' | ') + ')');
+    // Suite 133 (repli total) : tous les membres cachés, même Luc (absent
+    // mardi) ; un point sur l'équipe A le signale.
+    const point = await page.evaluate(() => [...document.querySelectorAll('.lbl-equipe')].map((l) => l.dataset.equipe + ':' + !!l.querySelector('.equipe-point')).join(','));
+    verifier(e.join(' | ') === 'E:Équipe A | E:Équipe B | Lionel | Pierre | Électricien' && point === '10:true,11:false',
+      'repliées : chaque équipe en tête, tous les membres cachés, point sur A (Luc absent mardi) (' + e.join(' | ') + ' ; ' + point + ')');
     const lbl = await page.evaluate(() => {
       const l = document.querySelector('.lbl-equipe[data-equipe="10"]');
       return { membres: l.querySelector('.equipe-membres').textContent, repli: l.querySelector('.equipe-repli').textContent, titre: l.title };
@@ -84,7 +87,7 @@ const etiquettes = (page) => page.evaluate(() => [...document.querySelectorAll('
     const bulle = await page.evaluate(() => [...document.querySelectorAll('.bulle')].some((b) => b.textContent.includes('Coffrage dalle N2')));
     verifier(bulle, 'la tâche de l\'équipe s\'affiche sur sa ligne');
     const ordreLignes = await page.evaluate(() => personnesSecteurListe('personnel').join(','));
-    verifier(ordreLignes === '10,3,11,1,5', 'sélection au glissé : même ordre que l\'écran (' + ordreLignes + ')');
+    verifier(ordreLignes === '10,11,1,5', 'sélection au glissé : même ordre que l\'écran (' + ordreLignes + ')');
 
     await page.click('.lbl-equipe[data-equipe="10"] .equipe-repli');
     await page.waitForTimeout(150);

@@ -2076,3 +2076,20 @@ Fichier : sql/0033_groupes.sql (migration `groupes`).
 - L'ordre des sections du planning est un réglage du compte (reglages, clé « ordre_groupes ») : pas de colonne.
 - Sauvegardes : groupes ajoutée à tables_sauvegardees_ (18 tables).
 - Aucun nouveau conseil de sécurité Supabase.
+
+---
+
+## 37. Round du 01.10.2026 (suite 133) — types « Absence » / « Congé » de la demande d'absence
+
+Lionel (page Améliorations et bugs, amélioration n° 5) :
+
+> Typed demande d'absence: Absence, congé
+
+Son choix : « Liste ouvrier ».
+
+Fichier : sql/0034_motifs_demande_absence.sql (migration `motifs_demande_absence`, appliquée et déjà dans main avec la PR 124).
+
+- consultation_planning : `motifs` vaut toujours `["Absence", "Congé"]` (avant : les entrées rapides d'absence de l'appli, sinon Congé / Vacances / Maladie). Le reste de la fonction est celui de sql/0032 ; droits (revoke / grant) inchangés.
+- Vérifié sur le projet : un appel renvoie `"motifs": ["Absence", "Congé"]`.
+- consultation_demander_absence inchangée : un type plus ancien reste accepté (modification d'une demande existante).
+

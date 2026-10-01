@@ -12,8 +12,11 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 // js/equipes.js). Vérifie :
 //   1. la règle (estMembreEquipeLe) : composition, retrait, ajout ici,
 //      ajout ailleurs ;
-//   2. au chargement : case « Hors équipe », membre retiré visible sous
-//      son équipe repliée, détail dans l'info-bulle de l'équipe ;
+//   2. au chargement : case « Hors équipe », détail dans l'info-bulle de
+//      l'équipe ; Round du 01.10.2026 (suite 133) : équipe repliée = tous
+//      ses membres cachés (retour 6, « J'aimerai pouvoir replier
+//      complètement les équipes. »), point « • » sur l'équipe pour Marc,
+//      puis l'équipe est dépliée pour la suite ;
 //   3. ligne d'équipe : « Ajouter quelqu'un › » → Paul → ligne « ajout »
 //      en base, sa case « + Équipe A », « +Paul » dans l'étiquette ;
 //   4. clic droit sur la case d'un membre : « Retirer de l'équipe » →
@@ -97,10 +100,16 @@ const fermer = async (page) => { await page.keyboard.press('Escape'); await page
 
     // --- 2. Chargement --------------------------------------------------------------
     let l = await lignes(page);
-    let m = await marque(page, '5', '2026-09-25', 'aprem');
     const titre = await page.evaluate(() => document.querySelector('#racine .lbl-equipe[data-equipe="10"]').title);
-    verifier(l === 'p10,p5,p11,p1,p2' && m === 'hors:Hors équipe:"Hors équipe"' && /Marc : hors équipe, ven\. 25\.09 après-midi/.test(titre),
-      'chargement : Marc visible sous l’équipe repliée (Luc caché), sa case « Hors équipe », détail dans l’info-bulle (' + l + ' ; ' + m + ' ; ' + JSON.stringify(titre) + ')');
+    const pointEq = await page.evaluate(() => !!document.querySelector('#racine .lbl-equipe[data-equipe="10"] .equipe-point'));
+    verifier(l === 'p10,p11,p1,p2' && pointEq && /Marc : hors équipe, ven\. 25\.09 après-midi/.test(titre) && /Membre caché avec une tâche ou une absence : Marc/.test(titre),
+      'chargement : équipe repliée, Luc et Marc cachés, point « • » pour Marc, détail dans l’info-bulle (' + l + ' ; ' + JSON.stringify(titre) + ')');
+    await page.evaluate(() => basculerDepliageEquipe('10'));
+    await page.waitForTimeout(300);
+    l = await lignes(page);
+    let m = await marque(page, '5', '2026-09-25', 'aprem');
+    verifier(l === 'p10,p4,p5,p11,p1,p2' && m === 'hors:Hors équipe:"Hors équipe"',
+      'équipe dépliée : Luc et Marc affichés, case de Marc « Hors équipe » (' + l + ' ; ' + m + ')');
 
     // --- 3. Ligne d'équipe : Ajouter quelqu'un --------------------------------------------
     await page.evaluate(() => changerModeAjoutPlanning(true));

@@ -1315,6 +1315,8 @@
   .lbl-membre.equipe-coloree { box-shadow: inset 4px 0 0 color-mix(in srgb, var(--couleur-equipe) 45%, transparent); }
   .lbl-equipe .equipe-titre { display: flex; align-items: center; gap: 3px; min-width: 0; }
   .lbl-equipe .equipe-titre b { min-width: 0; }
+  /* Suite 133 : équipe repliée dont un membre caché a quelque chose. */
+  .lbl-equipe .equipe-point { flex: none; color: var(--accent); font-size: 16px; line-height: 1; margin-left: 1px; }
   .lbl-equipe .equipe-repli {
     flex-shrink: 0; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 4px;
     background: transparent; color: var(--ink-muted); font-size: 11px; line-height: 18px; cursor: pointer;
