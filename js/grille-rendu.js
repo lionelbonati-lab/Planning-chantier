@@ -348,7 +348,12 @@
   var REPLIS_ORDRE = ["groupeZoom", "controlesAffichage", "groupeModeAjout", "groupeAjoutLigne", "groupeNavSemaine", "groupeImprimer"];
   // Téléphone : tout ce qui se replie va dans « ⋮ » ; la cloche est dans la
   // barre du bas (#btnNotificationsNavBas), masquée dans celle-ci.
-  var REPLIS_TELEPHONE = REPLIS_ORDRE;
+  // Round du 01.10.2026 (suite 136) — Lionel (retour n° 15, téléphone) :
+  // « Rajouter le bouton mode ajout. » Son choix : « Barre, à côté du « + » ».
+  // L'icône du mode ajout ne se replie plus dans « ⋮ » sur téléphone : elle
+  // reste dans la barre, juste avant le « + » (style-mobile.css) — sauf
+  // débordement (cf. ajusterDebordementToolbar).
+  var REPLIS_TELEPHONE = REPLIS_ORDRE.filter(function (id) { return id !== "groupeModeAjout"; });
   // Insère `el` dans `conteneur` avant le premier enfant de rang supérieur
   // (data-rang ou data-rang-menu selon `cle`) — garde le DOM dans l'ordre
   // visuel, dont dépendent les séparateurs (.sep-avant, cf. style.css).
@@ -390,6 +395,11 @@
     if (telephone) {
       groupes.forEach(function (g) { insererAuRang(g, panneau, "rangMenu"); });
       legendeBarre.classList.add("toolbar-compacte");
+      // Suite 136 : l'icône du mode ajout reste dans la barre (retour n° 15),
+      // sauf si elle la fait déborder (texte agrandi, test_suite50) : elle
+      // rejoint alors « ⋮ », toujours affichée.
+      var modeAjout = document.getElementById("groupeModeAjout");
+      if (modeAjout && barreDeborde(legendeBarre, panneau)) insererAuRang(modeAjout, panneau, "rangMenu");
       // « À réserver » : sur téléphone, plus dans cette barre du tout, mais
       // dans la barre du bas (round du 25.09.2026, suite 53 — Lionel : « A
       // réservé pourrait être placer sur la barre du bas en mode mobile »,

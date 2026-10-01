@@ -11190,3 +11190,17 @@ Lionel (amélioration n° 12) :
 - tests/test_suite132.js : lignes de groupe sans titre (étiquette = section), menu d'une machine sans absence (arrivée / départ sur Paul), page Machines = listes d'éléments.
 - tests/test_suite134.js : §groupe-1 sur l'étiquette Machines, sous-onglets seulement sur Personnel / Intervenants, menus Machines / Transports = liste + « Autre… », plus de coche « Afficher » sur la page Machines.
 - Suite complète : 139/139.
+
+
+## 249. Round du 01.10.2026 (suite 136) — bouton mode ajout dans la barre du téléphone
+
+- Retour n° 15 (téléphone) — Lionel : « Rajouter le bouton mode ajout. » Depuis la suite 112, l'icône du mode ajout était rangée dans « ⋮ » sur téléphone et n'y apparaissait qu'allumée. Son choix : « Barre, à côté du « + » ».
+  - js/grille-rendu.js : `REPLIS_TELEPHONE` ne contient plus `groupeModeAjout` (l'icône ne se replie plus dans « ⋮ » sur téléphone) ;
+  - style-mobile.css : plus de masquage hors mode ajout ; l'icône est poussée à droite avec le « + », qu'elle précède ;
+  - si elle fait déborder la barre (texte agrandi), ajusterDebordementToolbar la range dans « ⋮ », toujours affichée.
+
+### Tests
+
+- tests/test_suite112.js : téléphone — icône dans la barre juste avant le « + », éteinte puis allumée puis éteinte, toujours affichée.
+- tests/test_suite50.js : 360 px, texte agrandi — icône du mode ajout repliée dans « ⋮ », rien ne dépasse.
+- tests/test_toolbar_chevauchement.js : barre du téléphone avec `groupeModeAjout` avant le « + » ; menu « ⋮ » sans lui.

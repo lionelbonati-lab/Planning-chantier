@@ -10,8 +10,11 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //      toucher au mode ; Tâche -> « pour qui ? » -> une personne = fenêtre
 //      d'ajout ouverte, menu refermé ;
 //   2. l'icône #btnModeAjout allume puis éteint le mode ajout ;
-//   3. téléphone : l'icône, rangée dans « ⋮ », y est masquée éteinte et
-//      visible allumée (pour en sortir) ; « + » toujours dans la barre.
+//   3. téléphone : l'icône, rangée dans « ⋮ », y est masquée éteinte et
+//      visible allumée (pour en sortir) ; « + » toujours dans la barre.
+//      Suite 136 — Lionel (retour n° 15) : « Rajouter le bouton mode
+//      ajout. » ; son choix : « Barre, à côté du « + » ». L'icône reste dans
+//      la barre, juste avant le « + », éteinte comme allumée.
 //
 // Lancer : node test_suite112.js
 
@@ -69,21 +72,21 @@ const etat = (page) => page.evaluate(() => {
   // --- 3. Téléphone ---------------------------------------------------------------
   {
     const { page, erreurs } = await ouvrirPlanning(browser, { viewport: { width: 390, height: 800 }, hasTouch: true, bd: BD() });
-    await page.click('#btnPlusOutils');
+    const place = () => page.evaluate(() => {
+      const g = document.getElementById('groupeModeAjout'), r = g.getBoundingClientRect(), p = document.getElementById('groupeAjoutElement').getBoundingClientRect();
+      return { barre: g.parentNode.id, collee: Math.round(p.left - r.right) <= 4 && Math.abs(r.top - p.top) < 2 };
+    });
+    let e = await etat(page), pl = await place();
+    verifier(e.iconeVisible && e.plusVisible && pl.barre === 'legendeBarre' && pl.collee && !e.ajout,
+      'téléphone : icône du mode ajout dans la barre, juste avant le « + », éteinte ' + JSON.stringify([e, pl]));
+    await page.click('#btnModeAjout');
     await page.waitForTimeout(150);
-    let e = await etat(page);
-    verifier(!e.iconeVisible && e.plusVisible, 'téléphone, « ⋮ » ouvert : icône du mode ajout masquée, « + » affiché ' + JSON.stringify(e));
-    await page.click('#btnPlusOutils');
-    await page.evaluate(() => changerModeAjoutPlanning(true));
-    await page.waitForTimeout(150);
-    await page.click('#btnPlusOutils');
-    await page.waitForTimeout(150);
-    e = await etat(page);
-    verifier(e.iconeVisible, 'téléphone, mode ajout allumé : icône affichée dans « ⋮ » pour en sortir ' + JSON.stringify(e));
+    e = await etat(page); pl = await place();
+    verifier(e.ajout && e.icone && e.iconeVisible && pl.barre === 'legendeBarre', 'téléphone : touchée = mode ajout, icône allumée, toujours dans la barre ' + JSON.stringify([e, pl]));
     await page.click('#btnModeAjout');
     await page.waitForTimeout(150);
     e = await etat(page);
-    verifier(!e.ajout && !e.iconeVisible, 'téléphone : touchée = mode sélection, icône de nouveau masquée ' + JSON.stringify(e));
+    verifier(!e.ajout && !e.icone && e.iconeVisible, 'téléphone : retouchée = mode sélection, icône toujours affichée ' + JSON.stringify(e));
     toutesErreurs.push(...erreurs);
     await page.close();
   }
