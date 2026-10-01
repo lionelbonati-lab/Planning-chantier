@@ -268,7 +268,7 @@
   // reçoit sa poignée (trait du bas, cf. cablerHauteurLigne_).
   function poserPistesFixes_(G) {
     var grilleEntete = G.grilleEntete, grilleCorps = G.grilleCorps;
-    var perso = hauteursLignesPerso_(), repliees = lignesRepliees_();
+    var perso = hauteursLignesPerso_(), repliees = lignesRepliees_(), ouvertes = lignesOuvertes_();
     [grilleEntete, grilleCorps].forEach(function (g) {
       var nb = 0, fixes = {}, hPerso = {}, rangsReplies = {};
       [].forEach.call(g.children, function (el) {
@@ -283,6 +283,7 @@
         var id = el.dataset.ligne;
         if (!id) return;
         if (perso[id] > 0) hPerso[r[0]] = perso[id];
+        else if (el.classList.contains("lbl-ouvrable") && hauteursOuvrables_[id] > 0) hPerso[r[0]] = hauteursOuvrables_[id];
         el.classList.toggle("ligne-perso", perso[id] > 0);
         // Suite 116 : ligne repliée.
         var repliee = repliees.indexOf(id) >= 0;
@@ -290,12 +291,13 @@
         el.classList.toggle("ligne-repliee", repliee);
         if (repliee) el.title = "Ligne repliée — clic : la déplier";
         else if (el.dataset.titreNormal != null) { el.title = el.dataset.titreNormal; delete el.dataset.titreNormal; }
-        // Suite 141 : chevron des lignes Transports / Machines.
-        var bRepli = el.querySelector(":scope > .ligne-repli");
-        if (bRepli) {
-          bRepli.textContent = repliee ? "▸" : "▾";
-          bRepli.title = repliee ? "Déplier la ligne" : "Replier la ligne";
-          bRepli.setAttribute("aria-expanded", String(!repliee));
+        // Suite 141 : flèche des lignes Transports / Machines.
+        var bOuvrir = el.querySelector(":scope > .ligne-ouvrir");
+        if (bOuvrir) {
+          var ouverte = ouvertes.indexOf(id) >= 0 && !(perso[id] > 0);
+          bOuvrir.textContent = ouverte ? "▾" : "▸";
+          bOuvrir.title = ouverte ? "Hauteur d’une bulle" : "Afficher toutes les bulles";
+          bOuvrir.setAttribute("aria-expanded", String(ouverte));
         }
         if (!el.querySelector(":scope > .poignee-ligne")) {
           var pg = document.createElement("span");
@@ -382,6 +384,7 @@
       });
       g._nMaxLignes = {};
       g._basMax = {};
+      g._basUne = {}; // suite 141 : bas de la 1re carte des piles
       Object.keys(parLigne).forEach(function (row) {
         var mes = G.mesuresMob_[lignes[row]], m = margeBulles_();
         // Suite 103 : ligne réglée à part — même carte (U), sa hauteur
@@ -428,6 +431,7 @@
           hPiste.forEach(function (h, k) { yReel[k] = yy; yy += h + m; });
           var bas = yReel[n - 1] + hPiste[n - 1];
           g._basMax[row] = Math.max(g._basMax[row] || 0, bas);
+          g._basUne[row] = Math.max(g._basUne[row] || 0, yReel[0] + hPiste[0]);
           // Tout tient : pile réelle. Sinon, cascade d'un pas régulier comme
           // avant, la dernière carte au bas de la ligne.
           var tient = bas + m <= mes.h + 0.5;
@@ -488,6 +492,13 @@
       });
     });
     remonterCartesSelection(); // suite 93
+    // Suite 141 : hauteur des lignes Transports / Machines, connue après la
+    // cascade (bas de la plus haute pile) — pistes et cascade refaites si
+    // elle change (une fois : la pile réelle ne dépend pas de la hauteur).
+    if (!G.reajusteOuvrables_ && ajusterLignesOuvrables_(G)) {
+      G.reajusteOuvrables_ = true;
+      try { poserPistesFixes_(G); cascaderBullesJourMobile_(G); } finally { G.reajusteOuvrables_ = false; }
+    }
   }
   // Curseurs de hauteur (suite 92, barre d'outils et page Affichage) :
   // hauteurs remesurées et cascade refaite, sans nouveau rendu — les
@@ -567,6 +578,54 @@
     if (replier) l = l.concat(ids);
     try { localStorage.setItem(cleLignesRepliees_(), JSON.stringify(l)); } catch (e) {}
     appliquerHauteursLignes_();
+  }
+  /* Lignes Transports / Machines (round du 01.10.2026, suite 141) — Lionel :
+     « déplier et replier ligne machine et transport », puis, sur notre
+     première version (repli en fine bande) : « Cela fonctionne mais n'a pas
+     sa place sur les lignes machine et transport car elle sont masquage.
+     Je pense plus à une petite flèche qui permet d'ouvrir pour afficher
+     toutes les bulle quand déplier et la hauteur d'une bulle quand
+     repliée. » Flèche ▸/▾ devant le nom : repliée (par défaut), la ligne a
+     la hauteur d'une bulle — la plus haute, à sa taille réelle (les autres
+     en cascade, pastille « +N ») ;
+     dépliée, celle de sa plus haute pile, qui suit les bulles. Retenu par
+     l'appareil. Une hauteur réglée à la main (trait, menu) l'emporte ; un
+     clic sur la flèche la retire. */
+  var hauteursOuvrables_ = {};
+  function cleLignesOuvertes_() { return profilAppareil_() === "tel" ? "planning.lignesOuvertes.tel" : "planning.lignesOuvertes"; }
+  function lignesOuvertes_() {
+    try {
+      var l = JSON.parse(localStorage.getItem(cleLignesOuvertes_()) || "[]");
+      return Array.isArray(l) ? l : [];
+    } catch (e) { return []; }
+  }
+  function ouvrirLigne_(id, ouvrir) {
+    var l = lignesOuvertes_().filter(function (i) { return i !== id; });
+    if (ouvrir) l.push(id);
+    var o = hauteursLignesPerso_(), r = lignesRepliees_().filter(function (i) { return i !== id; });
+    delete o[id];
+    try {
+      localStorage.setItem(cleLignesOuvertes_(), JSON.stringify(l));
+      localStorage.setItem(cleHauteursLignes_(), JSON.stringify(o));
+      localStorage.setItem(cleLignesRepliees_(), JSON.stringify(r));
+    } catch (e) {}
+    appliquerHauteursLignes_();
+    if (typeof majRetablirHauteurs === "function") majRetablirHauteurs();
+  }
+  // true : une hauteur a changé (pistes et cascade à refaire).
+  function ajusterLignesOuvrables_(G) {
+    var mes = G.mesuresMob_ && G.mesuresMob_.pers, g = G.grilleCorps;
+    if (!mes || !mes.u) return false;
+    var m = margeBulles_(), perso = hauteursLignesPerso_(), ouvertes = lignesOuvertes_(), change = false;
+    [].forEach.call(g.querySelectorAll(":scope > .lbl-ouvrable[data-ligne]"), function (lbl) {
+      var id = lbl.dataset.ligne, r = plageGrille_(lbl.style.gridRow);
+      if (!r || perso[id] > 0) return;
+      // Repliée : la plus haute des 1res cartes (ligne vide : une carte).
+      var h = Math.ceil(((g._basUne || {})[r[0]] || m + mes.u) + m);
+      if (ouvertes.indexOf(id) >= 0) h = Math.max(h, Math.ceil(((g._basMax || {})[r[0]] || 0) + m));
+      if (hauteursOuvrables_[id] !== h) { hauteursOuvrables_[id] = h; change = true; }
+    });
+    return change;
   }
   // Pistes et cascade refaites sur place, sans nouveau rendu.
   function appliquerHauteursLignes_() {
@@ -677,16 +736,14 @@
     var id = idPersonneLigne_(lbl);
     if (id != null && typeof ouvrirModifierPersonne === "function") ouvrirModifierPersonne(id, function () {});
   }
-  // Round du 01.10.2026 (suite 141) — Lionel : « déplier et replier ligne
-  // machine et transport ». Clic sur le chevron (lignes Transports /
-  // Machines) : replier ou déplier cette ligne seule, sans la choisir.
+  // Suite 141 : clic sur la flèche (lignes Transports / Machines) : toutes
+  // les bulles ou la hauteur d'une bulle, sans choisir la ligne.
   document.addEventListener("click", function (e) {
-    var b = e.target.closest && e.target.closest("#racine .grille > [data-ligne] > .ligne-repli");
+    var b = e.target.closest && e.target.closest("#racine .grille > [data-ligne] > .ligne-ouvrir");
     if (!b) return;
     e.preventDefault();
     e.stopPropagation();
-    var lbl = etiquetteLigne_(b);
-    replierLignes([lbl.dataset.ligne], !lbl.classList.contains("ligne-repliee"));
+    ouvrirLigne_(etiquetteLigne_(b).dataset.ligne, b.getAttribute("aria-expanded") !== "true");
   }, true);
   document.addEventListener("contextmenu", function (e) {
     var lbl = etiquetteLigne_(e.target);
@@ -722,7 +779,7 @@
   document.addEventListener("pointerdown", function (e) {
     if (e.pointerType !== "touch") return;
     var lbl = etiquetteLigne_(e.target);
-    if (!lbl || e.target.closest(".poignee-ligne, .ligne-repli")) return;
+    if (!lbl || e.target.closest(".poignee-ligne, .ligne-ouvrir")) return;
     var pointerId = e.pointerId, x0 = e.clientX, y0 = e.clientY;
     var minuteur = setTimeout(function () {
       detacher();
@@ -925,9 +982,11 @@
       '<button type="button" class="btn-primaire" data-a="ok">OK</button></div>' +
       '<button type="button" data-a="contenu">Ajuster au contenu</button>' +
       '<button type="button" data-a="defaut"' + (perso ? '' : ' disabled') + '>Hauteur par défaut</button>' +
-      // Suite 116 : replier / déplier.
+      // Suite 116 : replier / déplier. Suite 141 : pas sur Transports /
+      // Machines (leur flèche, et la coche « Afficher » pour les masquer).
       '<div class="mc-sep"></div>' +
-      '<button type="button" data-a="replier">' + (toutesRepliees ? "Déplier " : "Replier ") + (groupe ? "les " + ids.length + " lignes" : "la ligne") + '</button>' +
+      (!groupe && lbl.classList.contains("lbl-ouvrable") && !toutesRepliees ? '' :
+      '<button type="button" data-a="replier">' + (toutesRepliees ? "Déplier " : "Replier ") + (groupe ? "les " + ids.length + " lignes" : "la ligne") + '</button>') +
       (autresRepliees ? '<button type="button" data-a="toutDeplier">Déplier toutes les lignes (' + repliees.length + ')</button>' : '');
     positionnerPop(pop, x, y);
     var fermer = fermerAuClicExterieur(pop);
@@ -951,7 +1010,8 @@
     pop.querySelector('[data-a="ok"]').addEventListener("click", valider);
     pop.querySelector('[data-a="contenu"]').addEventListener("click", function () { fermerGarde(); ajusterLignesAuContenu_(ids); });
     pop.querySelector('[data-a="defaut"]').addEventListener("click", function () { fermerGarde(); changerHauteursLignes(ids, null); });
-    pop.querySelector('[data-a="replier"]').addEventListener("click", function () { fermerGarde(); replierLignes(ids, !toutesRepliees); });
+    var bReplier = pop.querySelector('[data-a="replier"]');
+    if (bReplier) bReplier.addEventListener("click", function () { fermerGarde(); replierLignes(ids, !toutesRepliees); });
     var bTout = pop.querySelector('[data-a="toutDeplier"]');
     if (bTout) bTout.addEventListener("click", function () { fermerGarde(); replierLignes(repliees, false); });
     var bCh = pop.querySelector('[data-a="choix"]');
@@ -1059,7 +1119,7 @@
   document.addEventListener("pointerdown", function (e) {
     if (e.pointerType === "touch" || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey) return;
     var lbl = etiquetteLigne_(e.target);
-    if (!lbl || e.target.closest(".poignee-ligne, .ligne-repli") || idPersonneLigne_(lbl) == null) return;
+    if (!lbl || e.target.closest(".poignee-ligne, .ligne-ouvrir") || idPersonneLigne_(lbl) == null) return;
     var pointerId = e.pointerId, y0 = e.clientY, voisins = null, trait = null, cible = null;
     function viser(y) {
       var rs = voisins.map(function (l) { return l.getBoundingClientRect(); }), k = 0;

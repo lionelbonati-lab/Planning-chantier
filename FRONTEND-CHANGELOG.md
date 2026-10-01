@@ -11276,15 +11276,21 @@ Lionel : « J'ai toujour 2 messages qui s'affichent a chaque mise à jours. rec
 - Parcours complets avec service worker inchangés et verts : `test_suite96`, `test_suite100`, `test_suite120_sw`.
 
 
-## 254. Round du 01.10.2026 (suite 141) — Chevron pour replier / déplier les lignes Machines et Transports
+## 254. Round du 01.10.2026 (suite 141) — Flèche des lignes Machines et Transports : une bulle ou toutes les bulles
 
-Lionel : « déplier et replier ligne machine et transport ».
+Lionel : « déplier et replier ligne machine et transport ». Une 1re version (chevron qui repliait la ligne en fine bande, comme la suite 116) : « Cela fonctionne mais n'a pas sa place sur les lignes machine et transport car elle sont masquage.
+Je pense plus à une petite flèche qui permet d'ouvrir pour afficher toutes les bulle quand déplier et la hauteur d'une bulle quand repliée. »
 
-- `js/grille-rendu.js` (`ligneGroupePersonnesCompact`) : les lignes Transports et Machines reçoivent un chevron `.ligne-repli` (▾ dépliée, ▸ repliée) devant le nom, classe `.lbl-repliable`.
-- `js/grille-hauteurs.js` : un clic (toucher) sur le chevron replie la ligne en fine bande ou la déplie (`replierLignes`, suite 116), sans choisir la ligne ni ouvrir le menu ; l'appui long et le glisser d'un nom ne partent pas du chevron. `poserPistesFixes_` met à jour le chevron (texte, titre, `aria-expanded`) à chaque repli, sans nouveau rendu. Le menu du nom (« Replier la ligne ») et le clic sur un nom replié restent.
-- `style.css` : chevron posé dans la marge gauche de l'étiquette, sur toute sa hauteur — le nom garde toute la largeur de la colonne (« Transports » n'est plus coupé).
+- `js/grille-rendu.js` (`ligneGroupePersonnesCompact`) : flèche `.ligne-ouvrir` devant le nom des lignes Transports et Machines (classe `.lbl-ouvrable`).
+- `js/grille-hauteurs.js` :
+  - repliée (par défaut) : la ligne a la hauteur d'une bulle — la plus haute des 1res cartes, à sa taille réelle (`g._basUne`, relevé par la cascade) ; les autres bulles restent en cascade, avec la pastille « +N » ;
+  - dépliée (▾) : la hauteur de sa plus haute pile (`g._basMax`), qui suit les bulles à chaque rendu ;
+  - `ajusterLignesOuvrables_` calcule ces hauteurs après la cascade ; si elles changent, pistes et cascade sont refaites une fois (`hauteursOuvrables_`, lues par `poserPistesFixes_`) ;
+  - clic (toucher) sur la flèche : `ouvrirLigne_`, sans choisir la ligne ni ouvrir de menu ; état retenu par l'appareil (`planning.lignesOuvertes`, `.tel`) ; une hauteur réglée à la main l'emporte, et la flèche la retire ;
+  - menu du nom : plus de « Replier la ligne » sur ces deux lignes (la coche « Afficher » les masque) ; l'appui long et le glisser d'un nom ne partent pas de la flèche.
+- `style.css` : flèche dans la marge gauche de l'étiquette, sur toute sa hauteur — le nom garde toute la largeur (« Transports » n'est pas coupé). L'étiquette reste collante (`position: sticky`, qui sert de repère à la flèche).
 
 ### Tests
 
-- `tests/test_suite141.js` (nouveau, 8 vérifications, ordinateur puis téléphone au doigt) : chevron ▾ sur Machines et Transports seulement ; un clic replie (18 px, ▸, ni ligne choisie ni menu), un 2e déplie (▾) ; aucune erreur JS.
+- `tests/test_suite141.js` (nouveau, 9 vérifications, ordinateur puis téléphone au doigt) : flèche ▸ sur Machines et Transports seulement, une seule bulle entière par défaut ; la flèche montre les 3 bulles (▾, retenu au rendu suivant), puis revient à une bulle, sans choisir la ligne ni changer de jour ; menu Machines sans « Replier la ligne » (Paul le garde) ; aucune erreur JS.
 
