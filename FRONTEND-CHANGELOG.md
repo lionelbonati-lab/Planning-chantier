@@ -11260,3 +11260,17 @@ Lionel, sur le récap de la suite 138 : « Chaque machine/transport a sa coche 
 - `tests/test_suite139.js` (nouveau, 5 vérifications) : coches en tête des éléments, clic droit limité aux cochés, décocher / cocher suit en base et au menu, Transports tout décoché, aucune erreur JS.
 - `tests/test_suite138.js` : libellé de la coche du groupe.
 - `tests/test_suite135.js` : Karcher sans quantité, bulle « Karcher ».
+
+
+
+## 253. Round du 01.10.2026 (suite 140) — un seul message à la mise à jour
+
+Lionel : « J'ai toujour 2 messages qui s'affichent a chaque mise à jours. recharger et mise à jour ». Son choix : « Un seul message ».
+
+- `js/hors-ligne.js` : le bandeau « Nouvelle version de l'appli prête — Recharger » reste le seul message. Au clic, il s'efface et l'écran de chargement ordinaire (« Chargement du planning… ») couvre la recopie puis le rechargement. Avant, le bouton devenait « Mise à jour… ».
+- Démarrage raté sur une copie dépareillée (`reparerCopieAppli_`, suite 100) : même écran de chargement ordinaire au lieu de « Mise à jour de l'appli… ». La recopie et le rechargement automatiques ne changent pas.
+
+### Tests
+
+- `tests/test_suite140.js` (nouveau, 3 vérifications) : un seul bandeau ; « Recharger » efface le bandeau et montre l'écran de chargement ordinaire, sans « Mise à jour » ; aucune erreur JS.
+- Parcours complets avec service worker inchangés et verts : `test_suite96`, `test_suite100`, `test_suite120_sw`.
