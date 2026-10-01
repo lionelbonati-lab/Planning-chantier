@@ -1127,6 +1127,10 @@
   #racine .th[data-gi]:not(.th-demi) { cursor: pointer; }
   /* Suite 109 : en mode ajout, les jours ne se choisissent pas. */
   .planning-mode-ajout #racine .th[data-gi]:not(.th-demi) { cursor: default; }
+  /* Suite 142 : case du coin sous le mois = toutes les lignes ; bande de
+     section = les lignes du groupe (grille-hauteurs.js). */
+  #racine .th.coin.th-demi, #racine .grille > .section-row { cursor: pointer; }
+  .planning-mode-ajout #racine :is(.th.coin.th-demi, .grille > .section-row) { cursor: default; }
   #racine .grille > .ligne-choisie, #racine .th.jour-choisi { background: color-mix(in srgb, var(--accent) 22%, var(--surface-2)); box-shadow: inset 0 0 0 2px var(--accent); }
   body.en-redim-ligne, body.en-redim-ligne * { cursor: row-resize !important; user-select: none; }
   .info-hauteur-ligne {

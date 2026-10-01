@@ -11294,3 +11294,16 @@ Je pense plus à une petite flèche qui permet d'ouvrir pour afficher toutes les
 
 - `tests/test_suite141.js` (nouveau, 9 vérifications, ordinateur puis téléphone au doigt) : flèche ▸ sur Machines et Transports seulement, une seule bulle entière par défaut ; la flèche montre les 3 bulles (▾, retenu au rendu suivant), puis revient à une bulle, sans choisir la ligne ni changer de jour ; menu Machines sans « Replier la ligne » (Paul le garde) ; aucune erreur JS.
 
+
+## 255. Round du 01.10.2026 (suite 142) — Coin = toutes les lignes, bande de section = lignes du groupe
+
+Lionel : « Un clic dans la case de la colonne à gauche des horaires sélectionne toutes les lignes. Un clic sur une ligne de séparation sélectionne tout le groupe ».
+
+- `js/grille-hauteurs.js` : comme le coin d'un tableur, un clic (toucher) sur la case du coin dans la ligne des horaires (`.th.coin.th-demi`) choisit toutes les lignes (Jalons et Notes compris) et sélectionne leurs bulles de la semaine. Un clic sur une bande de section (Personnel, Intervenants, un groupe) choisit les lignes qui la suivent jusqu'à la section suivante (`lignesDeSection_` ; la ligne Machines, qui tient lieu de titre, ouvre la sienne). Ctrl (Cmd) / Maj : ajoutées aux lignes déjà choisies (`choisirLignesEnBloc_`). La poignée ⠿ garde le glisser des sections ; rien en mode ajout (suite 109).
+- `js/grille-rendu.js` : bulles d'aide « Sélectionner toutes les lignes » (coin) et « Clic : sélectionner les lignes du groupe » (bande).
+- `style.css` : curseur main sur ces deux zones (pas en mode ajout).
+
+### Tests
+
+- `tests/test_suite142.js` (nouveau, 6 vérifications) : coin → toutes les lignes et les 4 bulles ; bande Personnel → Paul et Anne seuls ; Ctrl + bande Intervenants → Béton SA ajouté, pas Machines ; téléphone : toucher la bande Intervenants ; aucune erreur JS.
+
