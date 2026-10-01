@@ -30,7 +30,7 @@
       assurerFenetreChargee(function () {
         construireVueDepuisCache();
         render(false);
-        renderPersonnel(); renderIntervenants(); renderMachines();
+        renderPersonnel(); renderIntervenants(); renderMachines(); renderTransports();
       });
     }).catch(erreurFatale);
   }
@@ -38,16 +38,13 @@
   // petite coche "afficher" tout à gauche. Le tri étant possible sur
   // planning, enlever les flèches de tri des onglets. » Plus de ↑/↓ (l'ordre
   // se règle en glissant les noms dans le planning, suite 115) : la coche
-  // « Afficher » prend leur place, devant le nom.
+  // « Afficher » prend leur place, devant le nom.
+  // Round du 01.10.2026 (suite 138) — Lionel : « Je n'aime pas cette
+  // fonction désactiver sur personnel et intervenants, la supprimer. » Son
+  // choix : « L'interrupteur « Actif » des pages ». Plus d'interrupteur ni
+  // de liste « Désactivés » : la coche « Afficher » cache une ligne, la
+  // corbeille (avec confirmation) la supprime, directement sur la ligne.
   function ligneFichePersonne(p) {
-    if (!p.actif) {
-      return '<div class="ligne-intervenant ligne-desactivee" data-id="' + esc2(p.id) + '"><b>' + esc(p.nom) + '</b>' +
-        '<span class="ligne-actions">' +
-        // Icônes (suite 53) : cf. boutonIconeLigne, js/core.js.
-        boutonIconeLigne("lien-reactiver", ICONS.restaurer, "Réactiver") +
-        boutonIconeLigne("lien-supprimer-def", ICONS.trash, "Supprimer définitivement") +
-        '</span></div>';
-    }
     return '<div class="ligne-intervenant" data-id="' + esc2(p.id) + '">' +
       // Coche « Afficher » (suite 134), tout à gauche depuis la suite 137.
       '<label class="champ-afficher" title="Afficher dans le planning"><input type="checkbox" class="chk-afficher" aria-label="Afficher dans le planning"' + (p.masque ? '' : ' checked') + '></label>' +
@@ -57,23 +54,12 @@
       // Compteur « N tâches en cours » retiré (suite 54) — Lionel : « Enlever
       // le nombre de taches attribuée, cela n'a aucune valeur. »
       '<span class="ligne-actions">' +
-      // <label>, pas <span> : le piste couvre TOUT le .interrupteur en
-      // position absolute (cf. .interrupteur-piste), le checkbox lui-même
-      // n'est donc jamais atteignable au clic direct — seul le
-      // label-forwarding natif du navigateur le rend cliquable, exactement
-      // comme .reglage-ligne (chkWeekends, htmlPagesReglages) qui est déjà un
-      // <label> pour la même raison. Repéré en écrivant
-      // verif_tri_desactiver.js (round du 14.09.2026, Playwright ne
-      // parvenait pas à cliquer le checkbox) : sans <label>, l'interrupteur
-      // aurait été inerte au clic pour de vrais utilisateurs aussi, pas
-      // seulement pour le test.
-      // « Actif » masqué sur téléphone (suite 53), gardé en title.
-      '<label class="champ-actif" title="Actif"><span class="interrupteur"><input type="checkbox" checked><span class="interrupteur-piste"></span></span><span class="champ-actif-texte">Actif</span></label>' +
       // Lien de consultation en lecture seule (suite 51, js/liens-consultation.js).
       // Icônes (suite 53) — Lionel : « Des icônes seront mieux que des
       // textes car sur mobile les textes sortent de l'écran. »
       boutonIconeLigne("lien-consultation", ICONS.lien, "Lien de consultation") +
       boutonIconeLigne("lien-modifier", ICONS.pencil, "Modifier") +
+      boutonIconeLigne("lien-supprimer-def", ICONS.trash, "Supprimer définitivement") +
       '</span></div>';
   }
   function cablerListePersonnes(zone, apresChangement) {
@@ -90,18 +76,9 @@
         changerCouleurEquipe(idDe(input), input.value).then(apresChangement);
       });
     });
-    zone.querySelectorAll(".lien-reactiver").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        basculerActifPersonneServeur(ancreDe(idDe(btn)), true).then(function () {
-          rafraichirApresPersonnel();
-          toast("Réactivé.");
-        }).catch(function (err) { toast("Échec : " + (err && err.message ? err.message : err)); });
-      });
-    });
     // Suppression définitive — cf. supprimerPersonnePermanenceServeur : un
-    // vrai DELETE, jamais proposé ici que sur une ligne déjà désactivée
-    // (.lien-supprimer-def n'existe que sur ces lignes-là, cf.
-    // ligneFichePersonne). Cascade en base sur taches/assignations/series
+    // vrai DELETE, proposé sur chaque ligne depuis la suite 138 (avant :
+    // seulement sur une ligne déjà désactivée). Cascade en base sur taches/assignations/series
     // (sql/0001 : "on delete cascade") — irréversible, d'où la
     // confirmation explicite malgré la demande de Lionel de garder le
     // bouton lui-même simple ("icône rouge suffit").
@@ -116,26 +93,6 @@
         });
       });
     });
-    // Interrupteur "Actif" — seulement présent sur les lignes actives
-    // (jamais sur .ligne-desactivee, qui n'a que Réactiver/Supprimer) :
-    // décocher = désactiver. Revert visuel immédiat (checkbox remise à
-    // checked) que la confirmation aboutisse ou non — c'est le
-    // rafraîchissement qui suit une désactivation confirmée qui fait
-    // réellement disparaître la ligne du groupe actif (elle réapparaît
-    // dans "Désactivés"), jamais un simple état visuel local du switch.
-    zone.querySelectorAll(".ligne-intervenant:not(.ligne-desactivee) .interrupteur input").forEach(function (chk) {
-      chk.addEventListener("change", function () {
-        var id = idDe(chk), nom = nomDe(chk);
-        chk.checked = true;
-        var titre = "Désactiver « " + nom + " » ?";
-        demanderConfirmation(titre, function () {
-          basculerActifPersonneServeur(ancreDe(id), false).then(function () {
-            rafraichirApresPersonnel();
-            toast("Désactivé.");
-          }).catch(function (err) { toast("Échec : " + (err && err.message ? err.message : err)); });
-        });
-      });
-    });
     // « Afficher » (suite 134) : masque / réaffiche la ligne, sans confirmation.
     zone.querySelectorAll(".chk-afficher").forEach(function (chk) {
       chk.addEventListener("change", function () {
@@ -147,12 +104,6 @@
     });
     var btnAdd = zone.querySelector(".ligne-ajouter");
     if (btnAdd) btnAdd.addEventListener("click", function () { ouvrirAjoutPersonne(btnAdd.dataset.sousTraitant === "1", btnAdd.dataset.equipe === "1", btnAdd.dataset.groupe || null); });
-    var btnRepli = zone.querySelector(".repli-desactives");
-    if (btnRepli) btnRepli.addEventListener("click", function () {
-      btnRepli.classList.toggle("ouvert");
-      var groupe = zone.querySelector(".groupe-desactives");
-      if (groupe) groupe.hidden = !btnRepli.classList.contains("ouvert");
-    });
   }
   // Page de gestion (Personnel/Intervenants) : liste COMPLÈTE (actifs +
   // désactivés), contrairement à PERSONNES/etat.personnesActives qui reste
@@ -168,6 +119,8 @@
   // groupeId (round du 30.09.2026, suite 132 — js/groupes.js) : liste
   // d'un groupe (Machines, Transports…), sous les personnes ; ses lignes
   // ne sont plus dans « Personnes ».
+  // Suite 138 : plus de liste « Désactivés » (interrupteur « Actif »
+  // retiré) ; une ligne inactive n'est plus listée nulle part.
   function renderListePersonnes(sousTraitant, equipe, groupeId) {
     var zone = document.getElementById(groupeId ? "listeGroupe-" + groupeId : equipe ? "listeEquipes" : sousTraitant ? "listeIntervenants" : "listePersonnel");
     if (!zone) return;
@@ -175,15 +128,9 @@
       var liste = toutes.filter(function (p) {
         var groupe = !p.equipe && !p.sousTraitant && p.groupeId && groupeParId(p.groupeId) ? p.groupeId : null;
         if (groupeId) return groupe === String(groupeId);
-        return equipe ? p.equipe : (!p.equipe && !groupe && !!p.sousTraitant === !!sousTraitant);
+        return p.actif && (equipe ? p.equipe : (!p.equipe && !groupe && !!p.sousTraitant === !!sousTraitant));
       });
-      var actifs = liste.filter(function (p) { return p.actif; });
-      var inactifs = liste.filter(function (p) { return !p.actif; });
-      var html = actifs.map(function (p) { return ligneFichePersonne(p); }).join("") + '<button type="button" class="ligne-ajouter" data-sous-traitant="' + (sousTraitant ? 1 : 0) + '"' + (equipe ? ' data-equipe="1"' : "") + (groupeId ? ' data-groupe="' + esc2(groupeId) + '"' : "") + ">" + (equipe ? "+ Nouvelle équipe" : "+ Ajouter") + "</button>";
-      if (inactifs.length) {
-        html += '<button type="button" class="repli-desactives"><span class="chevron">›</span> Désactivés (' + inactifs.length + ')</button>' +
-          '<div class="groupe-desactives" hidden>' + inactifs.map(function (p) { return ligneFichePersonne(p); }).join("") + '</div>';
-      }
+      var html = liste.map(function (p) { return ligneFichePersonne(p); }).join("") + '<button type="button" class="ligne-ajouter" data-sous-traitant="' + (sousTraitant ? 1 : 0) + '"' + (equipe ? ' data-equipe="1"' : "") + (groupeId ? ' data-groupe="' + esc2(groupeId) + '"' : "") + ">" + (equipe ? "+ Nouvelle équipe" : "+ Ajouter") + "</button>";
       zone.innerHTML = html;
       cablerListePersonnes(zone, function () { renderListePersonnes(sousTraitant, equipe, groupeId); });
     }).catch(erreurFatale);
@@ -207,15 +154,41 @@
     if (!zone) return;
     var groupes = sectionsCorps().filter(function (s) { return /^groupe-/.test(s.cle); }).map(function (s) { return groupeParId(s.cle.slice(7)); }).filter(Boolean);
     zone.innerHTML = groupes.map(function (g) {
-      return '<h2 class="titre-liste">' + esc(g.nom) + '</h2><div class="liste-intervenants liste-elements" id="listeElements-' + esc2(g.id) + '"></div>';
+      return '<h2 class="titre-liste">' + esc(g.nom) + '</h2>' + htmlAfficherGroupe_(g) + '<div class="liste-intervenants liste-elements" id="listeElements-' + esc2(g.id) + '"></div>';
     }).join("");
     groupes.forEach(function (g) { renderListeElements_(g); });
+    cablerAfficherGroupe_(zone);
   }
   function renderTransports() {
     var zone = document.getElementById("listeTransports"), g = groupeTransports();
     if (!zone) return;
-    zone.innerHTML = g ? '<div class="liste-intervenants liste-elements" id="listeElements-' + esc2(g.id) + '"></div>' : '';
-    if (g) renderListeElements_(g);
+    zone.innerHTML = g ? htmlAfficherGroupe_(g) + '<h2 class="titre-liste">Matériaux</h2><div class="liste-intervenants liste-elements" id="listeElements-' + esc2(g.id) + '"></div>' : '';
+    if (g) { renderListeElements_(g); cablerAfficherGroupe_(zone); }
+  }
+  // Round du 01.10.2026 (suite 138) — Lionel : « machine et transport
+  // doivent aussi pourvoir être masqué. » Son choix : « Coche « Afficher »
+  // + clic droit ». Même coche que Personnel / Intervenants (suite 134,
+  // personnes.masque) pour la ligne du groupe ; le clic droit sur son nom
+  // propose déjà « Masquer la ligne » (suite 137).
+  function lignesDuGroupe_(g) {
+    return (etat.personnesActives || []).filter(function (p) { return p.groupe_id != null && String(p.groupe_id) === String(g.id); });
+  }
+  function htmlAfficherGroupe_(g) {
+    var lignes = lignesDuGroupe_(g);
+    if (!lignes.length) return '';
+    return '<label class="champ-afficher afficher-groupe" title="Afficher dans le planning"><input type="checkbox" class="chk-afficher-groupe" data-groupe="' + esc2(g.id) + '"' +
+      (lignes.some(function (p) { return p.masque; }) ? '' : ' checked') + '> Afficher dans le planning</label>';
+  }
+  function cablerAfficherGroupe_(zone) {
+    zone.querySelectorAll(".chk-afficher-groupe").forEach(function (chk) {
+      chk.addEventListener("change", function () {
+        var ids = lignesDuGroupe_({ id: chk.dataset.groupe }).map(function (p) { return ancreDe(p.id); });
+        sbClient.from("personnes").update({ masque: !chk.checked }).in("id", ids).then(function (res) {
+          if (res.error) throw res.error;
+          rafraichirApresPersonnel();
+        }).catch(function (err) { chk.checked = !chk.checked; toast("Échec : " + (err && err.message ? err.message : err)); });
+      });
+    });
   }
   function renderListeElements_(groupe) {
     var zone = document.getElementById("listeElements-" + groupe.id);
@@ -353,5 +326,6 @@
   // confirmation "Désactiver « X » qui a N tâches en cours ?"), et une vraie
   // suppression existe désormais séparément (supprimerPersonnePermanenceServeur,
   // section CONFIG SIMPLE plus bas) — proposée seulement sur une ligne déjà
-  // désactivée.
+  // désactivée. Suite 138 : interrupteur retiré, la suppression est sur
+  // chaque ligne.
 

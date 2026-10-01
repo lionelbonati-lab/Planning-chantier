@@ -679,7 +679,9 @@
   // basculerActifPersonneServeur, ceci efface bel et bien tout l'historique
   // de la personne, sans retour possible. Jamais proposée que sur une ligne
   // déjà désactivée (cf. cablerListePersonnes, ".lien-supprimer-def"),
-  // toujours après confirmation explicite côté UI.
+  // toujours après confirmation explicite côté UI. Suite 138 : proposée sur
+  // chaque ligne (interrupteur « Actif » retiré des pages Personnel /
+  // Intervenants ; basculerActifPersonneServeur n'y est plus appelée).
   function supprimerPersonnePermanenceServeur(id) {
     return sbClient.from("personnes").delete().eq("id", id)
       .then(function (res) { if (res.error) throw res.error; });

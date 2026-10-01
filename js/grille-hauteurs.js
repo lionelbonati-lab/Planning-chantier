@@ -892,9 +892,12 @@
     // masquer et désactiver au clic droit dans la colonne nom. » Mêmes
     // effets que la coche « Afficher » et l'interrupteur « Actif » des pages
     // Personnel / Intervenants (Désactiver demande confirmation).
+    // Round du 01.10.2026 (suite 138) — Lionel : « Je n'aime pas cette
+    // fonction désactiver sur personnel et intervenants, la supprimer. »
+    // « Désactiver… » retiré ; « Masquer la ligne » reste (Machines et
+    // Transports compris, leurs lignes étant des personnes).
     var bMasquer = idP == null ? '' : '<div class="mc-sep"></div>' +
-      '<button type="button" data-a="masquer">Masquer la ligne</button>' +
-      '<button type="button" data-a="desactiver">Désactiver…</button>';
+      '<button type="button" data-a="masquer">Masquer la ligne</button>';
     pop.innerHTML = (groupe ? '<div class="cp-titre">' + ids.length + ' lignes sélectionnées</div>' + bChoix :
       idP != null ? '<div class="cp-titre">' + esc(nom) + '</div>' +
       '<button type="button" data-a="nom">Modifier le nom…</button>' +
@@ -947,8 +950,8 @@
     var bMonter = pop.querySelector('[data-a="monter"]'), bDescendre = pop.querySelector('[data-a="descendre"]');
     if (bMonter) bMonter.addEventListener("click", function () { fermer(); deplacerPersonneLigne(idP, idPersonneLigne_(voisins[rang - 1]), false); });
     if (bDescendre) bDescendre.addEventListener("click", function () { fermer(); deplacerPersonneLigne(idP, idPersonneLigne_(voisins[rang + 1]), true); });
-    // Suite 137 : masquer (personnes.masque, suite 134) / désactiver.
-    var bMasq = pop.querySelector('[data-a="masquer"]'), bDesact = pop.querySelector('[data-a="desactiver"]');
+    // Suite 137 : masquer (personnes.masque, suite 134).
+    var bMasq = pop.querySelector('[data-a="masquer"]');
     if (bMasq) bMasq.addEventListener("click", function () {
       fermer();
       Promise.resolve(sbClient.from("personnes").update({ masque: true }).eq("id", ancreDe(idP))).then(function (res) {
@@ -956,15 +959,6 @@
         rafraichirApresPersonnel();
         toast("« " + nom + " » masqué — à réafficher depuis sa page (coche « Afficher »).");
       }).catch(function (err) { toast("Échec : " + (err && err.message ? err.message : err)); });
-    });
-    if (bDesact) bDesact.addEventListener("click", function () {
-      fermer();
-      demanderConfirmation("Désactiver « " + nom + " » ?", function () {
-        basculerActifPersonneServeur(ancreDe(idP), false).then(function () {
-          rafraichirApresPersonnel();
-          toast("Désactivé.");
-        }).catch(function (err) { toast("Échec : " + (err && err.message ? err.message : err)); });
-      });
     });
   }
 
