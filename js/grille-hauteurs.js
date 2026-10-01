@@ -888,10 +888,17 @@
     var voisins = idP != null ? lignesPermutables_(lbl) : [], rang = voisins.indexOf(lbl);
     var bOrdre = rang < 0 ? '' : '<button type="button" data-a="monter"' + (rang > 0 ? '' : ' disabled') + '>Monter</button>' +
       '<button type="button" data-a="descendre"' + (rang < voisins.length - 1 ? '' : ' disabled') + '>Descendre</button>';
+    // Round du 01.10.2026 (suite 137) — Lionel (retour n° 16) : « Ajouter
+    // masquer et désactiver au clic droit dans la colonne nom. » Mêmes
+    // effets que la coche « Afficher » et l'interrupteur « Actif » des pages
+    // Personnel / Intervenants (Désactiver demande confirmation).
+    var bMasquer = idP == null ? '' : '<div class="mc-sep"></div>' +
+      '<button type="button" data-a="masquer">Masquer la ligne</button>' +
+      '<button type="button" data-a="desactiver">Désactiver…</button>';
     pop.innerHTML = (groupe ? '<div class="cp-titre">' + ids.length + ' lignes sélectionnées</div>' + bChoix :
       idP != null ? '<div class="cp-titre">' + esc(nom) + '</div>' +
       '<button type="button" data-a="nom">Modifier le nom…</button>' +
-      (equipe ? '<button type="button" data-a="composition">Composition de l’équipe…</button>' + htmlCouleurEquipe_(idP) : '') + bChoix + bOrdre : bChoix) +
+      (equipe ? '<button type="button" data-a="composition">Composition de l’équipe…</button>' + htmlCouleurEquipe_(idP) : '') + bChoix + bOrdre + bMasquer : bChoix) +
       '<div class="cp-titre">' + (groupe ? 'Hauteur des ' + ids.length + ' lignes' : 'Hauteur de la ligne' + (idP != null ? '' : ' — ' + esc(nom))) + '</div>' +
       '<div class="mhl-valeur"><input type="number" inputmode="numeric" min="' + HAUTEUR_LIGNE_MIN_ + '" max="' + HAUTEUR_LIGNE_MAX_ + '" step="1" value="' + Math.round(lbl.offsetHeight) + '" aria-label="Hauteur en pixels"><span>px</span>' +
       '<button type="button" class="btn-primaire" data-a="ok">OK</button></div>' +
@@ -940,6 +947,25 @@
     var bMonter = pop.querySelector('[data-a="monter"]'), bDescendre = pop.querySelector('[data-a="descendre"]');
     if (bMonter) bMonter.addEventListener("click", function () { fermer(); deplacerPersonneLigne(idP, idPersonneLigne_(voisins[rang - 1]), false); });
     if (bDescendre) bDescendre.addEventListener("click", function () { fermer(); deplacerPersonneLigne(idP, idPersonneLigne_(voisins[rang + 1]), true); });
+    // Suite 137 : masquer (personnes.masque, suite 134) / désactiver.
+    var bMasq = pop.querySelector('[data-a="masquer"]'), bDesact = pop.querySelector('[data-a="desactiver"]');
+    if (bMasq) bMasq.addEventListener("click", function () {
+      fermer();
+      Promise.resolve(sbClient.from("personnes").update({ masque: true }).eq("id", ancreDe(idP))).then(function (res) {
+        if (res && res.error) throw res.error;
+        rafraichirApresPersonnel();
+        toast("« " + nom + " » masqué — à réafficher depuis sa page (coche « Afficher »).");
+      }).catch(function (err) { toast("Échec : " + (err && err.message ? err.message : err)); });
+    });
+    if (bDesact) bDesact.addEventListener("click", function () {
+      fermer();
+      demanderConfirmation("Désactiver « " + nom + " » ?", function () {
+        basculerActifPersonneServeur(ancreDe(idP), false).then(function () {
+          rafraichirApresPersonnel();
+          toast("Désactivé.");
+        }).catch(function (err) { toast("Échec : " + (err && err.message ? err.message : err)); });
+      });
+    });
   }
 
   /* ============ ORDRE DES NOMS (round du 29.09.2026, suite 115) ============

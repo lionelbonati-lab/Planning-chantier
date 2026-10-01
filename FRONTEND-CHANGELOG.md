@@ -11204,3 +11204,22 @@ Lionel (amélioration n° 12) :
 - tests/test_suite112.js : téléphone — icône dans la barre juste avant le « + », éteinte puis allumée puis éteinte, toujours affichée.
 - tests/test_suite50.js : 360 px, texte agrandi — icône du mode ajout repliée dans « ⋮ », rien ne dépasse.
 - tests/test_toolbar_chevauchement.js : barre du téléphone avec `groupeModeAjout` avant le « + » ; menu « ⋮ » sans lui.
+
+
+## 250. Round du 01.10.2026 (suite 137) — coche « Afficher » à gauche, Masquer / Désactiver au clic droit, trait sous Notes, valider un important
+
+- Retour n° 16 — Lionel : « La la petite coche "afficher" tout à gauche. Le tri étant possible sur planning, enlever les flèches de tri des onglets. Ajouter masquer et désactiver au clic droit dans la colonne nom. »
+  - js/page-personnel.js : lignes Personnel / Intervenants / Équipes sans ↑/↓ (l'ordre se règle en glissant les noms dans le planning, suite 115) ; la coche « Afficher » passe en tête de ligne, devant le nom (case seule, libellé en title / aria-label) ; `echangerOrdrePersonnes` retiré.
+  - js/grille-hauteurs.js : menu du nom (clic droit / appui long) — « Masquer la ligne » (personnes.masque, comme la coche) et « Désactiver… » (confirmation, comme l'interrupteur « Actif »).
+- Bug n° 17 — « Si transport masqué, manque la ligne sous notes ». Chez Lionel, Machines passe en tête (ordre des groupes) : sans Transports, la ligne Machines ouvrait le corps sans trait. Le trait de la suite 135 suit désormais la 1re ligne du corps, quelle qu'elle soit (classe `ligne-premiere`, js/grille-rendu.js ; remplace `cell-transports`) ; une bande de section en tête garde son propre trait.
+- Retour n° 18 — « Pouvoir valider un important dans la liste des importants. » Son choix : « Retirer le drapeau important ». js/notifications.js : bouton « Valider » à droite de chaque important de la cloche ; les lignes en base du groupe (une par demi-journée) passent à `important = false` ; l'important quitte la liste, le compteur et l'icône de sa bulle.
+
+### Tests
+
+- tests/test_suite137.js (nouveau, 8 vérifications) :
+  - Transports masqué, Machines en tête : trait sur Machines seulement ; Transports affiché : trait sur Transports ;
+  - Personnel / Intervenants : coche en tête, plus de ↑/↓ ; la coche masque puis réaffiche ;
+  - clic droit sur un nom : « Masquer la ligne », « Désactiver… » (confirmation) ;
+  - cloche : « Valider » retire le drapeau (2 demi-journées), l'autre important reste ;
+  - aucune erreur JS.
+
