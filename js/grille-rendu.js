@@ -1805,6 +1805,16 @@
         // Suite 134 : la ligne Transports (fond réglable, page Transports).
         if (estTransports) lbl.classList.add("lbl-transports");
         if (premiere) lbl.classList.add("ligne-premiere");
+        // Round du 01.10.2026 (suite 141) — Lionel : « déplier et replier
+        // ligne machine et transport », puis : « Je pense plus à une petite
+        // flèche qui permet d'ouvrir pour afficher toutes les bulle quand
+        // déplier et la hauteur d'une bulle quand repliée. » Flèche ▸/▾
+        // devant le nom des lignes Transports et Machines (hauteurs :
+        // ajusterLignesOuvrables_, grille-hauteurs.js).
+        if (estTransports || cleSection) {
+          lbl.classList.add("lbl-ouvrable");
+          lbl.insertAdjacentHTML("afterbegin", '<button type="button" class="ligne-ouvrir" aria-expanded="false" title="Afficher toutes les bulles">▸</button>');
+        }
         // Suite 135 : la ligne Machines tient lieu de titre de sa section :
         // fond de la section, poignée ⠿ pour la ranger ailleurs.
         if (cleSection && iP === 0) {
