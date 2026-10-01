@@ -866,6 +866,9 @@
   /* Fenêtre : une section par sorte (demandes, à réserver), titre avec
      icône et nombre ; seul le contenu défile. */
   .pop.pop-notifications { width: 480px; max-width: calc(100vw - 20px); } /* .pop : passe devant .form-pop (280px), plus bas */
+  /* Suite 135 (retour n° 12) : petit bouton « Réglages » à gauche de Fermer. */
+  .pop-notifications .form-actions .notif-reglages { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--ink-muted); }
+  .pop-notifications .notif-reglages svg { width: 14px; height: 14px; }
   .notif-contenu { max-height: min(66vh, 560px); overflow-y: auto; margin: 0 -4px; padding: 0 4px; }
   .notif-section + .notif-section { margin-top: 14px; }
   .notif-titre { display: flex; align-items: center; gap: 7px; margin: 2px 0 8px; font-size: 13px; font-weight: 800; }
@@ -1382,6 +1385,20 @@
      l'étiquette de la ligne Transports, posée sous Notes (page Transports). */
   .section-row-groupe { background: var(--section-machines-bg); }
   .grille > .lbl.lbl-transports { background: var(--transports-bg); }
+  /* Round du 01.10.2026 (suite 135) — Lionel (bug n° 14) : « il manque une
+     bordure sous note ». La ligne Transports ouvre la grille du corps,
+     juste sous Notes (grille de l'en-tête) : aucun trait entre les deux,
+     là où la bande « Personnel » en dessinait un avant la suite 134. Trait
+     posé en haut de son étiquette et de ses cases (ombre intérieure : la
+     hauteur de la ligne ne change pas). */
+  .grille > .lbl.lbl-transports, .grille > .cell.cell-transports { box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ink-faint) 55%, var(--border)); }
+  /* Suite 135 — Lionel (retour n° 13) : « Machine aussi en une seule ligne
+     comme transport. » La ligne Machines tient lieu de titre de section :
+     fond de la section, poignée ⠿ devant le nom. */
+  .grille > .lbl.lbl-section { background: var(--section-machines-bg); flex-direction: row; align-items: center; justify-content: flex-start; gap: 4px; }
+  .lbl.lbl-section .section-poignee { margin-left: 0; }
+  .lbl.section-glissee { opacity: .6; }
+  .menu-pop .mc-vide { margin: 2px 10px 6px; max-width: 220px; color: var(--ink-muted); font-size: 12px; line-height: 1.45; }
   .section-poignee { cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; color: var(--ink-muted); font-size: 12px; line-height: 1; padding: 2px 2px; margin-left: -6px; opacity: .55; }
   .section-row.section-glissee { opacity: .6; }
   .section-row.section-glissee .section-poignee { cursor: grabbing; opacity: 1; }

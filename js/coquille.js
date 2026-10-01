@@ -700,9 +700,20 @@
   // dans le planning). Couleur de leur séparation ici (retour 10 de
   // Lionel : « Pouvoir masquer et choisir les couleurs de séparation de
   // machine et transport »).
+  // Round du 01.10.2026 (suite 135) — Lionel (retour n° 13) : « Machine
+  // aussi en une seule ligne comme transport.
+  // Pas d'ajouts rapide pour ces 2 groupe. la liste de matériaux de
+  // "transport" et des machines sera dans le clic droit de leurs lignes. »
+  // Machines et Transports perdent leurs sous-onglets (plus d'entrées
+  // rapides) : la page gère la liste du groupe (renderMachines /
+  // renderTransports, js/page-personnel.js).
+  function htmlPageSimple_(type, titre, contenu) {
+    return '<div class="page" id="page-' + type + '"><div class="page-scroll">' +
+      '<div class="page-titre"><h1>' + titre + '</h1></div>' + contenu + '</div></div>';
+  }
   function htmlPageMachines() {
-    return htmlPageAvecRapides_("machines", "Machines", "Machines",
-      '<p class="page-sous">Une ligne par machine dans le planning, sous les intervenants.</p>' +
+    return htmlPageSimple_("machines", "Machines",
+      '<p class="page-sous">Une seule ligne dans le planning, à la place de la section Machines. Clic droit (ou appui long) sur une de ses cases : cette liste, puis chantier et quantité.</p>' +
       htmlReglagesCouleurs('machines') +
       '<div id="listesGroupes"></div>');
   }
@@ -711,9 +722,11 @@
   // en haut du planning sous les notes (son choix) : rien à lister, seule
   // sa couleur se règle ici.
   function htmlPageTransports() {
-    return htmlPageAvecRapides_("transports", "Transports", "Ligne",
-      '<p class="page-sous">Une seule ligne, en haut du planning sous les notes. L’icône camion de la barre du planning la masque.</p>' +
-      htmlReglagesCouleurs('transports'));
+    return htmlPageSimple_("transports", "Transports",
+      '<p class="page-sous">Une seule ligne, en haut du planning sous les notes. L’icône camion de la barre du planning la masque. Clic droit (ou appui long) sur une de ses cases : cette liste, puis chantier et quantité.</p>' +
+      htmlReglagesCouleurs('transports') +
+      '<h2 class="titre-liste">Matériaux</h2>' +
+      '<div id="listeTransports"></div>');
   }
   function htmlPageChantiers() {
     return '<div class="page" id="page-chantiers"><div class="page-scroll">' +
@@ -925,11 +938,13 @@
       // Suite 65 : relue à chaque ouverture, comme Jalons.
       notes: function () { NOTES_TOUTES = null; renderNotes(); },
       // Suite 134 : Machines et Transports ont leur page ; les entrées
-      // rapides sont le 2e sous-onglet de chacune des 4 (renduAvecRapides_).
+      // rapides sont le 2e sous-onglet de chacune des 4 (renduAvecRapides_) —
+      // suite 135 : de Personnel et Intervenants seulement.
       personnel: renduAvecRapides_("personnel", renderPersonnel),
       intervenants: renduAvecRapides_("intervenants", renderIntervenants),
-      machines: renduAvecRapides_("machines", renderMachines),
-      transports: renduAvecRapides_("transports", function () {}),
+      // Suite 135 : Machines et Transports, sans entrées rapides : leur liste.
+      machines: renderMachines,
+      transports: renderTransports,
       chantiers: renderChantiers, statuts: renderStatuts,
       // Suite 47 : un seul onglet Horaires pour le calendrier (ex-Fériés) et
       // les horaires de travail.

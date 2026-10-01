@@ -37,6 +37,25 @@
          tâches (plusieurs jours, chantier, important, séries).
        - personnes.masque (ligneMasquee) : la ligne n'est plus posée dans
          le planning ni imprimée, sans être désactivée.
+
+     Round du 01.10.2026 (suite 135 — sql/0036). Lionel (retour n° 13) :
+     « Machine aussi en une seule ligne comme transport.
+     Pas d'ajouts rapide pour ces 2 groupe. la liste de matériaux de
+     "transport" et des machines sera dans le clic droit de leurs lignes.
+     ainsi les bulles seront des machine et des matériaux au lieu de
+     tâches ». Ses choix : listes gérées sur les « Pages Machines /
+     Transports » ; bulle = « Élément + chantier + quantité » ; la ligne
+     Machines « À la place de la section Machines ».
+       - Chaque groupe a sa liste d'éléments (table elements_groupes :
+         machines de Machines, matériaux de Transports), chargée dans
+         etat.elementsGroupes. Le menu « Ajouter » d'une case de ces lignes
+         (clic, clic droit, appui long) propose la liste au lieu des entrées
+         rapides : un élément ouvre chantier + quantité, et la bulle posée
+         est une tâche « Élément - quantité » (cf. boutonsMenuAjout,
+         js/formulaires-edition.js).
+       - La section Machines n'a plus de titre : sa ligne unique « Machines »
+         est posée à sa place, poignée ⠿ sur son étiquette pour la ranger
+         ailleurs (js/grille-rendu.js).
      ============================================================ */
   var COLONNES_GROUPES = "id, nom, ordre, actif, ligne_unique";
   function normaliserGroupes(lignes) {
@@ -52,6 +71,25 @@
   function ligneMasquee(id) {
     id = String(id);
     return (etat.personnesActives || []).some(function (p) { return String(p.id) === id && !!p.masque; });
+  }
+  // Suite 135 : listes d'éléments des groupes (sql/0036).
+  var COLONNES_ELEMENTS = "id, groupe_id, nom, ordre";
+  function normaliserElements(lignes) {
+    return (lignes || []).map(function (e) {
+      return { id: String(e.id), groupeId: String(e.groupe_id), nom: e.nom, ordre: e.ordre || 0 };
+    }).sort(function (a, b) { return a.ordre - b.ordre || (+a.id) - (+b.id); });
+  }
+  function elementsDuGroupe(groupeId) {
+    groupeId = String(groupeId);
+    return (etat.elementsGroupes || []).filter(function (e) { return e.groupeId === groupeId; });
+  }
+  // Groupe d'une ligne du planning (Machines, Transports), sinon null : ses
+  // cases proposent la liste du groupe au lieu des entrées rapides.
+  function groupeDeLigne(personneId) {
+    var p = personneParAncre(personneId);
+    var s = p ? secteurDe(p) : "personnel";
+    if (s === "transports") return groupeTransports();
+    return /^groupe-/.test(s) ? groupeParId(s.slice(7)) : null;
   }
   function groupeParId(id) {
     id = String(id);
@@ -125,7 +163,9 @@
       var pointerId = e.pointerId, trait = null, cible = null;
       try { poignee.setPointerCapture(pointerId); } catch (ex) {}
       ligne.classList.add("section-glissee");
-      function lignes() { return [].slice.call(ligne.parentNode.querySelectorAll(".section-row[data-section]")); }
+      // Suite 135 : l'étiquette de la ligne Machines (sans titre de
+      // section) compte comme une section.
+      function lignes() { return [].slice.call(ligne.parentNode.querySelectorAll(".section-row[data-section], .lbl[data-section]")); }
       function onMove(e2) {
         if (e2.pointerId !== pointerId) return;
         var toutes = lignes(), y = e2.clientY, choix = null;

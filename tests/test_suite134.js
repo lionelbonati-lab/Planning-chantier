@@ -28,6 +28,13 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //   9. cloche : importants retirés une fois leur horaire passé ;
 //  10. aucune erreur JS.
 //
+// Adapté suite 135 (retour n° 13 : « Pas d'ajouts rapide pour ces 2
+// groupe. la liste de matériaux de "transport" et des machines sera dans
+// le clic droit de leurs lignes. ») : la ligne Machines tient lieu de
+// titre de section (§groupe-1=p20) ; pages Machines / Transports sans
+// sous-onglets ni entrées rapides, ni coche « Afficher » ; leur menu
+// « Ajouter » propose la liste du groupe (elements_groupes) et « Autre… ».
+//
 // Lancer : node test_suite134.js
 
 const P = (id, nom, ordre, x) => Object.assign({ id, nom, sous_traitant: false, equipe: false, groupe_id: null, ordre, actif: true, masque: false }, x || {});
@@ -42,12 +49,13 @@ const BD = () => ({
     T(8, 1, '2026-09-25', 'matin', 'Visite', { important: true })],
   formulaires_rapides: [F(1, 'Béton', '@personnel'), F(2, 'Plein', '@machines'), F(3, 'Benne', '@transports'), F(4, 'Câblage', '3'), F(5, 'Commun', '')],
   formulaires_rapides_champs: [],
+  elements_groupes: [{ id: 1, groupe_id: 1, nom: 'Karcher', ordre: 1 }, { id: 2, groupe_id: 2, nom: 'Gravier', ordre: 1 }],
   horaires: [{ id: 1, date_debut: '2026-09-01', date_fin: '2026-12-31', matin_debut: '07:00:00', matin_fin: '12:00:00', aprem_debut: '13:00:00', aprem_fin: '17:00:00', pause_matin: 15 }]
 });
 
 const lignes = (page) => page.evaluate(() => [...document.querySelectorAll('#racine .grille > .lbl[data-ligne^="p"]')].map((l) => l.dataset.ligne).join(','));
 const corps = (page) => page.evaluate(() => [...document.querySelectorAll('#racine .grille > .lbl[data-ligne], #racine .grille > .section-row[data-section]')]
-  .map((e) => e.dataset.section ? '§' + e.dataset.section : e.dataset.ligne).join(' '));
+  .map((e) => (e.dataset.section ? '§' + e.dataset.section : '') + (e.dataset.section && e.dataset.ligne ? '=' : '') + (e.dataset.ligne || '')).join(' '));
 async function allerPage(page, nom) {
   await page.evaluate((n) => document.querySelector('.onglets-liste .onglet[data-page="' + n + '"]').click(), nom);
   await page.waitForTimeout(400);
@@ -69,7 +77,7 @@ const cartes = (page) => page.evaluate(() => [...document.querySelectorAll('.pag
 
     // --- 1. Planning --------------------------------------------------------
     const c = await corps(page);
-    verifier(/^(n\S* )*p21 §personnel p1 §intervenants p3 §groupe-1 p20$/.test(c.replace(/^.*?(?=p21)/, '')) && !/§groupe-2/.test(c) && c.indexOf('p21') < c.indexOf('§personnel'),
+    verifier(/^(n\S* )*p21 §personnel p1 §intervenants p3 §groupe-1=p20$/.test(c.replace(/^.*?(?=p21)/, '')) && !/§groupe-2/.test(c) && c.indexOf('p21') < c.indexOf('§personnel'),
       'ligne Transports seule, au-dessus des sections, sans titre ; Anne (masquée) absente (' + c + ')');
     const t = await page.evaluate(() => {
       const l = document.querySelector('#racine .grille > .lbl[data-ligne="p21"]');
@@ -98,7 +106,7 @@ const cartes = (page) => page.evaluate(() => [...document.querySelectorAll('.pag
     const fonds = await page.evaluate(() => {
       document.documentElement.style.setProperty('--section-machines-bg', 'rgb(1, 2, 3)');
       document.documentElement.style.setProperty('--transports-bg', 'rgb(4, 5, 6)');
-      const r = { m: getComputedStyle(document.querySelector('#racine .section-row[data-section="groupe-1"]')).backgroundColor,
+      const r = { m: getComputedStyle(document.querySelector('#racine [data-section="groupe-1"]')).backgroundColor,
         t: getComputedStyle(document.querySelector('#racine .grille > .lbl[data-ligne="p21"]')).backgroundColor };
       document.documentElement.style.removeProperty('--section-machines-bg');
       document.documentElement.style.removeProperty('--transports-bg');
@@ -113,7 +121,7 @@ const cartes = (page) => page.evaluate(() => [...document.querySelectorAll('.pag
     verifier(onglets === 'planning,jalons,notes,personnel,intervenants,machines,transports,chantiers,statuts,horaires' && bas === onglets,
       'onglets Machines et Transports après Intervenants, plus d’« Entrée rapide » (haut et bas) (' + onglets + ')');
     const listes = {};
-    for (const type of ['personnel', 'intervenants', 'machines', 'transports']) {
+    for (const type of ['personnel', 'intervenants']) {
       await allerPage(page, type);
       const sous = await page.evaluate((ty) => [...document.querySelectorAll('#page-' + ty + ' .sous-onglet')].map((b) => b.textContent.trim() + (b.classList.contains('actif') ? '*' : '')).join('|'), type);
       await sousOnglet(page, type, 'rapides');
@@ -125,14 +133,14 @@ const cartes = (page) => page.evaluate(() => [...document.querySelectorAll('.pag
       await page.evaluate(() => document.querySelector('.page.actif .nf-annuler').click());
       await sousOnglet(page, type, 'lignes');
     }
-    verifier(listes.personnel.sous === 'Personnes*|Entrées rapides' && listes.machines.sous === 'Machines*|Entrées rapides',
-      '2 sous-onglets en haut des pages : les lignes (ouvert), les entrées rapides ' + JSON.stringify([listes.personnel.sous, listes.machines.sous]));
-    verifier(listes.personnel.cartes === 'Béton,Commun' && listes.intervenants.cartes === 'Câblage,Commun' && listes.machines.cartes === 'Plein' && listes.transports.cartes === 'Benne',
-      'entrées rapides de chaque type sur sa page ' + JSON.stringify([listes.personnel.cartes, listes.intervenants.cartes, listes.machines.cartes, listes.transports.cartes]));
-    verifier(listes.personnel.assigne === '@personnel:/@personnel' && listes.intervenants.assigne === '@intervenants:/@intervenants/3' &&
-      listes.machines.assigne === '@machines:@machines/20' && listes.transports.assigne === '@transports:@transports',
-      '« Assigné à » : choix du type de la page, toute la catégorie par défaut ' + JSON.stringify([listes.personnel.assigne, listes.intervenants.assigne, listes.machines.assigne, listes.transports.assigne]));
-    verifier(listes.personnel.absence && listes.machines.absence && !listes.transports.absence, 'type « Absence » proposé partout sauf pour Transports');
+    const sansSous = await page.evaluate(() => ['machines', 'transports'].map((t) => document.querySelectorAll('#page-' + t + ' .sous-onglet, #page-' + t + ' #listeFormulaires').length).join(','));
+    verifier(listes.personnel.sous === 'Personnes*|Entrées rapides' && listes.intervenants.sous === 'Intervenants*|Entrées rapides' && sansSous === '0,0',
+      '2 sous-onglets en haut des pages Personnel / Intervenants : les lignes (ouvert), les entrées rapides ; aucun sur Machines / Transports ' + JSON.stringify([listes.personnel.sous, listes.intervenants.sous, sansSous]));
+    verifier(listes.personnel.cartes === 'Béton,Commun' && listes.intervenants.cartes === 'Câblage,Commun',
+      'entrées rapides de chaque type sur sa page ' + JSON.stringify([listes.personnel.cartes, listes.intervenants.cartes]));
+    verifier(listes.personnel.assigne === '@personnel:/@personnel' && listes.intervenants.assigne === '@intervenants:/@intervenants/3',
+      '« Assigné à » : choix du type de la page, toute la catégorie par défaut ' + JSON.stringify([listes.personnel.assigne, listes.intervenants.assigne]));
+    verifier(listes.personnel.absence && listes.intervenants.absence, 'type « Absence » proposé (Personnel, Intervenants)');
     const personnelSous = await page.evaluate(() => document.querySelectorAll('#page-personnel .page-sous').length);
     verifier(personnelSous === 2, 'page Personnel : toujours 2 descriptions (' + personnelSous + ')');
 
@@ -144,9 +152,8 @@ const cartes = (page) => page.evaluate(() => [...document.querySelectorAll('.pag
     });
     verifier(/Béton/.test(menus.paul) && /Commun/.test(menus.paul) && !/Plein|Benne|Câblage/.test(menus.paul) &&
       /Câblage/.test(menus.beton) && /Commun/.test(menus.beton) && !/Béton,|Plein|Benne/.test(menus.beton) &&
-      /Plein/.test(menus.pelle) && !/Commun|Béton|Benne/.test(menus.pelle) &&
-      /Benne/.test(menus.transports) && !/Commun|Béton|Plein|Absence|Arrivée/.test(menus.transports),
-      'menu « Ajouter » : chaque ligne n’a que les entrées de son type, pas d’absence sur Transports ' + JSON.stringify(menus));
+      menus.pelle === 'Karcher,Autre…' && menus.transports === 'Gravier,Autre…',
+      'menu « Ajouter » : chaque ligne n’a que les entrées de son type ; Machines / Transports : leur liste et « Autre… » ' + JSON.stringify(menus));
 
     // --- 6. Coche « Afficher » ------------------------------------------------------
     await allerPage(page, 'personnel');
@@ -157,11 +164,11 @@ const cartes = (page) => page.evaluate(() => [...document.querySelectorAll('.pag
     await page.waitForTimeout(700);
     const bd = await page.evaluate(() => window.__BD.personnes.filter((p) => p.id === 1 || p.id === 2).map((p) => p.nom + ':' + p.masque + ':' + p.actif).join(','));
     await allerPage(page, 'machines');
-    const cocheMachine = await page.evaluate(() => !!document.querySelector('#listeGroupe-1 .ligne-intervenant[data-id="20"] .chk-afficher'));
+    const cocheMachine = await page.evaluate(() => !!document.querySelector('#page-machines .chk-afficher'));
     await allerPage(page, 'planning');
     const apresCoche = await lignes(page);
-    verifier(coches === 'Paul✓,Anne' && /Paul:true:true/.test(bd) && /Anne:false:true/.test(bd) && apresCoche === 'p21,p2,p3,p20' && cocheMachine,
-      'coche « Afficher » (personnel, machines) : Anne réaffichée, Paul masqué, tous deux restent actifs (' + coches + ' ; ' + bd + ' ; ' + apresCoche + ')');
+    verifier(coches === 'Paul✓,Anne' && /Paul:true:true/.test(bd) && /Anne:false:true/.test(bd) && apresCoche === 'p21,p2,p3,p20' && !cocheMachine,
+      'coche « Afficher » (personnel ; plus sur la page Machines, suite 135) : Anne réaffichée, Paul masqué, tous deux restent actifs (' + coches + ' ; ' + bd + ' ; ' + apresCoche + ')');
 
     // --- 7. Impression ------------------------------------------------------------
     await page.evaluate(() => openPrintSheet());

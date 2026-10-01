@@ -2114,3 +2114,25 @@ Fichier : sql/0035_lignes_masquees_transports.sql (migration `lignes_masquees_tr
   - Sur le projet : la ligne « Test » (Transports) désactivée, ligne « Transports » créée. Machines inchangé.
 - Pas de nouvelle table : les tâches de la ligne Transports sont des tâches ordinaires (tables, droits, sauvegardes, fonctions push inchangés).
 - Aucun nouveau conseil de sécurité Supabase.
+
+
+---
+
+## 39. Round du 01.10.2026 (suite 135) — listes d'éléments des groupes, ligne unique Machines
+
+Lionel (page Améliorations et bugs, amélioration n° 13) :
+
+> Machine aussi en une seule ligne comme transport.
+> Pas d'ajouts rapide pour ces 2 groupe. la liste de matériaux de "transport" et des machines sera dans le clic droit de leurs lignes. ainsi les bulles seront des machine et des matériaux au lieu de tâches
+
+Ses choix : listes gérées sur les « Pages Machines / Transports (Recommandé) » ; bulle = « Élément + chantier + quantité ».
+
+Fichier : sql/0036_elements_groupes.sql (migration `elements_groupes`).
+
+- Nouvelle table elements_groupes (id, groupe_id → groupes on delete cascade, nom non vide, ordre, cree_le) + index sur groupe_id. RLS « connecte_tout » pour authenticated ; select / insert / update / delete à authenticated (comme groupes, sql/0033).
+- Les bulles restent des tâches ordinaires (texte « Élément - quantité », chantier) : pas de colonne en plus dans taches.
+- Machines : une seule ligne active « Machines » est créée. Les anciennes lignes deviennent des éléments de la liste ; leurs tâches passent sur la ligne « Machines », texte préfixé du nom (« Karcher - … ») ; elles sont désactivées, pas effacées.
+  - Sur le projet : ligne « Machines » (id 18) créée ; Karcher et Vibrateur désactivés et ajoutés à la liste. Aucune tâche à déplacer : les 3 tâches de ces lignes avaient été supprimées depuis l'appli juste avant (04:45).
+- Transports : liste vide.
+- Sauvegardes : tables_sauvegardees_ inclut elements_groupes juste après groupes. Une ancienne sauvegarde restaurée donne des listes vides.
+- Aucun nouveau conseil de sécurité Supabase.

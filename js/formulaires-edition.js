@@ -111,7 +111,26 @@
     return chaine.then(function () { if (dernier) apresChaqueAppel(dernier); });
   }
 
+  // Round du 01.10.2026 (suite 135) — Lionel (retour n° 13) : « Pas
+  // d'ajouts rapide pour ces 2 groupe. la liste de matériaux de "transport"
+  // et des machines sera dans le clic droit de leurs lignes. ainsi les
+  // bulles seront des machine et des matériaux au lieu de tâches ». Une
+  // case des lignes Machines / Transports (clic en mode ajout, clic droit,
+  // appui long, plage glissée) propose la liste de son groupe (page
+  // Machines / Transports), puis « Autre… » (texte libre) et « Coller » :
+  // ni absence ni entrée rapide.
+  function boutonsMenuAjoutGroupe_(groupe) {
+    var elements = elementsDuGroupe(groupe.id);
+    var html = elements.length ? elements.map(function (e) {
+      return '<button type="button" data-element="' + esc2(e.id) + '">' + esc(e.nom) + '</button>';
+    }).join("") : '<p class="mc-vide">Liste vide : à remplir dans l’onglet ' + esc(groupe.nom) + '.</p>';
+    html += '<button type="button" data-t="tache">Autre…</button>';
+    if (pressePapier.length) html += '<button type="button" class="btn-coller" data-coller="1">Coller (' + pressePapier.length + ')</button>';
+    return html;
+  }
   function boutonsMenuAjout(personneId) {
+    var groupe = groupeDeLigne(personneId);
+    if (groupe) return boutonsMenuAjoutGroupe_(groupe);
     // Pas d'absence non plus pour une ligne d'équipe (suite 33) : elle se
     // pose sur la ligne de la personne absente.
     // Ni absence ni arrivée / départ sur la ligne Transports (suite 134).
@@ -164,6 +183,17 @@
     if (btnPartielle) btnPartielle.addEventListener("click", function () { fermer(); ouvrirFormulaireArriveeDepart(cibles, giDebut, duree, x, y, plageInit); });
     pop.querySelectorAll("button[data-rapide]").forEach(function (btn) {
       btn.addEventListener("click", function () { var texte = btn.dataset.rapide; fermer(); ajoutRapide(cibles, giDebut, duree, texte, "absence", demiDebut, demiFin); });
+    });
+    // Suite 135 : un élément de la liste du groupe = formulaire Chantier +
+    // Quantité ; texte de la bulle « Élément - quantité » (cf.
+    // ouvrirFormulaireDynamique, qui joint nom et champs par « - »).
+    pop.querySelectorAll("button[data-element]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var el = (etat.elementsGroupes || []).filter(function (e) { return e.id === btn.dataset.element; })[0]; fermer();
+        if (!el) return;
+        ouvrirFormulaireDynamique({ nom: el.nom, typeEntree: "tache", champs: [{ cle: "quantite", label: "Quantité", type: "texte" }] },
+          cibles, giDebut, duree, x, y, plageInit, demiDebut, demiFin);
+      });
     });
     pop.querySelectorAll("button[data-form]").forEach(function (btn) {
       btn.addEventListener("click", function () {
