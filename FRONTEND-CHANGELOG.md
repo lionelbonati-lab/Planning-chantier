@@ -11175,6 +11175,8 @@ Lionel (amélioration n° 12) :
 - Cloche : petit bouton « Réglages » (engrenage) à gauche de « Fermer ». Il ferme la fenêtre et ouvre Réglages › Notifications.
 - Code : js/notifications.js, style.css.
 
+- Bug n° 14 — Lionel : « il manque une bordure sous note ». La ligne Transports ouvre la grille du corps, juste sous Notes (grille de l'en-tête) : depuis la suite 134, plus aucune bande « Personnel » n'y dessinait de trait. Ses cases prennent la classe `cell-transports` (js/grille-rendu.js) ; style.css pose un trait d'un pixel en haut de l'étiquette et des cases (ombre intérieure : hauteur de ligne inchangée).
+
 ### Tests
 - Nouveau : tests/test_suite135.js (8 vérifications) :
   - ligne Machines à la place de la section (poignée, fond) ;
@@ -11182,7 +11184,8 @@ Lionel (amélioration n° 12) :
   - clic droit sur Transports : « Gravier - 10 m³ » ;
   - page Machines : ajouter, renommer, ↓, supprimer, écrit en base ; menu repris aussitôt, bulles gardées ;
   - page Transports : « + Ajouter » ;
-  - cloche : bouton « Réglages » → page Notifications ;
+  - cloche : bouton « Réglages » → page Notifications ;
+  - bug n° 14 : trait en haut de la ligne Transports, sous Notes ;
   - aucune erreur JS.
 - tests/test_suite132.js : lignes de groupe sans titre (étiquette = section), menu d'une machine sans absence (arrivée / départ sur Paul), page Machines = listes d'éléments.
 - tests/test_suite134.js : §groupe-1 sur l'étiquette Machines, sous-onglets seulement sur Personnel / Intervenants, menus Machines / Transports = liste + « Autre… », plus de coche « Afficher » sur la page Machines.

@@ -1385,6 +1385,13 @@
      l'étiquette de la ligne Transports, posée sous Notes (page Transports). */
   .section-row-groupe { background: var(--section-machines-bg); }
   .grille > .lbl.lbl-transports { background: var(--transports-bg); }
+  /* Round du 01.10.2026 (suite 135) — Lionel (bug n° 14) : « il manque une
+     bordure sous note ». La ligne Transports ouvre la grille du corps,
+     juste sous Notes (grille de l'en-tête) : aucun trait entre les deux,
+     là où la bande « Personnel » en dessinait un avant la suite 134. Trait
+     posé en haut de son étiquette et de ses cases (ombre intérieure : la
+     hauteur de la ligne ne change pas). */
+  .grille > .lbl.lbl-transports, .grille > .cell.cell-transports { box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ink-faint) 55%, var(--border)); }
   /* Suite 135 — Lionel (retour n° 13) : « Machine aussi en une seule ligne
      comme transport. » La ligne Machines tient lieu de titre de section :
      fond de la section, poignée ⠿ devant le nom. */

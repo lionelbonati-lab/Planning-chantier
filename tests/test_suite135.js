@@ -22,7 +22,9 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //      base et repris aussitôt dans le menu de la case ;
 //   5. page Transports : sa liste, « + Ajouter » ;
 //   6. cloche : bouton « Réglages » → page Réglages › Notifications ;
-//   7. aucune erreur JS.
+//   7. bug n° 14 — « il manque une bordure sous note » : trait en haut de
+//      la ligne Transports (étiquette et cases), sous Notes ;
+//   8. aucune erreur JS.
 //
 // Lancer : node test_suite135.js
 
@@ -165,6 +167,14 @@ async function saisir(page, nom) {
   const ouverte = await page.evaluate(() => ({ page: (document.querySelector('.page.actif') || {}).id, pop: !!document.querySelector('.pop-notifications') }));
   verifier(bouton && bouton.texte === 'Réglages' && bouton.svg && bouton.large < 140 && ouverte.page === 'page-notifications-push' && !ouverte.pop,
     'cloche : petit bouton « Réglages » → page Réglages › Notifications, popup fermé (' + JSON.stringify([bouton, ouverte]) + ')');
+
+  // --- 7. Bug n° 14 : trait sous Notes ------------------------------------------------------
+  const traits = await page.evaluate(() => {
+    const ombre = (el) => el ? getComputedStyle(el).boxShadow : 'absent';
+    return [ombre(document.querySelector('.grille > .lbl[data-ligne="p31"]')), ombre(document.querySelector('.grille > .cell[data-personne="31"]'))];
+  });
+  verifier(traits.every((o) => /inset/.test(o) && /0px 1px 0px/.test(o)),
+    'bug n° 14 : trait en haut de la ligne Transports, sous Notes (' + traits.join(' | ') + ')');
 
   toutesErreurs.push(...erreurs);
   await browser.close();

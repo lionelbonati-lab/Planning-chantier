@@ -1773,6 +1773,7 @@
         // deux de chaque groupe porte .ligne-alt (étiquette et cases),
         // teintée seulement si l'option est choisie (html[data-aff-zebre]).
         var alt = iP % 2 === 1;
+        var estTransports = secteurDe(p) === "transports";
         var lbl = document.createElement("div");
         lbl.className = "lbl lbl-compacte" + (alt ? " ligne-alt" : "");
         lbl.dataset.vt = "p" + p.id;
@@ -1784,7 +1785,7 @@
         lbl.title = p.nom;
         remplirEtiquetteEquipe(lbl, p);
         // Suite 134 : la ligne Transports (fond réglable, page Transports).
-        if (secteurDe(p) === "transports") lbl.classList.add("lbl-transports");
+        if (estTransports) lbl.classList.add("lbl-transports");
         // Suite 135 : la ligne Machines tient lieu de titre de sa section :
         // fond de la section, poignée ⠿ pour la ranger ailleurs.
         if (cleSection && iP === 0) {
@@ -1800,6 +1801,8 @@
           DEMIS.forEach(function (demi) {
             var c = creerCell(gi4, { personne: p.id, demi: demi });
             if (alt) c.classList.add("ligne-alt");
+            // Suite 135 : trait sous Notes, cf. .cell-transports (style.css).
+            if (estTransports) c.classList.add("cell-transports");
             if (demi === "aprem") c.classList.add("cell-aprem");
             // .cell-matin (suite 64) : teinte du matin si « Colonnes teintées :
             // Matin » (page Affichage).
@@ -1818,6 +1821,7 @@
               // avec demiDebut=demiFin="matin".
               var cw = creerCell(giWeekend(semGi4, j), { personne: p.id, demi: "matin" });
               if (alt) cw.classList.add("ligne-alt");
+              if (estTransports) cw.classList.add("cell-transports");
               poser(cw, colonneGrille(giWeekend(semGi4, j)), row, null, pistesGrille);
             });
           }
