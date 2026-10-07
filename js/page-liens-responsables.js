@@ -16,7 +16,9 @@
      Table liens_responsables (sql/0038) ; jeton tiré comme celui des
      ouvriers (nouveauJetonConsultation_, js/liens-consultation.js). La
      page ouverte par le lien : responsable.html (js/responsable.js) —
-     tout le planning, semaine en cours et les 4 suivantes.
+     tout le planning, semaine en cours et les 4 suivantes. Suite 144 :
+     sans les équipes (« qu'il ne vois pas les equipes et leurs nom ») —
+     chaque personne porte les tâches de son équipe.
      ============================================================ */
 
   var LIENS_RESPONSABLES_ = null;   // lignes de liens_responsables (null : pas encore lues)
@@ -27,7 +29,7 @@
 
   function htmlContenuPageLiensResponsables() {
     return '<div class="page-titre"><h1>Liens responsables</h1></div>' +
-      '<p class="page-sous">Un lien à envoyer à un responsable : tout le planning (équipes, personnel, jalons, notes, machines, transports, intervenants), semaine par semaine, de la semaine en cours aux 4 suivantes, sans connexion et sans rien pouvoir modifier. Un lien par personne : chacun garde sa date de dernière consultation et se supprime seul.</p>' +
+      '<p class="page-sous">Un lien à envoyer à un responsable : tout le planning (personnel, jalons, notes, machines, transports, intervenants), semaine par semaine, de la semaine en cours aux 4 suivantes, sans connexion et sans rien pouvoir modifier. Un lien par personne : chacun garde sa date de dernière consultation et se supprime seul.</p>' +
       '<form class="lr-ajout" id="formLienResponsable" autocomplete="off">' +
         '<input type="text" class="lr-nom" id="nomLienResponsable" maxlength="60" placeholder="Nom (ex. Responsable, Patron)" aria-label="Nom du lien">' +
         '<button type="submit" class="btn-enregistrer" id="btnCreerLienResponsable" disabled>Créer le lien</button>' +
