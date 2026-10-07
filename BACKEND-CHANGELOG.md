@@ -2149,3 +2149,22 @@ Fichier : sql/0037_elements_groupes_masque.sql (migration `elements_groupes_masq
 - elements_groupes.masque (boolean, false par défaut) : l'élément n'est plus proposé au clic droit des lignes Machines / Transports, sans être supprimé. Les bulles déjà posées ne changent pas.
   - Sur le projet : les 4 éléments (Karcher, Vibrateur, Plateau vide, Coffrage) restent affichés (masque = false).
 - Droits, RLS et sauvegardes inchangés (même table que sql/0036).
+
+
+---
+
+## 41. Round du 07.10.2026 (suite 143) — liens responsables (planning entier en lecture seule)
+
+Lionel : « J'aimerai pouvoir envoyer le planning à mon responsable, en lecture seul. » Ses choix : « Lien sans connexion », « Un lien par personne », période « Moins loin » (semaine en cours et les 4 suivantes).
+
+Fichier : sql/0038_liens_responsables.sql (migration `liens_responsables`).
+
+- Nouvelle table liens_responsables (id, nom non vide, jeton unique d'au moins 32 caractères, cree_le, vu_le). RLS « connecte_tout » pour authenticated ; select / insert / update / delete à authenticated ; rien pour anon. Pas dans les sauvegardes (comme liens_consultation).
+- Nouvelle fonction consultation_responsable(p_jeton, p_lundi) : security definer, search_path = public, exécutable par anon et authenticated (retirée à public).
+  - Jeton absent, trop court ou inconnu : null.
+  - Semaine bornée entre le lundi en cours (Europe/Zurich) et 4 semaines plus loin ; renvoie lundi, aujourdhui, min, max et le nom du lien.
+  - vu_le mis à jour au plus une fois par heure.
+  - personnes : actives et non masquées (sql/0035), avec leur section (intervenants, transports, groupe-<id>, personnel — même règle que secteurDe). Une équipe porte ses membres (id, nom) de la composition en vigueur ce lundi-là.
+  - groupes actifs (hors ligne unique), réglage ordre_groupes.
+  - Tâches, jalons et notes de la semaine (chantier, couleur, statut ; tâches avec leur personne et leur texte complet, absences comprises), fériés, horaires.
+
