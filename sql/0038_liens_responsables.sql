@@ -77,7 +77,7 @@ begin
         'membres', case when p.equipe then coalesce((select jsonb_agg(jsonb_build_object('id', m.id, 'nom', m.nom) order by m.ordre, m.id)
           from (select c.membres from equipes_compositions c where c.equipe_id = p.id and c.lundi <= v_lundi
             order by c.lundi desc limit 1) c
-          join personnes m on m.id::text = any (c.membres) and m.actif and not coalesce(m.equipe, false) and not m.sous_traitant), '[]'::jsonb) end
+          join personnes m on m.id = any (c.membres) and m.actif and not coalesce(m.equipe, false) and not m.sous_traitant), '[]'::jsonb) end
       ) order by p.ordre, p.id)
       from personnes p left join groupes g on g.id = p.groupe_id and g.actif
       where p.actif and not coalesce(p.masque, false)), '[]'::jsonb),
