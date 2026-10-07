@@ -2168,3 +2168,16 @@ Fichier : sql/0038_liens_responsables.sql (migration `liens_responsables`).
   - groupes actifs (hors ligne unique), réglage ordre_groupes.
   - Tâches, jalons et notes de la semaine (chantier, couleur, statut ; tâches avec leur personne et leur texte complet, absences comprises), fériés, horaires.
 
+---
+
+## 42. Round du 07.10.2026 (suite 144) — lien responsable sans les équipes
+
+Lionel : « la vue planing me conviens mais j'aimerais qu'il ne vois pas les equipes et leurs nom. uniquement ce que le personnel fait (reprendre le texte de la tâche de l'équipe. »
+
+Fichier : sql/0039_responsable_sans_equipes.sql (à appliquer dans l'éditeur SQL de Supabase, comme la 0038).
+
+- consultation_responsable réécrite (signature, droits et bornes inchangés) :
+  - personnes : sans les équipes ; plus de champs « equipe » ni « membres ». Le nom d'une équipe ne sort plus par ce lien.
+  - taches : celles des personnes affichées (actives, non masquées, hors équipes), plus chaque tâche d'équipe recopiée sur chaque membre de la demi-journée (equipe_membre_, sql/0032), sauf sous une absence complète du membre (absence_partielle_, sql/0031) — mêmes règles que la vue ouvrier. Dans une case : les tâches de la personne d'abord.
+- Vérifié sur le projet (lecture seule) avec la semaine du 05.10.2026 : 10 lignes sans équipe ; « Maçonnerie à l'étage » sur Lionel, Mathis, François, Antoine (et le Stagiaire les jours où il est dans l'équipe) ; rien sous l'absence d'Antoine lundi après-midi ni sous les absences de vendredi.
+

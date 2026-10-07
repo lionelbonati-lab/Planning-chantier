@@ -20,13 +20,20 @@
    seulement s'ils ont quelque chose). Lignes dans l'ordre de l'appli :
    Jalons, Notes, Transports, puis les sections dans l'ordre choisi par
    Lionel (réglage ordre_groupes, cf. sectionsCorps dans js/groupes.js) —
-   Personnel (chaque équipe avec ses membres en sous-titre ; un membre n'a
-   sa propre ligne que s'il a quelque chose cette semaine, absence par
-   exemple, comme une équipe repliée), Intervenants, Machines… Une bulle
+   Personnel, Intervenants, Machines… Une bulle
    identique sur des demi-journées qui se suivent n'en fait qu'une ; les
    bulles d'une même case s'empilent. Absences : texte complet (« Congé -
    Mariage »), hachurées. ‹ › et les flèches du clavier changent de
-   semaine, « Auj. » revient à la semaine en cours.
+   semaine, « Auj. » revient à la semaine en cours.
+
+   Round du 07.10.2026 (suite 144). Lionel : « la vue planing me conviens
+   mais j'aimerais qu'il ne vois pas les equipes et leurs nom. uniquement
+   ce que le personnel fait (reprendre le texte de la tâche de l'équipe. »
+   Plus de ligne d'équipe ni de membres en sous-titre : le serveur
+   (sql/0039) ne les envoie plus et recopie chaque tâche d'équipe sur ses
+   membres de la demi-journée (sauf sous une absence complète). Chaque
+   personne a donc sa ligne, avec ses tâches et celles de son équipe. Une
+   ligne d'équipe qui arriverait encore (ancienne fonction) est ignorée.
    ============================================================ */
 (function () {
   // Même projet et même clé publique que js/core.js et js/consultation.js.
@@ -156,12 +163,12 @@
     return defaut.slice().sort(function (a, b) { return rang(a) - rang(b); });
   }
 
-  // [{ titre } | { nom, sous, classe, couleur, elements }] dans l'ordre affiché.
+  // [{ titre } | { nom, classe, elements }] dans l'ordre affiché.
   function lignes(tachesDe) {
-    var personnes = donnees.personnes || [];
+    var personnes = (donnees.personnes || []).filter(function (p) { return !p.equipe; });
     var dans = function (cle) { return personnes.filter(function (p) { return p.section === cle; }); };
-    var ligneDe = function (p, classe, sous) {
-      return { nom: p.nom, sous: sous || "", classe: classe || "", couleur: p.couleur, elements: tachesDe(p.id) };
+    var ligneDe = function (p, classe) {
+      return { nom: p.nom, classe: classe || "", elements: tachesDe(p.id) };
     };
     var out = [
       { nom: "Jalons", classe: "ligne-haut", elements: (donnees.jalons || []).map(function (j) { return Object.assign({ sorte: "jalon" }, j); }) },
@@ -169,24 +176,7 @@
     ];
     dans("transports").forEach(function (p) { out.push(ligneDe(p, "ligne-haut")); });
     sections().forEach(function (s) {
-      var rangs = [];
-      if (s.cle === "personnel") {
-        var liste = dans("personnel"), parId = {}, pris = {};
-        liste.forEach(function (p) { parId[p.id] = p; });
-        liste.filter(function (p) { return p.equipe; }).forEach(function (e) {
-          var membres = (e.membres || []).filter(function (m) { return parId[m.id] && !pris[m.id]; });
-          rangs.push(ligneDe(e, "equipe", membres.map(function (m) { return m.nom; }).join(", ")));
-          membres.forEach(function (m) {
-            pris[m.id] = true;
-            var l = ligneDe(parId[m.id], "membre");
-            l.couleur = e.couleur;
-            if (l.elements.length) rangs.push(l);
-          });
-        });
-        liste.forEach(function (p) { if (!p.equipe && !pris[p.id]) rangs.push(ligneDe(p)); });
-      } else {
-        rangs = dans(s.cle).map(function (p) { return ligneDe(p); });
-      }
+      var rangs = dans(s.cle).map(function (p) { return ligneDe(p); });
       if (!rangs.length) return;
       // Un groupe d'une seule ligne (Machines, suite 135) : la ligne tient
       // lieu de titre, comme dans l'appli.
@@ -245,9 +235,7 @@
       }
       var place = placer(l.elements, indexJour), n = place.pistes;
       var span = "grid-row:" + ligne + " / span " + n;
-      var ce = couleurSure(l.couleur);
-      html.push('<div class="nom' + (l.classe ? " " + l.classe : "") + '" style="' + span + ";grid-column:1" + (ce ? ";--ce:" + ce : "") + '">' +
-        esc(l.nom) + (l.sous ? "<small>" + esc(l.sous) + "</small>" : "") + "</div>");
+      html.push('<div class="nom' + (l.classe ? " " + l.classe : "") + '" style="' + span + ';grid-column:1">' + esc(l.nom) + "</div>");
       jours.forEach(function (iso, k) {
         [0, 1].forEach(function (dm) {
           var cls = "fond" + (dm === 0 ? " debut-jour" : "") + (feries[iso] ? " ferie" : iso === d.aujourdhui ? " aujourdhui" : "");

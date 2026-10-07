@@ -19,8 +19,8 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //   B. responsable.html (js/responsable.js) : un seul appel
 //      consultation_responsable (jeton, lundi) ; lignes dans l'ordre de
 //      l'appli (Jalons, Notes, Transports, sections selon ordre_groupes,
-//      équipe avec ses membres, membre seulement s'il a quelque chose,
-//      Machines sans titre) ; bulles identiques qui se suivent fusionnées,
+//      Machines sans titre ; suite 144 : plus d'équipe, réponse de
+//      sql/0039 — la tâche d'équipe arrive sur le membre) ; bulles identiques qui se suivent fusionnées,
 //      bulles d'une case empilées ; congé en texte complet ; week-end
 //      seulement s'il est occupé ; ‹ › bornés par min / max ; lien
 //      supprimé, lien incomplet ; téléphone : la grille défile seule.
@@ -39,18 +39,17 @@ function semaine(lundi, opts) {
   return {
     nom: 'Responsable', lundi, aujourdhui: '2026-10-07', min: MIN, max: MAX,
     personnes: [
-      { id: 16, nom: 'Transports', equipe: false, section: 'transports' },
-      { id: 10, nom: 'Équipe Marco', equipe: true, couleur: '#e07a2e', section: 'personnel', membres: [{ id: 1, nom: 'Marco' }, { id: 3, nom: 'Luis' }] },
-      { id: 1, nom: 'Marco', equipe: false, section: 'personnel' }, { id: 3, nom: 'Luis', equipe: false, section: 'personnel' },
-      { id: 5, nom: 'Jean', equipe: false, section: 'personnel' }, { id: 7, nom: 'Sami', equipe: false, section: 'personnel' },
-      { id: 18, nom: 'Machines', equipe: false, section: 'groupe-1' },
-      { id: 2, nom: 'Électricité Dubois', equipe: false, section: 'intervenants' }
+      { id: 16, nom: 'Transports', section: 'transports' },
+      { id: 1, nom: 'Marco', section: 'personnel' }, { id: 3, nom: 'Luis', section: 'personnel' },
+      { id: 5, nom: 'Jean', section: 'personnel' }, { id: 7, nom: 'Sami', section: 'personnel' },
+      { id: 18, nom: 'Machines', section: 'groupe-1' },
+      { id: 2, nom: 'Électricité Dubois', section: 'intervenants' }
     ],
     groupes: [{ id: 1, nom: 'Machines' }],
     ordre_groupes: opts.ordre || ['personnel', 'groupe-1', 'intervenants'],
     taches: [
-      t(10, 0, 'matin', 'Coffrage dalle'), t(10, 0, 'aprem', 'Coffrage dalle'), t(10, 1, 'matin', 'Coffrage dalle'),
-      t(10, 1, 'aprem', 'Ferraillage'),
+      t(1, 0, 'matin', 'Coffrage dalle'), t(1, 0, 'aprem', 'Coffrage dalle'), t(1, 1, 'matin', 'Coffrage dalle'),
+      t(1, 1, 'aprem', 'Ferraillage'),
       t(3, 3, 'matin', 'Congé - Mariage', { absence: true, chantier: null, couleur: null }),
       t(3, 3, 'aprem', 'Congé - Mariage', { absence: true, chantier: null, couleur: null }),
       t(5, 0, 'matin', 'Maçonnerie', { chantier: 'Immeuble Gare', couleur: '#f6d7a7' }),
@@ -183,8 +182,8 @@ const lireGrille = (page) => page.evaluate(() => {
     verifier(appels.length === 1 && /\/rest\/v1\/rpc\/consultation_responsable$/.test(a.url) && a.corps.p_jeton === JETON && a.corps.p_lundi === null &&
       /^Bearer ey/.test(a.entetes.authorization || ''),
       'un seul appel consultation_responsable (jeton, lundi null), clé publique (' + JSON.stringify(a.corps) + ')');
-    verifier(g && g.lignes.join(' / ') === 'Jalons / Notes / Transports / #Personnel / Équipe Marco(Marco, Luis) / Luis / Jean / Sami / Machines / #Intervenants / Électricité Dubois',
-      'lignes : Jalons, Notes, Transports, Personnel (équipe + membres en sous-titre, membre seulement s’il a quelque chose), Machines sans titre, Intervenants (' + (g && g.lignes.join(' / ')) + ')');
+    verifier(g && g.lignes.join(' / ') === 'Jalons / Notes / Transports / #Personnel / Marco / Luis / Jean / Sami / Machines / #Intervenants / Électricité Dubois',
+      'lignes : Jalons, Notes, Transports, Personnel, Machines sans titre, Intervenants (' + (g && g.lignes.join(' / ')) + ')');
     verifier(g.jours.join(',') === 'Lundi 5 oct.,Mardi 6 oct.,Mercredi 7 oct.,Jeudi 8 oct.,Vendredi 9 oct.' && g.titre === 'Semaine 415 oct. – 9 oct. 2026' && g.boutons === 'off,on,off',
       'lundi → vendredi (week-end vide caché), semaine 41, ‹ et « Auj. » grisés sur la semaine en cours (' + g.jours.join(',') + ' ; ' + g.titre + ' ; ' + g.boutons + ')');
     const b = (texte) => g.bulles.filter((x) => x.texte.replace(/^⚑ /, '') === texte);

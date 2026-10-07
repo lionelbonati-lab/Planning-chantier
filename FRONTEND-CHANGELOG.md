@@ -11336,3 +11336,17 @@ Lionel : « J'aimerai pouvoir envoyer le planning à mon responsable, en lectur
 - `tests/test_suite63.js` : la liste des pages de Réglages compte « Liens responsables » après Notifications.
 - Suite complète : 146/146.
 
+
+## 257. Round du 07.10.2026 (suite 144) — Lien responsable sans les équipes
+
+Lionel : « la vue planing me conviens mais j'aimerais qu'il ne vois pas les equipes et leurs nom. uniquement ce que le personnel fait (reprendre le texte de la tâche de l'équipe. »
+
+- `js/responsable.js` : plus de ligne d'équipe ni de membres en sous-titre. Chaque personne a sa ligne, avec ses tâches puis celles de son équipe, recopiées par le serveur (sql/0039) avec leur texte, leur chantier et leur statut. Une ligne d'équipe envoyée par l'ancienne fonction est ignorée.
+- `responsable.html` : styles `.nom.equipe` / `.nom.membre` / `.nom small` retirés.
+- `js/page-liens-responsables.js` : la description de la page ne cite plus les équipes.
+
+### Tests
+
+- `tests/test_suite144.js` (nouveau, 8 vérifications) : sql/0039 (ni équipe ni membres, tâche d'équipe recopiée sur le membre de la demi-journée, cachée sous une absence complète) ; page : une ligne par personne, aucun nom d'équipe, tâche d'équipe dans la ligne de chaque membre après ses propres tâches, ancienne réponse sans ligne d'équipe ; aucune erreur JS.
+- `tests/test_suite143.js` : réponse simulée au format de sql/0039 (la tâche d'équipe sur Marco), ordre des lignes sans équipe.
+
