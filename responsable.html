@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<!-- ============================================================
+     PLANNING EN LECTURE SEULE POUR UN RESPONSABLE — round du 07.10.2026
+     (suite 143)
+     ------------------------------------------------------------
+     Lionel : « J'aimerai pouvoir envoyer le planning à mon responsable, en
+     lecture seul. » Ses choix : « Lien sans connexion », « Vue simplifiée »,
+     « Surtout l'ordinateur », période « Moins loin » (semaine en cours et
+     les 4 suivantes).
+
+     Page autonome comme consultation.html : ni connexion, ni supabase-js,
+     ni le code de l'appli. responsable.html?j=<jeton> — le lien est créé
+     dans Réglages › Liens responsables (js/page-liens-responsables.js).
+     Tout passe par UNE fonction serveur, consultation_responsable(jeton,
+     lundi) (sql/0038_liens_responsables.sql). Logique : js/responsable.js.
+     ============================================================ -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#1f4d8f">
+<title>Planning chantier</title>
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;800&display=swap">
+<style>
+  :root {
+    --bg: #eef0ec; --surface: #ffffff; --surface-2: #f3f4f1; --surface-3: #e7e9e4;
+    --ink: #1a2129; --ink-muted: #57616b; --ink-faint: #8b93a0;
+    --border: #d7dad2; --border-fort: #b9bdb4; --accent: #1f4d8f; --accent-ink: #ffffff; --accent-soft: #e3ecf7;
+    --ferie: #fbe3e3; --ferie-ink: #8a2b2b; --danger: #c0392b;
+    --colonne-noms: 190px;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #10161d; --surface: #171f28; --surface-2: #1c2530; --surface-3: #232d39;
+      --ink: #eef1f4; --ink-muted: #9aa7b3; --ink-faint: #66717c;
+      --border: #2b3540; --border-fort: #3b4754; --accent: #6fa6e8; --accent-ink: #0b1622; --accent-soft: #223247;
+      --ferie: #3a2224; --ferie-ink: #f1b3b3; --danger: #ef7d6f;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: 'Archivo', 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.3;
+    -webkit-text-size-adjust: 100%;
+  }
+  button { font: inherit; color: inherit; }
+  .entete {
+    position: sticky; top: 0; z-index: 20; background: var(--accent); color: var(--accent-ink);
+    padding: calc(10px + env(safe-area-inset-top, 0px)) 16px 10px;
+  }
+  .entete-interieur { max-width: 1500px; margin: 0 auto; display: flex; align-items: center; flex-wrap: wrap; gap: 8px 20px; }
+  .entete-titre { flex: 1 1 260px; min-width: 0; }
+  .entete h1 { margin: 0; font-size: 19px; font-weight: 800; letter-spacing: -0.01em; }
+  .entete .sous { font-size: 12.5px; opacity: .85; margin-top: 1px; }
+  .nav { display: flex; align-items: center; gap: 8px; flex: 0 1 460px; min-width: 0; }
+  .nav button {
+    border: 0; border-radius: 10px; background: rgba(255,255,255,.16); color: inherit;
+    height: 38px; min-width: 42px; padding: 0 12px; font-weight: 700; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .nav button:disabled { opacity: .35; cursor: default; }
+  .nav .semaine { flex: 1; min-width: 0; text-align: center; font-weight: 700; font-size: 14.5px; }
+  .nav .semaine small { display: block; font-weight: 400; font-size: 12px; opacity: .85; }
+  @media (hover: hover) and (pointer: fine) { .nav button:not(:disabled):hover { background: rgba(255,255,255,.26); } }
+  main { max-width: 1500px; margin: 0 auto; padding: 14px 16px calc(28px + env(safe-area-inset-bottom, 0px)); }
+  .message { text-align: center; color: var(--ink-muted); padding: 40px 16px; }
+  .message b { display: block; color: var(--ink); font-size: 17px; margin-bottom: 6px; }
+  .chargement main { opacity: .55; transition: opacity .15s; }
+
+  /* Grille de la semaine : une colonne de noms + 2 demi-journées par jour.
+     Le cadre défile seul en largeur sur un petit écran (la page jamais). */
+  .cadre { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow-x: auto; }
+  .grille { display: grid; grid-auto-rows: minmax(32px, auto); min-width: calc(var(--colonne-noms) + var(--jours) * var(--largeur-jour, 150px)); }
+  .grille > * { min-width: 0; }
+  .case-coin, .nom, .titre-section { position: sticky; left: 0; z-index: 3; background: var(--surface); }
+  .case-coin { grid-row: 1 / span 2; border-right: 1px solid var(--border-fort); border-bottom: 1px solid var(--border-fort); }
+  .tete-jour {
+    grid-row: 1; padding: 8px 8px 5px; text-align: center; border-left: 1px solid var(--border-fort);
+    background: var(--surface-2); font-weight: 800; font-size: 13.5px;
+  }
+  .tete-jour small { display: block; font-weight: 400; font-size: 11.5px; color: var(--ink-muted); }
+  .tete-jour.aujourdhui { background: var(--accent-soft); color: var(--accent); }
+  .tete-jour.ferie { background: var(--ferie); color: var(--ferie-ink); }
+  .tete-jour .ferie-nom { display: block; font-size: 11.5px; font-weight: 700; }
+  .tete-demi {
+    grid-row: 2; padding: 2px 4px 3px; text-align: center; font-size: 11px; font-weight: 700; color: var(--ink-faint);
+    text-transform: uppercase; letter-spacing: .04em; background: var(--surface-2); border-bottom: 1px solid var(--border-fort);
+  }
+  .tete-demi.debut-jour { border-left: 1px solid var(--border-fort); }
+  .nom {
+    padding: 6px 10px; border-right: 1px solid var(--border-fort); border-top: 1px solid var(--border);
+    font-weight: 700; overflow-wrap: anywhere; display: flex; flex-direction: column; justify-content: center; gap: 1px;
+  }
+  .nom small { font-weight: 400; font-size: 11.5px; color: var(--ink-muted); }
+  .nom.equipe { box-shadow: inset 4px 0 0 var(--ce, var(--border-fort)); padding-left: 12px; }
+  .nom.membre { font-weight: 600; padding-left: 22px; color: var(--ink-muted); box-shadow: inset 4px 0 0 var(--ce, var(--border)); }
+  .nom.ligne-haut { color: var(--ink-muted); font-size: 12.5px; text-transform: uppercase; letter-spacing: .04em; }
+  .titre-section {
+    grid-column: 1 / -1; padding: 6px 10px; font-size: 12px; font-weight: 800; color: var(--ink-muted);
+    text-transform: uppercase; letter-spacing: .05em; background: var(--surface-3); border-top: 1px solid var(--border-fort);
+  }
+  /* Fond d'une ligne : une case par demi-journée (traits des jours,
+     fériés, aujourd'hui). Les bulles se posent par-dessus. */
+  .fond { border-top: 1px solid var(--border); }
+  .fond.debut-jour { border-left: 1px solid var(--border-fort); }
+  .fond.aujourdhui { background: color-mix(in srgb, var(--accent-soft) 55%, transparent); }
+  .fond.ferie { background: var(--ferie); }
+  .bulle {
+    margin: 3px 3px; padding: 4px 7px; border-radius: 8px; background: var(--c, var(--surface-3)); color: #1a2129;
+    border-left: 4px solid rgba(0,0,0,.18); font-size: 12.5px; overflow-wrap: anywhere; z-index: 1; min-width: 0;
+    box-shadow: 0 1px 2px rgba(0,0,0,.12);
+  }
+  .bulle .texte { font-weight: 700; }
+  .bulle .details { font-size: 11.5px; opacity: .85; display: flex; flex-wrap: wrap; gap: 2px 8px; margin-top: 1px; }
+  .bulle .statut { font-size: 10.5px; font-weight: 700; text-transform: uppercase; border-radius: 999px; padding: 0 6px;
+    background: var(--cs, rgba(255,255,255,.6)); }
+  .bulle .important { color: var(--danger); font-weight: 800; }
+  .bulle.absence { background: repeating-linear-gradient(135deg, var(--surface-2) 0 8px, var(--surface) 8px 16px); color: var(--ink);
+    border: 1px solid var(--border); border-left: 4px solid var(--ink-faint); }
+  /* Sans chantier (note, tâche « Autre ») : fond neutre, texte du thème. */
+  .bulle.neutre { background: var(--surface-2); color: var(--ink); border: 1px solid var(--border); border-left: 4px solid var(--ink-faint); }
+  .legende { margin: 10px 2px 0; color: var(--ink-faint); font-size: 12px; }
+  @media (max-width: 640px) {
+    :root { --colonne-noms: 120px; --largeur-jour: 200px; }
+    .nav { flex-basis: 100%; }
+  }
+  @media print {
+    .entete { position: static; }
+    .nav button { display: none; }
+    .cadre { overflow: visible; border: 0; }
+    .grille { min-width: 0; }
+  }
+</style>
+</head>
+<body>
+<header class="entete">
+  <div class="entete-interieur">
+    <div class="entete-titre">
+      <h1 id="titre">Planning chantier</h1>
+      <div class="sous">Lecture seule · recharge la page pour voir les derniers changements.</div>
+    </div>
+    <div class="nav">
+      <button type="button" id="btnPrecedente" aria-label="Semaine précédente">‹</button>
+      <div class="semaine" id="titreSemaine">…</div>
+      <button type="button" id="btnSuivante" aria-label="Semaine suivante">›</button>
+      <button type="button" id="btnAujourdhui">Auj.</button>
+    </div>
+  </div>
+</header>
+<main id="contenu"><p class="message">Chargement…</p></main>
+<script src="js/responsable.js"></script>
+</body>
+</html>

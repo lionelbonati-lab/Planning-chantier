@@ -3694,6 +3694,26 @@
   .retours-liste { display: flex; flex-direction: column; gap: 8px; }
   .retours-plus { align-self: flex-start; }
   .retours-vide { margin: 0; font-size: 12.5px; color: var(--ink-muted); }
+  /* Liens responsables (round du 07.10.2026, suite 143,
+     js/page-liens-responsables.js) : nom + « Créer le lien », puis un
+     cadre par lien (adresse, Copier / Partager / Ouvrir, dernière
+     consultation, Nouveau lien / Supprimer). */
+  .lr-ajout { display: flex; flex-wrap: wrap; gap: 8px; max-width: 520px; margin: 0 0 16px; }
+  .lr-nom { flex: 1 1 220px; min-width: 0; font: inherit; font-size: 14px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--surface); color: var(--ink); }
+  @media (max-width: 600px) { .lr-nom { font-size: 16px; } }
+  .lr-nom:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .lr-liste { display: flex; flex-direction: column; gap: 10px; max-width: 520px; }
+  .lr-vide { margin: 0; font-size: 12.5px; color: var(--ink-muted); }
+  .lien-responsable { padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
+  .lr-titre { margin: 0 0 8px; font-size: 14px; font-weight: 800; overflow-wrap: anywhere; }
+  .lr-url { width: 100%; box-sizing: border-box; font: inherit; font-size: 12px; font-family: var(--police-mono); padding: 8px 10px;
+    border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); }
+  .lr-boutons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .lr-boutons > * { flex: 1 1 auto; text-align: center; text-decoration: none; }
+  .lr-vu { font-size: 11.5px; color: var(--ink-faint); margin: 10px 0 0; }
+  .lr-gestion { display: flex; gap: 16px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+  .lien-responsable .lien-supprimer { color: var(--important-ink); }
   .retour { padding: 9px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
   .retour[data-statut="traite"] { opacity: .6; }
   .retour-tete { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 12px; color: var(--ink-muted); }

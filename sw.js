@@ -232,7 +232,9 @@ self.addEventListener("notificationclick", function (e) {
   var tag = (e.notification.data && e.notification.data.tag) || "";
   var ouvrirNotifs = /^(demandes|importants|a-reserver|rappel-demandes)/.test(tag);
   e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(function (cs) {
-    var c = cs.filter(function (x) { return x.url.indexOf(self.registration.scope) === 0 && !/consultation\.html/.test(x.url); })[0];
+    // Suite 143 : ni la page des ouvriers ni celle des responsables
+    // (responsable.html), qui n'ont pas de notifications.
+    var c = cs.filter(function (x) { return x.url.indexOf(self.registration.scope) === 0 && !/(consultation|responsable)\.html/.test(x.url); })[0];
     if (c) {
       if (ouvrirNotifs) c.postMessage({ type: "ouvrir-notifications" });
       return c.focus();

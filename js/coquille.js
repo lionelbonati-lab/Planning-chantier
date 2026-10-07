@@ -123,6 +123,7 @@
     cablerPageSauvegardes();
     cablerPageNotificationsPush();
     cablerPageRetours();
+    cablerPageLiensResponsables();
     cablerPageRaccourcis();
     cablerPageNotes();
     cablerPageCompte();
@@ -176,6 +177,10 @@
     // l'ordinateur avec différents paramètre à régler dans l'appli. »
     // (js/page-notifications.js).
     { page: "notifications-push", nom: "Notifications", icone: "cloche" },
+    // Round du 07.10.2026 (suite 143) — Lionel : « J'aimerai pouvoir
+    // envoyer le planning à mon responsable, en lecture seul. » Géré
+    // « Dans le menu Réglages » (js/page-liens-responsables.js).
+    { page: "liens-responsables", nom: "Liens responsables", court: "Liens", icone: "lien" },
     { page: "sauvegardes", nom: "Sauvegardes", icone: "sauvegarde" },
     // Round du 30.09.2026 (suite 129) — Lionel : « J'aimerai avoir un
     // endroit où je peux prendre des notes pour améliorer et signaler des
@@ -218,6 +223,8 @@
       '</div></div>' +
       // Notifications push (suite 126, js/page-notifications.js).
       '<div class="page page-reglages" id="page-notifications-push"><div class="page-scroll">' + htmlContenuPageNotificationsPush() + '</div></div>' +
+      // Liens responsables (suite 143, js/page-liens-responsables.js).
+      '<div class="page page-reglages" id="page-liens-responsables"><div class="page-scroll">' + htmlContenuPageLiensResponsables() + '</div></div>' +
       // Sauvegardes (round du 25.09.2026, suite 49 — js/page-sauvegardes.js,
       // sql/0017_sauvegardes.sql). Lionel, proposition 14 : « Sauvegarde
       // automatique [...] pour pouvoir revenir en arrière après une grosse
@@ -958,6 +965,8 @@
       "notifications-push": renderNotificationsPush,
       // Suite 129 : notes relues à chaque ouverture (lues / traitées entre-temps).
       retours: renderRetours,
+      // Suite 143 : liens relus à chaque ouverture (dernière consultation).
+      "liens-responsables": renderLiensResponsables,
       raccourcis: renderRaccourcis,
       couleurs: function () { if (typeof majReglagesCouleursAffiches === "function") majReglagesCouleursAffiches(); },
       compte: chargerInfosCompte,

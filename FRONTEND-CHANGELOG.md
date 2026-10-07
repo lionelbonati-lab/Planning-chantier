@@ -11307,3 +11307,32 @@ Lionel : « Un clic dans la case de la colonne à gauche des horaires sélectio
 
 - `tests/test_suite142.js` (nouveau, 6 vérifications) : coin → toutes les lignes et les 4 bulles ; bande Personnel → Paul et Anne seuls ; Ctrl + bande Intervenants → Béton SA ajouté, pas Machines ; téléphone : toucher la bande Intervenants ; aucune erreur JS.
 
+
+
+## 256. Round du 07.10.2026 (suite 143) — Planning en lecture seule pour un responsable
+
+Lionel : « J'aimerai pouvoir envoyer le planning à mon responsable, en lecture seul. » Ses choix : « Lien sans connexion » ; en plus du personnel et des équipes : « Jalons, Notes, Machines et transports, Intervenants » ; « Vue simplifiée » ; « Surtout l'ordinateur » ; « Dans le menu Réglages » ; « Un lien par personne » ; congés : « Le texte complet » ; période : « Moins loin » (semaine en cours et les 4 suivantes).
+
+- `responsable.html` + `js/responsable.js` (nouveaux) : page autonome comme `consultation.html` (sans connexion, sans supabase-js). Un seul appel, `consultation_responsable(jeton, lundi)` (sql/0038).
+  - Grille de la semaine pensée pour l'ordinateur : colonne des noms, puis Matin / Après-midi de chaque jour. Lundi → vendredi ; samedi et dimanche seulement s'ils ont quelque chose. Horaires et fériés dans l'en-tête des jours, aujourd'hui teinté.
+  - Lignes dans l'ordre de l'appli : Jalons, Notes, Transports, puis les sections selon le réglage `ordre_groupes` (même règle que `sectionsCorps`).
+    - Personnel : chaque équipe avec ses membres de la semaine en sous-titre. Un membre n'a sa ligne que s'il a quelque chose cette semaine (une absence par exemple).
+    - Machines : la ligne tient lieu de titre, comme dans l'appli. Puis Intervenants.
+  - Bulles : texte, chantier (sa couleur en fond), statut, ⚑ si important. Une bulle identique sur des demi-journées qui se suivent n'en fait qu'une ; les bulles d'une même case s'empilent. Absences hachurées, en texte complet (« Congé - Mariage »).
+  - ‹ › (et les flèches du clavier) changent de semaine, entre la semaine en cours et la 4e suivante ; « Auj. » revient à la semaine en cours. Lien supprimé ou renouvelé : « Ce lien ne marche plus. » ; lien coupé : « Lien incomplet. ».
+  - Thème sombre ; sur téléphone, la grille défile seule en largeur, noms collés à gauche.
+- `js/page-liens-responsables.js` (nouveau) : page Réglages › « Liens responsables » (icône lien).
+  - « Nom » (« Responsable », « Patron »…) puis « Créer le lien ». Le jeton est tiré comme celui des ouvriers (`nouveauJetonConsultation_`).
+  - Un cadre par lien : nom, adresse, « Copier », « Partager… », « Ouvrir », date de la dernière consultation, puis « Nouveau lien » (l'ancien ne marche plus) et « Supprimer », chacun après confirmation.
+  - Liens relus à chaque ouverture de la page.
+- `js/coquille.js` : entrée dans `PAGES_REGLAGES` (après Notifications), page, rendu et câblage. `index.html` : script chargé. `style.css` : styles `.lr-*` / `.lien-responsable`.
+- `sw.js` : un clic sur une notification n'ouvre jamais la page d'un responsable (comme celle des ouvriers).
+
+### Tests
+
+- `tests/test_suite143.js` (nouveau, 21 vérifications).
+  - Réglages : onglet présent ; liens relus (nom, adresse `responsable.html?j=…`, dernière consultation) ; création (bouton grisé sans nom, jeton de 32 caractères hexadécimaux) ; « Nouveau lien » et « Supprimer » sur ce lien seulement ; téléphone sans débordement.
+  - Page responsable : appel, ordre des lignes, fusion et empilement des bulles, congé en texte complet, jalon d'une journée, week-end occupé, `ordre_groupes`, navigation bornée (› grisé à la 4e semaine), lien supprimé, lien coupé, téléphone ; aucune erreur JS.
+- `tests/test_suite63.js` : la liste des pages de Réglages compte « Liens responsables » après Notifications.
+- Suite complète : 146/146.
+

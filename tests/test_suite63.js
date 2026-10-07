@@ -21,7 +21,8 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 
 // Round du 29.09.2026 (suite 126) : page « Notifications » ajoutée après Raccourcis clavier.
 // Round du 30.09.2026 (suite 129) : page « Améliorations et bugs » ajoutée après Sauvegardes.
-const REGLAGES = 'Mon compte|Affichage|Couleurs|Mise en page d’impression|Raccourcis clavier|Notifications|Sauvegardes|Améliorations et bugs';
+// Round du 07.10.2026 (suite 143) : page « Liens responsables » ajoutée après Notifications.
+const REGLAGES = 'Mon compte|Affichage|Couleurs|Mise en page d’impression|Raccourcis clavier|Notifications|Liens responsables|Sauvegardes|Améliorations et bugs';
 const presser = async (page, touche) => { await page.keyboard.press(touche); await page.waitForTimeout(150); };
 const etat = (page) => page.evaluate(() => {
   const vis = (e) => !!e && e.offsetWidth > 0 && getComputedStyle(e).visibility !== 'hidden';
