@@ -11376,3 +11376,28 @@ Lionel : « J'aimerai pouvoir ajouter une adresse, sur un chantier, afin que me
 - `tests/test_suite54.js` : les boutons d'un chantier sont « Renommer, Emplacement ».
 - Suite complète : 148/148.
 
+
+## 259. Round du 21.10.2026 (suite 146) — Installer l'application depuis les liens
+
+Lionel : « Ajoute moi une icône sur la vue ouvrier et responsables pour installer l'application. » (avec l'image d'une flèche qui descend dans un bac).
+
+- `js/installer.js` (nouveau), chargé en premier par `consultation.html` (lien des ouvriers) et `responsable.html` (lien responsable) : icône « télécharger » dans l'en-tête — en haut à droite chez l'ouvrier, au bout de l'en-tête chez le responsable (à côté du titre sur téléphone). Cachée dans l'appli installée et à l'impression.
+  - Chrome, Edge, Android : l'icône ouvre la vraie fenêtre « Installer » du navigateur (gardée à son arrivée, sans le bandeau du bas). Acceptée → l'icône disparaît.
+  - Sinon, fenêtre « Installer l'application » avec les étapes de l'appareil : iPhone / iPad (bouton Partager › « Sur l'écran d'accueil » › « Ajouter »), Safari sur Mac (Fichier › « Ajouter au Dock… »), Android (menu › « Installer l'application » ou « Ajouter à l'écran d'accueil »), Firefox sur ordinateur (ouvrir le lien dans Chrome ou Edge), autre ordinateur (icône de la barre d'adresse ou menu « Installer »). Feuille en bas sur téléphone, boîte centrée sur ordinateur ; OK, Échap ou le fond la ferment ; dessous, les flèches ne changent pas la semaine.
+  - Le jeton : l'appli installée s'ouvre sur la page sans `?j=…`. Chaque ouverture avec un jeton le garde donc sur l'appareil (`planning.lien.consultation` / `planning.lien.responsable`) ; l'appli installée le remet dans l'adresse avant que la page le lise. Dans le navigateur, une adresse sans jeton reste sans jeton.
+  - iPhone, iPad et Safari sur Mac : pas de manifeste, pour que « Sur l'écran d'accueil » garde l'adresse exacte, jeton compris.
+- `manifest-consultation.json` (« Mon planning ») et `manifest-responsable.json` (« Planning chantier ») (nouveaux) : départ et portée = la page seule, plein écran, icônes de l'appli.
+- `sw-liens.js` (nouveau) : service worker de chaque lien (portée = la page seule ; l'appli du bureau et `sw.js` ne changent pas), sans lequel Chrome ne propose pas « Installer ». Réseau d'abord : toujours la dernière version ; hors ligne, la copie s'ouvre et dit « Planning inaccessible ». Les appels à Supabase ne sont jamais gardés.
+- `consultation.html`, `responsable.html` : bouton `#btnInstaller`, métas Apple (plein écran, nom « Mon planning » / « Planning », barre d'état sur l'en-tête bleu).
+
+### Tests
+
+- `tests/test_suite146.js` (nouveau, 46 vérifications) :
+  - fichiers : manifestes (départ = portée = la page, icônes présentes à la bonne taille), `sw-liens.js`, métas Apple, `js/installer.js` chargé en premier ;
+  - ouvrier sur Android : place de l'icône, manifeste, jeton gardé, étapes Android, fermeture, fenêtre du navigateur acceptée / refusée, `appinstalled` ;
+  - iPhone, iPad, Safari sur Mac : pas de manifeste, leurs étapes ;
+  - appli installée : pas d'icône, jeton gardé repris (ouvrier et responsable), « Lien incomplet » sans jeton gardé ;
+  - responsable : place de l'icône (ordinateur, téléphone 390 et 320 px), étapes ordinateur et Firefox, flèches bloquées, impression ;
+  - servi en http (profil Chrome réel) : `sw-liens.js` à la portée de chaque page, manifestes sans erreur, page installable (`Page.getInstallabilityErrors` vide), vraie fenêtre « Installer » reçue, hors ligne « Planning inaccessible », planning jamais gardé ; aucune erreur JS.
+- Suite complète : 149/149.
+
