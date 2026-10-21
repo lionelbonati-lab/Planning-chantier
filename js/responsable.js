@@ -34,6 +34,12 @@
    membres de la demi-journée (sauf sous une absence complète). Chaque
    personne a donc sa ligne, avec ses tâches et celles de son équipe. Une
    ligne d'équipe qui arriverait encore (ancienne fonction) est ignorée.
+
+   Round du 21.10.2026 (suite 145). Lionel : « J'aimerai pouvoir ajouter
+   une adresse, sur un chantier, afin que mes ouvriers puisse cliquer sur
+   le nom du chantier et que ça leur ouvre leur navigation gps. » Le nom
+   d'un chantier qui a un pin (sql/0040, lat / lng) devient un bouton (tâches, jalons et
+   notes) : menu Google Maps / Waze / Plans (js/gps.js).
    ============================================================ */
 (function () {
   // Même projet et même clé publique que js/core.js et js/consultation.js.
@@ -143,7 +149,9 @@
     }
     var fond = couleurSure(it.couleur);
     var details = [];
-    if (it.chantier) details.push("<span>" + esc(it.chantier) + "</span>");
+    // Suite 145 : chantier avec un pin (sql/0040) → bouton vers le GPS
+    // (js/gps.js), pour les tâches, jalons et notes.
+    if (it.chantier) details.push("<span>" + htmlChantierGps(it.chantier, it.lat, it.lng) + "</span>");
     if (it.statut) details.push('<span class="statut"' + (couleurSure(it.couleur_statut) ? ' style="--cs:' + it.couleur_statut + '"' : "") + ">" + esc(it.statut) + "</span>");
     return '<div class="bulle ' + it.sorte + (fond ? "" : " neutre") + '" style="' + style + (fond ? ";--c:" + fond : "") + '" title="' + esc(titre) + '">' +
       '<div class="texte">' + (it.important ? '<span class="important" title="Important">⚑ </span>' : "") + esc(it.texte || (it.sorte === "tache" ? "(sans texte)" : "")) + "</div>" +

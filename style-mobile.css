@@ -520,3 +520,13 @@
   /* Suite 78 : colonne des noms au-dessus des bulles (cf. .section-row,
      style.css). */
   #racine.vue-jour-mobile .lbl, #racine.vue-jour-mobile .lbl-speciale { z-index: 3; }
+
+  /* Suite 145 (round du 21.10.2026) — la carte de l'emplacement d'un
+     chantier (js/carte-chantier.js) en plein écran sur téléphone, comme
+     les formulaires : plus de place pour viser le pin au doigt. */
+  @media (max-width: 600px) {
+    .pop.carte-pop {
+      left: 0; top: 0; transform: none; width: 100%; height: 100dvh; max-width: 100%;
+      border: none; border-radius: 0; padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px));
+    }
+  }

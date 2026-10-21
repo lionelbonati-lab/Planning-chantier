@@ -741,7 +741,11 @@
       '<div class="page-titre"><h1>Chantiers</h1></div>' +
       // Suite 54 — Lionel : « statuts et chantier, modifications de la
       // couleur se fait par appuis sur la pastille. Description plus brève. »
-      '<p class="page-sous">Touche la pastille pour changer la couleur. Un chantier désactivé reste sur les cases déjà posées.</p>' +
+      // Suite 145 : le pin (emplacement, js/carte-chantier.js) — Lionel :
+      // « J'aimerai pouvoir ajouter une adresse, sur un chantier, afin que
+      // mes ouvriers puisse cliquer sur le nom du chantier et que ça leur
+      // ouvre leur navigation gps. » Toujours 110 caractères au plus.
+      '<p class="page-sous">Touche la pastille pour la couleur, le pin pour le GPS des liens. Un chantier désactivé reste sur ses cases.</p>' +
       '<div class="liste-intervenants" id="listeChantiers"></div>' +
       '</div></div>';
   }

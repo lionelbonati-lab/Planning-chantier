@@ -3972,3 +3972,53 @@
   .barre-defilement-h.saisie { height: 8px; margin-top: -8px; }
   @media (hover: hover) and (pointer: fine) { .barre-defilement.visible:hover { opacity: .5; } }
   @media print { .barre-defilement { display: none !important; } }
+
+  /* ─── Emplacement d'un chantier (round du 21.10.2026, suite 145) ───
+     Lionel : « J'aimerai pouvoir ajouter une adresse, sur un chantier, afin
+     que mes ouvriers puisse cliquer sur le nom du chantier et que ça leur
+     ouvre leur navigation gps. » — saisie par « un pin sur une carte »
+     (js/carte-chantier.js, Réglages › Chantiers). Boîte centrée comme
+     .confirm-pop, au-dessus du voile (95) ; plein écran sur téléphone
+     (style-mobile.css). La carte (Leaflet) remplit .carte-cadre ; ses
+     volets (z-index jusqu'à 1000) restent dans .carte-zone, qui ouvre son
+     propre empilement : Plan / Photo et « Ma position » passent devant.
+     Le pin : plein, couleur d'accent, point blanc, ombre portée — lisible
+     sur le plan comme sur la photo aérienne. */
+  .btn-icone-ligne.a-emplacement { color: var(--accent); }
+  .pop.carte-pop {
+    z-index: 96; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: min(720px, calc(100vw - 24px)); height: min(640px, calc(100vh - 24px)); max-height: none;
+    overflow: hidden; padding: 12px; gap: 8px;
+  }
+  .carte-tete { display: flex; align-items: center; gap: 8px; }
+  .carte-pop .carte-tete .cp-titre { flex: 1; min-width: 0; font-size: 15px; color: var(--ink); padding: 0 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pop .carte-fermer { flex: none; width: 34px; height: 34px; padding: 0; background: none; border: none; display: inline-flex; align-items: center; justify-content: center; color: var(--ink-muted); }
+  .carte-recherche { display: flex; gap: 8px; }
+  .carte-texte { flex: 1; min-width: 0; font: inherit; font-size: 14px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); }
+  .pop .carte-chercher { flex: none; text-align: center; }
+  .carte-resultats { display: flex; flex-direction: column; gap: 4px; max-height: 160px; overflow-y: auto; flex: none; }
+  .pop .carte-resultats button { font-weight: 500; line-height: 1.35; }
+  .carte-cadre { position: relative; flex: 1; min-height: 200px; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); background: var(--surface); }
+  .carte-zone { position: absolute; inset: 0; z-index: 0; }
+  .carte-pop .leaflet-container { font: inherit; font-size: 11px; background: var(--surface); }
+  .carte-message { margin: 0; padding: 40px 16px; text-align: center; font-size: 13px; color: var(--ink-muted); }
+  .carte-couches { position: absolute; z-index: 1; top: 10px; right: 10px; display: flex; border-radius: 8px; box-shadow: 0 2px 6px var(--shadow); }
+  .pop .carte-couches button { padding: 6px 12px; text-align: center; border-radius: 8px 0 0 8px; }
+  .pop .carte-couches button + button { border-radius: 0 8px 8px 0; border-left: none; }
+  .pop .carte-couches button.actif { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  @media (hover: hover) and (pointer: fine) { .pop .carte-couches button.actif:hover { background: var(--accent); border-color: var(--accent); } }
+  .pop .carte-position { position: absolute; z-index: 1; right: 10px; bottom: 26px; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px var(--shadow); }
+  .carte-position svg { width: 15px; height: 15px; color: var(--accent); }
+  .pop .carte-position:disabled, .pop .carte-chercher:disabled { opacity: .55; cursor: progress; }
+  .carte-pin { color: var(--accent); filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .45)); }
+  .carte-pin svg { width: 34px; height: 34px; display: block; }
+  .carte-pin svg path { fill: currentColor; stroke: #ffffff; stroke-width: 1; }
+  .carte-pin svg circle { fill: #ffffff; stroke: none; }
+  .carte-aide { margin: 0; font-size: 12.5px; color: var(--ink-muted); padding: 0 2px; min-height: 1.4em; }
+  .carte-actions { display: flex; align-items: center; gap: 8px; }
+  .carte-espace { flex: 1; }
+  .pop .carte-actions button { text-align: center; min-width: 84px; }
+  .pop .carte-ok { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .pop .carte-ok:disabled { opacity: .45; cursor: default; }
+  @media (hover: hover) and (pointer: fine) { .pop .carte-ok:hover:not(:disabled) { background: var(--accent); border-color: var(--accent); filter: brightness(1.08); } }
+  @media (hover: hover) and (pointer: fine) { .pop .carte-ok:disabled:hover { background: var(--accent); border-color: var(--accent); } }

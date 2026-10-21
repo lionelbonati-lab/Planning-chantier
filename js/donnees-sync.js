@@ -371,7 +371,7 @@
       // .eq("actif", true) — contrairement à celle des personnes juste
       // au-dessus — pour que chantiersParId (juste en dessous) reste
       // complet, cf. commentaire de listerChantiersDepuisServeur plus bas.
-      sbClient.from("chantiers").select("id, nom, couleur, actif, ordre").order("ordre", { ascending: true }),
+      sbClient.from("chantiers").select("id, nom, couleur, actif, ordre, latitude, longitude").order("ordre", { ascending: true }),
       sbClient.from("statuts").select("id, cle, nom, couleur, ordre"),
       sbClient.from("feries").select("date, libelle, categorie"),
       // À part des 4 précédentes (cf. juste en dessous) : la table
@@ -435,7 +435,7 @@
       // .ligne = chantiers.id (Supabase) — identité utilisée par la page de
       // config "Chantiers" (CRUD direct, cf. section "CONFIG SIMPLE" plus
       // bas, étape 3 du §6bis).
-      etat.chantiers = chantiersBruts.map(function (c) { return { nom: c.nom, couleur: c.couleur, ligne: c.id, actif: c.actif !== false, ordre: c.ordre || 0 }; });
+      etat.chantiers = chantiersBruts.map(chantierDepuisLigne_);
       etat.chantierParNom = {};
       etat.chantiers.forEach(function (c) { etat.chantierParNom[c.nom] = c; });
       etat.palette = CHANTIER_PALETTE.slice();
@@ -737,10 +737,18 @@
   // seulement" se fait donc au cas par cas, côté appelant, là où c'est
   // pertinent (légende, select "Chantier" des formulaires, page de gestion) —
   // jamais ici.
+  // Une ligne de `chantiers` → l'objet de etat.chantiers. Suite 145 :
+  // lat / lng = emplacement du chantier (pin posé dans Réglages ›
+  // Chantiers, sql/0040), null sans emplacement.
+  function chantierDepuisLigne_(c) {
+    var aPin = c.latitude != null && c.longitude != null;
+    return { nom: c.nom, couleur: c.couleur, ligne: c.id, actif: c.actif !== false, ordre: c.ordre || 0,
+      lat: aPin ? c.latitude : null, lng: aPin ? c.longitude : null };
+  }
   function listerChantiersDepuisServeur() {
-    return sbClient.from("chantiers").select("id, nom, couleur, actif, ordre").order("ordre", { ascending: true }).then(function (res) {
+    return sbClient.from("chantiers").select("id, nom, couleur, actif, ordre, latitude, longitude").order("ordre", { ascending: true }).then(function (res) {
       if (res.error) throw res.error;
-      var liste = (res.data || []).map(function (c) { return { nom: c.nom, couleur: c.couleur, ligne: c.id, actif: c.actif !== false, ordre: c.ordre || 0 }; });
+      var liste = (res.data || []).map(chantierDepuisLigne_);
       // Re-tri explicite côté client — cf. commentaire identique sur
       // listerPersonnesGestionServeur.
       liste.sort(function (a, b) { return a.ordre - b.ordre; });
@@ -772,6 +780,13 @@
   }
   function majCouleurChantierServeur(id, couleur) {
     return sbClient.from("chantiers").update({ couleur: couleur }).eq("id", id).then(function (res) {
+      if (res.error) throw res.error;
+      return resultatChantiers_();
+    });
+  }
+  // Suite 145 : pin du chantier (null, null = sans emplacement).
+  function majEmplacementChantierServeur(id, lat, lng) {
+    return sbClient.from("chantiers").update({ latitude: lat, longitude: lng }).eq("id", id).then(function (res) {
       if (res.error) throw res.error;
       return resultatChantiers_();
     });

@@ -109,7 +109,9 @@ const choisirCouleur = (page, sel, hex, evt) => page.evaluate(([s, h, e]) => {
       const i = l.querySelector('.pastille-chantier'), r = i.getBoundingClientRect();
       return { type: i.type, valeur: i.value, taille: Math.round(r.width) + 'x' + Math.round(r.height), palette: !!l.querySelector('.lien-modifier'), boutons: [...l.querySelectorAll('.ligne-actions button')].map((b) => b.title).join() };
     });
-    verifier(ch.type === 'color' && ch.valeur === '#f7d9a8' && ch.taille === '34x34' && !ch.palette && ch.boutons === 'Renommer',
+    verifier(ch.type === 'color' && ch.valeur === '#f7d9a8' && ch.taille === '34x34' && !ch.palette &&
+      // Suite 145 : + le pin (emplacement du chantier, js/carte-chantier.js).
+      ch.boutons === 'Renommer,Emplacement',
       largeur + ' px, Chantiers : pastille = sélecteur de couleur (34 px à toucher), plus de bouton palette (' + JSON.stringify(ch) + ')');
     await choisirCouleur(page, '#page-chantiers .ligne-intervenant[data-ligne="1"] .pastille-chantier', '#a0c4ff', 'change');
     await page.waitForTimeout(400);

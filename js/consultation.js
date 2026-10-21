@@ -66,6 +66,12 @@
        dans « Mes demandes » (« Posée par le bureau », demi-journées qui se
        suivent regroupées), modifiables / annulables comme une absence
        acceptée (consultation_changer_absence_bureau).
+
+   Round du 21.10.2026 (suite 145). Lionel : « J'aimerai pouvoir ajouter
+   une adresse, sur un chantier, afin que mes ouvriers puisse cliquer sur
+   le nom du chantier et que ça leur ouvre leur navigation gps. » Le nom
+   d'un chantier qui a un pin (sql/0040, lat / lng) devient un bouton :
+   menu Google Maps / Waze / Plans (js/gps.js).
    ============================================================ */
 (function () {
   // Même projet et même clé publique que js/core.js (clé « anon », faite
@@ -143,7 +149,9 @@
     }
     var fond = couleurSure(t.couleur);
     var details = [];
-    if (t.chantier) details.push("<span>" + esc(t.chantier) + "</span>");
+    // Suite 145 : chantier avec un pin (sql/0040) → bouton vers le GPS
+    // (js/gps.js).
+    if (t.chantier) details.push("<span>" + htmlChantierGps(t.chantier, t.lat, t.lng) + "</span>");
     if (t.statut) details.push('<span class="statut"' + (couleurSure(t.couleur_statut) ? ' style="--cs:' + t.couleur_statut + '"' : "") + ">" + esc(t.statut) + "</span>");
     if (t.equipe) details.push("<span>Équipe " + esc(t.equipe) + "</span>");
     return '<div class="tache"' + (fond ? ' style="--c:' + fond + '"' : "") + ">" +
