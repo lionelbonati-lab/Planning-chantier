@@ -54,6 +54,9 @@
       // Icônes (suite 53) : « Renommer » sortait de l'écran d'un téléphone
       // (capture du 25.09.2026, « Renommer » coupé).
       boutonIconeLigne("lien-renommer", ICONS.pencil, "Renommer") +
+      // Suite 145 : emplacement (pin sur la carte, js/carte-chantier.js) ;
+      // bleu quand le pin est posé.
+      boutonIconeLigne("lien-emplacement" + (c.lat != null ? " a-emplacement" : ""), ICONS.pin, c.lat != null ? "Emplacement (posé)" : "Emplacement") +
       '</span></div>';
   }
   // ↑/↓ chantiers — même schéma qu'echangerOrdrePersonnes (2 updates
@@ -116,6 +119,12 @@
       btn.addEventListener("click", function () {
         var c = chantierDeLigne(btn);
         if (c) ouvrirRenommerChantier(c);
+      });
+    });
+    zone.querySelectorAll(".lien-emplacement").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var c = chantierDeLigne(btn);
+        if (c) ouvrirEmplacementChantier(c);
       });
     });
     zone.querySelectorAll(".lien-reactiver").forEach(function (btn) {

@@ -20,6 +20,8 @@
      (sql/0020_demandes_absence.sql), que Lionel valide dans son planning.
      Suite 83 : barre du bas (demande + cloche), modifier / retirer /
      annuler ses demandes (sql/0021_demandes_absence_modifier.sql).
+     Suite 145 (21.10.2026) : le nom d'un chantier qui a un pin ouvre le
+     GPS au choix (js/gps.js, sql/0040_chantiers_emplacement.sql).
      ============================================================ -->
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
@@ -227,6 +229,7 @@
   <div class="feuille-corps" id="feuilleCorps"></div>
 </section>
 <script src="js/rotation.js"></script>
+<script src="js/gps.js"></script>
 <script src="js/consultation.js"></script>
 </body>
 </html>

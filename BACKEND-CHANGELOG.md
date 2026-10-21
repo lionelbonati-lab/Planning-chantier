@@ -2181,3 +2181,17 @@ Fichier : sql/0039_responsable_sans_equipes.sql (à appliquer dans l'éditeur SQ
   - taches : celles des personnes affichées (actives, non masquées, hors équipes), plus chaque tâche d'équipe recopiée sur chaque membre de la demi-journée (equipe_membre_, sql/0032), sauf sous une absence complète du membre (absence_partielle_, sql/0031) — mêmes règles que la vue ouvrier. Dans une case : les tâches de la personne d'abord.
 - Vérifié sur le projet (lecture seule) avec la semaine du 05.10.2026 : 10 lignes sans équipe ; « Maçonnerie à l'étage » sur Lionel, Mathis, François, Antoine (et le Stagiaire les jours où il est dans l'équipe) ; rien sous l'absence d'Antoine lundi après-midi ni sous les absences de vendredi.
 
+---
+
+## 43. Round du 21.10.2026 (suite 145) — emplacement des chantiers
+
+Lionel : « J'aimerai pouvoir ajouter une adresse, sur un chantier, afin que mes ouvriers puisse cliquer sur le nom du chantier et que ça leur ouvre leur navigation gps. » Ses choix : appli GPS « Au choix (Recommandé) » ; où cliquer : « Lien des ouvriers,Lien responsable » ; saisie : « un pin sur une carte ».
+
+Fichier : sql/0040_chantiers_emplacement.sql (à appliquer dans l'éditeur SQL de Supabase, comme la 0038 et la 0039).
+
+- chantiers : colonnes latitude et longitude (double precision, degrés WGS 84), contrainte chantiers_emplacement_valide : les deux vides ou les deux remplies, latitude entre -90 et 90, longitude entre -180 et 180. Écrites par l'appli (pin posé dans Réglages › Chantiers) ; les sauvegardes les prennent sans changement (to_jsonb / jsonb_populate_recordset).
+- consultation_planning (version 0034) : « lat » / « lng » du chantier avec chaque tâche.
+- consultation_responsable (version 0039) : « lat » / « lng » du chantier avec chaque tâche, jalon et note.
+- Signatures, droits (anon, authenticated), bornes et le reste des réponses inchangés.
+- Vérifié sur le projet dans une transaction annulée : 40 tâches côté responsable, dont 20 avec un pin ; 8 tâches côté ouvrier, toutes avec le pin de leur chantier ; rien n'est resté en base.
+

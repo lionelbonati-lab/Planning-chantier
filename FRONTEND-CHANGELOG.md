@@ -11350,3 +11350,29 @@ Lionel : « la vue planing me conviens mais j'aimerais qu'il ne vois pas les eq
 - `tests/test_suite144.js` (nouveau, 8 vérifications) : sql/0039 (ni équipe ni membres, tâche d'équipe recopiée sur le membre de la demi-journée, cachée sous une absence complète) ; page : une ligne par personne, aucun nom d'équipe, tâche d'équipe dans la ligne de chaque membre après ses propres tâches, ancienne réponse sans ligne d'équipe ; aucune erreur JS.
 - `tests/test_suite143.js` : réponse simulée au format de sql/0039 (la tâche d'équipe sur Marco), ordre des lignes sans équipe.
 
+
+## 258. Round du 21.10.2026 (suite 145) — Emplacement des chantiers et itinéraire GPS
+
+Lionel : « J'aimerai pouvoir ajouter une adresse, sur un chantier, afin que mes ouvriers puisse cliquer sur le nom du chantier et que ça leur ouvre leur navigation gps. » Ses choix : appli GPS « Au choix (Recommandé) » ; où cliquer : « Lien des ouvriers,Lien responsable » ; saisie : « un pin sur une carte ».
+
+- `js/carte-chantier.js` (nouveau) : Réglages › Chantiers, bouton pin de chaque chantier (bleu quand le pin est posé) → boîte « Emplacement — nom ».
+  - Carte Leaflet 1.9.4, copiée dans `js/vendor/leaflet/` (licence BSD-2 jointe) et chargée seulement à la première ouverture. Fonds « Plan » (OpenStreetMap) et « Photo » (photo aérienne swisstopo), choix gardé par l'appareil.
+  - Toucher la carte pose le pin ; on le glisse pour l'ajuster. « Chercher » : une adresse ou un lieu (OpenStreetMap / Nominatim, une recherche par appui ; plusieurs résultats → liste à toucher) ou des coordonnées collées (« 46.5197, 6.6323 », virgule décimale acceptée). « Ma position » : le pin là où se trouve le téléphone.
+  - « Retirer le pin », « Annuler », « Enregistrer » (grisé tant que rien n'a changé) ; Échap ferme. Vue de départ : le pin, sinon les chantiers déjà placés, sinon la Suisse.
+  - Enregistré dans `chantiers.latitude / longitude` (6 décimales), message « Emplacement de « nom » enregistré. » / « Pin de « nom » retiré. ».
+- `js/donnees-sync.js` : les chantiers sont lus avec `latitude, longitude` (`lat` / `lng` dans `etat.chantiers`) ; `majEmplacementChantierServeur`.
+- `js/page-chantiers.js` : bouton pin ; `js/core.js` : icône `pin` ; `js/coquille.js` : description de la page (110 caractères au plus) ; `index.html` : script chargé.
+- `style.css` : boîte de la carte (centrée comme les confirmations, boutons Plan / Photo et « Ma position » posés sur la carte, pin plein à la couleur d'accent) ; `style-mobile.css` : plein écran sur téléphone.
+- `js/gps.js` (nouveau), chargé par `consultation.html` et `responsable.html` : le nom d'un chantier qui a un pin devient un bouton souligné avec une petite icône pin (tâches de l'ouvrier ; tâches, jalons et notes du responsable). Il ouvre « Itinéraire vers « nom » » : Google Maps, Waze, Plans (iPhone, iPad et Mac seulement), Annuler — feuille en bas sur téléphone, boîte centrée sur ordinateur. Chaque lien ouvre l'appli (ou son site) sur le trajet en voiture jusqu'au pin. Échap, le fond ou un lien touché referment le menu ; sous le menu, les flèches ne changent pas la semaine.
+- `js/consultation.js`, `js/responsable.js` : branchement de `htmlChantierGps`. Sans pin, le chantier s'affiche comme avant.
+- À mettre en ligne seulement après sql/0040 (l'appli lit les nouvelles colonnes).
+
+### Tests
+
+- `tests/test_suite145.js` (nouveau, 26 vérifications). Leaflet servi depuis le dépôt ; tuiles et Nominatim simulés.
+  - sql/0040 : colonnes, contrainte, `lat` / `lng` dans les deux fonctions, droits, responsable toujours sans équipes.
+  - Réglages › Chantiers : bouton pin ; poser, glisser, rechercher (liste, aucun résultat), coordonnées collées, fond Photo gardé, Enregistrer, carte centrée sur un pin existant, Retirer le pin, Échap / Annuler sans écriture ; plein écran sur téléphone.
+  - Liens : bouton seulement avec un pin, textes inchangés ; liens Google Maps / Waze (+ Plans sur iPhone) ; feuille en bas sur téléphone, centrée sur ordinateur ; fermeture ; flèches bloquées sous le menu ; aucune erreur JS.
+- `tests/test_suite54.js` : les boutons d'un chantier sont « Renommer, Emplacement ».
+- Suite complète : 148/148.
+

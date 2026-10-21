@@ -252,6 +252,9 @@
     // Notifications (round du 27.09.2026, suite 81) : une cloche, à la
     // place du signet « À réserver » dans la barre.
     cloche: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M5 14.5V9a5 5 0 0 1 10 0v5.5l1.3 1.5H3.7L5 14.5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8.2 16.5a1.9 1.9 0 0 0 3.6 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M10 2.3V4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    // Round du 21.10.2026 (suite 145) : emplacement d'un chantier (pin sur
+    // une carte, js/carte-chantier.js).
+    pin: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M10 18s5.5-5.6 5.5-10a5.5 5.5 0 0 0-11 0c0 4.4 5.5 10 5.5 10z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="10" cy="8" r="2" stroke="currentColor" stroke-width="1.5"/></svg>',
     star: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M10 2.5l2.2 4.6 5 .7-3.6 3.6.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.6 5-.7L10 2.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>',
     bolt: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M11 2 4 11.5h5L8.5 18 16 8h-5.5L11 2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"/></svg>',
     // §85 (round du 17.09.2026) — Lionel, mockup mockup-sous-menu-outils.html
