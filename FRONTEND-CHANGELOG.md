@@ -11450,5 +11450,5 @@ Lionel : « J'aimerai pouvoir trier ma liste de machines et grouper par catégo
   - page Machines : blocs, « Autres » sans poignée ni action, plus de ↑/↓ ; glisser par la poignée, par la ligne entière, dans une catégorie vide, au doigt (poignée seulement), une catégorie ; rangs écrits dans l'ordre affiché ; « + Catégorie », renommer, « + » dans une catégorie, supprimer ; page Transports ;
   - table des catégories en échec : menu et page à plat ; téléphone : sous-menu dans l'écran, toucher à nouveau le referme ; aucune erreur JS.
 - `tests/test_suite135.js` : l'élément est descendu en le glissant par sa poignée (plus de ↓).
-- Suite complète : X/X.
+- Suite complète : 151/151.
 
