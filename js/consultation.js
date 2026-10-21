@@ -26,8 +26,8 @@
    (personnel seulement : ni intervenant ni équipe, peut_demander) :
    « Demander une absence » ouvre un petit formulaire — type (entrées
    rapides d'absence de l'appli, sinon Congé / Vacances / Maladie ; round
-   du 01.10.2026 (suite 133), Lionel : « Typed demande d'absence:
-   Absence, congé » → exactement Absence / Congé, sql/0034), du …
+   du 01.10.2026 (suite 133), Lionel : « Typed demande d'absence:
+   Absence, congé » → exactement Absence / Congé, sql/0034), du …
    (matin / après-midi) au … (matin / après-midi), motif (suite 80 ; avant
    « remarque ») —, envoyé par
    consultation_demander_absence (sql/0020). Rien n'est écrit dans le
@@ -67,11 +67,19 @@
        suivent regroupées), modifiables / annulables comme une absence
        acceptée (consultation_changer_absence_bureau).
 
-   Round du 21.10.2026 (suite 145). Lionel : « J'aimerai pouvoir ajouter
+   Round du 21.10.2026 (suite 145). Lionel : « J'aimerai pouvoir ajouter
    une adresse, sur un chantier, afin que mes ouvriers puisse cliquer sur
-   le nom du chantier et que ça leur ouvre leur navigation gps. » Le nom
+   le nom du chantier et que ça leur ouvre leur navigation gps. » Le nom
    d'un chantier qui a un pin (sql/0040, lat / lng) devient un bouton :
    menu Google Maps / Waze / Plans (js/gps.js).
+
+   Round du 21.10.2026 (suite 147). Lionel : « J'aimerais pouvoir rajouter
+   des détails à mes tâches J'aimerais pouvoir leur joindre des fichiers,
+   photos ou PDF. », visibles aussi sur ce lien. Une tâche qui en a montre
+   le bouton « Détails · 2 fichiers » : fiche avec le texte, les photos et
+   les PDF (js/details-lien.js, sql/0041). Puis : « qu'il soit visible dans
+   la vue ouvrière en cliquant sur la tâche. » — toucher la tâche n'importe
+   où ouvre aussi la fiche (sauf le bouton GPS du chantier).
    ============================================================ */
 (function () {
   // Même projet et même clé publique que js/core.js (clé « anon », faite
@@ -154,7 +162,13 @@
     if (t.chantier) details.push("<span>" + htmlChantierGps(t.chantier, t.lat, t.lng) + "</span>");
     if (t.statut) details.push('<span class="statut"' + (couleurSure(t.couleur_statut) ? ' style="--cs:' + t.couleur_statut + '"' : "") + ">" + esc(t.statut) + "</span>");
     if (t.equipe) details.push("<span>Équipe " + esc(t.equipe) + "</span>");
-    return '<div class="tache"' + (fond ? ' style="--c:' + fond + '"' : "") + ">" +
+    // Suite 147 : détails et fichiers joints (js/details-lien.js). Lionel :
+    // « qu'il soit visible dans la vue ouvrière en cliquant sur la tâche. »
+    // — toute la tâche ouvre la fiche (data-fiche-tache), pas seulement le
+    // bouton.
+    var joint = htmlDetailsTache(t);
+    if (joint) details.push("<span>" + joint + "</span>");
+    return '<div class="tache"' + (joint ? " data-fiche-tache" : "") + (fond ? ' style="--c:' + fond + '"' : "") + ">" +
       '<div class="texte">' + (t.important ? '<span class="important" title="Important">⚑ </span>' : "") + esc(t.texte || "(sans texte)") + "</div>" +
       (details.length ? '<div class="details">' + details.join("") + "</div>" : "") + "</div>";
   }
@@ -564,7 +578,7 @@
   function ouvrirFormulaire(q, mode) {
     var d = donnees, retour = feuilleOuverte === "demandes";
     // Suite 133 : le serveur envoie ["Absence", "Congé"] (sql/0034) ; même
-    // liste par défaut. Le type d'une demande plus ancienne (« Vacances »…)
+    // liste par défaut. Le type d'une demande plus ancienne (« Vacances »…)
     // reste ajouté à la liste ci-dessous pour la modifier sans le perdre.
     var motifs = (d.motifs && d.motifs.length ? d.motifs : ["Absence", "Congé"]).slice();
     var bloc = mode === "bureau" ? q : null;
@@ -607,7 +621,7 @@
       (accepteeModifiee ? '<p class="fa-origine">' + (bloc ? "Absence posée par le bureau : " : estSerie(q) ? "Série acceptée : " : "Absence acceptée : ") +
         esc(texteDemande(q)) + " — " + esc(libelleDemande(bloc ? bloc : q)) + "</p>" : "") + (avecPortee ? htmlPortee(q) : "") +
       // Suite 80 — Lionel : « Motif à la place de remarque. » Le choix
-      // Absence / Congé (suite 133) devient le « Type » ; le texte libre, le
+      // Absence / Congé (suite 133) devient le « Type » ; le texte libre, le
       // « Motif » (id et colonne `remarque` inchangés). Bulle posée à
       // l'acceptation : « Congé - Motif » (texteDemandeAbsence, appli).
       '<label>Type<select id="faMotif">' + motifs.map(function (m) { return "<option" + (m === v.motif ? " selected" : "") + ">" + esc(m) + "</option>"; }).join("") + "</select></label>" +
@@ -820,6 +834,7 @@
     if (Math.abs(dx) >= 60 && Math.abs(dx) > 2 * Math.abs(dy)) changerSemaine(dx < 0 ? 1 : -1);
   }, { passive: true });
 
+  configurerDetailsLien({ page: "consultation", jeton: jeton, url: SUPABASE_URL, cle: SUPABASE_ANON_KEY, lundi: function () { return donnees && donnees.lundi; } });
   if (!/^[0-9a-f]{32}$/i.test(jeton || "")) {
     ["btnPrecedente", "btnSuivante", "btnAujourdhui"].forEach(function (id) { document.getElementById(id).disabled = true; });
     document.getElementById("titreSemaine").textContent = "";

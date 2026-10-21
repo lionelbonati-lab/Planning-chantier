@@ -11401,3 +11401,33 @@ Lionel : « Ajoute moi une icône sur la vue ouvrier et responsables pour insta
   - servi en http (profil Chrome réel) : `sw-liens.js` à la portée de chaque page, manifestes sans erreur, page installable (`Page.getInstallabilityErrors` vide), vraie fenêtre « Installer » reçue, hors ligne « Planning inaccessible », planning jamais gardé ; aucune erreur JS.
 - Suite complète : 149/149.
 
+
+## 260. Round du 21.10.2026 (suite 147) — Détails et fichiers joints des tâches
+
+Lionel : « J'aimerais pouvoir rajouter des détails à mes tâches
+J'aimerais pouvoir leur joindre des fichiers, photos ou PDF. » Ses choix : « Dans la fiche (Recommandé) » ; visibles sur « Lien des ouvriers,Lien responsable » ; ajout « Seulement toi (Recommandé) » ; photos « Originales ». Puis : « qu'il soit visible dans la vue ouvrière en cliquant sur la tâche. »
+
+- `js/pieces-jointes.js` (nouveau, chargé après `formulaires-communs.js`) : fiche d'une tâche (pas d'une absence), sous le descriptif :
+  - « Détails » : texte sur plusieurs lignes ; éditeur « Modifier les détails » plus haut, Entrée va à la ligne, Ctrl/Cmd+Entrée enregistre (`cablerDescriptifEdit` prend des options : sélecteur, titre, texte long) ;
+  - « Fichiers » : « Joindre » (plusieurs à la fois), liste avec aperçu (vignette d'une photo, icône marquée PDF), nom, taille, lien qui ouvre l'original (adresse signée 1 heure, nouvel onglet), « Retirer » ;
+  - envoi au dossier privé `pieces` de Supabase Storage : l'original tel quel (`fichiers/<id>/<nom sans accents>`), et pour une photo une vignette JPEG de 360 px faite sur l'appareil (`vignettes/<id>.jpg`) ; plus de 50 Mo → refusé avec un message ; échec → message ; tant qu'un envoi n'est pas fini, « Enregistrer » garde la fiche ouverte (« Envoi des fichiers en cours… ») ;
+  - un fichier retiré n'est pas effacé tout de suite (Annuler, les copies et les sauvegardes le citent encore) : `nettoyerPiecesOrphelines_`, 20 s après l'ouverture et une fois par jour au plus, efface ceux que plus rien ne cite depuis 7 jours (`pieces_orphelines()`, sql/0041) ; silencieux en cas d'échec.
+- Bulle : petite icône devant le texte (trombone, ou lignes pour des détails seuls), « détails, 2 fichiers » au survol.
+- Données (`js/donnees-sync.js`) : `details` et `pieces` portés par chaque ligne demi-journée, comme le texte. Forme fixe des fichiers (`normaliserPieces_`) : rien d'écrit au chargement. Deux demi-journées voisines aux détails ou fichiers différents restent 2 bulles. Écriture par `remplacer_case_personne` ; le secours (insertion directe) et l'écriture hors de la semaine affichée n'envoient ces colonnes que s'il y en a.
+- Copier, coller, glisser une copie : détails et fichiers suivent, dans un tableau à part (un tableau de fichiers n'est jamais modifié sur place).
+- Séries (`js/series.js`, `creerSerieServeur`) : détails et fichiers changés dans la fiche = une modification, avec la même portée que le texte ; une série créée avec des détails ou des fichiers les reçoit sur toutes ses lignes juste après `enregistrer-serie` (inchangée).
+- Hors ligne (`js/hors-ligne.js`) : copie locale et comparaison avant envoi avec détails et fichiers ; un changement mis en file avant cette version (6 valeurs par ligne) est comparé sur ses 6 premières.
+- Liens (`js/details-lien.js`, nouveau, partagé par `consultation.html` et `responsable.html`) : bouton « Détails · 2 fichiers » sur la tâche ; fiche avec le texte, les détails et les fichiers (vignette, nom, taille, original dans un nouvel onglet), feuille du bas sur téléphone, boîte centrée sur ordinateur ; Échap, « Fermer » ou le fond la ferment, les flèches ne changent pas la semaine dessous. Adresses demandées à la fonction serveur `pieces-lien` (jeton, page, semaine affichée), gardées 1 heure ; en panne → « Fichiers inaccessibles ». Vue ouvrier : toucher la tâche n'importe où ouvre aussi la fiche (sauf le bouton GPS du chantier). Lien responsable : deux demi-journées aux fichiers différents restent 2 bulles.
+- Corrigé en cours de route : la fiche des jalons et des notes ne reçoit pas la section (elle n'en a pas).
+
+### Tests
+
+- `tests/test_suite147.js` (nouveau, 59 vérifications) :
+  - fonction `pieces-lien` : demandes refusées (messages), demande valide, fichiers visibles = ceux des tâches de la semaine, vignettes comprises ; `index.ts` (clé de service lue sur le serveur seulement, 1 heure, 403 si le lien n'existe plus) ; sql/0041 ;
+  - appli : rien d'écrit au chargement, icônes des bulles, fiche (liens signés, vignette, PDF, tailles), éditeur des détails, retirer, joindre (original + vignette, nom sans accents), enregistrement par demi-journée, Annuler, envoi en cours, échec, plus de 50 Mo, absence sans section ;
+  - copier / coller, séries (modification, « Tous les événements », série créée), hors ligne, secours sans `remplacer_case_personne`, nettoyage une fois par jour ;
+  - liens : bouton, tâche entière touchable (pas le bouton GPS, pas une tâche sans détails), fiche, demande à `pieces-lien`, cache, panne, téléphone / ordinateur, responsable (2 bulles, flèches bloquées) ; ordre des scripts.
+- `tests/aide_tests.js` : faux Supabase avec `details` / `pieces` dans `remplacer_case_personne`, `pieces_orphelines`, réponse d'`enregistrer-serie` au choix du test, dossier de fichiers (envoi, adresses signées, suppression).
+- `tests/test_chargement.js` : extrait aussi `detailsTexte_` et `normaliserPieces_` ; chaque tâche chargée porte `details: null, pieces: []`.
+- Suite complète : 150/150.
+

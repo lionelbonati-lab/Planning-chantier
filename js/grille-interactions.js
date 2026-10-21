@@ -1259,7 +1259,7 @@
           // bulle démarrant/finissant en demi-journée par glissement
           // (Maj+glisser) donnait une copie en journée entière — la
           // demi-journée de l'originale disparaissait en silence.
-          if (plage.liste === TACHES) plage.liste.push(itemPlageTache(it.type, it.texte, personneApresDecalage_(it, plage.liste), ni, it.duree, { important: it.important, chantier: it.chantier, statut: it.statut, demiDebut: it.demiDebut, demiFin: it.demiFin }));
+          if (plage.liste === TACHES) plage.liste.push(itemPlageTache(it.type, it.texte, personneApresDecalage_(it, plage.liste), ni, it.duree, { important: it.important, chantier: it.chantier, statut: it.statut, details: it.details, pieces: it.pieces, demiDebut: it.demiDebut, demiFin: it.demiFin }));
           else plage.liste.push(itemPlage(it.type, it.texte, ni, it.duree, { important: it.important, chantierId: it.chantierId, demiDebut: it.demiDebut, demiFin: it.demiFin }));
         } else {
           it.personneId = personneApresDecalage_(it, plage.liste); // suite 121
@@ -1306,7 +1306,7 @@
         var it = plage.item;
         var f = formeDecaleeDemis(it, dh);
         if (copieFinale) {
-          if (plage.liste === TACHES) plage.liste.push(itemPlageTache(it.type, it.texte, personneApresDecalage_(it, plage.liste), f.giDebut, f.duree, { important: it.important, chantier: it.chantier, statut: it.statut, demiDebut: f.demiDebut, demiFin: f.demiFin }));
+          if (plage.liste === TACHES) plage.liste.push(itemPlageTache(it.type, it.texte, personneApresDecalage_(it, plage.liste), f.giDebut, f.duree, { important: it.important, chantier: it.chantier, statut: it.statut, details: it.details, pieces: it.pieces, demiDebut: f.demiDebut, demiFin: f.demiFin }));
           else plage.liste.push(itemPlage(it.type, it.texte, f.giDebut, f.duree, { important: it.important, chantierId: it.chantierId, demiDebut: f.demiDebut, demiFin: f.demiFin }));
         } else {
           it.personneId = personneApresDecalage_(it, plage.liste); // suite 121
@@ -1361,7 +1361,7 @@
       if (!plage) { quitterModeSelection(); render(false); return; }
       var it = plage.item;
       if (copieFinale) {
-        plage.liste.push(itemPlageTache(it.type, it.texte, cible.personneId, cible.giDebut, cible.duree, { important: it.important, chantier: it.chantier, statut: it.statut, demiDebut: cible.demiDebut, demiFin: cible.demiFin }));
+        plage.liste.push(itemPlageTache(it.type, it.texte, cible.personneId, cible.giDebut, cible.duree, { important: it.important, chantier: it.chantier, statut: it.statut, details: it.details, pieces: it.pieces, demiDebut: cible.demiDebut, demiFin: cible.demiFin }));
       } else {
         it.personneId = cible.personneId; it.giDebut = cible.giDebut; it.duree = cible.duree;
         it.demiDebut = cible.demiDebut; it.demiFin = cible.demiFin;

@@ -2195,3 +2195,18 @@ Fichier : sql/0040_chantiers_emplacement.sql (à appliquer dans l'éditeur SQL d
 - Signatures, droits (anon, authenticated), bornes et le reste des réponses inchangés.
 - Vérifié sur le projet dans une transaction annulée : 40 tâches côté responsable, dont 20 avec un pin ; 8 tâches côté ouvrier, toutes avec le pin de leur chantier ; rien n'est resté en base.
 
+---
+
+## 44. Round du 21.10.2026 (suite 147) — détails et fichiers joints des tâches
+
+Lionel : « J'aimerais pouvoir rajouter des détails à mes tâches
+J'aimerais pouvoir leur joindre des fichiers, photos ou PDF. » Ses choix : « Dans la fiche (Recommandé) » ; visibles sur « Lien des ouvriers,Lien responsable » ; ajout « Seulement toi (Recommandé) » ; photos « Originales ».
+
+Fichier : sql/0041_taches_details_pieces.sql (à appliquer dans l'éditeur SQL de Supabase, comme la 0040), functions/pieces-lien/ (fonction serveur, déployée).
+
+- taches : colonnes details (texte) et pieces (jsonb, tableau, '[]' par défaut) ; chaque fichier : { chemin, nom, type, taille, vignette }.
+- Dossier privé « pieces » de Supabase Storage, 50 Mo par fichier ; lecture, ajout et suppression pour les seuls utilisateurs connectés.
+- remplacer_case_personne : écrit aussi details et pieces de chaque ligne.
+- consultation_planning et consultation_responsable : « details » et « pieces » avec chaque tâche.
+- pieces_orphelines() : fichiers du dossier que plus aucune tâche ni sauvegarde ne cite, envoyés depuis plus de 7 jours (connectés seulement).
+- pieces-lien : les liens anonymes demandent { jeton, page, lundi, chemins } ; le jeton est vérifié en relisant la semaine par la même fonction que la page (clé publique) ; seuls les fichiers (et vignettes) des tâches que ce lien affiche cette semaine-là sont signés, pour 1 heure, avec la clé de service lue sur le serveur et jamais renvoyée. Lien supprimé → 403.

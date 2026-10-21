@@ -1616,6 +1616,11 @@
     display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin: 0 5px 1px 0; vertical-align: middle;
     box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .85), 0 0 0 2px rgba(0, 0, 0, .25);
   }
+  /* Détails / fichiers joints (round du 21.10.2026, suite 147 — Lionel :
+     « Dans la fiche ») : petite icône devant le texte de la bulle, de la
+     couleur du texte (trombone, ou lignes pour des détails seuls). */
+  .b-joint { display: inline-block; margin: 0 4px 0 0; vertical-align: -1px; opacity: .8; }
+  .b-joint svg { display: block; width: 11px; height: 11px; }
   /* Même pastille dans les fiches jalon/note (devant le choix du chantier)
      et dans les listes des pages Jalons/Notes (après le nom). */
   .pastille-chantier-fiche, .pastille-chantier-liste {
@@ -2114,6 +2119,40 @@
     text-align: left; font-family: inherit; white-space: pre-wrap; word-break: break-word; min-height: 1.45em;
   }
   .carte-item .descriptif-texte:empty::before { content: attr(data-placeholder); color: var(--ink-faint); }
+  /* Détails et fichiers joints de la fiche tâche (suite 147, js/pieces-jointes.js). */
+  .carte-item .pj-titre { margin: 10px 0 0; }
+  .carte-item .details-texte {
+    font-size: 13.5px; line-height: 1.45; color: var(--ink); cursor: pointer; white-space: pre-wrap; word-break: break-word;
+    min-height: 1.45em; max-height: 8.7em; overflow-y: auto;
+  }
+  .carte-item .details-texte:empty::before { content: attr(data-placeholder); color: var(--ink-faint); }
+  .carte-item .pj-entete { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+  .carte-item .pj-entete .label-champ { margin: 0; }
+  .carte-item .pj-ajouter {
+    display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--ink-muted); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
+  }
+  .carte-item .pj-ajouter svg { width: 14px; height: 14px; }
+  @media (hover: hover) and (pointer: fine) { .carte-item .pj-ajouter:hover { color: var(--accent); border-color: var(--accent); } }
+  .carte-item .pj-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+  .carte-item .pj-item { display: flex; align-items: center; gap: 6px; }
+  .carte-item .pj-lien { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 3px; border-radius: 8px; color: var(--ink); text-decoration: none; }
+  @media (hover: hover) and (pointer: fine) { .carte-item a.pj-lien:hover { background: var(--surface-2); } }
+  .pj-apercu {
+    flex: none; position: relative; width: 36px; height: 36px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface-2);
+    color: var(--ink-muted); display: grid; place-items: center; overflow: hidden;
+  }
+  .pj-apercu svg { width: 18px; height: 18px; }
+  .pj-apercu b { position: absolute; left: 0; right: 0; bottom: 1px; text-align: center; font-size: 8px; font-weight: 800; color: var(--important-ink); }
+  .pj-apercu img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .pj-nom { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pj-taille { flex: none; font-size: 11px; color: var(--ink-faint); }
+  .carte-item .pj-retirer {
+    flex: none; width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface); padding: 0;
+    color: var(--ink-muted); display: grid; place-items: center; cursor: pointer;
+  }
+  .carte-item .pj-retirer svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .carte-item .pj-envoi { opacity: .6; }
 
   .carte-item .lien-plus {
     display: flex; align-items: center; justify-content: center; gap: 5px; padding: 7px 16px;
@@ -2159,6 +2198,7 @@
     font: inherit; font-size: 13px; padding: 10px; border-radius: 8px; border: 1px solid var(--border);
     background: var(--surface); color: var(--ink); width: 100%; height: 80px; resize: none;
   }
+  .desc-edit-box textarea.desc-long { height: 180px; }
   .desc-edit-box .popup-pied { display: flex; justify-content: flex-end; }
   .desc-edit-box .popup-valider {
     display: inline-flex; align-items: center; gap: 7px; padding: 9px 16px; border-radius: 9px; border: 1px solid var(--accent);

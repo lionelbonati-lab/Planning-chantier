@@ -305,6 +305,10 @@
       // aussi (null) — la condition `&& ap.chantier` l'ignorait sans rien
       // dire, l'occurrence gardait son ancien chantier.
       if ((ap.chantier || null) !== (av.chantier || null)) m.chantier_id = chantierIdDeNom_(ap.chantier);
+      // Détails et fichiers joints (round du 21.10.2026, suite 147,
+      // js/pieces-jointes.js) : même portée que le texte.
+      if (detailsTexte_(ap.details) !== detailsTexte_(av.details)) m.details = detailsTexte_(ap.details);
+      if (clePieces_(ap.pieces) !== clePieces_(av.pieces)) m.pieces = normaliserPieces_(ap.pieces);
     } else if ((ap.chantierId || null) !== (av.chantierId || null)) {
       // Jalon ou note (round du 29.09.2026, suite 122) : chantier choisi
       // dans le formulaire, porté par l'id (pastille de la bulle).

@@ -2272,8 +2272,12 @@
     // portant tout le VISUEL (fond, coins arrondis, ombre — cf. son
     // commentaire CSS pour le bug Chromium que ça contourne). .bulle reste
     // l'item de grille "brut", jamais habillé ni sticky lui-même.
+    // Détails / fichiers joints (round du 21.10.2026, suite 147 — Lionel :
+    // « Dans la fiche ») : la bulle garde son texte court, précédé d'une
+    // petite icône (trombone, ou lignes pour des détails seuls).
+    var joint = it.type === "tache" || it.type === "absence" ? iconeJointBulle_(it) : "";
     var html = '<span class="poignee poignee-g" data-poignee="gauche"></span><span class="poignee poignee-d" data-poignee="droite"></span>' +
-      '<div class="b-carte"><span class="b-txt">' + (chJalon ? '<span class="b-pastille" style="background:' + chJalon.couleur + '"></span>' : '') + esc(it.texte) + '</span>';
+      '<div class="b-carte"><span class="b-txt">' + (chJalon ? '<span class="b-pastille" style="background:' + chJalon.couleur + '"></span>' : '') + joint + esc(it.texte) + '</span>';
     if (it.statut && STATUTS[it.statut]) html += '<span class="b-statut" style="background:' + STATUTS[it.statut].couleur + '"><span class="dot"></span>' + esc(STATUTS[it.statut].nom) + '</span>';
     if (it.serieId) html += '<span class="b-serie" title="Fait partie d\'une série">↻ série</span>';
     html += '</div>';
@@ -2282,7 +2286,7 @@
     carte.style.background = bg;
     // Vue « 1 jour » du téléphone (suite 91) : une carte par jour couvert,
     // posées après le rendu (decouperBullesJourMobile_, construireGrille).
-    el.title = (tag ? tag + " — " : "") + it.texte;
+    el.title = (tag ? tag + " — " : "") + it.texte + (joint ? " — " + libelleJoint_(it) : "");
     el.addEventListener("pointerdown", onPointerDownBulle);
     cablerPoigneeRedim(el.querySelector('[data-poignee="gauche"]'), el, it, "gauche");
     cablerPoigneeRedim(el.querySelector('[data-poignee="droite"]'), el, it, "droite");

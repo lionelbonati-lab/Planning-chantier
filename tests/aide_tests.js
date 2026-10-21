@@ -124,8 +124,16 @@ const FAUX_SUPABASE = LOGIQUE_PLAGE + '\n(' + function () {
           BD.assignations = BD.assignations.filter(garde);
           (a.p_lignes || []).forEach(function (l, i) {
             BD.taches.push({ id: prochainId++, personne_id: a.p_personne_id, date: a.p_date, demi: a.p_demi, ordre: i, texte: l.texte, statut_id: l.statut_id || null,
-              important: !!l.important, serie_id: l.serie_id || null, est_absence: !!l.est_absence, chantier_id: l.chantier_id || null });
+              important: !!l.important, serie_id: l.serie_id || null, est_absence: !!l.est_absence, chantier_id: l.chantier_id || null,
+              details: l.details || null, pieces: Array.isArray(l.pieces) ? l.pieces : [] });
           });
+        }
+        // pieces_orphelines (sql/0041, suite 147) : liste window.__ORPHELINES ;
+        // appels comptés à part (le nettoyage part 20 s après l'ouverture,
+        // il ne doit pas compter dans le journal des écritures des autres tests).
+        if (nom === 'pieces_orphelines') {
+          window.__ORPHELINES_APPELS = (window.__ORPHELINES_APPELS || 0) + 1;
+          return Promise.resolve({ data: (window.__ORPHELINES || []).slice(), error: null });
         }
         // remplacer_compositions_equipes (sql/0015, suite 33) : tous les
         // instantanés des équipes données sont remplacés par les lignes.
@@ -171,9 +179,38 @@ const FAUX_SUPABASE = LOGIQUE_PLAGE + '\n(' + function () {
             else BD[t].push(Object.assign({ id: prochainId++, serie_id: null }, v));
           });
         }
+        // enregistrer-serie : réponse choisie par le test (window.__REPONSE_SERIE,
+        // ex. { ok: true, serieId: 7 } — suite 147), {} sinon.
+        if (nom === 'enregistrer-serie' && window.__REPONSE_SERIE) {
+          window.__ECRITURES.push('fn:enregistrer-serie:' + JSON.stringify(b));
+          return Promise.resolve({ data: window.__REPONSE_SERIE, error: null });
+        }
         // envoyer-push (suite 126) : l'essai est seulement noté.
         if (nom === 'envoyer-push') { window.__ECRITURES.push('fn:envoyer-push:' + JSON.stringify(b)); return Promise.resolve({ data: { ok: true }, error: null }); }
         return Promise.resolve({ data: {}, error: null });
+      } },
+      // Dossier de fichiers (Supabase Storage, suite 147 — sql/0041,
+      // js/pieces-jointes.js) : fichiers gardés dans window.__STOCKAGE
+      // (« dossier/chemin » -> { taille, type }) ; window.__STOCKAGE_ECHEC
+      // fait échouer les envois.
+      storage: { from: function (dossier) {
+        window.__STOCKAGE = window.__STOCKAGE || {};
+        return {
+          upload: function (chemin, fichier, opts) {
+            if (window.__STOCKAGE_ECHEC) return Promise.resolve({ data: null, error: { message: window.__STOCKAGE_ECHEC } });
+            window.__STOCKAGE[dossier + '/' + chemin] = { taille: fichier && fichier.size, type: opts && opts.contentType };
+            window.__ECRITURES.push('storage:upload:' + chemin);
+            return Promise.resolve({ data: { path: chemin }, error: null });
+          },
+          createSignedUrls: function (chemins) {
+            return Promise.resolve({ data: chemins.map(function (c) { return { path: c, signedUrl: 'https://signe.local/' + dossier + '/' + c, error: null }; }), error: null });
+          },
+          remove: function (chemins) {
+            chemins.forEach(function (c) { delete window.__STOCKAGE[dossier + '/' + c]; });
+            window.__ECRITURES.push('storage:remove:' + JSON.stringify(chemins));
+            return Promise.resolve({ data: chemins.map(function (c) { return { name: c }; }), error: null });
+          }
+        };
       } },
       removeChannel: function () {}
     };

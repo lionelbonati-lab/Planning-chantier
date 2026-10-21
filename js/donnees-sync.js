@@ -220,7 +220,10 @@
         // est désormais la source de vérité ; estAbsence(texte) ne reste
         // qu'un FILET DE SÉCURITÉ (OR, cf. construireVueDepuisCache) pour les
         // lignes écrites avant ce round et non couvertes par le backfill SQL.
-        absence: !!t.est_absence
+        absence: !!t.est_absence,
+        // Détails et fichiers joints (suite 147, sql/0041, js/pieces-jointes.js).
+        details: detailsTexte_(t.details),
+        pieces: normaliserPieces_(t.pieces)
       };
     }
     // Une case = une liste de tâches (via taches, chacune avec son PROPRE
@@ -516,6 +519,10 @@
       // clic sur une notification (js/page-notifications.js).
       if (typeof rafraichirAbonnementPush === "function") rafraichirAbonnementPush();
       if (typeof ouvrirNotificationsSiDemande === "function") ouvrirNotificationsSiDemande();
+      // Suite 147 : fichiers joints que plus rien ne cite depuis 7 jours,
+      // effacés une fois par jour au plus (js/pieces-jointes.js) — 20 s
+      // après l'ouverture, pour ne rien ralentir.
+      if (typeof nettoyerPiecesOrphelines_ === "function") setTimeout(nettoyerPiecesOrphelines_, 20000);
     }).catch(erreurFatale);
   }
 
@@ -1127,7 +1134,10 @@
       important: !!opts.important, statut: opts.statut || null,
       personneId: personneId, giDebut: giDebut, duree: Math.max(1, duree),
       demiDebut: opts.demiDebut || null, demiFin: opts.demiFin || null,
-      serieId: opts.serieId || null
+      serieId: opts.serieId || null,
+      // suite 147 (js/pieces-jointes.js) : nouveau tableau, jamais celui de
+      // l'item copié.
+      details: detailsTexte_(opts.details), pieces: normaliserPieces_(opts.pieces)
     };
   }
 
@@ -1390,13 +1400,16 @@
       // toute façon jamais de chantier (champsSerie ne le pose jamais pour ce
       // type), donc ignorerChantier reste utile pour les mêmes raisons
       // qu'avant, seule la SOURCE de la comparaison a changé.
-      function indexNonConsommeCorrespondantT_(hi, texte, important, statut, chantier, ignorerChantier) {
+      // entree (suite 147) : mêmes détails et mêmes fichiers aussi — deux
+      // demi-journées voisines au texte identique mais aux fichiers
+      // différents restent 2 bulles (sinon la 2e perdrait les siens).
+      function indexNonConsommeCorrespondantT_(hi, texte, important, statut, chantier, ignorerChantier, entree) {
         var arr = tableauAuHalfSlot_(hi);
         var used = consommesT[hi];
         for (var i = 0; i < arr.length; i++) {
           if (used && used[i]) continue;
           if (arr[i].texte === texte && !!arr[i].important === !!important && (arr[i].statut || null) === (statut || null) &&
-            (ignorerChantier || (arr[i].chantier || null) === (chantier || null))) return i;
+            (ignorerChantier || (arr[i].chantier || null) === (chantier || null)) && memesDetailsPieces_(arr[i], entree)) return i;
         }
         return -1;
       }
@@ -1427,7 +1440,7 @@
           var limiteT = limiteOccurrenceSerie_(entreeT.serieId, isoDeGiFenetre(donnees, Math.floor(hiStart / 2))); // série, cf. jalons plus haut
           while (finHi + 1 < nHalfFenetre && !estGiWeekend(Math.floor((finHi + 1) / 2))) {
             if (limiteT && isoDeGiFenetre(donnees, Math.floor((finHi + 1) / 2)) >= limiteT) break;
-            var idxSuivT = indexNonConsommeCorrespondantT_(finHi + 1, entreeT.texte, entreeT.important, entreeT.statut, chantierT, typT === "absence");
+            var idxSuivT = indexNonConsommeCorrespondantT_(finHi + 1, entreeT.texte, entreeT.important, entreeT.statut, chantierT, typT === "absence", entreeT);
             if (idxSuivT === -1) break;
             finHi++;
             marquerConsommeT_(finHi, idxSuivT);
@@ -1435,6 +1448,7 @@
           var bornesT = bornesDepuisDemiSlots(hiStart, finHi);
           var ittT = itemPlageTache(typT, entreeT.texte, p.id, bornesT.giDebut, bornesT.duree, {
             chantier: typT === "absence" ? null : chantierT, important: entreeT.important, statut: entreeT.statut || null,
+            details: entreeT.details, pieces: entreeT.pieces,
             demiDebut: bornesT.demiDebut, demiFin: bornesT.demiFin
           });
           ittT.serieId = entreeT.serieId || null;
@@ -1469,6 +1483,7 @@
               // tacheVue_) — vueJour.chantier n'est plus qu'un repli pour une
               // case sans aucune tâche, jamais pertinent ici.
               chantier: typ === "absence" ? null : (t.chantier || null), important: t.important, statut: t.statut || null,
+              details: t.details, pieces: t.pieces,
               demiDebut: "matin", demiFin: "matin"
             });
             itwe.serieId = t.serieId || null;
@@ -1674,8 +1689,11 @@
             // seul texte. chantier (round du 16.09.2026,
             // sql/0010_taches_chantier_id.sql) : porté PAR TÂCHE désormais,
             // plus au niveau de la cellule — chaque tâche empilée garde son
-            // propre chantier jusqu'à l'écriture serveur.
-            cellules[cle].taches.push({ texte: t.texte, statut: t.statut || null, important: !!t.important, serieId: t.serieId || null, absence: t.type === "absence", chantier: t.chantier || null });
+            // propre chantier jusqu'à l'écriture serveur. details/pieces (suite
+            // 147) : forme normalisée, pour que la comparaison en JSON
+            // (diffsCellulesPersonne) ne voie un écart que s'il est réel.
+            cellules[cle].taches.push({ texte: t.texte, statut: t.statut || null, important: !!t.important, serieId: t.serieId || null, absence: t.type === "absence", chantier: t.chantier || null,
+              details: detailsTexte_(t.details), pieces: normaliserPieces_(t.pieces) });
           });
         }
       });
@@ -1872,6 +1890,12 @@
         est_absence: !!t.absence
       };
       if (chantier) ligne.chantier_id = chantier.ligne;
+      // Détails et fichiers (suite 147, sql/0041) : seulement s'il y en a,
+      // pour que le secours (insert direct) marche aussi sur une base sans
+      // ces colonnes.
+      var details = detailsTexte_(t.details), pieces = normaliserPieces_(t.pieces);
+      if (details) ligne.details = details;
+      if (pieces.length) ligne.pieces = pieces;
       return ligne;
     });
     // Suite 24 (24.09.2026) — Lionel, en réponse à la revue : « Case jamais
@@ -1904,7 +1928,8 @@
   function appelerRemplacerCase_(personneId, iso, demi, lignesTaches) {
     if (rpcRemplacerCaseAbsente_ || typeof sbClient.rpc !== "function") return Promise.resolve(false);
     var lignes = lignesTaches.map(function (l) {
-      return { texte: l.texte, statut_id: l.statut_id, important: l.important, serie_id: l.serie_id, est_absence: l.est_absence, chantier_id: l.chantier_id != null ? l.chantier_id : null };
+      return { texte: l.texte, statut_id: l.statut_id, important: l.important, serie_id: l.serie_id, est_absence: l.est_absence, chantier_id: l.chantier_id != null ? l.chantier_id : null,
+        details: l.details || null, pieces: l.pieces || [] };
     });
     return sbClient.rpc("remplacer_case_personne", { p_personne_id: personneId, p_date: iso, p_demi: demi, p_lignes: lignes }).then(function (res) {
       if (!res.error) return true;
@@ -2437,6 +2462,9 @@
           important: !!champs.important, serie_id: champs.serieId != null ? champs.serieId : null, est_absence: !!champs.absence
         };
         if (chantierId) ligne.chantier_id = chantierId;
+        // suite 147 : comme enregistrerCellulePersonneServeur, seulement s'il y en a.
+        if (detailsTexte_(champs.details)) ligne.details = detailsTexte_(champs.details);
+        if (normaliserPieces_(champs.pieces).length) ligne.pieces = normaliserPieces_(champs.pieces);
         return ligne;
       });
       return sbClient.from("taches").insert(lignes);

@@ -67,7 +67,11 @@
   // isoDebutForce (round du 24.09.2026, suite 5) : date de départ réelle
   // quand elle est hors de la fenêtre chargée (fiche tâche/absence, cf.
   // ouvrirEdition) — giDebut n'est alors qu'un repère calé sur le bord visible.
-  function creerSerieServeur(type, cibles, giDebut, texte, important, chantier, statut, choixSerie, apresChaqueAppel, duree, demiDebut, demiFin, isoDebutForce) {
+  // contenu (round du 21.10.2026, suite 147) : { details, pieces } de la
+  // fiche. enregistrer-serie ne connaît pas ces 2 colonnes (sql/0041) : elles
+  // sont posées juste après sur toutes les lignes de la série créée
+  // (taches.serie_id = r.serieId), avant le rechargement.
+  function creerSerieServeur(type, cibles, giDebut, texte, important, chantier, statut, choixSerie, apresChaqueAppel, duree, demiDebut, demiFin, isoDebutForce, contenu) {
     var isoDebut = isoDebutForce || isoDeGi(giDebut);
     // enregistrer-serie n'a que 3 types ("tache"|"jalon"|"note", cf.
     // champsSerie côté fonction) : "absence" n'a jamais été une vraie
@@ -105,7 +109,16 @@
           demiDebut: demiDebut !== undefined ? demiDebut : null,
           demiFin: demiFin !== undefined ? demiFin : null
         };
-        return invoquerFonctionServeur("enregistrer-serie", payload).then(function (r) { dernier = r; });
+        return invoquerFonctionServeur("enregistrer-serie", payload).then(function (r) {
+          dernier = r;
+          var champs = {};
+          if (contenu && detailsTexte_(contenu.details)) champs.details = detailsTexte_(contenu.details);
+          if (contenu && contenu.pieces && contenu.pieces.length) champs.pieces = normaliserPieces_(contenu.pieces);
+          if (!Object.keys(champs).length || !r || !r.serieId) return;
+          return Promise.resolve(sbClient.from("taches").update(champs).eq("serie_id", r.serieId)).then(function (res) {
+            if (res && res.error) throw res.error;
+          });
+        });
       });
     });
     return chaine.then(function () { if (dernier) apresChaqueAppel(dernier); });
@@ -892,7 +905,12 @@
       datesPlageHTML(state.giDebut, state.giFin, state.demiDebut, state.demiFin, state.debutHorsFenetreIso, state.finHorsFenetreIso) +
       '<div class="contenu-carte">' +
       '<div class="corps"><div class="label-champ" style="margin:0 0 6px">Descriptif</div>' +
-      '<div class="descriptif-texte" tabindex="0"></div></div>' +
+      '<div class="descriptif-texte" tabindex="0"></div>' +
+      // Détails et fichiers joints (round du 21.10.2026, suite 147 — Lionel :
+      // « J'aimerais pouvoir rajouter des détails à mes tâches J'aimerais
+      // pouvoir leur joindre des fichiers, photos ou PDF. ») : sous le
+      // descriptif, tâches seulement (js/pieces-jointes.js).
+      (typeAffiche === "tache" ? sectionDetailsPiecesHTML_() : '') + '</div>' +
       optionsAvanceesHTML(champStatut, champSerie) +
       '</div>' +
       piedPrincipalHTML(!!itemExisting);
@@ -947,6 +965,12 @@
     }).catch(function () { /* repli : la fiche garde la partie visible, comme avant */ });
     var texteActuel = texteInit;
     cablerDescriptifEdit(pop, function () { return texteActuel; }, function (v) { texteActuel = v; }, "Cliquer pour ajouter un descriptif…");
+    // Absence : pas de section, details/pieces restent ceux de l'item.
+    var dp = typeAffiche === "tache" ? cablerDetailsPieces_(pop, itemExisting) : {
+      details: function () { return itemExisting ? detailsTexte_(itemExisting.details) : null; },
+      pieces: function () { return itemExisting ? normaliserPieces_(itemExisting.pieces) : []; },
+      enCours: function () { return false; }
+    };
 
     var chantierSel = pop.querySelector(".f-chantier");
     if (chantierSel) chantierSel.addEventListener("change", function () {
@@ -1040,6 +1064,9 @@
     });
     pop.querySelector(".f-ok").addEventListener("click", function () {
       if (enregistrementEnCours) return;
+      // Un fichier encore en route : la fiche reste ouverte (le clic à côté
+      // valide aussi, cf. fermerAuClicExterieur).
+      if (dp.enCours()) { toast("Envoi des fichiers en cours…"); return; }
       var texte = texteActuel.trim();
       if (!texte) { fermer(); return; }
       var important = state.important;
@@ -1072,7 +1099,9 @@
       var isoDebutFinal = state.debutHorsFenetreIso || isoDeGi(state.giDebut);
       var isoFinFinal = state.finHorsFenetreIso || isoDeGi(state.giFin);
       if (isoDebutFinal === isoFinFinal && demiDebutFinal === "matin" && demiFinFinal === "aprem") { demiDebutFinal = null; demiFinFinal = null; }
-      var champsTache = { texte: texte, important: important, chantier: chantier, statut: statutFinal, absence: typeAffiche === "absence" };
+      var detailsFinal = dp.details(), piecesFinal = dp.pieces();
+      var contenuFinal = { details: detailsFinal, pieces: piecesFinal };
+      var champsTache = { texte: texte, important: important, chantier: chantier, statut: statutFinal, absence: typeAffiche === "absence", details: detailsFinal, pieces: piecesFinal };
       var slotsNouveaux = slotsPlageTacheIso(isoDebutFinal, isoFinFinal, demiDebutFinal, demiFinFinal);
 
       if (itemExisting) {
@@ -1082,6 +1111,8 @@
           itemExisting.important = important;
           if (chantierFourni) itemExisting.chantier = chantier;
           if (statutRow) itemExisting.statut = statutActuel;
+          itemExisting.details = detailsFinal;
+          itemExisting.pieces = piecesFinal; // nouveau tableau (jamais modifié sur place, cf. pieces-jointes.js)
           // giDebut/duree/demiDebut/demiFin : mutation directe puis render()
           // — même trajet déjà emprunté par le glissement/redimensionnement
           // d'une bulle tâche (cf. plus haut, it.demiDebut/it.demiFin/
@@ -1112,7 +1143,7 @@
             }).then(function () {
               return creerSerieServeur(typeAffiche, [{ personne: itemExisting.personneId }], giDebutFinal, texte, important,
                 chantierFourni ? chantier : itemExisting.chantier, statutRow ? statutActuel : (itemExisting.statut || null), choixConversion, function () {},
-                nbJoursOuvresEntre(isoDebutFinal, isoFinFinal), demiDebutFinal, demiFinFinal, isoDebutFinal);
+                nbJoursOuvresEntre(isoDebutFinal, isoFinFinal), demiDebutFinal, demiFinFinal, isoDebutFinal, contenuFinal);
             });
           }, "Série créée à partir de cette " + (typeAffiche === "absence" ? "absence." : "tâche."));
           return;
@@ -1127,7 +1158,8 @@
           var apresSerie = Object.assign({}, itemExisting, {
             texte: texte, important: important,
             chantier: chantierFourni ? chantier : itemExisting.chantier,
-            statut: statutRow ? statutActuel : (itemExisting.statut || null)
+            statut: statutRow ? statutActuel : (itemExisting.statut || null),
+            details: detailsFinal, pieces: piecesFinal
           });
           fermer();
           enregistrerFicheSerie("TACHES", itemExisting, apresSerie,
@@ -1159,7 +1191,7 @@
           fermer();
           creerSerieServeur(typeAffiche, cibles, giDebutFinal, texte, important, chantier, statutFinal, choixSerieHF, function (r) {
             apresEcritureSerie(r); toast("Série ajoutée.");
-          }, nbJoursOuvresEntre(isoDebutFinal, isoFinFinal), demiDebutFinal, demiFinFinal, isoDebutFinal).catch(function (err) {
+          }, nbJoursOuvresEntre(isoDebutFinal, isoFinFinal), demiDebutFinal, demiFinFinal, isoDebutFinal, contenuFinal).catch(function (err) {
             toast("Échec de la création de la série : " + (err && err.message ? err.message : err));
           });
           return;
@@ -1183,7 +1215,7 @@
         // ici, cf. commentaire de tête de creerSerieServeur.
         creerSerieServeur(typeAffiche, cibles, giDebutFinal, texte, important, chantier, statutFinal, choixSerie, function (r) {
           apresEcritureSerie(r); toast("Série ajoutée.");
-        }, dureeFinal, demiDebutFinal, demiFinFinal).catch(function (err) {
+        }, dureeFinal, demiDebutFinal, demiFinFinal, undefined, contenuFinal).catch(function (err) {
           toast("Échec de la création de la série : " + (err && err.message ? err.message : err));
         });
       } else {
@@ -1197,7 +1229,7 @@
         sauvegarderUndo();
         cibles.forEach(function (c) {
           var nouveau = itemPlageTache(typeAffiche, texte, c.personne, giDebutFinal, dureeFinal, {
-            important: important, chantier: chantier, statut: statutFinal, demiDebut: demiDebutFinal, demiFin: demiFinFinal
+            important: important, chantier: chantier, statut: statutFinal, details: detailsFinal, pieces: piecesFinal, demiDebut: demiDebutFinal, demiFin: demiFinFinal
           });
           nouveau.dateDebutIso = isoDeGi(giDebutFinal);
           TACHES.push(nouveau);

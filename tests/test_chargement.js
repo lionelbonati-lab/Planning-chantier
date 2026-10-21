@@ -48,7 +48,9 @@ vm.createContext(sandbox);
 vm.runInContext(
   extraireVar('MOIS_ABBR_WEB') + '\n' +
   ['pad2_', 'dateUTCDepuisIso_', 'isoDepuisDateUTC_', 'ajouterJoursUTC_', 'labGVersIso_', 'isoVersLabG',
-    'numeroSemaineIsoUTC', 'lundiDeSemaineUTC', 'genererSemaines', 'infosSemaineDepuisLabG', 'construireDonneesSemaine']
+    'numeroSemaineIsoUTC', 'lundiDeSemaineUTC', 'genererSemaines', 'infosSemaineDepuisLabG', 'construireDonneesSemaine',
+    // Suite 147 : détails et fichiers joints de chaque tâche (js/pieces-jointes.js).
+    'detailsTexte_', 'normaliserPieces_']
     .map(extraireFonction).join('\n'),
   sandbox
 );
@@ -180,8 +182,8 @@ assertEqual(sandbox.lundiDeSemaineUTC('2026-09-13'), '2026-09-07', 'dimanche 13.
   const caseAliceLundiMatin = d.personnes[0].matin[0];
   assertEqual(caseAliceLundiMatin.chantier, null, 'chantier de la CASE -> null dès qu\'elle contient au moins une tâche (round du 16.09.2026)');
   assertEqual(caseAliceLundiMatin.taches, [
-    { texte: 'Coffrage', statut: 'confirme', important: true, serieId: 7, chantier: 'Chantier Rue du Lac', absence: false },
-    { texte: 'Nettoyage', statut: null, important: false, serieId: null, chantier: 'Chantier Second', absence: false }
+    { texte: 'Coffrage', statut: 'confirme', important: true, serieId: 7, chantier: 'Chantier Rue du Lac', absence: false, details: null, pieces: [] },
+    { texte: 'Nettoyage', statut: null, important: false, serieId: null, chantier: 'Chantier Second', absence: false, details: null, pieces: [] }
   ], 'tâches triées par `ordre` croissant, statut_id -> cle, chacune son propre chantier_id -> nom, jamais partagé entre elles');
 
   // Mardi matin d'Alice : case sans aucune tâche -> chantier de la case lu
@@ -211,7 +213,7 @@ assertEqual(sandbox.lundiDeSemaineUTC('2026-09-13'), '2026-09-07', 'dimanche 13.
   // statut traduit ; Dimanche (weekend[1]) vide mais bien formée. Astreinte
   // n'a pas de chantier_id -> chantier: null sur la tâche.
   assertEqual(d.personnes[1].sousTraitant, true, 'sousTraitant reporté depuis sous_traitant');
-  assertEqual(d.personnes[1].weekend[0], { chantier: null, taches: [{ texte: 'Astreinte', statut: 'a_reserver', important: false, serieId: null, chantier: null, absence: false }] },
+  assertEqual(d.personnes[1].weekend[0], { chantier: null, taches: [{ texte: 'Astreinte', statut: 'a_reserver', important: false, serieId: null, chantier: null, absence: false, details: null, pieces: [] }] },
     'case week-end Samedi peuplée depuis une tâche demi="matin" sur weekendDates[0]');
   assertEqual(d.personnes[1].weekend[1], { chantier: null, taches: [] }, 'case week-end Dimanche vide mais bien formée');
 })();
@@ -240,8 +242,8 @@ assertEqual(sandbox.lundiDeSemaineUTC('2026-09-13'), '2026-09-07', 'dimanche 13.
   };
   const d = sandbox.construireDonneesSemaine(labG, brut, lookups);
   assertEqual(d.personnes[0].matin[2].taches, [
-    { texte: 'Coffrage', statut: null, important: false, serieId: null, chantier: null, absence: false },
-    { texte: 'RDV perso', statut: null, important: false, serieId: null, chantier: null, absence: true }
+    { texte: 'Coffrage', statut: null, important: false, serieId: null, chantier: null, absence: false, details: null, pieces: [] },
+    { texte: 'RDV perso', statut: null, important: false, serieId: null, chantier: null, absence: true, details: null, pieces: [] }
   ], 'taches.est_absence -> absence:true/false reporté fidèlement par tacheVue_, indépendamment du texte');
 })();
 
