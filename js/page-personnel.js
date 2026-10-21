@@ -148,7 +148,8 @@
   // « Pages Machines / Transports ». Les pages ne listent plus de lignes
   // (une seule par groupe, sql/0036) mais les éléments du groupe
   // (elements_groupes) : ajouter, renommer, ↑/↓, supprimer. Supprimer un
-  // élément ne touche à aucune bulle déjà posée.
+  // élément ne touche à aucune bulle déjà posée. Suite 148 : rangés par
+  // catégorie, glisser-déposer à la place de ↑/↓ (renderListeElements_).
   function renderMachines() {
     var zone = document.getElementById("listesGroupes");
     if (!zone) return;
@@ -190,29 +191,71 @@
       });
     });
   }
+  // Round du 21.10.2026 (suite 148) — Lionel : « J'aimerai pouvoir trier ma
+  // liste de machines et grouper par catégorie. Et pour les trier par
+  // lister, déposer, plutôt que par les petites flèches. » Ses choix :
+  // « Liste de catégories » (« + Catégorie », renommer, supprimer, sur
+  // Machines comme sur Transports) ; un élément sans catégorie va « Dans
+  // « Autres » », toujours en dernier. Plus de ↑/↓ : la poignée ⠿ d'un
+  // élément le glisse à sa place, dans sa catégorie ou dans une autre ;
+  // celle d'une catégorie range la catégorie (cf. cablerGlisserElements_).
+  // Sans catégorie, la liste reste d'un seul bloc, sans titre.
   function renderListeElements_(groupe) {
     var zone = document.getElementById("listeElements-" + groupe.id);
     if (!zone) return;
-    var elements = elementsDuGroupe(groupe.id);
-    zone.innerHTML = elements.map(function (e, i) {
-      return '<div class="ligne-intervenant" data-id="' + esc2(e.id) + '">' +
-        // Round du 01.10.2026 (suite 139) — Lionel : « Chaque
-        // machine/transport a sa coche qui le fera apparaître ou non dans la
-        // liste clic droit. » Même coche que Personnel, tout à gauche.
-        '<label class="champ-afficher" title="Proposer au clic droit"><input type="checkbox" class="chk-afficher-el" aria-label="Proposer au clic droit"' + (e.masque ? '' : ' checked') + '></label>' +
-        '<span class="cf-actions">' +
-        '<button type="button" class="cf-monter" title="Monter"' + (i === 0 ? " disabled" : "") + '>↑</button>' +
-        '<button type="button" class="cf-descendre" title="Descendre"' + (i === elements.length - 1 ? " disabled" : "") + '>↓</button>' +
-        '</span><b>' + esc(e.nom) + '</b><span class="ligne-actions">' +
-        boutonIconeLigne("lien-modifier", ICONS.pencil, "Renommer") +
-        boutonIconeLigne("lien-supprimer-el", ICONS.trash, "Supprimer") +
-        '</span></div>';
-    }).join("") + '<button type="button" class="ligne-ajouter">+ Ajouter</button>';
+    var elements = elementsDuGroupe(groupe.id), blocs = blocsElementsGroupe(groupe.id), avecCategories = blocs.length > 1;
+    zone.innerHTML = blocs.map(function (bloc) {
+      var c = bloc.categorie;
+      return '<div class="cat-elements' + (c ? '' : ' cat-autres') + '" data-cat="' + (c ? esc2(c.id) : '') + '">' +
+        (avecCategories ? '<div class="cat-entete">' +
+          (c ? '<span class="poignee-cat" title="Glisser pour ranger la catégorie" aria-hidden="true">⠿</span>' : '') +
+          '<span class="cat-nom">' + esc(c ? c.nom : 'Autres') + '</span><span class="cat-compte">' + bloc.elements.length + '</span>' +
+          (c ? '<span class="ligne-actions">' + boutonIconeLigne("cat-ajouter", ICONS.plus, "Ajouter dans cette catégorie") +
+            boutonIconeLigne("cat-renommer", ICONS.pencil, "Renommer la catégorie") +
+            boutonIconeLigne("cat-supprimer", ICONS.trash, "Supprimer la catégorie") + '</span>' : '') +
+          '</div>' : '') +
+        '<div class="cat-corps">' + bloc.elements.map(htmlLigneElement_).join("") +
+          (avecCategories && !bloc.elements.length ? '<p class="cat-vide">Vide : glissez un élément ici.</p>' : '') + '</div></div>';
+    }).join("") + '<div class="liste-elements-ajouts"><button type="button" class="ligne-ajouter">+ Ajouter</button>' +
+      '<button type="button" class="ligne-ajouter-cat">+ Catégorie</button></div>';
     function elDe(btn) { var id = btn.closest("[data-id]").dataset.id; return elements.filter(function (e) { return e.id === id; })[0]; }
+    function catDe(btn) { var id = btn.closest(".cat-elements").dataset.cat; return categoriesDuGroupe(groupe.id).filter(function (c) { return c.id === id; })[0]; }
+    function ordreSuivant() { return elements.reduce(function (m, e) { return Math.max(m, e.ordre); }, 0) + 1; }
     zone.querySelector(".ligne-ajouter").addEventListener("click", function () {
       saisirNomElement_("Ajouter — " + groupe.nom, "", function (nom) {
-        var ordre = elements.reduce(function (m, e) { return Math.max(m, e.ordre); }, 0) + 1;
-        return ecrireElements_([sbClient.from("elements_groupes").insert({ groupe_id: +groupe.id, nom: nom, ordre: ordre })], "Ajouté à « " + groupe.nom + " ».");
+        return ecrireElements_([sbClient.from("elements_groupes").insert({ groupe_id: +groupe.id, nom: nom, ordre: ordreSuivant() })], "Ajouté à « " + groupe.nom + " ».");
+      });
+    });
+    zone.querySelector(".ligne-ajouter-cat").addEventListener("click", function () {
+      var cats = categoriesDuGroupe(groupe.id);
+      saisirNomElement_("Nouvelle catégorie — " + groupe.nom, "", function (nom) {
+        var ordre = cats.reduce(function (m, c) { return Math.max(m, c.ordre); }, 0) + 1;
+        return ecrireElements_([sbClient.from("categories_elements").insert({ groupe_id: +groupe.id, nom: nom, ordre: ordre })], "Catégorie « " + nom + " » ajoutée.");
+      });
+    });
+    zone.querySelectorAll(".cat-ajouter").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var c = catDe(btn);
+        saisirNomElement_("Ajouter — " + c.nom, "", function (nom) {
+          return ecrireElements_([sbClient.from("elements_groupes").insert({ groupe_id: +groupe.id, nom: nom, ordre: ordreSuivant(), categorie_id: +c.id })], "Ajouté à « " + c.nom + " ».");
+        });
+      });
+    });
+    zone.querySelectorAll(".cat-renommer").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var c = catDe(btn);
+        saisirNomElement_("Renommer la catégorie", c.nom, function (nom) {
+          return ecrireElements_([sbClient.from("categories_elements").update({ nom: nom }).eq("id", +c.id)], "Catégorie renommée.");
+        });
+      });
+    });
+    // Ses éléments passent dans « Autres » (on delete set null, sql/0042).
+    zone.querySelectorAll(".cat-supprimer").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var c = catDe(btn), n = btn.closest(".cat-elements").querySelectorAll(".ligne-element").length;
+        demanderConfirmation("Supprimer la catégorie « " + c.nom + " » ?" + (n ? " " + (n > 1 ? "Ses " + n + " éléments passent" : "Son élément passe") + " dans « Autres »." : ""), function () {
+          ecrireElements_([sbClient.from("categories_elements").delete().eq("id", +c.id)], "Catégorie supprimée.");
+        });
       });
     });
     zone.querySelectorAll(".lien-modifier").forEach(function (btn) {
@@ -231,21 +274,182 @@
     zone.querySelectorAll(".lien-supprimer-el").forEach(function (btn) {
       btn.addEventListener("click", function () {
         var e = elDe(btn);
-        demanderConfirmation("Retirer « " + e.nom + " » de la liste ? Les bulles déjà posées restent.", function () {
+        demanderConfirmation("Retirer « " + e.nom + " » de la liste ? Les bulles déjà posées restent.", function () {
           ecrireElements_([sbClient.from("elements_groupes").delete().eq("id", +e.id)], "Retiré de la liste.");
         });
       });
     });
-    // ↑/↓ : rangs renumérotés 1..n (un rang en double ne bloque rien).
-    zone.querySelectorAll(".cf-monter, .cf-descendre").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        var e = elDe(btn), i = elements.indexOf(e), j = i + (btn.classList.contains("cf-monter") ? -1 : 1);
-        if (j < 0 || j >= elements.length) return;
-        var ordre = elements.slice();
-        ordre[i] = elements[j]; ordre[j] = e;
-        ecrireElements_(ordre.map(function (x, k) { return sbClient.from("elements_groupes").update({ ordre: k + 1 }).eq("id", +x.id); }), null);
+    cablerGlisserElements_(zone, groupe);
+  }
+  function htmlLigneElement_(e) {
+    return '<div class="ligne-intervenant ligne-element" data-id="' + esc2(e.id) + '">' +
+      // Round du 01.10.2026 (suite 139) — Lionel : « Chaque
+      // machine/transport a sa coche qui le fera apparaître ou non dans la
+      // liste clic droit. » Même coche que Personnel, tout à gauche.
+      '<label class="champ-afficher" title="Proposer au clic droit"><input type="checkbox" class="chk-afficher-el" aria-label="Proposer au clic droit"' + (e.masque ? '' : ' checked') + '></label>' +
+      '<span class="poignee-el" title="Glisser pour ranger" aria-hidden="true">⠿</span>' +
+      '<b>' + esc(e.nom) + '</b><span class="ligne-actions">' +
+      boutonIconeLigne("lien-modifier", ICONS.pencil, "Renommer") +
+      boutonIconeLigne("lien-supprimer-el", ICONS.trash, "Supprimer") +
+      '</span></div>';
+  }
+  // Glisser-déposer (suite 148). La poignée ⠿ se glisse à la souris comme
+  // au doigt (elle ne fait jamais défiler la page) ; à la souris, toute la
+  // ligne (ou le titre de la catégorie) se glisse aussi, sauf sa coche et
+  // ses boutons. Au-delà de 5 px, un trait montre la place d'arrivée et la
+  // page défile près de ses bords ; relâché, le nouvel ordre s'affiche tout
+  // de suite puis s'écrit en base.
+  function cablerGlisserElements_(zone, groupe) {
+    zone.addEventListener("pointerdown", function (e) {
+      if (e.pointerType === "mouse" && (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey)) return;
+      var poignee = e.target.closest(".poignee-el, .poignee-cat"), source = null;
+      if (poignee) source = poignee.classList.contains("poignee-el") ? poignee.closest(".ligne-element") : poignee.closest(".cat-elements");
+      else if (e.pointerType === "mouse" && !e.target.closest("button, input, label")) {
+        source = e.target.closest(".ligne-element");
+        if (!source && e.target.closest(".cat-entete")) source = e.target.closest(".cat-elements:not(.cat-autres)");
+      }
+      if (!source || !zone.contains(source)) return;
+      if (poignee) e.preventDefault();
+      var estCat = source.classList.contains("cat-elements"), pointerId = e.pointerId, y0 = e.clientY, x0 = e.clientX;
+      var trait = null, cible = null, dernierY = y0, defile = scrollableDe_(zone), boucle = 0;
+      function rect(el) { return el.getBoundingClientRect(); }
+      function placerTrait(y, gauche, largeur) {
+        trait.style.top = Math.round(y - 1) + "px";
+        trait.style.left = Math.round(gauche) + "px";
+        trait.style.width = Math.round(largeur) + "px";
+      }
+      function viser(y) {
+        var zr = rect(zone);
+        if (estCat) {
+          var blocs = [].slice.call(zone.querySelectorAll(".cat-elements:not(.cat-autres)")).filter(function (b) { return b !== source; });
+          var k = 0;
+          while (k < blocs.length && y > (rect(blocs[k]).top + rect(blocs[k]).bottom) / 2) k++;
+          cible = { avant: blocs[k] ? blocs[k].dataset.cat : null };
+          placerTrait(blocs[k] ? rect(blocs[k]).top - 5 : rect(blocs.length ? blocs[blocs.length - 1] : source).bottom + 4, zr.left, zr.width);
+          return;
+        }
+        var meilleur = null;
+        zone.querySelectorAll(".cat-elements").forEach(function (b) {
+          var r = rect(b), d = y < r.top ? r.top - y : y > r.bottom ? y - r.bottom : 0;
+          if (!meilleur || d < meilleur.d) meilleur = { d: d, bloc: b };
+        });
+        if (!meilleur) return;
+        var corps = meilleur.bloc.querySelector(".cat-corps"), cr = rect(corps);
+        var lignes = [].slice.call(corps.querySelectorAll(".ligne-element")).filter(function (l) { return l !== source; });
+        var j = 0;
+        while (j < lignes.length && y > (rect(lignes[j]).top + rect(lignes[j]).bottom) / 2) j++;
+        cible = { cat: meilleur.bloc.dataset.cat || null, avant: lignes[j] ? lignes[j].dataset.id : null };
+        var vide = corps.querySelector(".cat-vide");
+        placerTrait(lignes[j] ? rect(lignes[j]).top - 5 : lignes.length ? rect(lignes[lignes.length - 1]).bottom + 4 : vide ? (rect(vide).top + rect(vide).bottom) / 2 : cr.top + 2, cr.left, cr.width);
+      }
+      // Près du haut ou du bas de la fenêtre : la page défile, le trait suit.
+      function defiler() {
+        boucle = 0;
+        if (!trait) return;
+        var h = window.innerHeight, pas = dernierY < 50 ? -12 : dernierY > h - 50 ? 12 : 0;
+        if (!pas) return;
+        defile.scrollTop += pas;
+        viser(dernierY);
+        boucle = requestAnimationFrame(defiler);
+      }
+      function onMove(e2) {
+        if (e2.pointerId !== pointerId) return;
+        if (!trait) {
+          if (Math.abs(e2.clientY - y0) <= 5 && Math.abs(e2.clientX - x0) <= 5) return;
+          trait = document.createElement("div");
+          trait.className = "trait-ordre-ligne";
+          document.body.appendChild(trait);
+          document.body.classList.add("glisse-ligne");
+          source.classList.add("el-deplace");
+        }
+        e2.preventDefault();
+        dernierY = e2.clientY;
+        viser(dernierY);
+        if (!boucle) boucle = requestAnimationFrame(defiler);
+      }
+      function onUp(e2) {
+        if (e2.pointerId !== pointerId) return;
+        var fin = trait && cible && e2.type === "pointerup";
+        detacher();
+        if (!fin) return;
+        if (estCat) deposerCategorie_(groupe, source.dataset.cat, cible.avant);
+        else deposerElement_(groupe, source.dataset.id, cible.cat, cible.avant);
+      }
+      function detacher() {
+        document.removeEventListener("pointermove", onMove);
+        document.removeEventListener("pointerup", onUp);
+        document.removeEventListener("pointercancel", onUp);
+        if (boucle) cancelAnimationFrame(boucle);
+        if (trait) trait.remove();
+        document.body.classList.remove("glisse-ligne");
+        source.classList.remove("el-deplace");
+      }
+      document.addEventListener("pointermove", onMove, { passive: false });
+      document.addEventListener("pointerup", onUp);
+      document.addEventListener("pointercancel", onUp);
+    });
+  }
+  // Ancêtre qui fait défiler la page (sinon le document).
+  function scrollableDe_(el) {
+    for (var n = el.parentElement; n && n !== document.body; n = n.parentElement) {
+      var oy = getComputedStyle(n).overflowY;
+      if ((oy === "auto" || oy === "scroll") && n.scrollHeight > n.clientHeight) return n;
+    }
+    return document.scrollingElement || document.documentElement;
+  }
+  // Élément `id` posé dans la catégorie `cat` (null = « Autres »), avant
+  // l'élément `avantId` (null = en dernier).
+  function deposerElement_(groupe, id, cat, avantId) {
+    var blocs = blocsOrdre_(groupe), el = null;
+    blocs.forEach(function (b) {
+      b.elements = b.elements.filter(function (x) { if (x.id === id) el = x; return x.id !== id; });
+    });
+    var dest = blocs.filter(function (b) { return b.cat === cat; })[0];
+    if (!el || !dest) return;
+    var k = avantId ? dest.elements.map(function (x) { return x.id; }).indexOf(avantId) : -1;
+    dest.elements.splice(k < 0 ? dest.elements.length : k, 0, el);
+    ecrireOrdreElements_(categoriesDuGroupe(groupe.id), blocs);
+  }
+  // Catégorie `id` rangée avant la catégorie `avantId` (null = juste avant
+  // « Autres »).
+  function deposerCategorie_(groupe, id, avantId) {
+    var cats = categoriesDuGroupe(groupe.id), c = cats.filter(function (x) { return x.id === id; })[0];
+    if (!c) return;
+    var liste = cats.filter(function (x) { return x !== c; });
+    var k = avantId ? liste.map(function (x) { return x.id; }).indexOf(avantId) : -1;
+    liste.splice(k < 0 ? liste.length : k, 0, c);
+    var blocs = blocsOrdre_(groupe), parCat = {};
+    blocs.forEach(function (b) { parCat[b.cat] = b; });
+    ecrireOrdreElements_(liste, liste.map(function (x) { return parCat[x.id]; }).concat([parCat[null]]));
+  }
+  function blocsOrdre_(groupe) {
+    return blocsElementsGroupe(groupe.id).map(function (b) { return { cat: b.categorie ? b.categorie.id : null, elements: b.elements.slice() }; });
+  }
+  // Écrit l'ordre affiché : catégories 1..n, éléments 1..N à la suite,
+  // catégorie après catégorie puis « Autres » — sans catégories (supprimées
+  // ou injoignables), la liste à plat garde le même ordre. Seules les
+  // lignes changées sont écrites ; l'écran suit tout de suite.
+  function ecrireOrdreElements_(cats, blocs) {
+    var requetes = [], rang = 0;
+    cats.forEach(function (c, i) {
+      if (c.ordre === i + 1) return;
+      c.ordre = i + 1;
+      requetes.push(sbClient.from("categories_elements").update({ ordre: i + 1 }).eq("id", +c.id));
+    });
+    blocs.forEach(function (b) {
+      b.elements.forEach(function (x) {
+        var champs = {};
+        rang++;
+        if (x.ordre !== rang) { champs.ordre = rang; x.ordre = rang; }
+        if (x.categorieId !== b.cat) { champs.categorie_id = b.cat == null ? null : +b.cat; x.categorieId = b.cat; }
+        if (Object.keys(champs).length) requetes.push(sbClient.from("elements_groupes").update(champs).eq("id", +x.id));
       });
     });
+    if (!requetes.length) return;
+    etat.categoriesElements.sort(comparerOrdre);
+    etat.elementsGroupes.sort(comparerOrdre);
+    renderMachines(); renderTransports();
+    ecrireElements_(requetes, null);
   }
   function saisirNomElement_(titre, valeur, ok) {
     var pop = document.createElement("div");
@@ -264,18 +468,24 @@
     });
     input.focus();
   }
-  // Écritures puis liste relue (etat.elementsGroupes : menus des cases et
-  // pages Machines / Transports).
+  // Écritures puis listes relues (etat.elementsGroupes et, suite 148,
+  // etat.categoriesElements : menus des cases et pages Machines /
+  // Transports). Relues aussi après un échec : l'écran reprend alors l'état
+  // de la base (un glisser-déposer s'affiche avant d'être écrit).
   function ecrireElements_(requetes, message) {
+    var ok = true;
+    function echec(err) { ok = false; toast("Échec : " + (err && err.message ? err.message : err)); }
     return Promise.all(requetes).then(function (r) {
       r.forEach(function (res) { if (res.error) throw res.error; });
-      return sbClient.from("elements_groupes").select(COLONNES_ELEMENTS);
-    }).then(function (res) {
-      if (res.error) throw res.error;
-      etat.elementsGroupes = normaliserElements(res.data || []);
+    }).catch(echec).then(function () {
+      return Promise.all([sbClient.from("elements_groupes").select(COLONNES_ELEMENTS), sbClient.from("categories_elements").select(COLONNES_CATEGORIES_ELEMENTS)]);
+    }).then(function (r) {
+      if (r[0].error) throw r[0].error;
+      etat.elementsGroupes = normaliserElements(r[0].data || []);
+      if (!r[1].error) etat.categoriesElements = normaliserCategoriesElements(r[1].data || []);
       renderMachines(); renderTransports();
-      if (message) toast(message);
-    }).catch(function (err) { toast("Échec : " + (err && err.message ? err.message : err)); });
+      if (ok && message) toast(message);
+    }).catch(echec);
   }
   function renderIntervenants() { renderListePersonnes(true); }
   function ouvrirAjoutPersonne(sousTraitant, equipe, groupeId) {

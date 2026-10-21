@@ -2210,3 +2210,15 @@ Fichier : sql/0041_taches_details_pieces.sql (à appliquer dans l'éditeur SQL d
 - consultation_planning et consultation_responsable : « details » et « pieces » avec chaque tâche.
 - pieces_orphelines() : fichiers du dossier que plus aucune tâche ni sauvegarde ne cite, envoyés depuis plus de 7 jours (connectés seulement).
 - pieces-lien : les liens anonymes demandent { jeton, page, lundi, chemins } ; le jeton est vérifié en relisant la semaine par la même fonction que la page (clé publique) ; seuls les fichiers (et vignettes) des tâches que ce lien affiche cette semaine-là sont signés, pour 1 heure, avec la clé de service lue sur le serveur et jamais renvoyée. Lien supprimé → 403.
+
+---
+
+## 45. Round du 21.10.2026 (suite 148) — catégories des listes Machines / Transports
+
+Lionel : « J'aimerai pouvoir trier ma liste de machines et grouper par catégorie. Et pour les trier par lister, déposer, plutôt que par les petites flèches. Dans le menu, clic droit de la souris, on aura du coup les catégories, et ensuite, dans un sous-menu, les machines de la catégorie. » Ses choix : « Liste de catégories (Recommandé) » ; « Machines et Transports (Recommandé) » ; une machine sans catégorie : « Dans « Autres » ».
+
+Fichier : sql/0042_categories_elements.sql (à appliquer dans l'éditeur SQL de Supabase, comme la 0041).
+
+- categories_elements : id, groupe_id (groupes, supprimé avec son groupe), nom non vide, ordre, cree_le ; RLS « connecte_tout » et droits pour les utilisateurs connectés, comme elements_groupes.
+- elements_groupes.categorie_id : la catégorie de l'élément, vide = « Autres » ; supprimer une catégorie vide la colonne de ses éléments (on delete set null) ; index.
+- tables_sauvegardees_() : categories_elements après groupes, avant elements_groupes (restaurée avant, effacée après) ; une ancienne sauvegarde sans la table se restaure sans catégories.

@@ -416,7 +416,10 @@
       // Listes d'éléments des groupes (round du 01.10.2026, suite 135 —
       // sql/0036, js/groupes.js) : non bloquante. Sans elle, les cases des
       // lignes Machines / Transports n'ont que « Autre… ».
-      sbClient.from("elements_groupes").select(COLONNES_ELEMENTS)
+      sbClient.from("elements_groupes").select(COLONNES_ELEMENTS),
+      // Catégories de ces listes (round du 21.10.2026, suite 148 —
+      // sql/0042) : non bloquante. Sans elle, tout est rangé dans « Autres ».
+      sbClient.from("categories_elements").select(COLONNES_CATEGORIES_ELEMENTS)
     ]).then(function (r) {
       r.slice(0, 4).forEach(function (res) { if (res.error) throw res.error; }); // ces 4-là restent bloquantes, comme avant
       var personnesBrutes = r[0].data || [], chantiersBruts = r[1].data || [], statutsBruts = r[2].data || [], feriesBruts = r[3].data || [];
@@ -454,6 +457,7 @@
       etat.exceptionsEquipes = (r[9] && !r[9].error) ? normaliserExceptions(r[9].data || []) : [];
       etat.groupes = (r[10] && !r[10].error) ? normaliserGroupes(r[10].data || []) : [];
       etat.elementsGroupes = (r[11] && !r[11].error) ? normaliserElements(r[11].data || []) : [];
+      etat.categoriesElements = (r[12] && !r[12].error) ? normaliserCategoriesElements(r[12].data || []) : [];
       // etat.reglages : { cle: valeur } — null si la requête a échoué (la
       // mise en page retombe alors sur son cache local, cf.
       // lireMiseEnPage, js/page-mise-en-page.js).

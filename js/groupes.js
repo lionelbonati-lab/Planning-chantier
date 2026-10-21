@@ -74,15 +74,44 @@
   }
   // Suite 135 : listes d'éléments des groupes (sql/0036). Suite 139 :
   // masque (sql/0037), élément retiré du clic droit sans être supprimé.
-  var COLONNES_ELEMENTS = "id, groupe_id, nom, ordre, masque";
+  // Suite 148 : categorie_id (sql/0042), null = « Autres ».
+  var COLONNES_ELEMENTS = "id, groupe_id, nom, ordre, masque, categorie_id";
+  function comparerOrdre(a, b) { return a.ordre - b.ordre || (+a.id) - (+b.id); }
   function normaliserElements(lignes) {
     return (lignes || []).map(function (e) {
-      return { id: String(e.id), groupeId: String(e.groupe_id), nom: e.nom, ordre: e.ordre || 0, masque: !!e.masque };
-    }).sort(function (a, b) { return a.ordre - b.ordre || (+a.id) - (+b.id); });
+      return { id: String(e.id), groupeId: String(e.groupe_id), nom: e.nom, ordre: e.ordre || 0, masque: !!e.masque,
+        categorieId: e.categorie_id == null ? null : String(e.categorie_id) };
+    }).sort(comparerOrdre);
   }
   function elementsDuGroupe(groupeId) {
     groupeId = String(groupeId);
     return (etat.elementsGroupes || []).filter(function (e) { return e.groupeId === groupeId; });
+  }
+  // Round du 21.10.2026 (suite 148) — Lionel : « J'aimerai pouvoir trier ma
+  // liste de machines et grouper par catégorie. » Ses choix : « Liste de
+  // catégories » (pages Machines / Transports), « Machines et Transports »,
+  // et une machine sans catégorie « Dans « Autres » ». Catégories d'un
+  // groupe (table categories_elements, sql/0042), dans leur ordre.
+  var COLONNES_CATEGORIES_ELEMENTS = "id, groupe_id, nom, ordre";
+  function normaliserCategoriesElements(lignes) {
+    return (lignes || []).map(function (c) {
+      return { id: String(c.id), groupeId: String(c.groupe_id), nom: c.nom, ordre: c.ordre || 0 };
+    }).sort(comparerOrdre);
+  }
+  function categoriesDuGroupe(groupeId) {
+    groupeId = String(groupeId);
+    return (etat.categoriesElements || []).filter(function (c) { return c.groupeId === groupeId; });
+  }
+  // Liste d'un groupe rangée par catégorie : [{ categorie, elements }], les
+  // catégories dans leur ordre puis « Autres » (categorie null : sans
+  // catégorie, ou catégorie disparue). Sans aucune catégorie, un seul bloc
+  // « Autres » : la liste d'avant, telle quelle.
+  function blocsElementsGroupe(groupeId) {
+    var cats = categoriesDuGroupe(groupeId), parId = {};
+    var blocs = cats.map(function (c) { return (parId[c.id] = { categorie: c, elements: [] }); });
+    var autres = { categorie: null, elements: [] };
+    elementsDuGroupe(groupeId).forEach(function (e) { ((e.categorieId && parId[e.categorieId]) || autres).elements.push(e); });
+    return blocs.concat([autres]);
   }
   // Groupe d'une ligne du planning (Machines, Transports), sinon null : ses
   // cases proposent la liste du groupe au lieu des entrées rapides.

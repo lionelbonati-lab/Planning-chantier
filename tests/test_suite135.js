@@ -62,6 +62,17 @@ async function allerPage(page, nom) {
 }
 const liste = (page, g) => page.evaluate((g) => [...document.querySelectorAll('#listeElements-' + g + ' .ligne-intervenant b')].map((b) => b.textContent).join(','), g);
 const bdElements = (page) => page.evaluate(() => (window.__BD.elements_groupes || []).slice().sort((a, b) => a.groupe_id - b.groupe_id || a.ordre - b.ordre).map((e) => e.groupe_id + ':' + e.nom + ':' + e.ordre).join(','));
+// Suite 148 : ↑/↓ remplacés par le glisser-déposer — poignée ⠿ de `de`
+// lâchée sur le bas de la ligne `vers` (donc juste après elle).
+async function glisserApres(page, de, vers) {
+  const pos = (s, bas) => page.evaluate((a) => { const r = document.querySelector(a[0]).getBoundingClientRect(); return { x: r.x + r.width / 2, y: a[1] ? r.bottom - 4 : r.y + r.height / 2 }; }, [s, bas]);
+  const a = await pos(de, false), b = await pos(vers, true);
+  await page.mouse.move(a.x, a.y);
+  await page.mouse.down();
+  await page.mouse.move(a.x, a.y + 10, { steps: 3 });
+  await page.mouse.move(a.x, b.y, { steps: 8 });
+  await page.mouse.up();
+}
 async function saisir(page, nom) {
   await page.fill('.form-pop .f-nom', nom);
   await page.click('.form-pop .f-ok');
@@ -127,7 +138,7 @@ async function saisir(page, nom) {
   await saisir(page, 'Pompe');
   await page.click('#listeElements-1 .ligne-intervenant:nth-child(2) .lien-modifier');
   await saisir(page, 'Vibreur');
-  await page.click('#listeElements-1 .ligne-intervenant:nth-child(1) .cf-descendre');
+  await glisserApres(page, '#listeElements-1 .ligne-intervenant:nth-child(1) .poignee-el', '#listeElements-1 .ligne-intervenant:nth-child(2)');
   await page.waitForTimeout(500);
   const apresTri = await liste(page, 1), bdTri = await bdElements(page);
   await page.click('#listeElements-1 .ligne-intervenant:nth-child(3) .lien-supprimer-el');
@@ -137,7 +148,7 @@ async function saisir(page, nom) {
   const apresSuppr = await liste(page, 1), bdSuppr = await bdElements(page);
   verifier(avant === 'Karcher,Vibrateur' && apresTri === 'Vibreur,Karcher,Pompe' && bdTri === '1:Vibreur:1,1:Karcher:2,1:Pompe:3,2:Gravier:1' &&
     apresSuppr === 'Vibreur,Karcher' && bdSuppr === '1:Vibreur:1,1:Karcher:2,2:Gravier:1',
-    'page Machines : ajouter, renommer, ↓, supprimer — écrits en base (' + [avant, apresTri, bdTri, apresSuppr, bdSuppr].join(' ; ') + ')');
+    'page Machines : ajouter, renommer, glisser, supprimer — écrits en base (' + [avant, apresTri, bdTri, apresSuppr, bdSuppr].join(' ; ') + ')');
   await allerPage(page, 'planning');
   await clicDroit(page, await centreCase(page, '30', '2026-09-23', 'matin'));
   m = await menu(page);

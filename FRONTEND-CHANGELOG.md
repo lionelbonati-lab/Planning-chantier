@@ -11431,3 +11431,24 @@ J'aimerais pouvoir leur joindre des fichiers, photos ou PDF. » Ses choix : «�
 - `tests/test_chargement.js` : extrait aussi `detailsTexte_` et `normaliserPieces_` ; chaque tâche chargée porte `details: null, pieces: []`.
 - Suite complète : 150/150.
 
+
+## 261. Round du 21.10.2026 (suite 148) — Machines et matériaux rangés par catégories
+
+Lionel : « J'aimerai pouvoir trier ma liste de machines et grouper par catégorie. Et pour les trier par lister, déposer, plutôt que par les petites flèches. Dans le menu, clic droit de la souris, on aura du coup les catégories, et ensuite, dans un sous-menu, les machines de la catégorie. » Ses choix : « Liste de catégories (Recommandé) » ; « Machines et Transports (Recommandé) » ; une machine sans catégorie : « Dans « Autres » ».
+
+- Pages Machines et Transports (`js/page-personnel.js`) : un bloc par catégorie (poignée ⠿, nom, nombre d'éléments, « + » pour ajouter dedans, renommer, supprimer), puis « Autres » en dernier pour les éléments sans catégorie. « + Catégorie » à côté de « + Ajouter » (qui ajoute dans « Autres »). Supprimer une catégorie demande confirmation ; ses éléments passent dans « Autres ». Sans aucune catégorie, la liste reste d'un seul bloc, comme avant.
+- Glisser-déposer à la place de ↑/↓ : la poignée ⠿ d'un élément le pose dans sa catégorie ou dans une autre (une catégorie vide aussi) ; celle d'une catégorie la range parmi les autres. Souris et doigt ; à la souris, toute la ligne (ou le titre de la catégorie) se glisse aussi, sauf sa coche et ses boutons. Un trait montre la place d'arrivée, la page défile près des bords, le nouvel ordre s'affiche tout de suite puis s'écrit en base (seules les lignes changées). Les rangs suivent l'ordre affiché, catégorie après catégorie : sans catégories, la liste à plat garde le même ordre. Un échec d'écriture remet l'écran à l'état de la base.
+- Clic droit (ou appui long) sur une case des lignes Machines / Transports (`js/formulaires-edition.js`) : les catégories, chacune avec « › », puis « Autres », puis « Autre… » et « Coller ». À la souris, le survol d'une catégorie ouvre son sous-menu à côté du menu (à gauche s'il n'y a pas la place à droite) ; au clic ou au doigt, la catégorie touchée l'ouvre ou le referme. Une catégorie sans élément coché n'est pas proposée ; sans catégorie (ou rien que des éléments sans catégorie), la liste reste à plat. La suite ne change pas : chantier pour une machine, chantier et quantité pour un matériau.
+- Données (`js/groupes.js`, `js/donnees-sync.js`) : catégories chargées avec les listes (`etat.categoriesElements`, requête non bloquante : sans elle, tout est dans « Autres ») ; `categorie_id` sur chaque élément ; `blocsElementsGroupe` range une liste par catégorie pour la page et le menu.
+- Descriptions des pages Machines et Transports mises à jour (catégories, ⠿).
+
+### Tests
+
+- `tests/test_suite148.js` (nouveau, 23 vérifications) :
+  - sql/0042 : table, RLS, droits, catégorie supprimée → élément sans catégorie, index ; sauvegardes (categories_elements entre groupes et elements_groupes, aucune table perdue) ;
+  - clic droit : catégories (pas celle sans élément coché), « Autres » en dernier ; survol → sous-menu à côté du menu, sans élément masqué ; survoler une autre entrée le referme ; clic → machine → bulle ; Transports → matériau → quantité ; menu collé au bord droit → sous-menu à gauche ; liste à plat sans catégorie ;
+  - page Machines : blocs, « Autres » sans poignée ni action, plus de ↑/↓ ; glisser par la poignée, par la ligne entière, dans une catégorie vide, au doigt (poignée seulement), une catégorie ; rangs écrits dans l'ordre affiché ; « + Catégorie », renommer, « + » dans une catégorie, supprimer ; page Transports ;
+  - table des catégories en échec : menu et page à plat ; téléphone : sous-menu dans l'écran, toucher à nouveau le referme ; aucune erreur JS.
+- `tests/test_suite135.js` : l'élément est descendu en le glissant par sa poignée (plus de ↓).
+- Suite complète : X/X.
+

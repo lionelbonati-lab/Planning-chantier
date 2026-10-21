@@ -135,11 +135,26 @@
   // Round du 01.10.2026 (suite 139) — Lionel : « Chaque machine/transport
   // a sa coche qui le fera apparaître ou non dans la liste clic droit. »
   // Un élément décoché (masque, sql/0037) n'est pas proposé ici.
+  // Round du 21.10.2026 (suite 148) — Lionel : « Dans le menu, clic droit
+  // de la souris, on aura du coup les catégories, et ensuite, dans un
+  // sous-menu, les machines de la catégorie. » Son choix pour une machine
+  // sans catégorie : « Dans « Autres » », le dernier sous-menu. Une
+  // catégorie sans élément coché n'est pas proposée ; sans catégorie (ou
+  // rien que des éléments sans catégorie), la liste reste à plat. Chaque
+  // sous-menu est déjà dans le menu, caché : ses éléments sont câblés avec
+  // les autres (cablerBoutonsMenuAjout), le survol ou le clic l'ouvre à
+  // côté (cablerSousMenusElements_).
   function boutonsMenuAjoutGroupe_(groupe) {
     var tous = elementsDuGroupe(groupe.id), elements = tous.filter(function (e) { return !e.masque; });
-    var html = elements.length ? elements.map(function (e) {
-      return '<button type="button" data-element="' + esc2(e.id) + '">' + esc(e.nom) + '</button>';
-    }).join("") : '<p class="mc-vide">' + (tous.length ? 'Aucun élément coché' : 'Liste vide') + ' : à ' + (tous.length ? 'cocher' : 'remplir') + ' dans l’onglet ' + esc(groupe.nom) + '.</p>';
+    function bouton(e) { return '<button type="button" data-element="' + esc2(e.id) + '">' + esc(e.nom) + '</button>'; }
+    var blocs = blocsElementsGroupe(groupe.id).map(function (b) {
+      return { nom: b.categorie ? b.categorie.nom : "Autres", categorie: b.categorie, elements: b.elements.filter(function (e) { return !e.masque; }) };
+    }).filter(function (b) { return b.elements.length; });
+    var html = !elements.length ? '<p class="mc-vide">' + (tous.length ? 'Aucun élément coché' : 'Liste vide') + ' : à ' + (tous.length ? 'cocher' : 'remplir') + ' dans l’onglet ' + esc(groupe.nom) + '.</p>' :
+      blocs.length === 1 && !blocs[0].categorie ? elements.map(bouton).join("") : blocs.map(function (b, i) {
+        return '<button type="button" class="mc-cat" data-sous-menu="' + i + '"><span class="mc-libelle">' + esc(b.nom) + '</span><span class="mc-fleche" aria-hidden="true">›</span></button>' +
+          '<div class="mc-sous-menu" data-sous-menu="' + i + '" hidden><div class="cp-titre">' + esc(b.nom) + '</div>' + b.elements.map(bouton).join("") + '</div>';
+      }).join("");
     html += '<button type="button" data-t="tache">Autre…</button>';
     if (pressePapier.length) html += '<button type="button" class="btn-coller" data-coller="1">Coller (' + pressePapier.length + ')</button>';
     return html;
@@ -186,7 +201,56 @@
     if (pressePapier.length) html += '<button type="button" class="btn-coller" data-coller="1">Coller (' + pressePapier.length + ')</button>';
     return html;
   }
+  // Sous-menus des catégories (suite 148) : à la souris, le survol d'une
+  // catégorie l'ouvre à droite du menu (à gauche s'il n'y a pas la place) ;
+  // au clic ou au doigt, la catégorie touchée ouvre ou referme le sien. Un
+  // seul ouvert à la fois ; survoler une autre entrée du menu le referme.
+  function cablerSousMenusElements_(pop) {
+    var cats = pop.querySelectorAll("button.mc-cat"), ouvert = null, minuteur = 0;
+    if (!cats.length) return;
+    function fermerSous() {
+      clearTimeout(minuteur);
+      if (!ouvert) return;
+      ouvert.hidden = true;
+      pop.querySelectorAll("button.mc-cat.ouvert").forEach(function (b) { b.classList.remove("ouvert"); });
+      ouvert = null;
+    }
+    function ouvrir(btn) {
+      clearTimeout(minuteur);
+      var sous = pop.querySelector('.mc-sous-menu[data-sous-menu="' + btn.dataset.sousMenu + '"]');
+      if (!sous || sous === ouvert) return;
+      fermerSous();
+      ouvert = sous;
+      btn.classList.add("ouvert");
+      sous.hidden = false;
+      var b = btn.getBoundingClientRect(), p = pop.getBoundingClientRect(), r = sous.getBoundingClientRect(), x = p.right + 4;
+      if (x + r.width > window.innerWidth - 6) x = p.left - r.width - 4 >= 6 ? p.left - r.width - 4 : Math.max(6, window.innerWidth - r.width - 6);
+      sous.style.left = Math.round(x) + "px";
+      sous.style.top = Math.round(Math.max(6, Math.min(b.top - 11, window.innerHeight - r.height - 10))) + "px";
+    }
+    cats.forEach(function (btn) {
+      btn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        if (btn.classList.contains("ouvert")) fermerSous(); else ouvrir(btn);
+      });
+      btn.addEventListener("pointerenter", function (e) {
+        if (e.pointerType !== "mouse") return;
+        clearTimeout(minuteur);
+        minuteur = setTimeout(function () { ouvrir(btn); }, 150);
+      });
+    });
+    pop.addEventListener("pointerover", function (e) {
+      if (e.pointerType !== "mouse" || !ouvert) return;
+      var b = e.target.closest("button");
+      if (b && b.closest(".mc-sous-menu")) { clearTimeout(minuteur); return; }
+      if (!b || b.classList.contains("mc-cat")) return;
+      clearTimeout(minuteur);
+      minuteur = setTimeout(fermerSous, 250);
+    });
+    pop.addEventListener("scroll", fermerSous);
+  }
   function cablerBoutonsMenuAjout(pop, fermer, cell, x, y, cibles, giDebut, duree, plageInit, demiDebut, demiFin) {
+    cablerSousMenusElements_(pop);
     var btnColler = pop.querySelector("button[data-coller]");
     if (btnColler) btnColler.addEventListener("click", function () {
       fermer();

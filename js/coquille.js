@@ -718,9 +718,11 @@
     return '<div class="page" id="page-' + type + '"><div class="page-scroll">' +
       '<div class="page-titre"><h1>' + titre + '</h1></div>' + contenu + '</div></div>';
   }
+  // Suite 148 : la liste se range par catégories, poignée ⠿ (cf.
+  // renderListeElements_, js/page-personnel.js).
   function htmlPageMachines() {
     return htmlPageSimple_("machines", "Machines",
-      '<p class="page-sous">Une seule ligne dans le planning, à la place de la section Machines. Clic droit (ou appui long) sur une de ses cases : cette liste, puis chantier et quantité.</p>' +
+      '<p class="page-sous">Une seule ligne dans le planning, à la place de la section Machines. Clic droit (ou appui long) sur une de ses cases : les catégories, puis leurs machines. Glissez ⠿ pour ranger.</p>' +
       htmlReglagesCouleurs('machines') +
       '<div id="listesGroupes"></div>');
   }
@@ -730,7 +732,7 @@
   // sa couleur se règle ici.
   function htmlPageTransports() {
     return htmlPageSimple_("transports", "Transports",
-      '<p class="page-sous">Une seule ligne, en haut du planning sous les notes. L’icône camion de la barre du planning la masque. Clic droit (ou appui long) sur une de ses cases : cette liste, puis chantier et quantité.</p>' +
+      '<p class="page-sous">Une seule ligne, en haut du planning sous les notes. L’icône camion de la barre du planning la masque. Clic droit (ou appui long) sur une de ses cases : les catégories, puis leurs matériaux et la quantité. Glissez ⠿ pour ranger.</p>' +
       htmlReglagesCouleurs('transports') +
       // Suite 138 : titre « Matériaux » posé par renderTransports, sous la
       // coche « Afficher ».
