@@ -12,9 +12,10 @@
 //   → { ok: true, urls: { chemin: adresse valable 1 heure } }
 // Le jeton est vérifié en relisant la semaine par la même fonction que la
 // page (consultation_planning / consultation_responsable, avec la clé
-// publique) : seuls les fichiers joints à une tâche que ce lien affiche
-// sont signés, avec la clé de service (jamais renvoyée). Un chemin qui
-// n'en fait pas partie est simplement absent de la réponse.
+// publique) : seuls les fichiers joints à une tâche (ou, suite 149, à une
+// note du lien responsable) que ce lien affiche sont signés, avec la clé
+// de service (jamais renvoyée). Un chemin qui n'en fait pas partie est
+// simplement absent de la réponse.
 // ============================================================
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";

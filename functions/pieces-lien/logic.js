@@ -32,9 +32,11 @@ function validerDemande(body) {
 // Fichiers (et vignettes) joints aux tâches que ce lien affiche cette
 // semaine-là : la réponse de consultation_planning / consultation_responsable
 // (sql/0041), donc exactement les mêmes règles de visibilité que la page.
+// Suite 149 (sql/0043) : et aux notes (lien responsable seulement — le lien
+// des ouvriers n'en renvoie pas).
 function cheminsVisibles(reponse) {
   var vus = {};
-  ((reponse && reponse.taches) || []).forEach(function (t) {
+  ((reponse && reponse.taches) || []).concat((reponse && reponse.notes) || []).forEach(function (t) {
     (Array.isArray(t && t.pieces) ? t.pieces : []).forEach(function (p) {
       if (p && typeof p.chemin === "string" && p.chemin) vus[p.chemin] = true;
       if (p && typeof p.vignette === "string" && p.vignette) vus[p.vignette] = true;

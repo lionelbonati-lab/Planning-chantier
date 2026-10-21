@@ -2274,8 +2274,9 @@
     // l'item de grille "brut", jamais habillé ni sticky lui-même.
     // Détails / fichiers joints (round du 21.10.2026, suite 147 — Lionel :
     // « Dans la fiche ») : la bulle garde son texte court, précédé d'une
-    // petite icône (trombone, ou lignes pour des détails seuls).
-    var joint = it.type === "tache" || it.type === "absence" ? iconeJointBulle_(it) : "";
+    // petite icône (trombone, ou lignes pour des détails seuls). Suite 149 :
+    // les notes aussi.
+    var joint = it.type === "tache" || it.type === "absence" || it.type === "note" ? iconeJointBulle_(it) : "";
     var html = '<span class="poignee poignee-g" data-poignee="gauche"></span><span class="poignee poignee-d" data-poignee="droite"></span>' +
       '<div class="b-carte"><span class="b-txt">' + (chJalon ? '<span class="b-pastille" style="background:' + chJalon.couleur + '"></span>' : '') + joint + esc(it.texte) + '</span>';
     if (it.statut && STATUTS[it.statut]) html += '<span class="b-statut" style="background:' + STATUTS[it.statut].couleur + '"><span class="dot"></span>' + esc(STATUTS[it.statut].nom) + '</span>';

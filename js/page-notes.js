@@ -23,11 +23,18 @@
      suppression passent l'ancienne note en `origine` : le serveur ne
      retire QUE cette ligne-là sur chaque jour, les autres notes du même
      jour restent.
+
+     Round du 21.10.2026 (suite 149) — Lionel : « Les notes peuvent aussi
+     avoir des descriptifs avec les photos et des fichiers liés, même si je
+     les utiliserai sûrement moins souvent. » La fiche reçoit la même
+     section « Détails » / « Fichiers » que celle du planning
+     (js/pieces-jointes.js, sql/0043) ; la liste montre la petite icône.
      ============================================================ */
   var NOTES_TOUTES = null; // null = pas encore chargées ; notes FUSIONNÉES sinon
 
   function chargerNotesToutesServeur() {
-    return sbClient.from("notes").select("id, date, texte, important, demi, chantier_id").order("date").then(function (r) {
+    // « * » (suite 149) : details et pieces (sql/0043) quand la base les a.
+    return sbClient.from("notes").select("*").order("date").then(function (r) {
       if (r.error) throw new Error(r.error.message);
       return r.data || [];
     });
@@ -41,7 +48,9 @@
     var groupes = {}, cles = [];
     lignes.forEach(function (l) {
       // chantier_id (suite 122) : même texte sur 2 chantiers = 2 notes.
-      var cle = l.texte + "\u0000" + (l.important ? 1 : 0) + "\u0000" + (l.chantier_id != null ? l.chantier_id : "");
+      // Suite 149 : mêmes détails et mêmes fichiers aussi (comme la grille).
+      var cle = l.texte + "\u0000" + (l.important ? 1 : 0) + "\u0000" + (l.chantier_id != null ? l.chantier_id : "") +
+        "\u0000" + (detailsTexte_(l.details) || "") + "\u0000" + clePieces_(l.pieces);
       if (!groupes[cle]) { groupes[cle] = []; cles.push(cle); }
       groupes[cle].push(l);
     });
@@ -60,7 +69,8 @@
           courant.idFin = l.id;
           courant.demiFin = demi;
         } else {
-          courant = { idDebut: l.id, idFin: l.id, dateDebut: l.date, dateFin: l.date, texte: l.texte, important: !!l.important, chantierId: l.chantier_id != null ? l.chantier_id : null, demiDebut: demi, demiFin: demi };
+          courant = { idDebut: l.id, idFin: l.id, dateDebut: l.date, dateFin: l.date, texte: l.texte, important: !!l.important, chantierId: l.chantier_id != null ? l.chantier_id : null, demiDebut: demi, demiFin: demi,
+            details: detailsTexte_(l.details), pieces: normaliserPieces_(l.pieces) };
           items.push(courant);
         }
       });
@@ -74,7 +84,7 @@
   }
   function ligneFicheNote_(n) {
     return '<div class="ligne-intervenant ligne-note" data-id-debut="' + esc2(n.idDebut) + '">' +
-      '<span class="gauche-chantier"><span class="swatch-chantier swatch-note"></span><b>' + esc(n.texte) + '</b>' + pastilleChantierListeHTML(n.chantierId) + '</span>' +
+      '<span class="gauche-chantier"><span class="swatch-chantier swatch-note"></span><b>' + iconeJointBulle_(n) + esc(n.texte) + '</b>' + pastilleChantierListeHTML(n.chantierId) + '</span>' +
       (n.important ? '<span class="compte jalon-important" title="Important">' + ICONS.important + '</span>' : '') +
       '<span class="plage-jalon">' + esc(libellePlageNote_(n)) + '</span>' +
       '<span class="ligne-actions">' +
@@ -161,7 +171,9 @@
     pop.innerHTML = bandeau() +
       datesPlageJalonHTML(state.debutIso, state.finIso) +
       '<div class="corps"><div class="label-champ" style="margin:0 0 6px">Texte</div>' +
-      '<input type="text" class="f-texte-note" value="' + esc2(existante ? existante.texte : "") + '" placeholder="ex. Réunion de chantier"></div>' +
+      '<input type="text" class="f-texte-note" value="' + esc2(existante ? existante.texte : "") + '" placeholder="ex. Réunion de chantier">' +
+      // Suite 149 : détails et fichiers joints, comme la fiche du planning.
+      sectionDetailsPiecesHTML_() + '</div>' +
       piedPrincipalHTML(!!existante);
     var px = Math.round(window.innerWidth / 2 - 162), py = Math.max(30, Math.round(window.innerHeight / 2 - 230));
     positionnerPop(pop, px, py);
@@ -188,9 +200,12 @@
     cablerDatesJalon(pop, state, rafraichirDates);
     var champ = pop.querySelector(".f-texte-note");
     if (!existante) champ.focus();
+    var dp = cablerDetailsPieces_(pop, existante);
     var suppr = pop.querySelector(".f-suppr");
     if (suppr) suppr.addEventListener("click", function () { fermer(); supprimerNoteServeur_(existante); });
     pop.querySelector(".f-ok").addEventListener("click", function () {
+      // Un fichier encore en route : la fiche reste ouverte.
+      if (dp.enCours()) { toast("Envoi des fichiers en cours…"); return; }
       // Une note tient sur une ligne : plusieurs lignes feraient plusieurs
       // notes (lignesDe, côté serveur).
       var texte = champ.value.replace(/\s+/g, " ").trim();
@@ -204,7 +219,9 @@
       invoquerFonctionServeur("enregistrer-plage", {
         kind: "note", dateDebut: state.debutIso, dateFin: state.finIso, texte: texte,
         demiDebut: demiDebut, demiFin: demiFin, important: state.important, chantierId: state.chantierId, mode: "remplacement",
-        origine: existante ? origineNote_(existante) : null
+        origine: existante ? origineNote_(existante) : null,
+        // Suite 149 : posés sur chaque jour de la note.
+        details: dp.details(), pieces: dp.pieces()
       }).then(function () {
         occupe(false);
         apresEcritureNotes_();

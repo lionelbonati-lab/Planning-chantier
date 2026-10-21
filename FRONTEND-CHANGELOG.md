@@ -11452,3 +11452,27 @@ Lionel : « J'aimerai pouvoir trier ma liste de machines et grouper par catégo
 - `tests/test_suite135.js` : l'élément est descendu en le glissant par sa poignée (plus de ↓).
 - Suite complète : 151/151.
 
+
+## 262. Round du 21.10.2026 (suite 149) — Détails et fichiers joints des notes
+
+Lionel : « Les notes  peuvent aussi avoir des descriptifs avec les photos et des fichiers liés, même si je les utiliserai sûrement moins souvent. » Ses choix : comme les tâches (suite 147), dans la fiche ; dans la fiche du planning et dans le formulaire de la page Notes ; visibles sur le lien responsable (le lien des ouvriers n'affiche pas les notes) ; pas les jalons.
+
+- Fiche d'une note dans le planning (`js/formulaires-edition.js`) : sous le descriptif, la même section « Détails » / « Fichiers » que la fiche d'une tâche (`js/pieces-jointes.js`) : détails sur plusieurs lignes, « Joindre » (plusieurs fichiers ; photos en original, avec une vignette), retirer, ouvrir (adresse signée). « Enregistrer » attend la fin des envois. La fiche d'un jalon n'a pas cette section.
+- Page Notes (`js/page-notes.js`) : même section dans le formulaire Ajouter / Modifier, envoyée à enregistrer-plage ; la liste montre la petite icône devant le texte (trombone, ou lignes pour des détails seuls) ; deux jours d'une note aux détails différents restent deux lignes.
+- Bulle d'une note (`js/grille-rendu.js`) : même icône que pour une tâche, « détails, 2 fichiers » au survol.
+- Données (`js/donnees-sync.js`) : détails et fichiers des notes chargés et normalisés (rien d'écrit au chargement) ; deux jours d'une note ne forment une bulle que s'ils ont les mêmes détails et les mêmes fichiers ; changer les détails ou les fichiers est un changement de la note, envoyé à enregistrer-plage et posé sur chacun de ses jours.
+- Copies (`js/formulaires-communs.js`, `js/grille-interactions.js`) : Ctrl+V, « Coller », copie par les flèches ou au glisser : la note copiée garde détails et fichiers, dans son propre tableau.
+- Séries (`js/series.js`, `js/formulaires-edition.js`) : la boîte de portée porte aussi détails et fichiers d'une note (table notes) ; une série de notes créée avec des détails ou des fichiers les reçoit sur toutes ses lignes.
+- Lien responsable (`js/responsable.js`) : bouton « Détails · 1 fichier » sur la note, même fiche que pour une tâche (`js/details-lien.js`, adresses signées par pieces-lien).
+
+### Tests
+
+- `tests/test_suite149.js` (nouveau, 39 vérifications) :
+  - sql/0043 ; enregistrer-plage : détails et fichiers fournis posés sur chaque jour, gardés quand l'appel n'en parle pas (aussi sur un jour ajouté), rien d'écrit sans eux, retirés ; index.ts relit toutes les colonnes d'une note ; pieces-lien signe les fichiers des notes ;
+  - planning : rien d'écrit au chargement ; icônes des bulles ; deux bulles quand les détails diffèrent ; fiche : section, ligne ajoutée, PDF retiré, photo jointe, enregistrement (un appel à enregistrer-plage, les 2 jours, forme fixe), Ctrl+Z, envoi en cours, « Annuler » ; jalon sans section ; nouvelle note avec détails ; copier / coller ; séries (changementSerie_, « Tous les événements », série créée) ;
+  - page Notes : icônes, Modifier (section, appel, liste relue), Ajouter avec un fichier encore en route ;
+  - lien responsable : boutons, fiche de la note, adresses demandées pour la page responsable, Échap.
+- `tests/test_enregistrer_plage.js` : detailsNote et piecesNote extraites avec planPlage.
+- `tests/test_chargement.js` : notes chargées avec `details: null, pieces: []`.
+- Suite complète : 152/152.
+

@@ -255,7 +255,10 @@
     var notes = infos.isoDates.map(function (iso) {
       return (notesParDate[iso] || []).map(function (n) {
         // chantierId : suite 122 (pastille, sql/0026_notes_chantier.sql).
-        return { texte: n.texte, important: !!n.important, serieId: n.serie_id || null, demi: n.demi || null, chantierId: n.chantier_id || null };
+        // details/pieces : suite 149 (sql/0043, js/pieces-jointes.js) —
+        // absents sans la 0043 : null et [].
+        return { texte: n.texte, important: !!n.important, serieId: n.serie_id || null, demi: n.demi || null, chantierId: n.chantier_id || null,
+          details: detailsTexte_(n.details), pieces: normaliserPieces_(n.pieces) };
       });
     });
 
@@ -1121,6 +1124,11 @@
     // (Lionel : « Pastille de couleur pour le chantier dans les notes et
     // jalons »).
     if (type === "jalon" || type === "note") item.chantierId = opts.chantierId || null;
+    // Détails et fichiers joints d'une note (round du 21.10.2026, suite 149 —
+    // Lionel : « Les notes peuvent aussi avoir des descriptifs avec les
+    // photos et des fichiers liés ») : nouveau tableau, jamais celui de
+    // l'item copié (js/pieces-jointes.js).
+    if (type === "note") { item.details = detailsTexte_(opts.details); item.pieces = normaliserPieces_(opts.pieces); }
     return item;
   }
   // demiDebut/demiFin (round du 08.09.2026, suite — §49) : une tâche/absence
@@ -1308,13 +1316,14 @@
       return (data && data.notes && data.notes[gi % 5]) || [];
     }
     // chantierId (suite 122) : 2 notes de même texte mais de chantiers
-    // différents restent 2 bulles (pastilles différentes).
-    function indexNonConsommeCorrespondant_(gi, texte, important, chantierId) {
+    // différents restent 2 bulles (pastilles différentes). entree (suite
+    // 149) : mêmes détails et mêmes fichiers aussi, comme les tâches.
+    function indexNonConsommeCorrespondant_(gi, texte, important, chantierId, entree) {
       var arr = notesArrayAuGi_(gi);
       var used = consommes[gi];
       for (var i = 0; i < arr.length; i++) {
         if (used && used[i]) continue;
-        if (arr[i].texte === texte && !!arr[i].important === !!important && (arr[i].chantierId || null) === (chantierId || null)) return i;
+        if (arr[i].texte === texte && !!arr[i].important === !!important && (arr[i].chantierId || null) === (chantierId || null) && memesDetailsPieces_(arr[i], entree)) return i;
       }
       return -1;
     }
@@ -1343,14 +1352,15 @@
         while (fin2 + 1 < nJoursFenetre) {
           if (fin2 !== giStart && demiCourant !== null) break;
           if (limiteN && isoDeGiFenetre(donnees, fin2 + 1) >= limiteN) break;
-          var idxSuiv = indexNonConsommeCorrespondant_(fin2 + 1, entree.texte, entree.important, entree.chantierId);
+          var idxSuiv = indexNonConsommeCorrespondant_(fin2 + 1, entree.texte, entree.important, entree.chantierId, entree);
           if (idxSuiv === -1) break;
           var suiv = notesArrayAuGi_(fin2 + 1)[idxSuiv];
           fin2++;
           marquerConsomme_(fin2, idxSuiv);
           demiCourant = suiv.demi || null;
         }
-        var itn = itemPlage("note", entree.texte, giStart, fin2 - giStart + 1, { important: entree.important, demiDebut: demiN, demiFin: demiCourant, chantierId: entree.chantierId });
+        var itn = itemPlage("note", entree.texte, giStart, fin2 - giStart + 1, { important: entree.important, demiDebut: demiN, demiFin: demiCourant, chantierId: entree.chantierId,
+          details: entree.details, pieces: entree.pieces });
         itn.serieId = entree.serieId || null;
         itn.dateDebutIso = isoDeGiFenetre(donnees, giStart);
         NOTES.push(itn);
@@ -1727,7 +1737,9 @@
   // série se gère par series.js, pas par le moteur de diff.
   function notesParId() {
     var out = {};
-    NOTES.forEach(function (n) { out[n.id] = { texte: n.texte, important: !!n.important, giDebut: n.giDebut, duree: n.duree, dateDebutIso: n.dateDebutIso, demiDebut: n.demiDebut || null, demiFin: n.demiFin || null, chantierId: n.chantierId || null, serieId: n.serieId || null }; });
+    // details/pieces (suite 149) : forme normalisée, comparée par diffsNotes.
+    NOTES.forEach(function (n) { out[n.id] = { texte: n.texte, important: !!n.important, giDebut: n.giDebut, duree: n.duree, dateDebutIso: n.dateDebutIso, demiDebut: n.demiDebut || null, demiFin: n.demiFin || null, chantierId: n.chantierId || null, serieId: n.serieId || null,
+      details: detailsTexte_(n.details), pieces: normaliserPieces_(n.pieces) }; });
     return out;
   }
   // Nombre de semaines réellement chargées × 5 (et non plus deuxSemaines
@@ -1804,7 +1816,9 @@
       // chantierId comparé depuis la suite 122 : le formulaire de la grille
       // le modifie désormais (base et local viennent du même chargement, un
       // changement fait par la page « Jalons » ne crée pas d'écart).
-      if (b && a.texte === b.texte && !!a.important === !!b.important && (a.chantierId || null) === (b.chantierId || null) && a.giDebut === b.giDebut && a.duree === b.duree && (a.demiDebut || null) === (b.demiDebut || null) && (a.demiFin || null) === (b.demiFin || null)) return;
+      // Détails et fichiers (suite 149) comparés aussi.
+      if (b && a.texte === b.texte && !!a.important === !!b.important && (a.chantierId || null) === (b.chantierId || null) && a.giDebut === b.giDebut && a.duree === b.duree && (a.demiDebut || null) === (b.demiDebut || null) && (a.demiFin || null) === (b.demiFin || null) &&
+        memesDetailsPieces_(a, b)) return;
       out.push({ action: b ? "modifier" : "creer", id: id, avant: b || null, apres: a });
     });
     return out;
@@ -2184,12 +2198,17 @@
           mode = d.action === "creer" ? "ajout" : "remplacement";
           origine = d.avant ? { dateDebut: d.avant.dateDebutIso, dateFin: isoDeApres(d.avant), texte: d.avant.texte, important: d.avant.important, demiDebut: d.avant.demiDebut || null, demiFin: d.avant.demiFin || null, chantierId: d.avant.chantierId || null } : null;
         }
-        return invoquerFonctionServeur("enregistrer-plage", {
+        var corpsNote = {
           kind: "note", dateDebut: dateDeb, dateFin: dateFin, demiDebut: demiDebNote, demiFin: demiFinNote,
           // chantierId (suite 122) : celui de la bulle, envoyé à chaque
           // écriture (null = sans chantier, pas de pastille).
           texte: texte, important: important, chantierId: d.apres ? (d.apres.chantierId || null) : null, mode: mode, origine: origine
-        }).then(function () { return d.apres ? reposerSerie_("notes", dateDeb, dateFin, texte, d.apres.serieId) : null; });
+        };
+        // Détails et fichiers (suite 149, sql/0043) : ceux de la bulle, posés
+        // sur chaque jour. enregistrer-plage n'écrit ces colonnes que s'il y
+        // en a (une note sans détails s'écrit aussi sur une base sans la 0043).
+        if (d.apres) { corpsNote.details = d.apres.details || null; corpsNote.pieces = d.apres.pieces || []; }
+        return invoquerFonctionServeur("enregistrer-plage", corpsNote).then(function () { return d.apres ? reposerSerie_("notes", dateDeb, dateFin, texte, d.apres.serieId) : null; });
       });
     });
     chaine.then(function () {

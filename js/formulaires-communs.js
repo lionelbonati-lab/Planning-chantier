@@ -99,7 +99,7 @@
       if (copie) {
         var nouveau = p.liste === TACHES
           ? itemPlageTache(it.type, it.texte, it.personneId, nb.giDebut, nb.duree, { chantier: it.chantier, important: it.important, statut: it.statut, details: it.details, pieces: it.pieces, demiDebut: nb.demiDebut, demiFin: nb.demiFin })
-          : itemPlage(it.type, it.texte, nb.giDebut, nb.duree, { important: it.important, chantierId: it.chantierId, demiDebut: nb.demiDebut, demiFin: nb.demiFin });
+          : itemPlage(it.type, it.texte, nb.giDebut, nb.duree, { important: it.important, chantierId: it.chantierId, details: it.details, pieces: it.pieces, demiDebut: nb.demiDebut, demiFin: nb.demiFin });
         nouveau.dateDebutIso = isoDeGi(nouveau.giDebut);
         p.liste.push(nouveau);
         nouveaux.push(nouveau.id);
@@ -579,7 +579,7 @@
         nouveau = itemPlageTache(it.type, it.texte, p, f.giDebut, f.duree, { chantier: it.chantier, important: it.important, statut: it.statut, details: it.details, pieces: it.pieces, demiDebut: f.demiDebut, demiFin: f.demiFin });
         aPoser.push({ liste: TACHES, item: nouveau });
       } else if (it.type === "jalon" || it.type === "note") {
-        nouveau = itemPlage(it.type, it.texte, f.giDebut, f.duree, { important: it.important, chantierId: it.chantierId, demiDebut: f.demiDebut, demiFin: f.demiFin });
+        nouveau = itemPlage(it.type, it.texte, f.giDebut, f.duree, { important: it.important, chantierId: it.chantierId, details: it.details, pieces: it.pieces, demiDebut: f.demiDebut, demiFin: f.demiFin });
         aPoser.push({ liste: it.type === "jalon" ? JALONS : NOTES, item: nouveau });
       } else { ignores++; return; }
       nouveau.dateDebutIso = isoDeGi(f.giDebut);
@@ -631,7 +631,7 @@
         nouveau = itemPlageTache(it.type, it.texte, it.personneId, it.giDebut, it.duree, { chantier: it.chantier, important: it.important, statut: it.statut, details: it.details, pieces: it.pieces, demiDebut: it.demiDebut, demiFin: it.demiFin });
         TACHES.push(nouveau);
       } else if (it.type === "jalon" || it.type === "note") {
-        nouveau = itemPlage(it.type, it.texte, it.giDebut, it.duree, { important: it.important, chantierId: it.chantierId, demiDebut: it.demiDebut, demiFin: it.demiFin });
+        nouveau = itemPlage(it.type, it.texte, it.giDebut, it.duree, { important: it.important, chantierId: it.chantierId, details: it.details, pieces: it.pieces, demiDebut: it.demiDebut, demiFin: it.demiFin });
         nouveau.dateDebutIso = isoDeGi(it.giDebut);
         (it.type === "jalon" ? JALONS : NOTES).push(nouveau);
       } else return;

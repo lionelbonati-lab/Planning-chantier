@@ -309,10 +309,16 @@
       // js/pieces-jointes.js) : même portée que le texte.
       if (detailsTexte_(ap.details) !== detailsTexte_(av.details)) m.details = detailsTexte_(ap.details);
       if (clePieces_(ap.pieces) !== clePieces_(av.pieces)) m.pieces = normaliserPieces_(ap.pieces);
-    } else if ((ap.chantierId || null) !== (av.chantierId || null)) {
-      // Jalon ou note (round du 29.09.2026, suite 122) : chantier choisi
-      // dans le formulaire, porté par l'id (pastille de la bulle).
-      m.chantier_id = ap.chantierId || null;
+    } else {
+      if ((ap.chantierId || null) !== (av.chantierId || null)) {
+        // Jalon ou note (round du 29.09.2026, suite 122) : chantier choisi
+        // dans le formulaire, porté par l'id (pastille de la bulle).
+        m.chantier_id = ap.chantierId || null;
+      }
+      // Note (round du 21.10.2026, suite 149, sql/0043) : détails et
+      // fichiers, même portée que le texte, comme pour une tâche.
+      if (table === "notes" && detailsTexte_(ap.details) !== detailsTexte_(av.details)) m.details = detailsTexte_(ap.details);
+      if (table === "notes" && clePieces_(ap.pieces) !== clePieces_(av.pieces)) m.pieces = normaliserPieces_(ap.pieces);
     }
     if (Object.keys(m).length) ch.modifs = m;
     return ch;

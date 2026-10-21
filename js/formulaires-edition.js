@@ -70,7 +70,8 @@
   // contenu (round du 21.10.2026, suite 147) : { details, pieces } de la
   // fiche. enregistrer-serie ne connaît pas ces 2 colonnes (sql/0041) : elles
   // sont posées juste après sur toutes les lignes de la série créée
-  // (taches.serie_id = r.serieId), avant le rechargement.
+  // (taches.serie_id = r.serieId), avant le rechargement. Suite 149 : une
+  // note aussi (notes.serie_id, sql/0043).
   function creerSerieServeur(type, cibles, giDebut, texte, important, chantier, statut, choixSerie, apresChaqueAppel, duree, demiDebut, demiFin, isoDebutForce, contenu) {
     var isoDebut = isoDebutForce || isoDeGi(giDebut);
     // enregistrer-serie n'a que 3 types ("tache"|"jalon"|"note", cf.
@@ -115,7 +116,7 @@
           if (contenu && detailsTexte_(contenu.details)) champs.details = detailsTexte_(contenu.details);
           if (contenu && contenu.pieces && contenu.pieces.length) champs.pieces = normaliserPieces_(contenu.pieces);
           if (!Object.keys(champs).length || !r || !r.serieId) return;
-          return Promise.resolve(sbClient.from("taches").update(champs).eq("serie_id", r.serieId)).then(function (res) {
+          return Promise.resolve(sbClient.from(typeServeur === "note" ? "notes" : "taches").update(champs).eq("serie_id", r.serieId)).then(function (res) {
             if (res && res.error) throw res.error;
           });
         });
@@ -1352,7 +1353,12 @@
       datesPlageHTML(state.giDebut, state.giFin, state.demiDebut, state.demiFin, state.debutHorsFenetreIso, state.finHorsFenetreIso) +
       '<div class="contenu-carte">' +
       '<div class="corps"><div class="label-champ" style="margin:0 0 6px">Descriptif</div>' +
-      '<div class="descriptif-texte" tabindex="0"></div></div>' +
+      '<div class="descriptif-texte" tabindex="0"></div>' +
+      // Détails et fichiers joints (round du 21.10.2026, suite 149 — Lionel :
+      // « Les notes peuvent aussi avoir des descriptifs avec les photos et
+      // des fichiers liés ») : même section que la fiche d'une tâche
+      // (js/pieces-jointes.js), notes seulement (pas les jalons).
+      (kind === "note" ? sectionDetailsPiecesHTML_() : '') + '</div>' +
       optionsAvanceesHTML("", champSerie) +
       '</div>' +
       piedPrincipalHTML(!!itemExisting);
@@ -1388,6 +1394,8 @@
     cablerDatesPlage(pop, state, rafraichirDates);
     var texteActuel = texteInit;
     cablerDescriptifEdit(pop, function () { return texteActuel; }, function (v) { texteActuel = v; }, "Cliquer pour ajouter un descriptif…");
+    // Jalon : pas de section (dp null).
+    var dp = kind === "note" ? cablerDetailsPieces_(pop, itemExisting) : null;
 
     var lireChoixSerie = cablerSerieChamps(pop, itemExisting ? itemExisting.dateDebutIso : isoBorneEtat(state, "debut"));
     cablerLienPlus(pop);
@@ -1409,9 +1417,13 @@
       supprimerUnique();
     });
     pop.querySelector(".f-ok").addEventListener("click", function () {
+      // Un fichier encore en route : la fiche reste ouverte (comme la fiche
+      // d'une tâche).
+      if (dp && dp.enCours()) { toast("Envoi des fichiers en cours…"); return; }
       var texte = texteActuel.trim();
       if (!texte) { fermer(); return; }
       var important = state.important, chantierId = state.chantierId;
+      var contenuFinal = dp ? { details: dp.details(), pieces: dp.pieces() } : {};
       // §88 — isoDebutVrai/isoFinVrai (jamais isoDeGi(giDebutFinal) seul,
       // qui donnerait la date du bord VISIBLE clampé, pas la vraie date,
       // dès que l'une des 2 bornes est hors fenêtre) + dureeFinal en jours
@@ -1435,6 +1447,8 @@
         function appliquerModifUnique() {
           sauvegarderUndo();
           itemExisting.texte = texte; itemExisting.important = important; itemExisting.chantierId = chantierId;
+          // Nouveau tableau de fichiers (jamais modifié sur place, cf. pieces-jointes.js).
+          if (dp) { itemExisting.details = contenuFinal.details; itemExisting.pieces = contenuFinal.pieces; }
           itemExisting.giDebut = giDebutFinal; itemExisting.duree = dureeFinal;
           itemExisting.demiDebut = demiDebutFinal; itemExisting.demiFin = demiFinFinal;
           itemExisting.dateDebutIso = isoDebutVrai;
@@ -1446,7 +1460,7 @@
         if (itemExisting.serieId) {
           fermer();
           enregistrerFicheSerie(kind === "jalon" ? "JALONS" : "NOTES", itemExisting,
-            Object.assign({}, itemExisting, { texte: texte, important: important, chantierId: chantierId }),
+            Object.assign({}, itemExisting, { texte: texte, important: important, chantierId: chantierId }, contenuFinal),
             { debut: isoDebutVrai, fin: isoFinVrai, demiDebut: demiDebutFinal, demiFin: demiFinFinal },
             !!(state.debutHorsFenetreIso || state.finHorsFenetreIso));
           return;
@@ -1463,12 +1477,13 @@
           var chSerie = chantierId != null ? (etat.chantiers.filter(function (c) { return String(c.ligne) === String(chantierId); })[0] || null) : null;
           creerSerieServeur(kind, [{}], giDebutFinal, texte, important, chSerie ? chSerie.nom : null, null, choixSerie, function (r) {
             apresEcritureSerie(r); toast("Série ajoutée.");
-          }, dureeFinal, demiDebutFinal, demiFinFinal).catch(function (err) {
+          }, dureeFinal, demiDebutFinal, demiFinFinal, undefined, contenuFinal).catch(function (err) {
             toast("Échec de la création de la série : " + (err && err.message ? err.message : err));
           });
         } else {
           sauvegarderUndo();
-          liste.push(itemPlage(kind, texte, giDebutFinal, dureeFinal, { important: important, chantierId: chantierId, demiDebut: demiDebutFinal, demiFin: demiFinFinal }));
+          liste.push(itemPlage(kind, texte, giDebutFinal, dureeFinal, { important: important, chantierId: chantierId, demiDebut: demiDebutFinal, demiFin: demiFinFinal,
+            details: contenuFinal.details, pieces: contenuFinal.pieces }));
           liste[liste.length - 1].dateDebutIso = isoDebutVrai;
           fermer(); render(); toast("Ajouté.");
         }

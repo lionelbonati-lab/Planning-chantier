@@ -47,6 +47,10 @@
    le bouton « Détails · 2 fichiers » : fiche avec le texte, les photos et
    les PDF (js/details-lien.js, sql/0041). Deux demi-journées voisines aux
    détails ou fichiers différents restent 2 bulles.
+
+   Round du 21.10.2026 (suite 149). Lionel : « Les notes peuvent aussi
+   avoir des descriptifs avec les photos et des fichiers liés » : même
+   bouton sur une note qui en a (sql/0043).
    ============================================================ */
 (function () {
   // Même projet et même clé publique que js/core.js et js/consultation.js.
@@ -161,8 +165,9 @@
     // (js/gps.js), pour les tâches, jalons et notes.
     if (it.chantier) details.push("<span>" + htmlChantierGps(it.chantier, it.lat, it.lng) + "</span>");
     if (it.statut) details.push('<span class="statut"' + (couleurSure(it.couleur_statut) ? ' style="--cs:' + it.couleur_statut + '"' : "") + ">" + esc(it.statut) + "</span>");
-    // Suite 147 : détails et fichiers joints (js/details-lien.js).
-    var joint = it.sorte === "tache" ? htmlDetailsTache(it) : "";
+    // Suite 147 : détails et fichiers joints (js/details-lien.js). Suite
+    // 149 (sql/0043) : ceux des notes aussi.
+    var joint = it.sorte === "tache" || it.sorte === "note" ? htmlDetailsTache(it) : "";
     if (joint) details.push("<span>" + joint + "</span>");
     return '<div class="bulle ' + it.sorte + (fond ? "" : " neutre") + '" style="' + style + (fond ? ";--c:" + fond : "") + '" title="' + esc(titre) + '">' +
       '<div class="texte">' + (it.important ? '<span class="important" title="Important">⚑ </span>' : "") + esc(it.texte || (it.sorte === "tache" ? "(sans texte)" : "")) + "</div>" +

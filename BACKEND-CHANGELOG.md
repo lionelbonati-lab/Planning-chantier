@@ -2222,3 +2222,17 @@ Fichier : sql/0042_categories_elements.sql (à appliquer dans l'éditeur SQL de 
 - categories_elements : id, groupe_id (groupes, supprimé avec son groupe), nom non vide, ordre, cree_le ; RLS « connecte_tout » et droits pour les utilisateurs connectés, comme elements_groupes.
 - elements_groupes.categorie_id : la catégorie de l'élément, vide = « Autres » ; supprimer une catégorie vide la colonne de ses éléments (on delete set null) ; index.
 - tables_sauvegardees_() : categories_elements après groupes, avant elements_groupes (restaurée avant, effacée après) ; une ancienne sauvegarde sans la table se restaure sans catégories.
+
+---
+
+## 46. Round du 21.10.2026 (suite 149) — détails et fichiers joints des notes
+
+Lionel : « Les notes  peuvent aussi avoir des descriptifs avec les photos et des fichiers liés, même si je les utiliserai sûrement moins souvent. »
+
+Fichier : sql/0043_notes_details_pieces.sql (à appliquer dans l'éditeur SQL de Supabase, APRÈS la 0041), functions/enregistrer-plage/ et functions/pieces-lien/ (fonctions serveur, déployées).
+
+- notes : colonnes details (texte) et pieces (jsonb, tableau, '[]' par défaut), même forme que pour les tâches ; chaque jour d'une note porte les mêmes.
+- consultation_responsable : « details » et « pieces » avec chaque note ; consultation_planning ne change pas (le lien des ouvriers n'affiche pas les notes).
+- pieces_orphelines() : un fichier cité par une note, en base ou dans une sauvegarde, n'est jamais effacé.
+- enregistrer-plage : details / pieces fournis → posés sur chaque jour de la note ; absents (appli d'avant) → ceux de la note retirée ce jour-là, sinon ceux d'un jour de la note d'origine (plage allongée) ; colonnes écrites seulement s'il y en a : une base sans la 0043 accepte toujours les notes. index.ts relit toutes les colonnes des notes.
+- pieces-lien : signe aussi les fichiers des notes que le lien responsable affiche.
