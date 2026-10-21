@@ -67,7 +67,12 @@
   // isoDebutForce (round du 24.09.2026, suite 5) : date de départ réelle
   // quand elle est hors de la fenêtre chargée (fiche tâche/absence, cf.
   // ouvrirEdition) — giDebut n'est alors qu'un repère calé sur le bord visible.
-  function creerSerieServeur(type, cibles, giDebut, texte, important, chantier, statut, choixSerie, apresChaqueAppel, duree, demiDebut, demiFin, isoDebutForce) {
+  // contenu (round du 21.10.2026, suite 147) : { details, pieces } de la
+  // fiche. enregistrer-serie ne connaît pas ces 2 colonnes (sql/0041) : elles
+  // sont posées juste après sur toutes les lignes de la série créée
+  // (taches.serie_id = r.serieId), avant le rechargement. Suite 149 : une
+  // note aussi (notes.serie_id, sql/0043).
+  function creerSerieServeur(type, cibles, giDebut, texte, important, chantier, statut, choixSerie, apresChaqueAppel, duree, demiDebut, demiFin, isoDebutForce, contenu) {
     var isoDebut = isoDebutForce || isoDeGi(giDebut);
     // enregistrer-serie n'a que 3 types ("tache"|"jalon"|"note", cf.
     // champsSerie côté fonction) : "absence" n'a jamais été une vraie
@@ -105,7 +110,16 @@
           demiDebut: demiDebut !== undefined ? demiDebut : null,
           demiFin: demiFin !== undefined ? demiFin : null
         };
-        return invoquerFonctionServeur("enregistrer-serie", payload).then(function (r) { dernier = r; });
+        return invoquerFonctionServeur("enregistrer-serie", payload).then(function (r) {
+          dernier = r;
+          var champs = {};
+          if (contenu && detailsTexte_(contenu.details)) champs.details = detailsTexte_(contenu.details);
+          if (contenu && contenu.pieces && contenu.pieces.length) champs.pieces = normaliserPieces_(contenu.pieces);
+          if (!Object.keys(champs).length || !r || !r.serieId) return;
+          return Promise.resolve(sbClient.from(typeServeur === "note" ? "notes" : "taches").update(champs).eq("serie_id", r.serieId)).then(function (res) {
+            if (res && res.error) throw res.error;
+          });
+        });
       });
     });
     return chaine.then(function () { if (dernier) apresChaqueAppel(dernier); });
@@ -122,11 +136,26 @@
   // Round du 01.10.2026 (suite 139) — Lionel : « Chaque machine/transport
   // a sa coche qui le fera apparaître ou non dans la liste clic droit. »
   // Un élément décoché (masque, sql/0037) n'est pas proposé ici.
+  // Round du 21.10.2026 (suite 148) — Lionel : « Dans le menu, clic droit
+  // de la souris, on aura du coup les catégories, et ensuite, dans un
+  // sous-menu, les machines de la catégorie. » Son choix pour une machine
+  // sans catégorie : « Dans « Autres » », le dernier sous-menu. Une
+  // catégorie sans élément coché n'est pas proposée ; sans catégorie (ou
+  // rien que des éléments sans catégorie), la liste reste à plat. Chaque
+  // sous-menu est déjà dans le menu, caché : ses éléments sont câblés avec
+  // les autres (cablerBoutonsMenuAjout), le survol ou le clic l'ouvre à
+  // côté (cablerSousMenusElements_).
   function boutonsMenuAjoutGroupe_(groupe) {
     var tous = elementsDuGroupe(groupe.id), elements = tous.filter(function (e) { return !e.masque; });
-    var html = elements.length ? elements.map(function (e) {
-      return '<button type="button" data-element="' + esc2(e.id) + '">' + esc(e.nom) + '</button>';
-    }).join("") : '<p class="mc-vide">' + (tous.length ? 'Aucun élément coché' : 'Liste vide') + ' : à ' + (tous.length ? 'cocher' : 'remplir') + ' dans l’onglet ' + esc(groupe.nom) + '.</p>';
+    function bouton(e) { return '<button type="button" data-element="' + esc2(e.id) + '">' + esc(e.nom) + '</button>'; }
+    var blocs = blocsElementsGroupe(groupe.id).map(function (b) {
+      return { nom: b.categorie ? b.categorie.nom : "Autres", categorie: b.categorie, elements: b.elements.filter(function (e) { return !e.masque; }) };
+    }).filter(function (b) { return b.elements.length; });
+    var html = !elements.length ? '<p class="mc-vide">' + (tous.length ? 'Aucun élément coché' : 'Liste vide') + ' : à ' + (tous.length ? 'cocher' : 'remplir') + ' dans l’onglet ' + esc(groupe.nom) + '.</p>' :
+      blocs.length === 1 && !blocs[0].categorie ? elements.map(bouton).join("") : blocs.map(function (b, i) {
+        return '<button type="button" class="mc-cat" data-sous-menu="' + i + '"><span class="mc-libelle">' + esc(b.nom) + '</span><span class="mc-fleche" aria-hidden="true">›</span></button>' +
+          '<div class="mc-sous-menu" data-sous-menu="' + i + '" hidden><div class="cp-titre">' + esc(b.nom) + '</div>' + b.elements.map(bouton).join("") + '</div>';
+      }).join("");
     html += '<button type="button" data-t="tache">Autre…</button>';
     if (pressePapier.length) html += '<button type="button" class="btn-coller" data-coller="1">Coller (' + pressePapier.length + ')</button>';
     return html;
@@ -173,7 +202,56 @@
     if (pressePapier.length) html += '<button type="button" class="btn-coller" data-coller="1">Coller (' + pressePapier.length + ')</button>';
     return html;
   }
+  // Sous-menus des catégories (suite 148) : à la souris, le survol d'une
+  // catégorie l'ouvre à droite du menu (à gauche s'il n'y a pas la place) ;
+  // au clic ou au doigt, la catégorie touchée ouvre ou referme le sien. Un
+  // seul ouvert à la fois ; survoler une autre entrée du menu le referme.
+  function cablerSousMenusElements_(pop) {
+    var cats = pop.querySelectorAll("button.mc-cat"), ouvert = null, minuteur = 0;
+    if (!cats.length) return;
+    function fermerSous() {
+      clearTimeout(minuteur);
+      if (!ouvert) return;
+      ouvert.hidden = true;
+      pop.querySelectorAll("button.mc-cat.ouvert").forEach(function (b) { b.classList.remove("ouvert"); });
+      ouvert = null;
+    }
+    function ouvrir(btn) {
+      clearTimeout(minuteur);
+      var sous = pop.querySelector('.mc-sous-menu[data-sous-menu="' + btn.dataset.sousMenu + '"]');
+      if (!sous || sous === ouvert) return;
+      fermerSous();
+      ouvert = sous;
+      btn.classList.add("ouvert");
+      sous.hidden = false;
+      var b = btn.getBoundingClientRect(), p = pop.getBoundingClientRect(), r = sous.getBoundingClientRect(), x = p.right + 4;
+      if (x + r.width > window.innerWidth - 6) x = p.left - r.width - 4 >= 6 ? p.left - r.width - 4 : Math.max(6, window.innerWidth - r.width - 6);
+      sous.style.left = Math.round(x) + "px";
+      sous.style.top = Math.round(Math.max(6, Math.min(b.top - 11, window.innerHeight - r.height - 10))) + "px";
+    }
+    cats.forEach(function (btn) {
+      btn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        if (btn.classList.contains("ouvert")) fermerSous(); else ouvrir(btn);
+      });
+      btn.addEventListener("pointerenter", function (e) {
+        if (e.pointerType !== "mouse") return;
+        clearTimeout(minuteur);
+        minuteur = setTimeout(function () { ouvrir(btn); }, 150);
+      });
+    });
+    pop.addEventListener("pointerover", function (e) {
+      if (e.pointerType !== "mouse" || !ouvert) return;
+      var b = e.target.closest("button");
+      if (b && b.closest(".mc-sous-menu")) { clearTimeout(minuteur); return; }
+      if (!b || b.classList.contains("mc-cat")) return;
+      clearTimeout(minuteur);
+      minuteur = setTimeout(fermerSous, 250);
+    });
+    pop.addEventListener("scroll", fermerSous);
+  }
   function cablerBoutonsMenuAjout(pop, fermer, cell, x, y, cibles, giDebut, duree, plageInit, demiDebut, demiFin) {
+    cablerSousMenusElements_(pop);
     var btnColler = pop.querySelector("button[data-coller]");
     if (btnColler) btnColler.addEventListener("click", function () {
       fermer();
@@ -892,7 +970,12 @@
       datesPlageHTML(state.giDebut, state.giFin, state.demiDebut, state.demiFin, state.debutHorsFenetreIso, state.finHorsFenetreIso) +
       '<div class="contenu-carte">' +
       '<div class="corps"><div class="label-champ" style="margin:0 0 6px">Descriptif</div>' +
-      '<div class="descriptif-texte" tabindex="0"></div></div>' +
+      '<div class="descriptif-texte" tabindex="0"></div>' +
+      // Détails et fichiers joints (round du 21.10.2026, suite 147 — Lionel :
+      // « J'aimerais pouvoir rajouter des détails à mes tâches J'aimerais
+      // pouvoir leur joindre des fichiers, photos ou PDF. ») : sous le
+      // descriptif, tâches seulement (js/pieces-jointes.js).
+      (typeAffiche === "tache" ? sectionDetailsPiecesHTML_() : '') + '</div>' +
       optionsAvanceesHTML(champStatut, champSerie) +
       '</div>' +
       piedPrincipalHTML(!!itemExisting);
@@ -947,6 +1030,12 @@
     }).catch(function () { /* repli : la fiche garde la partie visible, comme avant */ });
     var texteActuel = texteInit;
     cablerDescriptifEdit(pop, function () { return texteActuel; }, function (v) { texteActuel = v; }, "Cliquer pour ajouter un descriptif…");
+    // Absence : pas de section, details/pieces restent ceux de l'item.
+    var dp = typeAffiche === "tache" ? cablerDetailsPieces_(pop, itemExisting) : {
+      details: function () { return itemExisting ? detailsTexte_(itemExisting.details) : null; },
+      pieces: function () { return itemExisting ? normaliserPieces_(itemExisting.pieces) : []; },
+      enCours: function () { return false; }
+    };
 
     var chantierSel = pop.querySelector(".f-chantier");
     if (chantierSel) chantierSel.addEventListener("change", function () {
@@ -1040,6 +1129,9 @@
     });
     pop.querySelector(".f-ok").addEventListener("click", function () {
       if (enregistrementEnCours) return;
+      // Un fichier encore en route : la fiche reste ouverte (le clic à côté
+      // valide aussi, cf. fermerAuClicExterieur).
+      if (dp.enCours()) { toast("Envoi des fichiers en cours…"); return; }
       var texte = texteActuel.trim();
       if (!texte) { fermer(); return; }
       var important = state.important;
@@ -1072,7 +1164,9 @@
       var isoDebutFinal = state.debutHorsFenetreIso || isoDeGi(state.giDebut);
       var isoFinFinal = state.finHorsFenetreIso || isoDeGi(state.giFin);
       if (isoDebutFinal === isoFinFinal && demiDebutFinal === "matin" && demiFinFinal === "aprem") { demiDebutFinal = null; demiFinFinal = null; }
-      var champsTache = { texte: texte, important: important, chantier: chantier, statut: statutFinal, absence: typeAffiche === "absence" };
+      var detailsFinal = dp.details(), piecesFinal = dp.pieces();
+      var contenuFinal = { details: detailsFinal, pieces: piecesFinal };
+      var champsTache = { texte: texte, important: important, chantier: chantier, statut: statutFinal, absence: typeAffiche === "absence", details: detailsFinal, pieces: piecesFinal };
       var slotsNouveaux = slotsPlageTacheIso(isoDebutFinal, isoFinFinal, demiDebutFinal, demiFinFinal);
 
       if (itemExisting) {
@@ -1082,6 +1176,8 @@
           itemExisting.important = important;
           if (chantierFourni) itemExisting.chantier = chantier;
           if (statutRow) itemExisting.statut = statutActuel;
+          itemExisting.details = detailsFinal;
+          itemExisting.pieces = piecesFinal; // nouveau tableau (jamais modifié sur place, cf. pieces-jointes.js)
           // giDebut/duree/demiDebut/demiFin : mutation directe puis render()
           // — même trajet déjà emprunté par le glissement/redimensionnement
           // d'une bulle tâche (cf. plus haut, it.demiDebut/it.demiFin/
@@ -1112,7 +1208,7 @@
             }).then(function () {
               return creerSerieServeur(typeAffiche, [{ personne: itemExisting.personneId }], giDebutFinal, texte, important,
                 chantierFourni ? chantier : itemExisting.chantier, statutRow ? statutActuel : (itemExisting.statut || null), choixConversion, function () {},
-                nbJoursOuvresEntre(isoDebutFinal, isoFinFinal), demiDebutFinal, demiFinFinal, isoDebutFinal);
+                nbJoursOuvresEntre(isoDebutFinal, isoFinFinal), demiDebutFinal, demiFinFinal, isoDebutFinal, contenuFinal);
             });
           }, "Série créée à partir de cette " + (typeAffiche === "absence" ? "absence." : "tâche."));
           return;
@@ -1127,7 +1223,8 @@
           var apresSerie = Object.assign({}, itemExisting, {
             texte: texte, important: important,
             chantier: chantierFourni ? chantier : itemExisting.chantier,
-            statut: statutRow ? statutActuel : (itemExisting.statut || null)
+            statut: statutRow ? statutActuel : (itemExisting.statut || null),
+            details: detailsFinal, pieces: piecesFinal
           });
           fermer();
           enregistrerFicheSerie("TACHES", itemExisting, apresSerie,
@@ -1159,7 +1256,7 @@
           fermer();
           creerSerieServeur(typeAffiche, cibles, giDebutFinal, texte, important, chantier, statutFinal, choixSerieHF, function (r) {
             apresEcritureSerie(r); toast("Série ajoutée.");
-          }, nbJoursOuvresEntre(isoDebutFinal, isoFinFinal), demiDebutFinal, demiFinFinal, isoDebutFinal).catch(function (err) {
+          }, nbJoursOuvresEntre(isoDebutFinal, isoFinFinal), demiDebutFinal, demiFinFinal, isoDebutFinal, contenuFinal).catch(function (err) {
             toast("Échec de la création de la série : " + (err && err.message ? err.message : err));
           });
           return;
@@ -1183,7 +1280,7 @@
         // ici, cf. commentaire de tête de creerSerieServeur.
         creerSerieServeur(typeAffiche, cibles, giDebutFinal, texte, important, chantier, statutFinal, choixSerie, function (r) {
           apresEcritureSerie(r); toast("Série ajoutée.");
-        }, dureeFinal, demiDebutFinal, demiFinFinal).catch(function (err) {
+        }, dureeFinal, demiDebutFinal, demiFinFinal, undefined, contenuFinal).catch(function (err) {
           toast("Échec de la création de la série : " + (err && err.message ? err.message : err));
         });
       } else {
@@ -1197,7 +1294,7 @@
         sauvegarderUndo();
         cibles.forEach(function (c) {
           var nouveau = itemPlageTache(typeAffiche, texte, c.personne, giDebutFinal, dureeFinal, {
-            important: important, chantier: chantier, statut: statutFinal, demiDebut: demiDebutFinal, demiFin: demiFinFinal
+            important: important, chantier: chantier, statut: statutFinal, details: detailsFinal, pieces: piecesFinal, demiDebut: demiDebutFinal, demiFin: demiFinFinal
           });
           nouveau.dateDebutIso = isoDeGi(giDebutFinal);
           TACHES.push(nouveau);
@@ -1256,7 +1353,12 @@
       datesPlageHTML(state.giDebut, state.giFin, state.demiDebut, state.demiFin, state.debutHorsFenetreIso, state.finHorsFenetreIso) +
       '<div class="contenu-carte">' +
       '<div class="corps"><div class="label-champ" style="margin:0 0 6px">Descriptif</div>' +
-      '<div class="descriptif-texte" tabindex="0"></div></div>' +
+      '<div class="descriptif-texte" tabindex="0"></div>' +
+      // Détails et fichiers joints (round du 21.10.2026, suite 149 — Lionel :
+      // « Les notes peuvent aussi avoir des descriptifs avec les photos et
+      // des fichiers liés ») : même section que la fiche d'une tâche
+      // (js/pieces-jointes.js), notes seulement (pas les jalons).
+      (kind === "note" ? sectionDetailsPiecesHTML_() : '') + '</div>' +
       optionsAvanceesHTML("", champSerie) +
       '</div>' +
       piedPrincipalHTML(!!itemExisting);
@@ -1292,6 +1394,8 @@
     cablerDatesPlage(pop, state, rafraichirDates);
     var texteActuel = texteInit;
     cablerDescriptifEdit(pop, function () { return texteActuel; }, function (v) { texteActuel = v; }, "Cliquer pour ajouter un descriptif…");
+    // Jalon : pas de section (dp null).
+    var dp = kind === "note" ? cablerDetailsPieces_(pop, itemExisting) : null;
 
     var lireChoixSerie = cablerSerieChamps(pop, itemExisting ? itemExisting.dateDebutIso : isoBorneEtat(state, "debut"));
     cablerLienPlus(pop);
@@ -1313,9 +1417,13 @@
       supprimerUnique();
     });
     pop.querySelector(".f-ok").addEventListener("click", function () {
+      // Un fichier encore en route : la fiche reste ouverte (comme la fiche
+      // d'une tâche).
+      if (dp && dp.enCours()) { toast("Envoi des fichiers en cours…"); return; }
       var texte = texteActuel.trim();
       if (!texte) { fermer(); return; }
       var important = state.important, chantierId = state.chantierId;
+      var contenuFinal = dp ? { details: dp.details(), pieces: dp.pieces() } : {};
       // §88 — isoDebutVrai/isoFinVrai (jamais isoDeGi(giDebutFinal) seul,
       // qui donnerait la date du bord VISIBLE clampé, pas la vraie date,
       // dès que l'une des 2 bornes est hors fenêtre) + dureeFinal en jours
@@ -1339,6 +1447,8 @@
         function appliquerModifUnique() {
           sauvegarderUndo();
           itemExisting.texte = texte; itemExisting.important = important; itemExisting.chantierId = chantierId;
+          // Nouveau tableau de fichiers (jamais modifié sur place, cf. pieces-jointes.js).
+          if (dp) { itemExisting.details = contenuFinal.details; itemExisting.pieces = contenuFinal.pieces; }
           itemExisting.giDebut = giDebutFinal; itemExisting.duree = dureeFinal;
           itemExisting.demiDebut = demiDebutFinal; itemExisting.demiFin = demiFinFinal;
           itemExisting.dateDebutIso = isoDebutVrai;
@@ -1350,7 +1460,7 @@
         if (itemExisting.serieId) {
           fermer();
           enregistrerFicheSerie(kind === "jalon" ? "JALONS" : "NOTES", itemExisting,
-            Object.assign({}, itemExisting, { texte: texte, important: important, chantierId: chantierId }),
+            Object.assign({}, itemExisting, { texte: texte, important: important, chantierId: chantierId }, contenuFinal),
             { debut: isoDebutVrai, fin: isoFinVrai, demiDebut: demiDebutFinal, demiFin: demiFinFinal },
             !!(state.debutHorsFenetreIso || state.finHorsFenetreIso));
           return;
@@ -1367,12 +1477,13 @@
           var chSerie = chantierId != null ? (etat.chantiers.filter(function (c) { return String(c.ligne) === String(chantierId); })[0] || null) : null;
           creerSerieServeur(kind, [{}], giDebutFinal, texte, important, chSerie ? chSerie.nom : null, null, choixSerie, function (r) {
             apresEcritureSerie(r); toast("Série ajoutée.");
-          }, dureeFinal, demiDebutFinal, demiFinFinal).catch(function (err) {
+          }, dureeFinal, demiDebutFinal, demiFinFinal, undefined, contenuFinal).catch(function (err) {
             toast("Échec de la création de la série : " + (err && err.message ? err.message : err));
           });
         } else {
           sauvegarderUndo();
-          liste.push(itemPlage(kind, texte, giDebutFinal, dureeFinal, { important: important, chantierId: chantierId, demiDebut: demiDebutFinal, demiFin: demiFinFinal }));
+          liste.push(itemPlage(kind, texte, giDebutFinal, dureeFinal, { important: important, chantierId: chantierId, demiDebut: demiDebutFinal, demiFin: demiFinFinal,
+            details: contenuFinal.details, pieces: contenuFinal.pieces }));
           liste[liste.length - 1].dateDebutIso = isoDebutVrai;
           fermer(); render(); toast("Ajouté.");
         }

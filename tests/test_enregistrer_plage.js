@@ -33,7 +33,7 @@ function extraireFonction(nom) {
 const sandbox = {};
 vm.createContext(sandbox);
 vm.runInContext(
-  ['joursOuvresDeLaPlage', 'demiPourJourDePlage', 'lignesDe', 'normaliserPlage', 'planPlage']
+  ['joursOuvresDeLaPlage', 'demiPourJourDePlage', 'lignesDe', 'normaliserPlage', 'detailsNote', 'piecesNote', 'planPlage']
     .map(extraireFonction).join('\n'),
   sandbox
 );

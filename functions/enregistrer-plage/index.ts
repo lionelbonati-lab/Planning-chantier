@@ -79,7 +79,10 @@ Deno.serve(async (req: Request) => {
     // de la nouvelle page Jalons, qui envoie toujours les deux) — cf. le
     // commentaire de tête de planPlage dans logic.js.
     // Suite 122 : chantier_id des notes aussi (sql/0026_notes_chantier.sql).
-    const colonnes = params.kind === "jalon" ? "id, date, texte, demi, important, chantier_id" : "id, date, texte, important, demi, chantier_id";
+    // Suite 149 : toutes les colonnes d'une note — details et pieces
+    // (sql/0043) sont reconduits quand l'appelant ne les envoie pas ; « * »
+    // marche aussi sur une base qui n'a pas encore ces 2 colonnes.
+    const colonnes = params.kind === "jalon" ? "id, date, texte, demi, important, chantier_id" : "*";
 
     const { data: existantes, error: erreurLecture } = await supabase
       .from(table)

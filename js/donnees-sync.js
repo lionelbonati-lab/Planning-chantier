@@ -220,7 +220,10 @@
         // est désormais la source de vérité ; estAbsence(texte) ne reste
         // qu'un FILET DE SÉCURITÉ (OR, cf. construireVueDepuisCache) pour les
         // lignes écrites avant ce round et non couvertes par le backfill SQL.
-        absence: !!t.est_absence
+        absence: !!t.est_absence,
+        // Détails et fichiers joints (suite 147, sql/0041, js/pieces-jointes.js).
+        details: detailsTexte_(t.details),
+        pieces: normaliserPieces_(t.pieces)
       };
     }
     // Une case = une liste de tâches (via taches, chacune avec son PROPRE
@@ -252,7 +255,10 @@
     var notes = infos.isoDates.map(function (iso) {
       return (notesParDate[iso] || []).map(function (n) {
         // chantierId : suite 122 (pastille, sql/0026_notes_chantier.sql).
-        return { texte: n.texte, important: !!n.important, serieId: n.serie_id || null, demi: n.demi || null, chantierId: n.chantier_id || null };
+        // details/pieces : suite 149 (sql/0043, js/pieces-jointes.js) —
+        // absents sans la 0043 : null et [].
+        return { texte: n.texte, important: !!n.important, serieId: n.serie_id || null, demi: n.demi || null, chantierId: n.chantier_id || null,
+          details: detailsTexte_(n.details), pieces: normaliserPieces_(n.pieces) };
       });
     });
 
@@ -413,7 +419,10 @@
       // Listes d'éléments des groupes (round du 01.10.2026, suite 135 —
       // sql/0036, js/groupes.js) : non bloquante. Sans elle, les cases des
       // lignes Machines / Transports n'ont que « Autre… ».
-      sbClient.from("elements_groupes").select(COLONNES_ELEMENTS)
+      sbClient.from("elements_groupes").select(COLONNES_ELEMENTS),
+      // Catégories de ces listes (round du 21.10.2026, suite 148 —
+      // sql/0042) : non bloquante. Sans elle, tout est rangé dans « Autres ».
+      sbClient.from("categories_elements").select(COLONNES_CATEGORIES_ELEMENTS)
     ]).then(function (r) {
       r.slice(0, 4).forEach(function (res) { if (res.error) throw res.error; }); // ces 4-là restent bloquantes, comme avant
       var personnesBrutes = r[0].data || [], chantiersBruts = r[1].data || [], statutsBruts = r[2].data || [], feriesBruts = r[3].data || [];
@@ -451,6 +460,7 @@
       etat.exceptionsEquipes = (r[9] && !r[9].error) ? normaliserExceptions(r[9].data || []) : [];
       etat.groupes = (r[10] && !r[10].error) ? normaliserGroupes(r[10].data || []) : [];
       etat.elementsGroupes = (r[11] && !r[11].error) ? normaliserElements(r[11].data || []) : [];
+      etat.categoriesElements = (r[12] && !r[12].error) ? normaliserCategoriesElements(r[12].data || []) : [];
       // etat.reglages : { cle: valeur } — null si la requête a échoué (la
       // mise en page retombe alors sur son cache local, cf.
       // lireMiseEnPage, js/page-mise-en-page.js).
@@ -516,6 +526,10 @@
       // clic sur une notification (js/page-notifications.js).
       if (typeof rafraichirAbonnementPush === "function") rafraichirAbonnementPush();
       if (typeof ouvrirNotificationsSiDemande === "function") ouvrirNotificationsSiDemande();
+      // Suite 147 : fichiers joints que plus rien ne cite depuis 7 jours,
+      // effacés une fois par jour au plus (js/pieces-jointes.js) — 20 s
+      // après l'ouverture, pour ne rien ralentir.
+      if (typeof nettoyerPiecesOrphelines_ === "function") setTimeout(nettoyerPiecesOrphelines_, 20000);
     }).catch(erreurFatale);
   }
 
@@ -1110,6 +1124,11 @@
     // (Lionel : « Pastille de couleur pour le chantier dans les notes et
     // jalons »).
     if (type === "jalon" || type === "note") item.chantierId = opts.chantierId || null;
+    // Détails et fichiers joints d'une note (round du 21.10.2026, suite 149 —
+    // Lionel : « Les notes peuvent aussi avoir des descriptifs avec les
+    // photos et des fichiers liés ») : nouveau tableau, jamais celui de
+    // l'item copié (js/pieces-jointes.js).
+    if (type === "note") { item.details = detailsTexte_(opts.details); item.pieces = normaliserPieces_(opts.pieces); }
     return item;
   }
   // demiDebut/demiFin (round du 08.09.2026, suite — §49) : une tâche/absence
@@ -1127,7 +1146,10 @@
       important: !!opts.important, statut: opts.statut || null,
       personneId: personneId, giDebut: giDebut, duree: Math.max(1, duree),
       demiDebut: opts.demiDebut || null, demiFin: opts.demiFin || null,
-      serieId: opts.serieId || null
+      serieId: opts.serieId || null,
+      // suite 147 (js/pieces-jointes.js) : nouveau tableau, jamais celui de
+      // l'item copié.
+      details: detailsTexte_(opts.details), pieces: normaliserPieces_(opts.pieces)
     };
   }
 
@@ -1294,13 +1316,14 @@
       return (data && data.notes && data.notes[gi % 5]) || [];
     }
     // chantierId (suite 122) : 2 notes de même texte mais de chantiers
-    // différents restent 2 bulles (pastilles différentes).
-    function indexNonConsommeCorrespondant_(gi, texte, important, chantierId) {
+    // différents restent 2 bulles (pastilles différentes). entree (suite
+    // 149) : mêmes détails et mêmes fichiers aussi, comme les tâches.
+    function indexNonConsommeCorrespondant_(gi, texte, important, chantierId, entree) {
       var arr = notesArrayAuGi_(gi);
       var used = consommes[gi];
       for (var i = 0; i < arr.length; i++) {
         if (used && used[i]) continue;
-        if (arr[i].texte === texte && !!arr[i].important === !!important && (arr[i].chantierId || null) === (chantierId || null)) return i;
+        if (arr[i].texte === texte && !!arr[i].important === !!important && (arr[i].chantierId || null) === (chantierId || null) && memesDetailsPieces_(arr[i], entree)) return i;
       }
       return -1;
     }
@@ -1329,14 +1352,15 @@
         while (fin2 + 1 < nJoursFenetre) {
           if (fin2 !== giStart && demiCourant !== null) break;
           if (limiteN && isoDeGiFenetre(donnees, fin2 + 1) >= limiteN) break;
-          var idxSuiv = indexNonConsommeCorrespondant_(fin2 + 1, entree.texte, entree.important, entree.chantierId);
+          var idxSuiv = indexNonConsommeCorrespondant_(fin2 + 1, entree.texte, entree.important, entree.chantierId, entree);
           if (idxSuiv === -1) break;
           var suiv = notesArrayAuGi_(fin2 + 1)[idxSuiv];
           fin2++;
           marquerConsomme_(fin2, idxSuiv);
           demiCourant = suiv.demi || null;
         }
-        var itn = itemPlage("note", entree.texte, giStart, fin2 - giStart + 1, { important: entree.important, demiDebut: demiN, demiFin: demiCourant, chantierId: entree.chantierId });
+        var itn = itemPlage("note", entree.texte, giStart, fin2 - giStart + 1, { important: entree.important, demiDebut: demiN, demiFin: demiCourant, chantierId: entree.chantierId,
+          details: entree.details, pieces: entree.pieces });
         itn.serieId = entree.serieId || null;
         itn.dateDebutIso = isoDeGiFenetre(donnees, giStart);
         NOTES.push(itn);
@@ -1390,13 +1414,16 @@
       // toute façon jamais de chantier (champsSerie ne le pose jamais pour ce
       // type), donc ignorerChantier reste utile pour les mêmes raisons
       // qu'avant, seule la SOURCE de la comparaison a changé.
-      function indexNonConsommeCorrespondantT_(hi, texte, important, statut, chantier, ignorerChantier) {
+      // entree (suite 147) : mêmes détails et mêmes fichiers aussi — deux
+      // demi-journées voisines au texte identique mais aux fichiers
+      // différents restent 2 bulles (sinon la 2e perdrait les siens).
+      function indexNonConsommeCorrespondantT_(hi, texte, important, statut, chantier, ignorerChantier, entree) {
         var arr = tableauAuHalfSlot_(hi);
         var used = consommesT[hi];
         for (var i = 0; i < arr.length; i++) {
           if (used && used[i]) continue;
           if (arr[i].texte === texte && !!arr[i].important === !!important && (arr[i].statut || null) === (statut || null) &&
-            (ignorerChantier || (arr[i].chantier || null) === (chantier || null))) return i;
+            (ignorerChantier || (arr[i].chantier || null) === (chantier || null)) && memesDetailsPieces_(arr[i], entree)) return i;
         }
         return -1;
       }
@@ -1427,7 +1454,7 @@
           var limiteT = limiteOccurrenceSerie_(entreeT.serieId, isoDeGiFenetre(donnees, Math.floor(hiStart / 2))); // série, cf. jalons plus haut
           while (finHi + 1 < nHalfFenetre && !estGiWeekend(Math.floor((finHi + 1) / 2))) {
             if (limiteT && isoDeGiFenetre(donnees, Math.floor((finHi + 1) / 2)) >= limiteT) break;
-            var idxSuivT = indexNonConsommeCorrespondantT_(finHi + 1, entreeT.texte, entreeT.important, entreeT.statut, chantierT, typT === "absence");
+            var idxSuivT = indexNonConsommeCorrespondantT_(finHi + 1, entreeT.texte, entreeT.important, entreeT.statut, chantierT, typT === "absence", entreeT);
             if (idxSuivT === -1) break;
             finHi++;
             marquerConsommeT_(finHi, idxSuivT);
@@ -1435,6 +1462,7 @@
           var bornesT = bornesDepuisDemiSlots(hiStart, finHi);
           var ittT = itemPlageTache(typT, entreeT.texte, p.id, bornesT.giDebut, bornesT.duree, {
             chantier: typT === "absence" ? null : chantierT, important: entreeT.important, statut: entreeT.statut || null,
+            details: entreeT.details, pieces: entreeT.pieces,
             demiDebut: bornesT.demiDebut, demiFin: bornesT.demiFin
           });
           ittT.serieId = entreeT.serieId || null;
@@ -1469,6 +1497,7 @@
               // tacheVue_) — vueJour.chantier n'est plus qu'un repli pour une
               // case sans aucune tâche, jamais pertinent ici.
               chantier: typ === "absence" ? null : (t.chantier || null), important: t.important, statut: t.statut || null,
+              details: t.details, pieces: t.pieces,
               demiDebut: "matin", demiFin: "matin"
             });
             itwe.serieId = t.serieId || null;
@@ -1674,8 +1703,11 @@
             // seul texte. chantier (round du 16.09.2026,
             // sql/0010_taches_chantier_id.sql) : porté PAR TÂCHE désormais,
             // plus au niveau de la cellule — chaque tâche empilée garde son
-            // propre chantier jusqu'à l'écriture serveur.
-            cellules[cle].taches.push({ texte: t.texte, statut: t.statut || null, important: !!t.important, serieId: t.serieId || null, absence: t.type === "absence", chantier: t.chantier || null });
+            // propre chantier jusqu'à l'écriture serveur. details/pieces (suite
+            // 147) : forme normalisée, pour que la comparaison en JSON
+            // (diffsCellulesPersonne) ne voie un écart que s'il est réel.
+            cellules[cle].taches.push({ texte: t.texte, statut: t.statut || null, important: !!t.important, serieId: t.serieId || null, absence: t.type === "absence", chantier: t.chantier || null,
+              details: detailsTexte_(t.details), pieces: normaliserPieces_(t.pieces) });
           });
         }
       });
@@ -1705,7 +1737,9 @@
   // série se gère par series.js, pas par le moteur de diff.
   function notesParId() {
     var out = {};
-    NOTES.forEach(function (n) { out[n.id] = { texte: n.texte, important: !!n.important, giDebut: n.giDebut, duree: n.duree, dateDebutIso: n.dateDebutIso, demiDebut: n.demiDebut || null, demiFin: n.demiFin || null, chantierId: n.chantierId || null, serieId: n.serieId || null }; });
+    // details/pieces (suite 149) : forme normalisée, comparée par diffsNotes.
+    NOTES.forEach(function (n) { out[n.id] = { texte: n.texte, important: !!n.important, giDebut: n.giDebut, duree: n.duree, dateDebutIso: n.dateDebutIso, demiDebut: n.demiDebut || null, demiFin: n.demiFin || null, chantierId: n.chantierId || null, serieId: n.serieId || null,
+      details: detailsTexte_(n.details), pieces: normaliserPieces_(n.pieces) }; });
     return out;
   }
   // Nombre de semaines réellement chargées × 5 (et non plus deuxSemaines
@@ -1782,7 +1816,9 @@
       // chantierId comparé depuis la suite 122 : le formulaire de la grille
       // le modifie désormais (base et local viennent du même chargement, un
       // changement fait par la page « Jalons » ne crée pas d'écart).
-      if (b && a.texte === b.texte && !!a.important === !!b.important && (a.chantierId || null) === (b.chantierId || null) && a.giDebut === b.giDebut && a.duree === b.duree && (a.demiDebut || null) === (b.demiDebut || null) && (a.demiFin || null) === (b.demiFin || null)) return;
+      // Détails et fichiers (suite 149) comparés aussi.
+      if (b && a.texte === b.texte && !!a.important === !!b.important && (a.chantierId || null) === (b.chantierId || null) && a.giDebut === b.giDebut && a.duree === b.duree && (a.demiDebut || null) === (b.demiDebut || null) && (a.demiFin || null) === (b.demiFin || null) &&
+        memesDetailsPieces_(a, b)) return;
       out.push({ action: b ? "modifier" : "creer", id: id, avant: b || null, apres: a });
     });
     return out;
@@ -1872,6 +1908,12 @@
         est_absence: !!t.absence
       };
       if (chantier) ligne.chantier_id = chantier.ligne;
+      // Détails et fichiers (suite 147, sql/0041) : seulement s'il y en a,
+      // pour que le secours (insert direct) marche aussi sur une base sans
+      // ces colonnes.
+      var details = detailsTexte_(t.details), pieces = normaliserPieces_(t.pieces);
+      if (details) ligne.details = details;
+      if (pieces.length) ligne.pieces = pieces;
       return ligne;
     });
     // Suite 24 (24.09.2026) — Lionel, en réponse à la revue : « Case jamais
@@ -1904,7 +1946,8 @@
   function appelerRemplacerCase_(personneId, iso, demi, lignesTaches) {
     if (rpcRemplacerCaseAbsente_ || typeof sbClient.rpc !== "function") return Promise.resolve(false);
     var lignes = lignesTaches.map(function (l) {
-      return { texte: l.texte, statut_id: l.statut_id, important: l.important, serie_id: l.serie_id, est_absence: l.est_absence, chantier_id: l.chantier_id != null ? l.chantier_id : null };
+      return { texte: l.texte, statut_id: l.statut_id, important: l.important, serie_id: l.serie_id, est_absence: l.est_absence, chantier_id: l.chantier_id != null ? l.chantier_id : null,
+        details: l.details || null, pieces: l.pieces || [] };
     });
     return sbClient.rpc("remplacer_case_personne", { p_personne_id: personneId, p_date: iso, p_demi: demi, p_lignes: lignes }).then(function (res) {
       if (!res.error) return true;
@@ -2155,12 +2198,17 @@
           mode = d.action === "creer" ? "ajout" : "remplacement";
           origine = d.avant ? { dateDebut: d.avant.dateDebutIso, dateFin: isoDeApres(d.avant), texte: d.avant.texte, important: d.avant.important, demiDebut: d.avant.demiDebut || null, demiFin: d.avant.demiFin || null, chantierId: d.avant.chantierId || null } : null;
         }
-        return invoquerFonctionServeur("enregistrer-plage", {
+        var corpsNote = {
           kind: "note", dateDebut: dateDeb, dateFin: dateFin, demiDebut: demiDebNote, demiFin: demiFinNote,
           // chantierId (suite 122) : celui de la bulle, envoyé à chaque
           // écriture (null = sans chantier, pas de pastille).
           texte: texte, important: important, chantierId: d.apres ? (d.apres.chantierId || null) : null, mode: mode, origine: origine
-        }).then(function () { return d.apres ? reposerSerie_("notes", dateDeb, dateFin, texte, d.apres.serieId) : null; });
+        };
+        // Détails et fichiers (suite 149, sql/0043) : ceux de la bulle, posés
+        // sur chaque jour. enregistrer-plage n'écrit ces colonnes que s'il y
+        // en a (une note sans détails s'écrit aussi sur une base sans la 0043).
+        if (d.apres) { corpsNote.details = d.apres.details || null; corpsNote.pieces = d.apres.pieces || []; }
+        return invoquerFonctionServeur("enregistrer-plage", corpsNote).then(function () { return d.apres ? reposerSerie_("notes", dateDeb, dateFin, texte, d.apres.serieId) : null; });
       });
     });
     chaine.then(function () {
@@ -2437,6 +2485,9 @@
           important: !!champs.important, serie_id: champs.serieId != null ? champs.serieId : null, est_absence: !!champs.absence
         };
         if (chantierId) ligne.chantier_id = chantierId;
+        // suite 147 : comme enregistrerCellulePersonneServeur, seulement s'il y en a.
+        if (detailsTexte_(champs.details)) ligne.details = detailsTexte_(champs.details);
+        if (normaliserPieces_(champs.pieces).length) ligne.pieces = normaliserPieces_(champs.pieces);
         return ligne;
       });
       return sbClient.from("taches").insert(lignes);

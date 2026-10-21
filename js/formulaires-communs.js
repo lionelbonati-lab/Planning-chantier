@@ -98,8 +98,8 @@
       var nb = bornesDepuisDemiSlots(b.halfStart + deltaHalf, b.halfFinIncl + deltaHalf);
       if (copie) {
         var nouveau = p.liste === TACHES
-          ? itemPlageTache(it.type, it.texte, it.personneId, nb.giDebut, nb.duree, { chantier: it.chantier, important: it.important, statut: it.statut, demiDebut: nb.demiDebut, demiFin: nb.demiFin })
-          : itemPlage(it.type, it.texte, nb.giDebut, nb.duree, { important: it.important, chantierId: it.chantierId, demiDebut: nb.demiDebut, demiFin: nb.demiFin });
+          ? itemPlageTache(it.type, it.texte, it.personneId, nb.giDebut, nb.duree, { chantier: it.chantier, important: it.important, statut: it.statut, details: it.details, pieces: it.pieces, demiDebut: nb.demiDebut, demiFin: nb.demiFin })
+          : itemPlage(it.type, it.texte, nb.giDebut, nb.duree, { important: it.important, chantierId: it.chantierId, details: it.details, pieces: it.pieces, demiDebut: nb.demiDebut, demiFin: nb.demiFin });
         nouveau.dateDebutIso = isoDeGi(nouveau.giDebut);
         p.liste.push(nouveau);
         nouveaux.push(nouveau.id);
@@ -576,10 +576,10 @@
       if (it.personneId !== undefined) {
         var p = idsPersonnes[(it._collage.ligne >= 0 ? it._collage.ligne : 0) + ecartLignes];
         if (p === undefined) { ignores++; return; }
-        nouveau = itemPlageTache(it.type, it.texte, p, f.giDebut, f.duree, { chantier: it.chantier, important: it.important, statut: it.statut, demiDebut: f.demiDebut, demiFin: f.demiFin });
+        nouveau = itemPlageTache(it.type, it.texte, p, f.giDebut, f.duree, { chantier: it.chantier, important: it.important, statut: it.statut, details: it.details, pieces: it.pieces, demiDebut: f.demiDebut, demiFin: f.demiFin });
         aPoser.push({ liste: TACHES, item: nouveau });
       } else if (it.type === "jalon" || it.type === "note") {
-        nouveau = itemPlage(it.type, it.texte, f.giDebut, f.duree, { important: it.important, chantierId: it.chantierId, demiDebut: f.demiDebut, demiFin: f.demiFin });
+        nouveau = itemPlage(it.type, it.texte, f.giDebut, f.duree, { important: it.important, chantierId: it.chantierId, details: it.details, pieces: it.pieces, demiDebut: f.demiDebut, demiFin: f.demiFin });
         aPoser.push({ liste: it.type === "jalon" ? JALONS : NOTES, item: nouveau });
       } else { ignores++; return; }
       nouveau.dateDebutIso = isoDeGi(f.giDebut);
@@ -628,10 +628,10 @@
     pressePapier.forEach(function (it) {
       var nouveau;
       if (it.personneId !== undefined) {
-        nouveau = itemPlageTache(it.type, it.texte, it.personneId, it.giDebut, it.duree, { chantier: it.chantier, important: it.important, statut: it.statut, demiDebut: it.demiDebut, demiFin: it.demiFin });
+        nouveau = itemPlageTache(it.type, it.texte, it.personneId, it.giDebut, it.duree, { chantier: it.chantier, important: it.important, statut: it.statut, details: it.details, pieces: it.pieces, demiDebut: it.demiDebut, demiFin: it.demiFin });
         TACHES.push(nouveau);
       } else if (it.type === "jalon" || it.type === "note") {
-        nouveau = itemPlage(it.type, it.texte, it.giDebut, it.duree, { important: it.important, chantierId: it.chantierId, demiDebut: it.demiDebut, demiFin: it.demiFin });
+        nouveau = itemPlage(it.type, it.texte, it.giDebut, it.duree, { important: it.important, chantierId: it.chantierId, details: it.details, pieces: it.pieces, demiDebut: it.demiDebut, demiFin: it.demiFin });
         nouveau.dateDebutIso = isoDeGi(it.giDebut);
         (it.type === "jalon" ? JALONS : NOTES).push(nouveau);
       } else return;
@@ -1112,8 +1112,13 @@
   // getTexte/setTexte lisent/écrivent une simple variable JS locale à
   // l'appelant — aucun appel serveur ici, l'enregistrement se fait comme
   // avant au clic sur "Enregistrer" du formulaire entier.
-  function cablerDescriptifEdit(pop, getTexte, setTexte, placeholderVide) {
-    var span = pop.querySelector(".descriptif-texte");
+  // opts (suite 147, « Détails » des tâches — js/pieces-jointes.js) :
+  // selecteur (".descriptif-texte" par défaut), titre de l'éditeur, long
+  // (texte de plusieurs lignes : zone plus haute, Entrée = retour à la
+  // ligne, Ctrl/Cmd+Entrée enregistre).
+  function cablerDescriptifEdit(pop, getTexte, setTexte, placeholderVide, opts) {
+    opts = opts || {};
+    var span = pop.querySelector(opts.selecteur || ".descriptif-texte");
     function afficher() {
       var t = getTexte();
       span.textContent = t;
@@ -1126,9 +1131,9 @@
       overlay.className = "desc-edit-overlay";
       var box = document.createElement("div");
       box.className = "desc-edit-box";
-      box.innerHTML = '<div class="popup-head"><div class="popup-titre">Modifier le descriptif</div>' +
+      box.innerHTML = '<div class="popup-head"><div class="popup-titre">' + esc(opts.titre || "Modifier le descriptif") + '</div>' +
         '<button type="button" class="popup-close" title="Fermer">' + ICONE_FERMER + '</button></div>' +
-        '<textarea>' + esc(getTexte()) + '</textarea>' +
+        '<textarea' + (opts.long ? ' class="desc-long"' : '') + '>' + esc(getTexte()) + '</textarea>' +
         '<div class="popup-pied"><button type="button" class="popup-valider">' + ICONE_CHECK + ' Enregistrer</button></div>';
       pop.appendChild(overlay); pop.appendChild(box);
       var ta = box.querySelector("textarea");
@@ -1148,7 +1153,14 @@
       // texte via setTexte() — d'où le texte perdu. stopPropagation()
       // empêche ce document.addEventListener("keydown") de les revoir.
       // Maj+Entrée reste un retour à la ligne normal dans le textarea.
+      // Texte long (opts.long) : Entrée seule va à la ligne, Ctrl/Cmd+Entrée
+      // enregistre (elle ne doit pas non plus valider le formulaire entier).
       ta.addEventListener("keydown", function (e) {
+        if (opts.long && e.key === "Enter") {
+          e.stopPropagation();
+          if (e.ctrlKey || e.metaKey) { e.preventDefault(); validerEdit(); }
+          return;
+        }
         if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); e.stopPropagation(); validerEdit(); return; }
         if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); fermerEdit(); }
       });

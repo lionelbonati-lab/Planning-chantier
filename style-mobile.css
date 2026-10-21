@@ -27,6 +27,7 @@
       border-radius: 20px 20px 0 0; box-shadow: 0 -12px 30px var(--shadow-lg);
     }
     .desc-edit-box textarea { flex: 1; height: 140px; }
+    .desc-edit-box textarea.desc-long { height: 220px; }
   }
 
   /* Formulaires en plein écran sur téléphone (retour de Lionel du

@@ -40,6 +40,17 @@
    le nom du chantier et que ça leur ouvre leur navigation gps. » Le nom
    d'un chantier qui a un pin (sql/0040, lat / lng) devient un bouton (tâches, jalons et
    notes) : menu Google Maps / Waze / Plans (js/gps.js).
+
+   Round du 21.10.2026 (suite 147). Lionel : « J'aimerais pouvoir rajouter
+   des détails à mes tâches J'aimerais pouvoir leur joindre des fichiers,
+   photos ou PDF. », visibles aussi sur ce lien. Une tâche qui en a montre
+   le bouton « Détails · 2 fichiers » : fiche avec le texte, les photos et
+   les PDF (js/details-lien.js, sql/0041). Deux demi-journées voisines aux
+   détails ou fichiers différents restent 2 bulles.
+
+   Round du 21.10.2026 (suite 149). Lionel : « Les notes peuvent aussi
+   avoir des descriptifs avec les photos et des fichiers liés » : même
+   bouton sur une note qui en a (sql/0043).
    ============================================================ */
 (function () {
   // Même projet et même clé publique que js/core.js et js/consultation.js.
@@ -118,7 +129,8 @@
     elements.forEach(function (it, rang) {
       var j = indexJour[it.date];
       if (j == null) return;
-      var cle = [it.sorte, it.texte, it.chantier, it.couleur, it.statut, it.couleur_statut, !!it.absence, !!it.important].join("|");
+      var cle = [it.sorte, it.texte, it.chantier, it.couleur, it.statut, it.couleur_statut, !!it.absence, !!it.important].join("|") +
+        "|" + JSON.stringify([it.details || "", (Array.isArray(it.pieces) ? it.pieces : []).map(function (p) { return p && p.chemin; })]);
       demisDe(it).forEach(function (d) {
         var slot = j * 2 + d;
         var ouverte = null;
@@ -153,6 +165,10 @@
     // (js/gps.js), pour les tâches, jalons et notes.
     if (it.chantier) details.push("<span>" + htmlChantierGps(it.chantier, it.lat, it.lng) + "</span>");
     if (it.statut) details.push('<span class="statut"' + (couleurSure(it.couleur_statut) ? ' style="--cs:' + it.couleur_statut + '"' : "") + ">" + esc(it.statut) + "</span>");
+    // Suite 147 : détails et fichiers joints (js/details-lien.js). Suite
+    // 149 (sql/0043) : ceux des notes aussi.
+    var joint = it.sorte === "tache" || it.sorte === "note" ? htmlDetailsTache(it) : "";
+    if (joint) details.push("<span>" + joint + "</span>");
     return '<div class="bulle ' + it.sorte + (fond ? "" : " neutre") + '" style="' + style + (fond ? ";--c:" + fond : "") + '" title="' + esc(titre) + '">' +
       '<div class="texte">' + (it.important ? '<span class="important" title="Important">⚑ </span>' : "") + esc(it.texte || (it.sorte === "tache" ? "(sans texte)" : "")) + "</div>" +
       (details.length ? '<div class="details">' + details.join("") + "</div>" : "") + "</div>";
@@ -275,6 +291,7 @@
     else if (e.key === "ArrowRight") allerA(plusJours(donnees.lundi, 7));
   });
 
+  configurerDetailsLien({ page: "responsable", jeton: jeton, url: SUPABASE_URL, cle: SUPABASE_ANON_KEY, lundi: function () { return donnees && donnees.lundi; } });
   if (!/^[0-9a-f]{32,}$/i.test(jeton)) {
     ["btnPrecedente", "btnSuivante", "btnAujourdhui"].forEach(function (id) { document.getElementById(id).disabled = true; });
     document.getElementById("titreSemaine").textContent = "";

@@ -11401,3 +11401,78 @@ Lionel : « Ajoute moi une icône sur la vue ouvrier et responsables pour insta
   - servi en http (profil Chrome réel) : `sw-liens.js` à la portée de chaque page, manifestes sans erreur, page installable (`Page.getInstallabilityErrors` vide), vraie fenêtre « Installer » reçue, hors ligne « Planning inaccessible », planning jamais gardé ; aucune erreur JS.
 - Suite complète : 149/149.
 
+
+## 260. Round du 21.10.2026 (suite 147) — Détails et fichiers joints des tâches
+
+Lionel : « J'aimerais pouvoir rajouter des détails à mes tâches
+J'aimerais pouvoir leur joindre des fichiers, photos ou PDF. » Ses choix : « Dans la fiche (Recommandé) » ; visibles sur « Lien des ouvriers,Lien responsable » ; ajout « Seulement toi (Recommandé) » ; photos « Originales ». Puis : « qu'il soit visible dans la vue ouvrière en cliquant sur la tâche. »
+
+- `js/pieces-jointes.js` (nouveau, chargé après `formulaires-communs.js`) : fiche d'une tâche (pas d'une absence), sous le descriptif :
+  - « Détails » : texte sur plusieurs lignes ; éditeur « Modifier les détails » plus haut, Entrée va à la ligne, Ctrl/Cmd+Entrée enregistre (`cablerDescriptifEdit` prend des options : sélecteur, titre, texte long) ;
+  - « Fichiers » : « Joindre » (plusieurs à la fois), liste avec aperçu (vignette d'une photo, icône marquée PDF), nom, taille, lien qui ouvre l'original (adresse signée 1 heure, nouvel onglet), « Retirer » ;
+  - envoi au dossier privé `pieces` de Supabase Storage : l'original tel quel (`fichiers/<id>/<nom sans accents>`), et pour une photo une vignette JPEG de 360 px faite sur l'appareil (`vignettes/<id>.jpg`) ; plus de 50 Mo → refusé avec un message ; échec → message ; tant qu'un envoi n'est pas fini, « Enregistrer » garde la fiche ouverte (« Envoi des fichiers en cours… ») ;
+  - un fichier retiré n'est pas effacé tout de suite (Annuler, les copies et les sauvegardes le citent encore) : `nettoyerPiecesOrphelines_`, 20 s après l'ouverture et une fois par jour au plus, efface ceux que plus rien ne cite depuis 7 jours (`pieces_orphelines()`, sql/0041) ; silencieux en cas d'échec.
+- Bulle : petite icône devant le texte (trombone, ou lignes pour des détails seuls), « détails, 2 fichiers » au survol.
+- Données (`js/donnees-sync.js`) : `details` et `pieces` portés par chaque ligne demi-journée, comme le texte. Forme fixe des fichiers (`normaliserPieces_`) : rien d'écrit au chargement. Deux demi-journées voisines aux détails ou fichiers différents restent 2 bulles. Écriture par `remplacer_case_personne` ; le secours (insertion directe) et l'écriture hors de la semaine affichée n'envoient ces colonnes que s'il y en a.
+- Copier, coller, glisser une copie : détails et fichiers suivent, dans un tableau à part (un tableau de fichiers n'est jamais modifié sur place).
+- Séries (`js/series.js`, `creerSerieServeur`) : détails et fichiers changés dans la fiche = une modification, avec la même portée que le texte ; une série créée avec des détails ou des fichiers les reçoit sur toutes ses lignes juste après `enregistrer-serie` (inchangée).
+- Hors ligne (`js/hors-ligne.js`) : copie locale et comparaison avant envoi avec détails et fichiers ; un changement mis en file avant cette version (6 valeurs par ligne) est comparé sur ses 6 premières.
+- Liens (`js/details-lien.js`, nouveau, partagé par `consultation.html` et `responsable.html`) : bouton « Détails · 2 fichiers » sur la tâche ; fiche avec le texte, les détails et les fichiers (vignette, nom, taille, original dans un nouvel onglet), feuille du bas sur téléphone, boîte centrée sur ordinateur ; Échap, « Fermer » ou le fond la ferment, les flèches ne changent pas la semaine dessous. Adresses demandées à la fonction serveur `pieces-lien` (jeton, page, semaine affichée), gardées 1 heure ; en panne → « Fichiers inaccessibles ». Vue ouvrier : toucher la tâche n'importe où ouvre aussi la fiche (sauf le bouton GPS du chantier). Lien responsable : deux demi-journées aux fichiers différents restent 2 bulles.
+- Corrigé en cours de route : la fiche des jalons et des notes ne reçoit pas la section (elle n'en a pas).
+
+### Tests
+
+- `tests/test_suite147.js` (nouveau, 59 vérifications) :
+  - fonction `pieces-lien` : demandes refusées (messages), demande valide, fichiers visibles = ceux des tâches de la semaine, vignettes comprises ; `index.ts` (clé de service lue sur le serveur seulement, 1 heure, 403 si le lien n'existe plus) ; sql/0041 ;
+  - appli : rien d'écrit au chargement, icônes des bulles, fiche (liens signés, vignette, PDF, tailles), éditeur des détails, retirer, joindre (original + vignette, nom sans accents), enregistrement par demi-journée, Annuler, envoi en cours, échec, plus de 50 Mo, absence sans section ;
+  - copier / coller, séries (modification, « Tous les événements », série créée), hors ligne, secours sans `remplacer_case_personne`, nettoyage une fois par jour ;
+  - liens : bouton, tâche entière touchable (pas le bouton GPS, pas une tâche sans détails), fiche, demande à `pieces-lien`, cache, panne, téléphone / ordinateur, responsable (2 bulles, flèches bloquées) ; ordre des scripts.
+- `tests/aide_tests.js` : faux Supabase avec `details` / `pieces` dans `remplacer_case_personne`, `pieces_orphelines`, réponse d'`enregistrer-serie` au choix du test, dossier de fichiers (envoi, adresses signées, suppression).
+- `tests/test_chargement.js` : extrait aussi `detailsTexte_` et `normaliserPieces_` ; chaque tâche chargée porte `details: null, pieces: []`.
+- Suite complète : 150/150.
+
+
+## 261. Round du 21.10.2026 (suite 148) — Machines et matériaux rangés par catégories
+
+Lionel : « J'aimerai pouvoir trier ma liste de machines et grouper par catégorie. Et pour les trier par lister, déposer, plutôt que par les petites flèches. Dans le menu, clic droit de la souris, on aura du coup les catégories, et ensuite, dans un sous-menu, les machines de la catégorie. » Ses choix : « Liste de catégories (Recommandé) » ; « Machines et Transports (Recommandé) » ; une machine sans catégorie : « Dans « Autres » ».
+
+- Pages Machines et Transports (`js/page-personnel.js`) : un bloc par catégorie (poignée ⠿, nom, nombre d'éléments, « + » pour ajouter dedans, renommer, supprimer), puis « Autres » en dernier pour les éléments sans catégorie. « + Catégorie » à côté de « + Ajouter » (qui ajoute dans « Autres »). Supprimer une catégorie demande confirmation ; ses éléments passent dans « Autres ». Sans aucune catégorie, la liste reste d'un seul bloc, comme avant.
+- Glisser-déposer à la place de ↑/↓ : la poignée ⠿ d'un élément le pose dans sa catégorie ou dans une autre (une catégorie vide aussi) ; celle d'une catégorie la range parmi les autres. Souris et doigt ; à la souris, toute la ligne (ou le titre de la catégorie) se glisse aussi, sauf sa coche et ses boutons. Un trait montre la place d'arrivée, la page défile près des bords, le nouvel ordre s'affiche tout de suite puis s'écrit en base (seules les lignes changées). Les rangs suivent l'ordre affiché, catégorie après catégorie : sans catégories, la liste à plat garde le même ordre. Un échec d'écriture remet l'écran à l'état de la base.
+- Clic droit (ou appui long) sur une case des lignes Machines / Transports (`js/formulaires-edition.js`) : les catégories, chacune avec « › », puis « Autres », puis « Autre… » et « Coller ». À la souris, le survol d'une catégorie ouvre son sous-menu à côté du menu (à gauche s'il n'y a pas la place à droite) ; au clic ou au doigt, la catégorie touchée l'ouvre ou le referme. Une catégorie sans élément coché n'est pas proposée ; sans catégorie (ou rien que des éléments sans catégorie), la liste reste à plat. La suite ne change pas : chantier pour une machine, chantier et quantité pour un matériau.
+- Données (`js/groupes.js`, `js/donnees-sync.js`) : catégories chargées avec les listes (`etat.categoriesElements`, requête non bloquante : sans elle, tout est dans « Autres ») ; `categorie_id` sur chaque élément ; `blocsElementsGroupe` range une liste par catégorie pour la page et le menu.
+- Descriptions des pages Machines et Transports mises à jour (catégories, ⠿).
+
+### Tests
+
+- `tests/test_suite148.js` (nouveau, 23 vérifications) :
+  - sql/0042 : table, RLS, droits, catégorie supprimée → élément sans catégorie, index ; sauvegardes (categories_elements entre groupes et elements_groupes, aucune table perdue) ;
+  - clic droit : catégories (pas celle sans élément coché), « Autres » en dernier ; survol → sous-menu à côté du menu, sans élément masqué ; survoler une autre entrée le referme ; clic → machine → bulle ; Transports → matériau → quantité ; menu collé au bord droit → sous-menu à gauche ; liste à plat sans catégorie ;
+  - page Machines : blocs, « Autres » sans poignée ni action, plus de ↑/↓ ; glisser par la poignée, par la ligne entière, dans une catégorie vide, au doigt (poignée seulement), une catégorie ; rangs écrits dans l'ordre affiché ; « + Catégorie », renommer, « + » dans une catégorie, supprimer ; page Transports ;
+  - table des catégories en échec : menu et page à plat ; téléphone : sous-menu dans l'écran, toucher à nouveau le referme ; aucune erreur JS.
+- `tests/test_suite135.js` : l'élément est descendu en le glissant par sa poignée (plus de ↓).
+- Suite complète : 151/151.
+
+
+## 262. Round du 21.10.2026 (suite 149) — Détails et fichiers joints des notes
+
+Lionel : « Les notes  peuvent aussi avoir des descriptifs avec les photos et des fichiers liés, même si je les utiliserai sûrement moins souvent. » Ses choix : comme les tâches (suite 147), dans la fiche ; dans la fiche du planning et dans le formulaire de la page Notes ; visibles sur le lien responsable (le lien des ouvriers n'affiche pas les notes) ; pas les jalons.
+
+- Fiche d'une note dans le planning (`js/formulaires-edition.js`) : sous le descriptif, la même section « Détails » / « Fichiers » que la fiche d'une tâche (`js/pieces-jointes.js`) : détails sur plusieurs lignes, « Joindre » (plusieurs fichiers ; photos en original, avec une vignette), retirer, ouvrir (adresse signée). « Enregistrer » attend la fin des envois. La fiche d'un jalon n'a pas cette section.
+- Page Notes (`js/page-notes.js`) : même section dans le formulaire Ajouter / Modifier, envoyée à enregistrer-plage ; la liste montre la petite icône devant le texte (trombone, ou lignes pour des détails seuls) ; deux jours d'une note aux détails différents restent deux lignes.
+- Bulle d'une note (`js/grille-rendu.js`) : même icône que pour une tâche, « détails, 2 fichiers » au survol.
+- Données (`js/donnees-sync.js`) : détails et fichiers des notes chargés et normalisés (rien d'écrit au chargement) ; deux jours d'une note ne forment une bulle que s'ils ont les mêmes détails et les mêmes fichiers ; changer les détails ou les fichiers est un changement de la note, envoyé à enregistrer-plage et posé sur chacun de ses jours.
+- Copies (`js/formulaires-communs.js`, `js/grille-interactions.js`) : Ctrl+V, « Coller », copie par les flèches ou au glisser : la note copiée garde détails et fichiers, dans son propre tableau.
+- Séries (`js/series.js`, `js/formulaires-edition.js`) : la boîte de portée porte aussi détails et fichiers d'une note (table notes) ; une série de notes créée avec des détails ou des fichiers les reçoit sur toutes ses lignes.
+- Lien responsable (`js/responsable.js`) : bouton « Détails · 1 fichier » sur la note, même fiche que pour une tâche (`js/details-lien.js`, adresses signées par pieces-lien).
+
+### Tests
+
+- `tests/test_suite149.js` (nouveau, 39 vérifications) :
+  - sql/0043 ; enregistrer-plage : détails et fichiers fournis posés sur chaque jour, gardés quand l'appel n'en parle pas (aussi sur un jour ajouté), rien d'écrit sans eux, retirés ; index.ts relit toutes les colonnes d'une note ; pieces-lien signe les fichiers des notes ;
+  - planning : rien d'écrit au chargement ; icônes des bulles ; deux bulles quand les détails diffèrent ; fiche : section, ligne ajoutée, PDF retiré, photo jointe, enregistrement (un appel à enregistrer-plage, les 2 jours, forme fixe), Ctrl+Z, envoi en cours, « Annuler » ; jalon sans section ; nouvelle note avec détails ; copier / coller ; séries (changementSerie_, « Tous les événements », série créée) ;
+  - page Notes : icônes, Modifier (section, appel, liste relue), Ajouter avec un fichier encore en route ;
+  - lien responsable : boutons, fiche de la note, adresses demandées pour la page responsable, Échap.
+- `tests/test_enregistrer_plage.js` : detailsNote et piecesNote extraites avec planPlage.
+- `tests/test_chargement.js` : notes chargées avec `details: null, pieces: []`.
+- Suite complète : 152/152.
+

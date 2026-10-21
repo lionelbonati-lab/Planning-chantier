@@ -269,7 +269,8 @@
         var ou = function (r) { return String(r.personne_id) === String(cle.personne_id) && r.date === cle.date && r.demi === cle.demi; };
         var ops = [{ type: "delete", ou: ou }].concat((args.p_lignes || []).map(function (l, i) {
           return { type: "insert", ligne: { id: HL_.idTemp--, personne_id: cle.personne_id, date: cle.date, demi: cle.demi, ordre: i, texte: l.texte, statut_id: l.statut_id || null,
-            important: !!l.important, serie_id: l.serie_id || null, est_absence: !!l.est_absence, chantier_id: l.chantier_id != null ? l.chantier_id : null } };
+            important: !!l.important, serie_id: l.serie_id || null, est_absence: !!l.est_absence, chantier_id: l.chantier_id != null ? l.chantier_id : null,
+            details: l.details || null, pieces: Array.isArray(l.pieces) ? l.pieces : [] } };
         }));
         return Promise.all([hlAppliquerAuxCopies_(lectures, "taches", ops), hlAppliquerAuxCopies_(lectures, "assignations", [{ type: "delete", ou: ou }])])
           .then(function () { return envoi; });
@@ -306,9 +307,13 @@
       });
     });
   }
+  // Détails et fichiers (suite 147) : en fin de ligne — un changement mis
+  // en file avant cette version (6 valeurs par ligne) est comparé sur ses
+  // 6 premières seulement (hlCaseInchangee_).
   function hlResumeCase_(lignes) {
     return lignes.slice().sort(function (a, b) { return (a.ordre || 0) - (b.ordre || 0); }).map(function (r) {
-      return [r.texte || "", r.statut_id || null, !!r.important, r.serie_id || null, !!r.est_absence, r.chantier_id || null];
+      return [r.texte || "", r.statut_id || null, !!r.important, r.serie_id || null, !!r.est_absence, r.chantier_id || null,
+        r.details || null, (Array.isArray(r.pieces) ? r.pieces : []).map(function (p) { return p && p.chemin; })];
     });
   }
   function hlLibelleCase_(args) {
@@ -452,11 +457,14 @@
   function hlCaseInchangee_(e, entetes) {
     var a = JSON.parse(e.corps);
     var base = e.url.replace(/\/rpc\/remplacer_case_personne.*$/, "/taches");
-    var q = base + "?select=texte,statut_id,important,serie_id,est_absence,chantier_id,ordre&personne_id=eq." + encodeURIComponent(a.p_personne_id) +
+    var q = base + "?select=texte,statut_id,important,serie_id,est_absence,chantier_id,details,pieces,ordre&personne_id=eq." + encodeURIComponent(a.p_personne_id) +
       "&date=eq." + encodeURIComponent(a.p_date) + "&demi=eq." + encodeURIComponent(a.p_demi) + "&order=ordre.asc";
     return window.fetch(q, { headers: entetes }).then(function (rep) {
       if (!rep.ok) return true; // relecture impossible : on écrit comme avant ce round
-      return rep.json().then(function (lignes) { return JSON.stringify(hlResumeCase_(lignes)) === JSON.stringify(e.avant); });
+      return rep.json().then(function (lignes) {
+        var n = e.avant && e.avant[0] ? e.avant[0].length : 8;
+        return JSON.stringify(hlResumeCase_(lignes).map(function (r) { return r.slice(0, n); })) === JSON.stringify(e.avant);
+      });
     });
   }
   function hlApresEnvoi_(envoyes, refuses) {

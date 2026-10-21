@@ -2195,3 +2195,44 @@ Fichier : sql/0040_chantiers_emplacement.sql (à appliquer dans l'éditeur SQL d
 - Signatures, droits (anon, authenticated), bornes et le reste des réponses inchangés.
 - Vérifié sur le projet dans une transaction annulée : 40 tâches côté responsable, dont 20 avec un pin ; 8 tâches côté ouvrier, toutes avec le pin de leur chantier ; rien n'est resté en base.
 
+---
+
+## 44. Round du 21.10.2026 (suite 147) — détails et fichiers joints des tâches
+
+Lionel : « J'aimerais pouvoir rajouter des détails à mes tâches
+J'aimerais pouvoir leur joindre des fichiers, photos ou PDF. » Ses choix : « Dans la fiche (Recommandé) » ; visibles sur « Lien des ouvriers,Lien responsable » ; ajout « Seulement toi (Recommandé) » ; photos « Originales ».
+
+Fichier : sql/0041_taches_details_pieces.sql (à appliquer dans l'éditeur SQL de Supabase, comme la 0040), functions/pieces-lien/ (fonction serveur, déployée).
+
+- taches : colonnes details (texte) et pieces (jsonb, tableau, '[]' par défaut) ; chaque fichier : { chemin, nom, type, taille, vignette }.
+- Dossier privé « pieces » de Supabase Storage, 50 Mo par fichier ; lecture, ajout et suppression pour les seuls utilisateurs connectés.
+- remplacer_case_personne : écrit aussi details et pieces de chaque ligne.
+- consultation_planning et consultation_responsable : « details » et « pieces » avec chaque tâche.
+- pieces_orphelines() : fichiers du dossier que plus aucune tâche ni sauvegarde ne cite, envoyés depuis plus de 7 jours (connectés seulement).
+- pieces-lien : les liens anonymes demandent { jeton, page, lundi, chemins } ; le jeton est vérifié en relisant la semaine par la même fonction que la page (clé publique) ; seuls les fichiers (et vignettes) des tâches que ce lien affiche cette semaine-là sont signés, pour 1 heure, avec la clé de service lue sur le serveur et jamais renvoyée. Lien supprimé → 403.
+
+---
+
+## 45. Round du 21.10.2026 (suite 148) — catégories des listes Machines / Transports
+
+Lionel : « J'aimerai pouvoir trier ma liste de machines et grouper par catégorie. Et pour les trier par lister, déposer, plutôt que par les petites flèches. Dans le menu, clic droit de la souris, on aura du coup les catégories, et ensuite, dans un sous-menu, les machines de la catégorie. » Ses choix : « Liste de catégories (Recommandé) » ; « Machines et Transports (Recommandé) » ; une machine sans catégorie : « Dans « Autres » ».
+
+Fichier : sql/0042_categories_elements.sql (à appliquer dans l'éditeur SQL de Supabase, comme la 0041).
+
+- categories_elements : id, groupe_id (groupes, supprimé avec son groupe), nom non vide, ordre, cree_le ; RLS « connecte_tout » et droits pour les utilisateurs connectés, comme elements_groupes.
+- elements_groupes.categorie_id : la catégorie de l'élément, vide = « Autres » ; supprimer une catégorie vide la colonne de ses éléments (on delete set null) ; index.
+- tables_sauvegardees_() : categories_elements après groupes, avant elements_groupes (restaurée avant, effacée après) ; une ancienne sauvegarde sans la table se restaure sans catégories.
+
+---
+
+## 46. Round du 21.10.2026 (suite 149) — détails et fichiers joints des notes
+
+Lionel : « Les notes  peuvent aussi avoir des descriptifs avec les photos et des fichiers liés, même si je les utiliserai sûrement moins souvent. »
+
+Fichier : sql/0043_notes_details_pieces.sql (à appliquer dans l'éditeur SQL de Supabase, APRÈS la 0041), functions/enregistrer-plage/ et functions/pieces-lien/ (fonctions serveur, déployées).
+
+- notes : colonnes details (texte) et pieces (jsonb, tableau, '[]' par défaut), même forme que pour les tâches ; chaque jour d'une note porte les mêmes.
+- consultation_responsable : « details » et « pieces » avec chaque note ; consultation_planning ne change pas (le lien des ouvriers n'affiche pas les notes).
+- pieces_orphelines() : un fichier cité par une note, en base ou dans une sauvegarde, n'est jamais effacé.
+- enregistrer-plage : details / pieces fournis → posés sur chaque jour de la note ; absents (appli d'avant) → ceux de la note retirée ce jour-là, sinon ceux d'un jour de la note d'origine (plage allongée) ; colonnes écrites seulement s'il y en a : une base sans la 0043 accepte toujours les notes. index.ts relit toutes les colonnes des notes.
+- pieces-lien : signe aussi les fichiers des notes que le lien responsable affiche.

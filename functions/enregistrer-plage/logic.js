@@ -67,6 +67,20 @@ function normaliserPlage(dateDebut, dateFin, demiDebut, demiFin) {
   return { d1: d1, d2: d2, demi1: demiDebut, demi2: demiFin };
 }
 
+// Détails d'une note (suite 149) : texte, vide = null ; fichiers joints :
+// tableau d'objets portant un `chemin`, sinon vide (même forme que
+// normaliserPieces_ côté appli, js/pieces-jointes.js).
+function detailsNote(d) {
+  var t = d == null ? "" : String(d).trim();
+  return t || null;
+}
+function piecesNote(pieces) {
+  if (!Array.isArray(pieces)) return [];
+  return pieces.filter(function (p) { return p && typeof p.chemin === "string" && p.chemin; }).map(function (p) {
+    return { chemin: p.chemin, nom: String(p.nom || p.chemin.split("/").pop()), type: String(p.type || ""), taille: Math.max(0, +p.taille || 0), vignette: p.vignette || null };
+  });
+}
+
 // ============================================================
 // planPlage — le cœur métier. Fonction PURE : ne touche à aucune base de
 // données, prend en entrée les lignes déjà existantes pour les dates
@@ -80,7 +94,8 @@ function normaliserPlage(dateDebut, dateFin, demiDebut, demiFin) {
 //                               demiDebut, demiFin } }
 // existantes = lignes déjà en base pour toutes les dates concernées
 //   (jalon)  : [{ id, date, texte, demi }]
-//   (note)   : [{ id, date, texte, important, demi }]
+//   (note)   : [{ id, date, texte, important, demi, chantier_id, details,
+//               pieces }] (details/pieces : suite 149, absents sans la 0043)
 // ============================================================
 function planPlage(params, existantes) {
   var kind = params.kind;
@@ -130,6 +145,17 @@ function planPlage(params, existantes) {
   // retrouvée sur le jour, sinon aucun.
   var noteChantierIdFourni = estNote && Object.prototype.hasOwnProperty.call(params, "chantierId");
   var noteChantierIdVoulu = noteChantierIdFourni ? (params.chantierId || null) : null;
+  // Détails et fichiers joints d'une NOTE (round du 21.10.2026, suite 149 —
+  // Lionel : « Les notes peuvent aussi avoir des descriptifs avec les photos
+  // et des fichiers liés », sql/0043). Même règle que le chantier : fournis
+  // => appliqués à chaque jour ; absents (ancien appelant) => ceux de la
+  // note d'origine retrouvée sur le jour, sinon sur n'importe quel jour de
+  // l'origine (plage allongée). Colonnes écrites seulement s'il y en a :
+  // une base sans la 0043 accepte toujours les notes sans détails.
+  var noteDetailsFourni = estNote && Object.prototype.hasOwnProperty.call(params, "details");
+  var notePiecesFourni = estNote && Object.prototype.hasOwnProperty.call(params, "pieces");
+  var noteDetailsVoulu = noteDetailsFourni ? detailsNote(params.details) : null;
+  var notePiecesVoulues = notePiecesFourni ? piecesNote(params.pieces) : [];
 
   var origine = params.origine || null;
   var oNorm = origine ? normaliserPlage(origine.dateDebut, origine.dateFin, origine.demiDebut, origine.demiFin) : null;
@@ -138,6 +164,11 @@ function planPlage(params, existantes) {
   var oTexteBrut = origine ? String(origine.texte == null ? "" : origine.texte).trim() : "";
   var oImportant = origine ? !!origine.important : false;
   var oChantierId = origine && origine.chantierId != null ? origine.chantierId : null;
+  // Suite 149 : première ligne de l'origine retrouvée (détails / fichiers à
+  // reconduire sur un jour ajouté à la plage).
+  var oLigne = estNote && o1 && oTexteBrut !== "" ? (existantes.filter(function (e) {
+    return e.date >= o1 && e.date <= o2 && e.texte === oTexteBrut && !!e.important === oImportant;
+  })[0] || null) : null;
 
   var joursNouveaux = joursOuvresDeLaPlage(d1, d2);
   if (joursNouveaux.length === 0) throw new Error("Aucun jour ouvré de cette plage n'existe dans le planning.");
@@ -163,14 +194,14 @@ function planPlage(params, existantes) {
     Object.keys(joursConcernes).sort().forEach(function (iso) {
       var dansNouvelle = iso >= d1 && iso <= d2;
       var dansOrigine = !!(o1 && iso >= o1 && iso <= o2);
-      var retireId = null, chantierRetire = null;
+      var retireId = null, chantierRetire = null, ligneRetiree = null;
 
       if (dansOrigine && oTexteBrut !== "") {
         var demiOrigineIci = demiPourJourDePlage(iso, o1, o2, oNorm.demi1, oNorm.demi2);
         var match = lignesExistantesDuJour(iso).find(function (e) {
           return e.texte === oTexteBrut && !!e.important === oImportant && (e.demi || null) === (demiOrigineIci || null);
         });
-        if (match) { ops.push({ type: "delete", table: "notes", id: match.id }); retireId = match.id; chantierRetire = match.chantier_id || null; }
+        if (match) { ops.push({ type: "delete", table: "notes", id: match.id }); retireId = match.id; chantierRetire = match.chantier_id || null; ligneRetiree = match; }
       }
 
       var ajouteIci = false;
@@ -189,6 +220,12 @@ function planPlage(params, existantes) {
             // (sans chantier : null par défaut en base).
             var chNote = noteChantierIdFourni ? noteChantierIdVoulu : (chantierRetire != null ? chantierRetire : (oChantierId || null));
             if (chNote != null) ligneNote.chantier_id = chNote;
+            // Suite 149 : détails et fichiers, seulement s'il y en a.
+            var modele = ligneRetiree || oLigne;
+            var detailsIci = noteDetailsFourni ? noteDetailsVoulu : (modele ? detailsNote(modele.details) : null);
+            var piecesIci = notePiecesFourni ? notePiecesVoulues : (modele ? piecesNote(modele.pieces) : []);
+            if (detailsIci) ligneNote.details = detailsIci;
+            if (piecesIci.length) ligneNote.pieces = piecesIci;
             ops.push(ligneNote);
             dejaLa.push(cle);
             ajouteIci = true;
@@ -284,5 +321,7 @@ export {
   demiPourJourDePlage,
   lignesDe,
   normaliserPlage,
+  detailsNote,
+  piecesNote,
   planPlage,
 };
