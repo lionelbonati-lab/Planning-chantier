@@ -45,9 +45,18 @@ function cheminsVisibles(reponse) {
   return Object.keys(vus);
 }
 
+// Round du 22.10.2026 (suite 150) — Lionel : « J'ai un message d'erreur.
+// J'ai du réseau car j'ai pu charger mes tâches. » La fonction de la page
+// était formée par « consultation_ » + page : pour le lien des ouvriers,
+// consultation_consultation, qui n'existe pas (erreur 500 à chaque fiche).
+// Le lien des ouvriers lit sa semaine par consultation_planning.
+function rpcDeLaPage(page) {
+  return page === "responsable" ? "consultation_responsable" : "consultation_planning";
+}
+
 // Demandés ET visibles, dans l'ordre de la demande.
 function cheminsASigner(demandes, visibles) {
   return demandes.filter(function (c) { return visibles.indexOf(c) >= 0; });
 }
 
-export { validerDemande, cheminsVisibles, cheminsASigner, MAX_CHEMINS };
+export { validerDemande, rpcDeLaPage, cheminsVisibles, cheminsASigner, MAX_CHEMINS };

@@ -2236,3 +2236,14 @@ Fichier : sql/0043_notes_details_pieces.sql (à appliquer dans l'éditeur SQL de
 - pieces_orphelines() : un fichier cité par une note, en base ou dans une sauvegarde, n'est jamais effacé.
 - enregistrer-plage : details / pieces fournis → posés sur chaque jour de la note ; absents (appli d'avant) → ceux de la note retirée ce jour-là, sinon ceux d'un jour de la note d'origine (plage allongée) ; colonnes écrites seulement s'il y en a : une base sans la 0043 accepte toujours les notes. index.ts relit toutes les colonnes des notes.
 - pieces-lien : signe aussi les fichiers des notes que le lien responsable affiche.
+
+---
+
+## 47. Round du 22.10.2026 (suite 150) — pieces-lien : fonction du lien des ouvriers
+
+Lionel : « J'ai un message d'erreur. J'ai du réseau car j'ai pu charger mes tâches. »
+
+Fichier : functions/pieces-lien/ (fonction serveur, redéployée ; aucun SQL à appliquer).
+
+- Le jeton était vérifié en appelant « consultation_ » + page : pour le lien des ouvriers (page « consultation »), consultation_consultation, qui n'existe pas → erreur 500 à chaque fiche (journaux de pieces-lien : POST 500). Le lien responsable n'était pas touché.
+- logic.js : rpcDeLaPage(page) → consultation_planning (lien des ouvriers) ou consultation_responsable ; index.ts l'utilise. Arguments inchangés (p_jeton, p_lundi), vérifiés en base.

@@ -86,7 +86,7 @@ const BD = () => ({
     verifier(JSON.stringify(L.cheminsASigner([PHOTO.vignette, 'fichiers/zzz/Autre.pdf', PDF.chemin], vis)) === JSON.stringify([PHOTO.vignette, PDF.chemin]),
       'pieces-lien : un fichier d’une autre tâche n’est pas signé, l’ordre de la demande est gardé');
     const ts = fs.readFileSync(path.join(RACINE, 'functions/pieces-lien/index.ts'), 'utf8');
-    verifier(/publique\.rpc\("consultation_" \+ demande\.page, \{\s*p_jeton: demande\.jeton,\s*p_lundi: demande\.lundi,?\s*\}\)/.test(ts) &&
+    verifier(/publique\.rpc\(rpcDeLaPage\(demande\.page\), \{\s*p_jeton: demande\.jeton,\s*p_lundi: demande\.lundi,?\s*\}\)/.test(ts) &&
       /Deno\.env\.get\("SUPABASE_ANON_KEY"\)/.test(ts) && /if \(!semaine\) return json\(\{ ok: false, erreur: "Ce lien n'existe plus\." \}, 403\)/.test(ts),
       'index.ts : jeton vérifié par la même fonction que la page (clé publique), lien supprimé → 403');
     verifier(/const DUREE_SECONDES = 3600;/.test(ts) && /Deno\.env\.get\("SUPABASE_SERVICE_ROLE_KEY"\)/.test(ts) &&

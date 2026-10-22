@@ -19,7 +19,7 @@
 // ============================================================
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { validerDemande, cheminsVisibles, cheminsASigner } from "./logic.js";
+import { validerDemande, rpcDeLaPage, cheminsVisibles, cheminsASigner } from "./logic.js";
 
 const DUREE_SECONDES = 3600;
 
@@ -49,7 +49,9 @@ Deno.serve(async (req: Request) => {
 
   const url = Deno.env.get("SUPABASE_URL") ?? "";
   const publique = createClient(url, Deno.env.get("SUPABASE_ANON_KEY") ?? "", { auth: { persistSession: false } });
-  const { data: semaine, error: erreurSemaine } = await publique.rpc("consultation_" + demande.page, {
+  // Suite 150 : consultation_planning pour le lien des ouvriers (et non
+  // « consultation_consultation », qui n'existe pas) — voir logic.js.
+  const { data: semaine, error: erreurSemaine } = await publique.rpc(rpcDeLaPage(demande.page), {
     p_jeton: demande.jeton,
     p_lundi: demande.lundi,
   });
