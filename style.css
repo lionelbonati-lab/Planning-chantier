@@ -2164,6 +2164,13 @@
     color: var(--ink-muted); display: grid; place-items: center; cursor: pointer;
   }
   .carte-item .pj-retirer svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  /* Suite 151 : télécharger le fichier (flèche), à gauche de « Retirer ». */
+  .carte-item .pj-telecharger {
+    flex: none; width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface);
+    color: var(--ink-muted); display: grid; place-items: center;
+  }
+  .carte-item .pj-telecharger svg { width: 14px; height: 14px; }
+  @media (hover: hover) and (pointer: fine) { .carte-item .pj-telecharger:hover { color: var(--accent); border-color: var(--accent); } }
   .carte-item .pj-envoi { opacity: .6; }
 
   .carte-item .lien-plus {
