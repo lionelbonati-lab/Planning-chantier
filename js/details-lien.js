@@ -34,6 +34,10 @@
     '<rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="m21 16-5-5-8 8"/></svg>';
   var ICONE_DOCUMENT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
     '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>';
+  // Suite 151 — Lionel : « Rend le fichier téléchargeable, avec une icône de
+  // téléchargement. » Flèche vers le bas dans une ligne.
+  var ICONE_TELECHARGER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>';
   // Suite 150 — Lionel : « J'ai un message d'erreur. J'ai du réseau car j'ai
   // pu charger mes tâches. » La connexion n'est mise en cause que si la
   // demande n'a pas abouti ; si le serveur a répondu, autre message.
@@ -98,15 +102,24 @@
     });
   }
   function adresse(c) { return c && adresses[c] ? adresses[c].url : ""; }
+  // Suite 151 : la même adresse signée, avec « download » — Supabase
+  // Storage renvoie alors le fichier en pièce à enregistrer, sous son vrai
+  // nom (l'attribut download seul est ignoré : autre domaine).
+  function adresseTelechargement(url, nom) {
+    return url + (url.indexOf("?") < 0 ? "?" : "&") + "download=" + encodeURIComponent(nom);
+  }
 
   function htmlFichiers(pieces, etat) {
     return pieces.map(function (p) {
       var url = adresse(p.chemin), vignette = adresse(p.vignette);
       var apercu = vignette ? '<span class="dl-apercu"><img src="' + esc(vignette) + '" alt=""></span>'
         : '<span class="dl-apercu">' + (estImage(p) ? ICONE_PHOTO : ICONE_DOCUMENT) + (estPdf(p) ? "<b>PDF</b>" : "") + "</span>";
-      var corps = apercu + '<span class="dl-nom">' + esc(p.nom || p.chemin.split("/").pop()) + '</span><span class="dl-taille">' +
+      var nom = p.nom || p.chemin.split("/").pop();
+      var corps = apercu + '<span class="dl-nom">' + esc(nom) + '</span><span class="dl-taille">' +
         esc(url ? tailleLisible(p.taille) : etat === "erreur" ? "Indisponible" : "Chargement…") + "</span>";
-      return "<li>" + (url ? '<a class="dl-fichier" href="' + esc(url) + '" target="_blank" rel="noopener">' + corps + "</a>"
+      return "<li>" + (url ? '<a class="dl-fichier" href="' + esc(url) + '" target="_blank" rel="noopener">' + corps + "</a>" +
+          '<a class="dl-telecharger" href="' + esc(adresseTelechargement(url, nom)) + '" download="' + esc(nom) + '" target="_blank" rel="noopener"' +
+          ' title="Télécharger" aria-label="Télécharger ' + esc(nom) + '">' + ICONE_TELECHARGER + "</a>"
         : '<span class="dl-fichier attente">' + corps + "</span>") + "</li>";
     }).join("");
   }
@@ -192,10 +205,14 @@
     ".dl-details { font-size: 14.5px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }\n" +
     ".dl-label { margin: 4px 2px -4px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-faint); }\n" +
     ".dl-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }\n" +
-    ".dl-fichier { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 4px; border-radius: 10px; color: var(--ink); text-decoration: none; }\n" +
+    ".dl-liste li { display: flex; align-items: stretch; gap: 4px; }\n" +
+    ".dl-fichier { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 4px; border-radius: 10px; color: var(--ink); text-decoration: none; }\n" +
     "a.dl-fichier { background: var(--surface-2); }\n" +
     ".dl-fichier.attente { opacity: .7; }\n" +
     "@media (hover: hover) and (pointer: fine) { a.dl-fichier:hover { filter: brightness(.96); } }\n" +
+    ".dl-telecharger { flex: none; width: 52px; display: grid; place-items: center; border-radius: 10px; background: var(--surface-2); color: var(--ink-muted); }\n" +
+    ".dl-telecharger svg { width: 22px; height: 22px; }\n" +
+    "@media (hover: hover) and (pointer: fine) { .dl-telecharger:hover { color: var(--accent); filter: brightness(.96); } }\n" +
     ".dl-apercu { flex: none; position: relative; width: 44px; height: 44px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface);" +
       " color: var(--ink-muted); display: grid; place-items: center; overflow: hidden; }\n" +
     ".dl-apercu svg { width: 22px; height: 22px; }\n" +

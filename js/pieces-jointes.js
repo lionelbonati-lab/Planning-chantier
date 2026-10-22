@@ -39,6 +39,10 @@
     '<rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="m21 16-5-5-8 8"/></svg>';
   var ICONE_DOCUMENT_ = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
     '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>';
+  // Suite 151 — Lionel : « Rend le fichier téléchargeable, avec une icône de
+  // téléchargement. » Même flèche que sur les liens (js/details-lien.js).
+  var ICONE_TELECHARGER_ = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>';
 
   // ---- Données -----------------------------------------------------------
 
@@ -132,6 +136,11 @@
       return urls;
     }).catch(function () { return {}; });
   }
+  // Suite 151 : l'adresse signée avec « download » — Supabase Storage
+  // renvoie alors le fichier à enregistrer, sous son vrai nom.
+  function adresseTelechargement_(url, nom) {
+    return url + (url.indexOf("?") < 0 ? "?" : "&") + "download=" + encodeURIComponent(nom);
+  }
 
   // ---- Bulle ---------------------------------------------------------------
 
@@ -181,7 +190,9 @@
       liste.innerHTML = pieces.map(function (p, i) {
         var url = urls[p.chemin];
         var corps = apercuHTML(p) + '<span class="pj-nom">' + esc(p.nom) + '</span><span class="pj-taille">' + esc(tailleLisible_(p.taille)) + '</span>';
-        return '<li class="pj-item">' + (url ? '<a class="pj-lien" href="' + esc2(url) + '" target="_blank" rel="noopener">' + corps + '</a>' : '<span class="pj-lien">' + corps + '</span>') +
+        return '<li class="pj-item">' + (url ? '<a class="pj-lien" href="' + esc2(url) + '" target="_blank" rel="noopener">' + corps + '</a>' +
+            '<a class="pj-telecharger" href="' + esc2(adresseTelechargement_(url, p.nom)) + '" download="' + esc2(p.nom) + '" target="_blank" rel="noopener" title="Télécharger"' +
+            ' aria-label="Télécharger ' + esc2(p.nom) + '">' + ICONE_TELECHARGER_ + '</a>' : '<span class="pj-lien">' + corps + '</span>') +
           '<button type="button" class="pj-retirer" data-i="' + i + '" title="Retirer ce fichier" aria-label="Retirer ' + esc2(p.nom) + '">' + ICONE_FERMER + '</button></li>';
       }).join("") + envois.map(function (e) {
         return '<li class="pj-item pj-envoi"><span class="pj-lien"><span class="pj-apercu">' + ICONE_DOCUMENT_ + '</span><span class="pj-nom">' + esc(e.nom) +

@@ -11490,3 +11490,19 @@ Lionel, capture du lien des ouvriers à l'appui (fiche de « Aménagement exté
 - `tests/test_suite147.js` : index.ts relit la semaine par `rpcDeLaPage(demande.page)`.
 - Suite complète : 153/153.
 
+
+## 264. Round du 22.10.2026 (suite 151) — Télécharger un fichier joint
+
+Lionel, après la suite 150 : « C'est ok.
+Rend le fichier téléchargeable, avec une icône de téléchargement. »
+
+- Liens ouvrier et responsable (`js/details-lien.js`) : à droite de chaque fichier de la fiche, un bouton flèche « Télécharger » (52 px de large, toute la hauteur de la ligne : au doigt sur téléphone). Toucher le fichier l'ouvre toujours ; la flèche l'enregistre.
+- Appli (`js/pieces-jointes.js`, `style.css`) : même flèche dans la fiche de la tâche ou de la note, juste avant « Retirer ».
+- Comment : l'adresse signée du fichier, avec `download=<vrai nom>` — Supabase Storage la renvoie alors en pièce à enregistrer, sous son vrai nom (accents compris). L'attribut `download` seul ne suffit pas : le fichier est sur un autre domaine. Rien à changer côté serveur.
+- Pas de flèche tant que l'adresse n'est pas arrivée, ni pour un fichier sans adresse.
+
+### Tests
+
+- `tests/test_suite151.js` (nouveau, 9 vérifications) : liens ouvrier et responsable — flèche à côté de chaque fichier, adresse avec `&download=` (accents encodés), nouvel onglet, taille et place sur téléphone, toucher la flèche demande le fichier sans fermer la fiche, rien avant l'adresse ni pour un fichier sans adresse ; appli — flèche avant « Retirer », adresse avec `?download=`, la toucher ne retire rien.
+- Suite complète : 154/154.
+
