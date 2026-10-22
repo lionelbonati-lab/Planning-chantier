@@ -11476,3 +11476,17 @@ Lionel : « Les notes  peuvent aussi avoir des descriptifs avec les photos et d
 - `tests/test_chargement.js` : notes chargées avec `details: null, pieces: []`.
 - Suite complète : 152/152.
 
+
+## 263. Round du 22.10.2026 (suite 150) — Fichiers du lien des ouvriers « Indisponible »
+
+Lionel, capture du lien des ouvriers à l'appui (fiche de « Aménagement extérieurs », « 25152 - Domball.pdf » marqué « Indisponible », « Fichiers inaccessibles : vérifie ta connexion internet, puis réessaie. ») : « J'ai un message d'erreur. J'ai du réseau car j'ai pu charger mes tâches. »
+
+- Cause, côté serveur (voir BACKEND §47) : pieces-lien répondait une erreur 500 à chaque fiche du lien des ouvriers. Corrigé et redéployé : rouvrir la fiche suffit, sans mise à jour de la page.
+- Fiche des liens (`js/details-lien.js`) : la connexion n'est mise en cause que si la demande n'aboutit pas. Si le serveur a répondu (erreur, ou fichier qu'il n'a pas signé) : « Fichiers inaccessibles pour le moment : ferme la fiche et rouvre-la dans quelques minutes. »
+
+### Tests
+
+- `tests/test_suite150.js` (nouveau, 7 vérifications) : fonction relue selon la page (consultation_planning pour le lien des ouvriers, consultation_responsable pour le lien responsable), toutes deux présentes dans sql/ avec p_jeton et p_lundi ; index.ts ne forme plus le nom à la main ; fiche du lien des ouvriers : serveur en erreur → message du serveur, puis rouverte → le PDF s'ouvre ; demande coupée → « vérifie ta connexion internet » ; réponse sans l'adresse du fichier → message du serveur.
+- `tests/test_suite147.js` : index.ts relit la semaine par `rpcDeLaPage(demande.page)`.
+- Suite complète : 153/153.
+

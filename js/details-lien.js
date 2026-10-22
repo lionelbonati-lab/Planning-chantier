@@ -34,6 +34,11 @@
     '<rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="m21 16-5-5-8 8"/></svg>';
   var ICONE_DOCUMENT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
     '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>';
+  // Suite 150 — Lionel : « J'ai un message d'erreur. J'ai du réseau car j'ai
+  // pu charger mes tâches. » La connexion n'est mise en cause que si la
+  // demande n'a pas abouti ; si le serveur a répondu, autre message.
+  var MESSAGE_RESEAU = "Fichiers inaccessibles : vérifie ta connexion internet, puis réessaie.";
+  var MESSAGE_SERVEUR = "Fichiers inaccessibles pour le moment : ferme la fiche et rouvre-la dans quelques minutes.";
   var cfg = null;
   var taches = [];          // tâches des boutons affichés (data-i)
   var adresses = {};        // chemin -> { url, jusqua } (adresses déjà reçues)
@@ -71,7 +76,8 @@
   };
 
   // Adresses des fichiers (et vignettes) : celles déjà reçues et encore
-  // valables 5 minutes, sinon une demande à pieces-lien.
+  // valables 5 minutes, sinon une demande à pieces-lien. Suite 150 : une
+  // réponse du serveur en erreur est marquée « serveur » (le réseau marche).
   function demanderAdresses(chemins) {
     var maintenant = Date.now(), manquants = chemins.filter(function (c) { return !(adresses[c] && adresses[c].jusqua > maintenant + 300000); });
     if (!manquants.length) return Promise.resolve();
@@ -82,7 +88,11 @@
       body: JSON.stringify({ jeton: cfg.jeton, page: cfg.page, lundi: cfg.lundi ? cfg.lundi() : null, chemins: manquants })
     }).then(function (rep) {
       return rep.json().catch(function () { return null; }).then(function (r) {
-        if (!rep.ok || !r || !r.ok) throw new Error((r && r.erreur) || "HTTP " + rep.status);
+        if (!rep.ok || !r || !r.ok) {
+          var e = new Error((r && r.erreur) || "HTTP " + rep.status);
+          e.serveur = true;
+          throw e;
+        }
         Object.keys(r.urls || {}).forEach(function (c) { adresses[c] = { url: r.urls[c], jusqua: maintenant + 3600000 }; });
       });
     });
@@ -114,7 +124,7 @@
     fiche.innerHTML = '<div class="dl-titre">' + esc(titre) + "</div>" +
       (details ? '<div class="dl-details">' + esc(details) + "</div>" : "") +
       (pieces.length ? '<div class="dl-label">Fichiers</div><ul class="dl-liste">' + htmlFichiers(pieces, "attente") + "</ul>" +
-        '<p class="dl-erreur" hidden>Fichiers inaccessibles : vérifie ta connexion internet, puis réessaie.</p>' : "") +
+        '<p class="dl-erreur" hidden>' + MESSAGE_RESEAU + "</p>" : "") +
       '<button type="button" class="dl-fermer">Fermer</button>';
     document.body.appendChild(fond);
     document.body.appendChild(fiche);
@@ -138,13 +148,17 @@
     if (!pieces.length) return;
     var chemins = [];
     pieces.forEach(function (p) { chemins.push(p.chemin); if (p.vignette) chemins.push(p.vignette); });
-    var majListe = function (etat) {
+    var majListe = function (etat, serveur) {
       if (!fiche.isConnected) return;
       fiche.querySelector(".dl-liste").innerHTML = htmlFichiers(pieces, etat);
-      fiche.querySelector(".dl-erreur").hidden = etat !== "erreur";
+      var erreur = fiche.querySelector(".dl-erreur");
+      erreur.hidden = etat !== "erreur";
+      erreur.textContent = serveur ? MESSAGE_SERVEUR : MESSAGE_RESEAU;
     };
-    demanderAdresses(chemins).then(function () { majListe(pieces.some(function (p) { return !adresse(p.chemin); }) ? "erreur" : "ok"); },
-      function () { majListe("erreur"); });
+    demanderAdresses(chemins).then(function () {
+      var manque = pieces.some(function (p) { return !adresse(p.chemin); });
+      majListe(manque ? "erreur" : "ok", manque);
+    }, function (e) { majListe("erreur", !!(e && e.serveur)); });
   }
 
   // Le bouton, ou toute la tâche quand la page la marque data-fiche-tache
