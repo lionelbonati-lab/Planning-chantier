@@ -33,7 +33,8 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 // le clic droit de leurs lignes. ») : la ligne Machines tient lieu de
 // titre de section (§groupe-1=p20) ; pages Machines / Transports sans
 // sous-onglets ni entrées rapides, ni coche « Afficher » ; leur menu
-// « Ajouter » propose la liste du groupe (elements_groupes) et « Autre… ».
+// « Ajouter » propose la liste du groupe (elements_groupes) et « Autre… »
+// (suite 152 : « Ajouter machine… » sur la ligne Machines).
 //
 // Lancer : node test_suite134.js
 
@@ -152,8 +153,8 @@ const cartes = (page) => page.evaluate(() => [...document.querySelectorAll('.pag
     });
     verifier(/Béton/.test(menus.paul) && /Commun/.test(menus.paul) && !/Plein|Benne|Câblage/.test(menus.paul) &&
       /Câblage/.test(menus.beton) && /Commun/.test(menus.beton) && !/Béton,|Plein|Benne/.test(menus.beton) &&
-      menus.pelle === 'Karcher,Autre…' && menus.transports === 'Gravier,Autre…',
-      'menu « Ajouter » : chaque ligne n’a que les entrées de son type ; Machines / Transports : leur liste et « Autre… » ' + JSON.stringify(menus));
+      menus.pelle === 'Karcher,Ajouter machine…' && menus.transports === 'Gravier,Autre…',
+      'menu « Ajouter » : chaque ligne n’a que les entrées de son type ; Machines / Transports : leur liste et « Ajouter machine… » / « Autre… » ' + JSON.stringify(menus));
 
     // --- 6. Coche « Afficher » ------------------------------------------------------
     await allerPage(page, 'personnel');

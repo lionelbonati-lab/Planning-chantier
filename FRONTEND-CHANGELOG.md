@@ -11506,3 +11506,20 @@ Rend le fichier téléchargeable, avec une icône de téléchargement. »
 - `tests/test_suite151.js` (nouveau, 9 vérifications) : liens ouvrier et responsable — flèche à côté de chaque fichier, adresse avec `&download=` (accents encodés), nouvel onglet, taille et place sur téléphone, toucher la flèche demande le fichier sans fermer la fiche, rien avant l'adresse ni pour un fichier sans adresse ; appli — flèche avant « Retirer », adresse avec `?download=`, la toucher ne retire rien.
 - Suite complète : 154/154.
 
+
+## 265. Round du 27.10.2026 (suite 152) — « Ajouter machine… » dans le menu de la ligne Machines
+
+Lionel, capture du menu d'une case de la ligne Machines à l'appui (catégories Transport, Remorques, Pelles, Autres, puis « Autre… ») : « A la place de autre, mettre ajouter machine ». Son choix : « Ajoute aussi à la liste ».
+
+- Menu d'une case de la ligne Machines (`js/formulaires-edition.js`) : « Ajouter machine… » à la place de « Autre… ». La ligne Transports garde « Autre… » (texte libre).
+- « Ajouter machine… » ouvre « Ajouter — Machines » : le nom, et la catégorie si la liste en a (« Autres » par défaut). « Ajouter » (ou Entrée) écrit la machine, cochée et rangée en dernier, dans la liste de l'onglet Machines (elements_groupes), puis ouvre le formulaire Chantier d'une machine de la liste : la bulle est posée dans la case. La machine est ensuite dans le menu, sous sa catégorie.
+- Un nom déjà dans la liste (majuscules comprises) reprend cette machine, sans doublon ; décochée, elle est recochée.
+- Liste injoignable : message d'échec, la bulle est posée quand même sous le nom tapé.
+- Rien à appliquer en base : même table et mêmes droits que la page Machines.
+
+### Tests
+
+- `tests/test_suite152.js` (nouveau, 15 vérifications) : menus Machines / Transports ; boîte (titre, nom, catégorie, « Autres » par défaut) ; machine écrite (nom nettoyé, ordre, catégorie, cochée), message, formulaire Chantier, bulle ; sous-menu « Levage » et page Machines ensuite ; nom vide, « Annuler », Entrée ; nom déjà dans la liste, machine décochée recochée ; liste sans catégorie ; liste injoignable ; téléphone ; aucune erreur JS.
+- `tests/test_suite132.js`, `test_suite134.js`, `test_suite135.js`, `test_suite148.js` : la ligne Machines propose « Ajouter machine… » au lieu de « Autre… ».
+- Suite complète : 155/155.
+

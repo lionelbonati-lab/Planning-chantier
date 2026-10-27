@@ -16,7 +16,8 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //      sauvegardes (categories_elements avant elements_groupes, aucune table
 //      perdue) ;
 //   B. clic droit sur la ligne Machines : les catégories (celle sans élément
-//      coché absente), « Autres » en dernier, puis « Autre… » ; survol →
+//      coché absente), « Autres » en dernier, puis « Ajouter machine… » (suite 152) ;
+//      survol →
 //      sous-menu à côté du menu, sans élément masqué ; survoler une autre
 //      entrée le referme ; clic sur une catégorie puis une machine → bulle ;
 //      Transports : catégorie → matériau → quantité ;
@@ -143,8 +144,8 @@ const saisir = async (page, nom) => { await page.fill('.form-pop .f-nom', nom); 
   // --- B. Clic droit, catégories et sous-menus ------------------------------------------------
   await clicDroit(page, await centreCase(page, '30', '2026-09-23', 'matin'));
   let m = await menu(page);
-  verifier(m && JSON.stringify(m.boutons) === JSON.stringify(['Levage›', 'Compactage›', 'Autres›', 'Autre…']) && !m.sous.length,
-    'Machines : les catégories (« Vide », sans élément coché, absente), « Autres » en dernier, puis « Autre… » ; sous-menus fermés (' + JSON.stringify(m) + ')');
+  verifier(m && JSON.stringify(m.boutons) === JSON.stringify(['Levage›', 'Compactage›', 'Autres›', 'Ajouter machine…']) && !m.sous.length,
+    'Machines : les catégories (« Vide », sans élément coché, absente), « Autres » en dernier, puis « Ajouter machine… » ; sous-menus fermés (' + JSON.stringify(m) + ')');
   let c = await boutonMenu(page, 'Levage›');
   await page.mouse.move(c.x, c.y, { steps: 3 });
   await page.waitForTimeout(350);
@@ -157,11 +158,11 @@ const saisir = async (page, nom) => { await page.fill('.form-pop .f-nom', nom); 
     survolLevage.sous[0].aCote && survolLevage.sous[0].dansEcran && survolLevage.ouverts.join() === 'Levage›' &&
     survolAutres.sous.length === 1 && JSON.stringify(survolAutres.sous[0].boutons) === '["Karcher"]',
     'survol : sous-menu de la catégorie à côté du menu (Grue, Nacelle) ; « Autres » sans la Pompe masquée (' + JSON.stringify([survolLevage, survolAutres]) + ')');
-  c = await boutonMenu(page, 'Autre…');
+  c = await boutonMenu(page, 'Ajouter machine…');
   await page.mouse.move(c.x, c.y, { steps: 3 });
   await page.waitForTimeout(450);
   const survolAutre = await menu(page);
-  verifier(survolAutre && !survolAutre.sous.length && !survolAutre.ouverts.length, 'survoler « Autre… » referme le sous-menu (' + JSON.stringify(survolAutre) + ')');
+  verifier(survolAutre && !survolAutre.sous.length && !survolAutre.ouverts.length, 'survoler « Ajouter machine… » referme le sous-menu (' + JSON.stringify(survolAutre) + ')');
   await page.mouse.click((await boutonMenu(page, 'Compactage›')).x, (await boutonMenu(page, 'Compactage›')).y);
   await page.waitForTimeout(200);
   const clicCompactage = await menu(page);
@@ -321,7 +322,7 @@ const saisir = async (page, nom) => { await page.fill('.form-pop .f-nom', nom); 
     await p2.keyboard.press('Escape');
     await allerPage(p2, 'machines');
     const lp = await pageListe(p2, 1);
-    verifier(mm && JSON.stringify(mm.boutons) === JSON.stringify(['Grue', 'Nacelle', 'Plaque vibrante', 'Karcher', 'Autre…']) && lp === '-: Grue, Nacelle, Plaque vibrante, Rouleau, Karcher, Pompe',
+    verifier(mm && JSON.stringify(mm.boutons) === JSON.stringify(['Grue', 'Nacelle', 'Plaque vibrante', 'Karcher', 'Ajouter machine…']) && lp === '-: Grue, Nacelle, Plaque vibrante, Rouleau, Karcher, Pompe',
       'catégories injoignables : menu et page à plat, rien de bloqué (' + JSON.stringify(mm) + ' ; ' + lp + ')');
     toutesErreurs.push(...e2);
     await p2.close();

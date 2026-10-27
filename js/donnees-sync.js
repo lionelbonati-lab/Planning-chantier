@@ -418,7 +418,8 @@
       sbClient.from("groupes").select(COLONNES_GROUPES),
       // Listes d'éléments des groupes (round du 01.10.2026, suite 135 —
       // sql/0036, js/groupes.js) : non bloquante. Sans elle, les cases des
-      // lignes Machines / Transports n'ont que « Autre… ».
+      // lignes Machines / Transports n'ont que « Ajouter machine… » (bulle
+      // posée sous le nom tapé, suite 152) / « Autre… ».
       sbClient.from("elements_groupes").select(COLONNES_ELEMENTS),
       // Catégories de ces listes (round du 21.10.2026, suite 148 —
       // sql/0042) : non bloquante. Sans elle, tout est rangé dans « Autres ».
