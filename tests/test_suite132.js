@@ -28,7 +28,7 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 // groupe n'a plus de titre de section ; l'étiquette de sa 1re ligne porte
 // data-section et la poignée ⠿ (sections() les lit avec leur nom de
 // ligne). Le menu d'une case de machine propose la liste du groupe et
-// « Autre… », sans absence (arrivée / départ testé sur Paul). La page
+// « Autre… » (suite 152 : « Ajouter machine… »), sans absence (arrivée / départ testé sur Paul). La page
 // Machines liste les éléments (elements_groupes), plus les lignes.
 //
 // Lancer : node test_suite132.js
@@ -108,8 +108,8 @@ const glisserTitre = async (page, cle, versCle, dessous) => {
     await page.mouse.click(c.x, c.y);
     await page.waitForTimeout(250);
     const b = await page.evaluate(() => { const m = document.querySelector('.menu-pop'); return m ? [...m.querySelectorAll('button')].map((x) => x.textContent.trim()) : null; });
-    verifier(b && b.includes('Autre…') && !b.includes('Absence') && !b.includes('Arrivée / départ'),
-      'menu d’ajout sur la Grue : liste du groupe et « Autre… », sans absence ' + JSON.stringify(b));
+    verifier(b && b.includes('Ajouter machine…') && !b.includes('Absence') && !b.includes('Arrivée / départ'),
+      'menu d’ajout sur la Grue : liste du groupe et « Ajouter machine… », sans absence ' + JSON.stringify(b));
     await page.keyboard.press('Escape');
     await page.waitForTimeout(150);
     c = await caseDe('1');

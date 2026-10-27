@@ -15,7 +15,8 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 //   1. planning : la ligne Machines à la place de la section (pas de titre
 //      §groupe-1), poignée ⠿ sur son étiquette, fond de la section ;
 //   2. clic droit sur une case Machines : la liste (Karcher, Vibrateur),
-//      « Autre… », ni absence ni entrée rapide ; Karcher → Chantier seul
+//      « Autre… » (suite 152 : « Ajouter machine… »), ni absence ni entrée rapide ;
+//      Karcher → Chantier seul
 //      (suite 139 — Lionel : « pas de quantité sous machines ») ; bulle
 //      « Karcher » avec son chantier ;
 //   3. clic droit sur la ligne Transports : Gravier → « Gravier - 10 m³ » ;
@@ -101,8 +102,8 @@ async function saisir(page, nom) {
   // --- 2. Clic droit sur une case Machines ---------------------------------------------
   await clicDroit(page, await centreCase(page, '30', '2026-09-24', 'matin'));
   let m = await menu(page);
-  verifier(m && JSON.stringify(m.boutons) === JSON.stringify(['Karcher', 'Vibrateur', 'Autre…']),
-    'clic droit sur la ligne Machines : sa liste puis « Autre… », ni absence ni entrée rapide ' + JSON.stringify(m));
+  verifier(m && JSON.stringify(m.boutons) === JSON.stringify(['Karcher', 'Vibrateur', 'Ajouter machine…']),
+    'clic droit sur la ligne Machines : sa liste puis « Ajouter machine… », ni absence ni entrée rapide ' + JSON.stringify(m));
   await choisir(page, 'Karcher');
   await page.waitForTimeout(250);
   const form = await page.evaluate(() => {
@@ -155,7 +156,7 @@ async function saisir(page, nom) {
   await page.keyboard.press('Escape');
   await page.waitForTimeout(150);
   const bulleGardee = await page.evaluate(() => TACHES.some((t) => t.texte === 'Karcher'));
-  verifier(JSON.stringify(m.boutons) === JSON.stringify(['Vibreur', 'Karcher', 'Autre…']) && bulleGardee,
+  verifier(JSON.stringify(m.boutons) === JSON.stringify(['Vibreur', 'Karcher', 'Ajouter machine…']) && bulleGardee,
     'menu de la case repris aussitôt ; les bulles déjà posées restent (' + JSON.stringify(m) + ')');
 
   // --- 5. Page Transports ------------------------------------------------------------------

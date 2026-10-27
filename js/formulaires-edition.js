@@ -131,8 +131,9 @@
   // bulles seront des machine et des matériaux au lieu de tâches ». Une
   // case des lignes Machines / Transports (clic en mode ajout, clic droit,
   // appui long, plage glissée) propose la liste de son groupe (page
-  // Machines / Transports), puis « Autre… » (texte libre) et « Coller » :
-  // ni absence ni entrée rapide.
+  // Machines / Transports), puis « Autre… » (texte libre ; suite 152 :
+  // « Ajouter machine… » sur la ligne Machines) et « Coller » : ni absence
+  // ni entrée rapide.
   // Round du 01.10.2026 (suite 139) — Lionel : « Chaque machine/transport
   // a sa coche qui le fera apparaître ou non dans la liste clic droit. »
   // Un élément décoché (masque, sql/0037) n'est pas proposé ici.
@@ -156,9 +157,72 @@
         return '<button type="button" class="mc-cat" data-sous-menu="' + i + '"><span class="mc-libelle">' + esc(b.nom) + '</span><span class="mc-fleche" aria-hidden="true">›</span></button>' +
           '<div class="mc-sous-menu" data-sous-menu="' + i + '" hidden><div class="cp-titre">' + esc(b.nom) + '</div>' + b.elements.map(bouton).join("") + '</div>';
       }).join("");
-    html += '<button type="button" data-t="tache">Autre…</button>';
+    // Suite 152 : « Ajouter machine… » à la place de « Autre… » (cf.
+    // ouvrirAjoutElementCase_) ; la ligne Transports garde « Autre… ».
+    html += groupe.ligneUnique ? '<button type="button" data-t="tache">Autre…</button>'
+      : '<button type="button" data-ajout-element="' + esc2(groupe.id) + '">' + esc(libelleAjoutElement_(groupe)) + '</button>';
     if (pressePapier.length) html += '<button type="button" class="btn-coller" data-coller="1">Coller (' + pressePapier.length + ')</button>';
     return html;
+  }
+  // Round du 27.10.2026 (suite 152) — Lionel, capture du menu d'une case de
+  // la ligne Machines à l'appui : « A la place de autre, mettre ajouter
+  // machine ». Son choix : « Ajoute aussi à la liste ». « Ajouter
+  // machine… » demande le nom (et la catégorie, si le groupe en a ;
+  // « Autres » sinon), ajoute la machine, cochée, à la liste de l'onglet
+  // Machines, puis la pose dans la case comme une machine de la liste
+  // (formulaire Chantier, cf. ouvrirFormulaireElement_). Un nom déjà dans
+  // la liste (majuscules comprises) reprend cette machine, recochée si
+  // elle était décochée. Liste injoignable : la bulle est posée quand même
+  // sous ce nom (le message d'échec le dit).
+  function libelleAjoutElement_(groupe) {
+    return "Ajouter " + String(groupe.nom || "élément").toLowerCase().replace(/s$/, "") + "…";
+  }
+  function ouvrirAjoutElementCase_(groupe, x, y, poser) {
+    var cats = categoriesDuGroupe(groupe.id);
+    var pop = document.createElement("div");
+    pop.className = "pop form-pop ajout-element-pop";
+    pop.innerHTML = '<div class="cp-titre">Ajouter — ' + esc(groupe.nom) + '</div>' +
+      '<input type="text" class="f-nom" placeholder="Nom…" aria-label="Nom">' +
+      (cats.length ? '<div class="label-champ">Catégorie</div><select class="f-categorie" aria-label="Catégorie">' +
+        cats.map(function (c) { return '<option value="' + esc2(c.id) + '">' + esc(c.nom) + '</option>'; }).join("") +
+        '<option value="" selected>Autres</option></select>' : '') +
+      '<div class="form-actions"><button type="button" class="f-annuler">Annuler</button><button type="button" class="f-ok">Ajouter</button></div>';
+    positionnerPop(pop, x, y);
+    var fermer = fermerAuClicExterieur(pop, null, function () { pop.querySelector(".f-ok").click(); });
+    var input = pop.querySelector(".f-nom"), select = pop.querySelector(".f-categorie");
+    pop.querySelector(".f-annuler").addEventListener("click", fermer);
+    pop.querySelector(".f-ok").addEventListener("click", function () {
+      var nom = input.value.trim();
+      if (!nom) { input.focus(); return; }
+      fermer();
+      var elements = elementsDuGroupe(groupe.id), cle = nom.toLowerCase();
+      var memeNom = function (e) { return e.nom.toLowerCase() === cle; };
+      var existant = elements.filter(memeNom)[0], ecriture;
+      if (existant && existant.masque) {
+        ecriture = ecrireElements_([sbClient.from("elements_groupes").update({ masque: false }).eq("id", +existant.id)], "« " + existant.nom + " » est de nouveau cochée dans la liste.");
+      } else if (existant) {
+        toast("« " + existant.nom + " » est déjà dans la liste.");
+      } else {
+        var ligne = { groupe_id: +groupe.id, nom: nom, ordre: elements.reduce(function (m, e) { return Math.max(m, e.ordre); }, 0) + 1 };
+        if (select && select.value) ligne.categorie_id = +select.value;
+        ecriture = ecrireElements_([sbClient.from("elements_groupes").insert(ligne)], "« " + nom + " » ajoutée à la liste " + groupe.nom + ".");
+      }
+      Promise.resolve(ecriture).then(function () {
+        poser(elementsDuGroupe(groupe.id).filter(memeNom)[0] || { nom: nom, groupeId: groupe.id });
+      });
+    });
+    input.focus();
+  }
+  // Suite 135 : un élément de la liste du groupe = formulaire Chantier +
+  // Quantité ; texte de la bulle « Élément - quantité » (cf.
+  // ouvrirFormulaireDynamique, qui joint nom et champs par « - »).
+  // Round du 01.10.2026 (suite 139) — Lionel : « pas de quantité sous
+  // machines ». Machines : chantier seul, bulle « Élément » ; la quantité
+  // reste pour Transports (groupe à ligne unique).
+  function ouvrirFormulaireElement_(el, cibles, giDebut, duree, x, y, plageInit, demiDebut, demiFin) {
+    var groupe = groupeParId(el.groupeId), quantite = !!(groupe && groupe.ligneUnique);
+    ouvrirFormulaireDynamique({ nom: el.nom, typeEntree: "tache", champs: quantite ? [{ cle: "quantite", label: "Quantité", type: "texte" }] : [] },
+      cibles, giDebut, duree, x, y, plageInit, demiDebut, demiFin);
   }
   function boutonsMenuAjout(personneId) {
     var groupe = groupeDeLigne(personneId);
@@ -265,20 +329,18 @@
     pop.querySelectorAll("button[data-rapide]").forEach(function (btn) {
       btn.addEventListener("click", function () { var texte = btn.dataset.rapide; fermer(); ajoutRapide(cibles, giDebut, duree, texte, "absence", demiDebut, demiFin); });
     });
-    // Suite 135 : un élément de la liste du groupe = formulaire Chantier +
-    // Quantité ; texte de la bulle « Élément - quantité » (cf.
-    // ouvrirFormulaireDynamique, qui joint nom et champs par « - »).
+    // Un élément de la liste du groupe (cf. ouvrirFormulaireElement_).
     pop.querySelectorAll("button[data-element]").forEach(function (btn) {
       btn.addEventListener("click", function () {
         var el = (etat.elementsGroupes || []).filter(function (e) { return e.id === btn.dataset.element; })[0]; fermer();
-        if (!el) return;
-        // Round du 01.10.2026 (suite 139) — Lionel : « pas de quantité sous
-        // machines ». Machines : chantier seul, bulle « Élément » ; la
-        // quantité reste pour Transports (groupe à ligne unique).
-        var groupe = groupeParId(el.groupeId), quantite = !!(groupe && groupe.ligneUnique);
-        ouvrirFormulaireDynamique({ nom: el.nom, typeEntree: "tache", champs: quantite ? [{ cle: "quantite", label: "Quantité", type: "texte" }] : [] },
-          cibles, giDebut, duree, x, y, plageInit, demiDebut, demiFin);
+        if (el) ouvrirFormulaireElement_(el, cibles, giDebut, duree, x, y, plageInit, demiDebut, demiFin);
       });
+    });
+    // Suite 152 : « Ajouter machine… » — ajoutée à la liste, puis posée.
+    var btnAjoutElement = pop.querySelector("button[data-ajout-element]");
+    if (btnAjoutElement) btnAjoutElement.addEventListener("click", function () {
+      var groupe = groupeParId(btnAjoutElement.dataset.ajoutElement); fermer();
+      if (groupe) ouvrirAjoutElementCase_(groupe, x, y, function (el) { ouvrirFormulaireElement_(el, cibles, giDebut, duree, x, y, plageInit, demiDebut, demiFin); });
     });
     pop.querySelectorAll("button[data-form]").forEach(function (btn) {
       btn.addEventListener("click", function () {
