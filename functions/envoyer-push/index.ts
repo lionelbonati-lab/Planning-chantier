@@ -27,11 +27,18 @@
 // appareil et chaque sorte, ce dont la date d'envoi (x jours de travail
 // avant, réglage de l'appareil) tombe sur ce créneau. Données lues sur
 // HORIZON_JOURS (réglage maximal : 10 jours de travail, vacances comprises).
+//
+// Round du 09.11.2026 (suite 153, sql/0044) — Lionel : « Un collègue
+// aimerait utiliser mon planning pour ses propres besoins. » Plusieurs
+// plannings : appareils, modifications, tâches, jalons et notes sont lus
+// avec leur planning_id, et planEnvoisParPlanning (logic.js) ne prévient
+// chaque planning que de ce qui est à lui (les demandes d'absence, communes
+// à l'entreprise, à tous). La clé de service lit tout : le tri se fait ici.
 // ============================================================
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
-import { planEnvois, heureLocale, decalerIso } from "./logic.js";
+import { planEnvoisParPlanning, heureLocale, decalerIso } from "./logic.js";
 
 const HORIZON_JOURS = 90;
 
@@ -116,29 +123,36 @@ Deno.serve(async (req: Request) => {
     const sansCreneau = async () => [] as Record<string, unknown>[];
     const siCreneau = (q: PromiseLike<{ data: unknown; error: unknown }>) => creneaux.length ? lire(q) : sansCreneau();
     const [abonnements, demandes, modifs, personnes, chantiers, statuts, demandesEnAttente, taches, jalons, notes, aReserver, horaires, feries] = await Promise.all([
-      lire(admin.from("abonnements_push").select("id, endpoint, p256dh, auth, session_id, types, reglages")),
+      lire(admin.from("abonnements_push").select("id, endpoint, p256dh, auth, session_id, types, reglages, planning_id")),
       lire(admin.from("demandes_absence").select("id, personne_id, date_debut, date_fin, demi_debut, demi_fin, motif, type").eq("statut", "en_attente").eq("notifiee_push", false)),
-      lire(admin.from("push_modifs").select("session_id, derniere")),
+      lire(admin.from("push_modifs").select("session_id, derniere, planning_id")),
       lire(admin.from("personnes").select("id, nom, ordre").eq("actif", true).order("ordre")),
       lire(admin.from("chantiers").select("id, nom")),
       lire(admin.from("statuts").select("id, cle, nom, ordre")),
       siCreneau(admin.from("demandes_absence").select("id, personne_id, date_debut, date_fin, demi_debut, demi_fin, motif, type").eq("statut", "en_attente").gte("date_debut", local.iso).lte("date_debut", fin)),
-      siCreneau(admin.from("taches").select("personne_id, date, demi, texte, chantier_id, est_absence, important").eq("important", true).gte("date", local.iso).lte("date", fin)),
-      siCreneau(admin.from("jalons").select("date, texte, chantier_id, important").eq("important", true).gte("date", local.iso).lte("date", fin)),
-      siCreneau(admin.from("notes").select("date, demi, texte, chantier_id, important").eq("important", true).gte("date", local.iso).lte("date", fin)),
+      siCreneau(admin.from("taches").select("personne_id, date, demi, texte, chantier_id, est_absence, important, planning_id").eq("important", true).gte("date", local.iso).lte("date", fin)),
+      siCreneau(admin.from("jalons").select("date, texte, chantier_id, important, planning_id").eq("important", true).gte("date", local.iso).lte("date", fin)),
+      siCreneau(admin.from("notes").select("date, demi, texte, chantier_id, important, planning_id").eq("important", true).gte("date", local.iso).lte("date", fin)),
       // Depuis un mois : une tâche commencée avant garde son vrai début.
-      siCreneau(admin.from("taches").select("personne_id, date, demi, texte, chantier_id, statut_id").not("statut_id", "is", null).gte("date", decalerIso(local.iso, -31)).lte("date", fin).order("date").limit(5000)),
+      siCreneau(admin.from("taches").select("personne_id, date, demi, texte, chantier_id, statut_id, planning_id").not("statut_id", "is", null).gte("date", decalerIso(local.iso, -31)).lte("date", fin).order("date").limit(5000)),
       siCreneau(admin.from("horaires").select("id, date_debut, date_fin, matin_debut, aprem_debut, aprem_fin")),
       siCreneau(admin.from("feries").select("date, categorie").gte("date", decalerIso(local.iso, -7)).lte("date", fin)),
     ]);
 
-    const plan = planEnvois({ abonnements, demandes, modifs, personnes, chantiers, statuts, demandesEnAttente, taches, jalons, notes, aReserver, horaires, feries, creneaux }, maintenant);
+    const plan = planEnvoisParPlanning({ abonnements, demandes, modifs, personnes, chantiers, statuts, demandesEnAttente, taches, jalons, notes, aReserver, horaires, feries, creneaux }, maintenant);
 
     // Noté d'abord : rien n'est annoncé deux fois.
     if (plan.demandesAnnoncees.length) await admin.from("demandes_absence").update({ notifiee_push: true }).in("id", plan.demandesAnnoncees);
-    if (plan.modifsTraitees.length) {
-      // Une session qui a encore écrit entre-temps reste pour le passage suivant.
-      await admin.from("push_modifs").delete().in("session_id", plan.modifsTraitees).lte("derniere", new Date(maintenant.getTime() - 60000).toISOString());
+    // Une session qui a encore écrit entre-temps reste pour le passage
+    // suivant. Suite 153 : planning par planning.
+    const sessionsParPlanning: Record<string, string[]> = {};
+    plan.modifsTraitees.forEach((m: { planning_id: string | null; session_id: string }) => {
+      (sessionsParPlanning[m.planning_id ?? ""] ??= []).push(m.session_id);
+    });
+    for (const [planning, sessions] of Object.entries(sessionsParPlanning)) {
+      let q = admin.from("push_modifs").delete().in("session_id", sessions).lte("derniere", new Date(maintenant.getTime() - 60000).toISOString());
+      if (planning) q = q.eq("planning_id", planning);
+      await q;
     }
 
     const resultats = await Promise.all(plan.envois.map((e: { abonnement: Abonnement; message: Message }) => envoyer(e.abonnement, e.message).then((r) => ({ e, r }))));

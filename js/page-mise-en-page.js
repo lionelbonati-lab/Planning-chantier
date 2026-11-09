@@ -138,7 +138,7 @@
     try { localStorage.setItem(CLE_MEP_LOCAL, JSON.stringify(m)); } catch (e) {}
     clearTimeout(minuteurMep_);
     minuteurMep_ = setTimeout(function () {
-      sbClient.from("reglages").upsert({ cle: CLE_MEP_SERVEUR, valeur: m, maj: new Date().toISOString() }, { onConflict: "cle" }).then(function (res) {
+      sbClient.from("reglages").upsert({ cle: CLE_MEP_SERVEUR, valeur: m, maj: new Date().toISOString() }, { onConflict: CONFLIT_REGLAGES }).then(function (res) {
         if (res.error) throw res.error;
         if (!etat.reglages) { etat.reglages = {}; etat.reglages[CLE_MEP_SERVEUR] = m; }
         if (surFin) surFin(null);

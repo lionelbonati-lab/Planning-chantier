@@ -351,6 +351,32 @@ function planEnvois(d, maintenant) {
   };
 }
 
+// Round du 09.11.2026 (suite 153, sql/0044) — plusieurs plannings. Chaque
+// planning n'annonce à ses appareils que ses tâches, jalons, notes et
+// modifications (planEnvois, une fois par planning) ; les demandes
+// d'absence, communes à l'entreprise, partent vers tous les plannings.
+// Une modification d'un planning sans appareil abonné est simplement
+// retirée. Lignes sans planning_id (base d'avant 0044) : un seul groupe,
+// comme avant.
+// Renvoie comme planEnvois, sauf modifsTraitees : [{ planning_id, session_id }].
+function planEnvoisParPlanning(d, maintenant) {
+  const cle = function (x) { return x && x.planning_id != null ? String(x.planning_id) : ""; };
+  const plannings = {};
+  (d.abonnements || []).concat(d.modifs || []).forEach(function (x) { plannings[cle(x)] = true; });
+  const duPlanning = function (liste, p) { return (liste || []).filter(function (x) { return cle(x) === p; }); };
+  const total = { envois: [], demandesAnnoncees: [], modifsTraitees: [], passages: (d.creneaux || []).map(function (c) { return c.cle; }) };
+  Object.keys(plannings).sort().forEach(function (p) {
+    const plan = planEnvois(Object.assign({}, d, {
+      abonnements: duPlanning(d.abonnements, p), modifs: duPlanning(d.modifs, p),
+      taches: duPlanning(d.taches, p), jalons: duPlanning(d.jalons, p), notes: duPlanning(d.notes, p), aReserver: duPlanning(d.aReserver, p)
+    }), maintenant);
+    plan.envois.forEach(function (e) { total.envois.push(e); });
+    plan.modifsTraitees.forEach(function (s) { total.modifsTraitees.push({ planning_id: p || null, session_id: s }); });
+  });
+  total.demandesAnnoncees = (d.demandes || []).map(function (q) { return q.id; }).sort(function (a, b) { return a - b; });
+  return total;
+}
+
 export {
   heureLocale,
   decalerIso,
@@ -364,4 +390,5 @@ export {
   groupesAReserver,
   messageDemandes,
   planEnvois,
+  planEnvoisParPlanning,
 };

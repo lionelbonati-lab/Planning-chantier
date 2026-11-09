@@ -161,7 +161,7 @@
     etat.reglages[CLE_ORDRE_SECTIONS] = cles.slice();
     try { localStorage.setItem(CLE_ORDRE_SECTIONS_LOCAL, JSON.stringify(cles)); } catch (e) {}
     render(false);
-    return Promise.resolve(sbClient.from("reglages").upsert({ cle: CLE_ORDRE_SECTIONS, valeur: cles, maj: new Date().toISOString() }, { onConflict: "cle" })).then(function (res) {
+    return Promise.resolve(sbClient.from("reglages").upsert({ cle: CLE_ORDRE_SECTIONS, valeur: cles, maj: new Date().toISOString() }, { onConflict: CONFLIT_REGLAGES })).then(function (res) {
       if (res && res.error) throw res.error;
     }).catch(function (err) { toast("Ordre gardé sur cet appareil seulement : " + (err && err.message ? err.message : err)); });
   }

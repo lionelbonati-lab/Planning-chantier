@@ -2247,3 +2247,23 @@ Fichier : functions/pieces-lien/ (fonction serveur, redéployée ; aucun SQL à 
 
 - Le jeton était vérifié en appelant « consultation_ » + page : pour le lien des ouvriers (page « consultation »), consultation_consultation, qui n'existe pas → erreur 500 à chaque fiche (journaux de pieces-lien : POST 500). Le lien responsable n'était pas touché.
 - logic.js : rpcDeLaPage(page) → consultation_planning (lien des ouvriers) ou consultation_responsable ; index.ts l'utilise. Arguments inchangés (p_jeton, p_lundi), vérifiés en base.
+
+---
+
+## 48. Round du 09.11.2026 (suite 153) — plusieurs plannings, étape 1 : la séparation dans la base
+
+Lionel : « Un collègue aimerait utiliser mon planning pour ses propres besoins. Il doit pouvoir un compte et gérer son propre planning. Pose moi des questions pourpres de détails. » Ses choix (4 séries de questions) : listes en commun (statuts, entrées rapides, horaires et fériés, chantiers — « Pour les chantiers chacun choisi sa couleur » —, intervenants, machines, matériaux, « Personnel sans les équipes »), modifiables par les deux ; tâches de l'autre invisibles ; absences visibles partout ; lien des ouvriers réunissant les deux plannings ; comptes créés par lui seul, depuis l'appli ; plusieurs comptes par planning prévus ; lien responsable et sauvegardes par planning ; retours visibles par lui.
+
+Fichier : sql/0044_plannings.sql (à appliquer dans l'éditeur SQL de Supabase), functions/envoyer-push/ (fonction serveur, redéployée APRÈS la 0044).
+
+- Nouvelles tables entreprises, plannings, membres (un compte = un planning, rôle admin ou membre) ; mon_planning(), mon_entreprise(), suis_admin() pour le compte connecté.
+- Données et compte d'avant : tout va dans le premier planning (nom et entreprise d'après le profil), le compte en est l'administrateur.
+- 13 tables partagées dans l'entreprise (entreprise_id) : statuts, chantiers, groupes, categories_elements, elements_groupes, personnes, categories_feries, feries, horaires, formulaires_rapides(_champs), liens_consultation, demandes_absence. 13 tables par planning (planning_id) : series, assignations, taches, jalons, notes, equipes_compositions, equipes_exceptions, reglages, couleurs_perso, liens_responsables, sauvegardes, abonnements_push (+ user_id), push_modifs. Colonnes remplies d'office à l'écriture (le compte connecté) ; les policies « connecte_tout » laissent place à « entreprise » / « planning ».
+- Équipes : personnes.planning_id (déclencheur) ; une personne non-équipe reste partagée.
+- Fichiers joints : lus, ajoutés et effacés dans son planning seulement (chemin « id du planning/… », anciens chemins pour le premier planning).
+- Sauvegardes par planning (nuit : une par planning). Restaurer : remet les lignes du planning ; les listes partagées sont seulement complétées (jamais modifiées ni effacées) ; références perdues vidées, lignes sans personne laissées de côté ; planning_id / entreprise_id imposés, jamais lus dans le fichier.
+- Lien des ouvriers : tâches de tous les plannings, fériés et horaires de l'entreprise. Lien responsable : le planning de son créateur. Demande d'absence : entreprise de l'ouvrier (déclencheur).
+- Notifications : appareils au compte ; modifications notées par planning ; envoyer-push prévient chaque planning de ce qui est à lui (planEnvoisParPlanning), les demandes d'absence à tous.
+- Retours : les siens ; l'administrateur les voit tous.
+- reglages / couleurs_perso : clé (planning_id, cle / id) ajoutée ; l'ancienne reste jusqu'à l'étape des invitations.
+- Testée sur une copie locale de la base (sql/0001-0043 rejouées, données comme celles de Lionel) : 41 vérifications avec un collègue dans un 2e planning et un inconnu dans une autre entreprise (tests/sql/lancer.sh) ; pour un seul planning, liens ouvrier et responsable identiques à avant.

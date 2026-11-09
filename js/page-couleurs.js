@@ -514,7 +514,7 @@
   function enregistrerCouleurServeur_(groupeId, theme, hex) {
     var payload = { id: groupeId };
     payload[theme] = hex;
-    return sbClient.from("couleurs_perso").upsert(payload, { onConflict: "id" }).then(function (res) {
+    return sbClient.from("couleurs_perso").upsert(payload, { onConflict: CONFLIT_COULEURS }).then(function (res) {
       if (res.error) throw res.error;
     });
   }
@@ -686,7 +686,7 @@
     renderPalettes_();
     return Promise.all([
       reinitialiserToutesCouleursServeur_(aSupprimer),
-      lignes.length ? sbClient.from("couleurs_perso").upsert(lignes, { onConflict: "id" }).then(function (res) { if (res.error) throw res.error; }) : null
+      lignes.length ? sbClient.from("couleurs_perso").upsert(lignes, { onConflict: CONFLIT_COULEURS }).then(function (res) { if (res.error) throw res.error; }) : null
     ]).catch(notifierEchecSync_);
   }
   // Changement de la liste « Thème » (page Général ou fenêtre). Quitter
@@ -721,7 +721,7 @@
   function enregistrerPalettes_(liste) {
     if (window.etat && window.etat.reglages) window.etat.reglages[CLE_PALETTES] = liste;
     try { localStorage.setItem(CLE_PALETTES_LOCAL, JSON.stringify(liste)); } catch (e) {}
-    return Promise.resolve(sbClient.from("reglages").upsert({ cle: CLE_PALETTES, valeur: liste, maj: new Date().toISOString() }, { onConflict: "cle" })).then(function (res) {
+    return Promise.resolve(sbClient.from("reglages").upsert({ cle: CLE_PALETTES, valeur: liste, maj: new Date().toISOString() }, { onConflict: CONFLIT_REGLAGES })).then(function (res) {
       if (res && res.error) throw res.error;
       if (window.etat && !window.etat.reglages) { window.etat.reglages = {}; window.etat.reglages[CLE_PALETTES] = liste; }
     }).catch(function (err) {

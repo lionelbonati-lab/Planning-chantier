@@ -11523,3 +11523,19 @@ Lionel, capture du menu d'une case de la ligne Machines à l'appui (catégories 
 - `tests/test_suite132.js`, `test_suite134.js`, `test_suite135.js`, `test_suite148.js` : la ligne Machines propose « Ajouter machine… » au lieu de « Autre… ».
 - Suite complète : 155/155.
 
+
+## 266. Round du 09.11.2026 (suite 153) — Plusieurs plannings, étape 1 (rien ne change à l'écran)
+
+Lionel : « Un collègue aimerait utiliser mon planning pour ses propres besoins. Il doit pouvoir un compte et gérer son propre planning. Pose moi des questions pourpres de détails. » Ses choix : voir BACKEND §48. Étape 1 sur 4 : la séparation dans la base (sql/0044) ; tant qu'il n'y a qu'un planning, l'appli se comporte comme avant.
+
+- `js/core.js` : CONFLIT_REGLAGES (« planning_id,cle ») et CONFLIT_COULEURS (« planning_id,id ») : réglages et couleurs sont propres à chaque planning.
+- `js/groupes.js`, `js/page-couleurs.js`, `js/page-mise-en-page.js`, `js/raccourcis.js` : les 4 enregistrements de réglages et les 2 de couleurs passent par ces clés.
+- Restaurer une sauvegarde ne remet plus que son planning (tâches, jalons, notes, séries, équipes, réglages, couleurs) ; les listes partagées sont seulement complétées de ce qui manque.
+
+### Tests
+
+- `tests/test_suite153.js` (nouveau, 18 vérifications) : sql/0044 (les 33 tables rangées, plus aucune policy ouverte à tout compte, équipes, fichiers, sauvegardes, liens, clés, rejouable) ; envoyer-push (un plan par planning, demandes pour tous, base d'avant : comme avant ; index.ts) ; appli (réglages et couleurs sur la clé du planning, une seule ligne après deux enregistrements).
+- `tests/aide_tests.js` : le faux Supabase accepte une clé sur plusieurs colonnes (« planning_id,cle »).
+- `tests/sql/` (nouveau, hors suite : pas de PostgreSQL dans le CI) : copie locale de la base, 41 vérifications SQL avec deux comptes et une autre entreprise (`lancer.sh`).
+- Suite complète : 149/156 dans cette session ; les 7 en échec (35, 40, 53, 56, 91, 92, 115) échouent aussi sur main ici (navigateur et polices du conteneur), verts sur GitHub.
+

@@ -49,6 +49,13 @@
   var sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { global: {
     fetch: typeof fetchHorsLigne === "function" ? function (entree, options) { return fetchHorsLigne(entree, options, fetchAvecRejeuJwt_); } : fetchAvecRejeuJwt_
   } });
+  // Round du 09.11.2026 (suite 153, sql/0044) — Lionel : « Un collègue
+  // aimerait utiliser mon planning pour ses propres besoins. » Réglages et
+  // couleurs sont propres à chaque planning : leur clé d'enregistrement
+  // devient (planning_id, cle) / (planning_id, id), planning_id étant
+  // rempli par la base (planning du compte connecté).
+  var CONFLIT_REGLAGES = "planning_id,cle";
+  var CONFLIT_COULEURS = "planning_id,id";
 
   function afficherEcranConnexion(messageErreur) {
     app.innerHTML =

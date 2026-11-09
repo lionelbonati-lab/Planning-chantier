@@ -59,7 +59,9 @@ const FAUX_SUPABASE = LOGIQUE_PLAGE + '\n(' + function () {
           // upsert PostgREST : ne réécrit QUE les colonnes fournies d'une
           // ligne existante (cf. enregistrerCouleurServeur_, page-couleurs.js).
           data = valeurs.map(function (v) {
-            var r = t.find(function (x) { return x[conflit] === v[conflit]; });
+            // Suite 153 : clé sur plusieurs colonnes (« planning_id,cle ») ;
+            // planning_id n'existe pas ici, il est absent des deux côtés.
+            var r = t.find(function (x) { return conflit.split(',').every(function (c) { return x[c] === v[c]; }); });
             if (r) return Object.assign(r, v);
             r = Object.assign({}, v); t.push(r); return r;
           });

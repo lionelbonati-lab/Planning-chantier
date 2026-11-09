@@ -243,7 +243,7 @@
     try { localStorage.setItem(CLE_RACCOURCIS_LOCAL, JSON.stringify(m)); } catch (e) {}
     clearTimeout(minuteurRaccourcis_);
     minuteurRaccourcis_ = setTimeout(function () {
-      sbClient.from("reglages").upsert({ cle: CLE_RACCOURCIS, valeur: m, maj: new Date().toISOString() }, { onConflict: "cle" }).then(function (res) {
+      sbClient.from("reglages").upsert({ cle: CLE_RACCOURCIS, valeur: m, maj: new Date().toISOString() }, { onConflict: CONFLIT_REGLAGES }).then(function (res) {
         if (res.error) throw res.error;
         if (window.etat && !etat.reglages) { etat.reglages = {}; etat.reglages[CLE_RACCOURCIS] = m; }
       }).catch(function (err) {
