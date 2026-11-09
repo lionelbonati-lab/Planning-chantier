@@ -2267,3 +2267,19 @@ Fichier : sql/0044_plannings.sql (à appliquer dans l'éditeur SQL de Supabase),
 - Retours : les siens ; l'administrateur les voit tous.
 - reglages / couleurs_perso : clé (planning_id, cle / id) ajoutée ; l'ancienne reste jusqu'à l'étape des invitations.
 - Testée sur une copie locale de la base (sql/0001-0043 rejouées, données comme celles de Lionel) : 41 vérifications avec un collègue dans un 2e planning et un inconnu dans une autre entreprise (tests/sql/lancer.sh) ; pour un seul planning, liens ouvrier et responsable identiques à avant.
+
+---
+
+## 49. Round du 09.11.2026 (suite 154) — plusieurs plannings, étape 2 : lignes, couleurs de chantier, absences
+
+Choix de Lionel (suite 153) : lignes « Chacun choisit », « Pour les chantiers chacun choisi sa couleur » (« La même au départ »), absences « Oui, partout ». Puis : « Fait toutes les étapes sans me redemander ».
+
+Fichier : sql/0045_reglages_par_planning.sql (appliquée par Claude avec l'outil Supabase de la session, à la demande de Lionel).
+
+- lignes_planning (planning, personne, ordre, masque) et couleurs_chantiers (planning, chantier, couleur), par planning. L'appli écrit toujours personnes.ordre / masque et chantiers.couleur : des déclencheurs rangent la valeur pour le planning du compte et laissent la personne / le chantier tels quels (sans compte : comme avant).
+- Une personne ajoutée par un planning est masquée dans les autres (chacun coche les siens) ; un nouveau chantier a la même couleur pour tous jusqu'à ce que chacun la change.
+- Vues personnes_du_planning et chantiers_du_planning (security_invoker : droits du compte) : ordre, coche et couleur du planning du compte ; fermées sans connexion.
+- Absences : visibles et modifiables par tous les plannings de l'entreprise (policy « planning » de taches).
+- Lien responsable : lignes, ordre et couleurs du planning du lien, absences de tous les plannings.
+- Sauvegardes : lignes_planning et couleurs_chantiers en font partie ; restaurer ne touche qu'aux tables présentes dans la sauvegarde ; une absence reprise entre-temps par un autre planning n'est pas remise en double.
+- Testée sur la copie locale de la base (tests/sql/lancer.sh) : 59 vérifications (0044 et 0045).

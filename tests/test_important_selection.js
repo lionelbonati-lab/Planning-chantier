@@ -36,6 +36,7 @@ const FAUX_SUPABASE = '(' + function () {
   };
   var prochainId = 1000;
   function requete(table) {
+    table = ({ personnes_du_planning: 'personnes', chantiers_du_planning: 'chantiers' })[table] || table; // suite 154 : vues par planning (sql/0045)
     var filtres = [], mode = 'select', valeurs = null;
     var q = {
       select: function () { return q; },

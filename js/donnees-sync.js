@@ -372,12 +372,12 @@
     etat.aujourdhui = new Date().toISOString().slice(0, 10); // date du jour, UTC — même convention que le reste du chargement
 
     Promise.all([
-      sbClient.from("personnes").select("id, nom, sous_traitant, equipe, groupe_id, ordre, couleur, masque").eq("actif", true).order("ordre", { ascending: true }),
+      sbClient.from(VUE_PERSONNES).select("id, nom, sous_traitant, equipe, groupe_id, ordre, couleur, masque").eq("actif", true).order("ordre", { ascending: true }),
       // actif/ordre (sql/0008) : la requête reste volontairement SANS
       // .eq("actif", true) — contrairement à celle des personnes juste
       // au-dessus — pour que chantiersParId (juste en dessous) reste
       // complet, cf. commentaire de listerChantiersDepuisServeur plus bas.
-      sbClient.from("chantiers").select("id, nom, couleur, actif, ordre, latitude, longitude").order("ordre", { ascending: true }),
+      sbClient.from(VUE_CHANTIERS).select("id, nom, couleur, actif, ordre, latitude, longitude").order("ordre", { ascending: true }),
       sbClient.from("statuts").select("id, cle, nom, couleur, ordre"),
       sbClient.from("feries").select("date, libelle, categorie"),
       // À part des 4 précédentes (cf. juste en dessous) : la table
@@ -641,7 +641,7 @@
   // chargerSemaineDepuisServeur (qui filtre `.in("personne_id", ...)` sur
   // cette liste) reste synchrone avec ce qui vient d'être écrit.
   function rechargerPersonnesActives_() {
-    return sbClient.from("personnes").select("id, nom, sous_traitant, equipe, groupe_id, ordre, couleur, masque").eq("actif", true).order("ordre", { ascending: true })
+    return sbClient.from(VUE_PERSONNES).select("id, nom, sous_traitant, equipe, groupe_id, ordre, couleur, masque").eq("actif", true).order("ordre", { ascending: true })
       .then(function (res) {
         if (res.error) throw res.error;
         etat.personnesActives = res.data || [];
@@ -707,7 +707,7 @@
   // grille elle-même ne doit jamais montrer une personne désactivée,
   // historique compris — comportement préexistant, inchangé).
   function listerPersonnesGestionServeur() {
-    return sbClient.from("personnes").select("id, nom, sous_traitant, equipe, groupe_id, actif, ordre, couleur, masque").order("ordre", { ascending: true })
+    return sbClient.from(VUE_PERSONNES).select("id, nom, sous_traitant, equipe, groupe_id, actif, ordre, couleur, masque").order("ordre", { ascending: true })
       .then(function (res) {
         if (res.error) throw res.error;
         var liste = (res.data || []).map(function (p) {
@@ -761,7 +761,7 @@
       lat: aPin ? c.latitude : null, lng: aPin ? c.longitude : null };
   }
   function listerChantiersDepuisServeur() {
-    return sbClient.from("chantiers").select("id, nom, couleur, actif, ordre, latitude, longitude").order("ordre", { ascending: true }).then(function (res) {
+    return sbClient.from(VUE_CHANTIERS).select("id, nom, couleur, actif, ordre, latitude, longitude").order("ordre", { ascending: true }).then(function (res) {
       if (res.error) throw res.error;
       var liste = (res.data || []).map(chantierDepuisLigne_);
       // Re-tri explicite côté client — cf. commentaire identique sur
