@@ -25,14 +25,17 @@ const { ouvrirPlanning, verificateur, lancerNavigateur } = require('./aide_tests
 // Round du 09.11.2026 (suite 155) : page « Comptes » après Liens responsables,
 // cachée à un compte qui n'est pas administrateur (ici) : onglets cachés
 // (hidden) pas comptés dans la rangée (cf. test_suite155.js).
-const REGLAGES = 'Mon compte|Affichage|Couleurs|Mise en page d’impression|Raccourcis clavier|Notifications|Liens responsables|Sauvegardes|Améliorations et bugs';
+// Round du 10.11.2026 (suite 159) : page « Comment ça marche » en dernier ;
+// rangée resserrée : noms courts (« Aide »…), nom entier dans l'infobulle,
+// lu ici en premier.
+const REGLAGES = 'Mon compte|Affichage|Couleurs|Mise en page d’impression|Raccourcis clavier|Notifications|Liens responsables|Sauvegardes|Améliorations et bugs|Comment ça marche';
 const presser = async (page, touche) => { await page.keyboard.press(touche); await page.waitForTimeout(150); };
 const etat = (page) => page.evaluate(() => {
   const vis = (e) => !!e && e.offsetWidth > 0 && getComputedStyle(e).visibility !== 'hidden';
   const listes = [...document.querySelectorAll('#ongletsNav .onglets-liste')].filter(vis);
   return {
     page: (document.querySelector('.page.actif') || { id: '' }).id.replace('page-', ''),
-    rangee: listes.map((l) => [...l.querySelectorAll('.onglet')].filter((b) => !b.hidden).map((b) => b.textContent.trim() || b.title).join('|')).join(' / '),
+    rangee: listes.map((l) => [...l.querySelectorAll('.onglet')].filter((b) => !b.hidden).map((b) => b.title || b.textContent.trim()).join('|')).join(' / '),
     actif: listes.map((l) => (l.querySelector('.onglet.actif') || { dataset: {} }).dataset.page).join(),
     pastille: vis(document.getElementById('lienDeconnexionNav')),
     croix: vis(document.getElementById('btnFermerReglages')),

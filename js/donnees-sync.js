@@ -530,6 +530,8 @@
       // Suite 155 : rôle et planning du compte (onglet Comptes, dossier des
       // fichiers joints — js/page-comptes.js).
       if (typeof chargerMonCompte === "function") chargerMonCompte();
+      // Suite 159 : première connexion → page « Comment ça marche ».
+      if (typeof ouvrirAideSiPremiereConnexion === "function") ouvrirAideSiPremiereConnexion();
       // Suite 147 : fichiers joints que plus rien ne cite depuis 7 jours,
       // effacés une fois par jour au plus (js/pieces-jointes.js) — 20 s
       // après l'ouverture, pour ne rien ralentir.
