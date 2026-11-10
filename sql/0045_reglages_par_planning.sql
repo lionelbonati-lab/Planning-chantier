@@ -30,8 +30,8 @@
 --   5. Sauvegardes : lignes_planning et couleurs_chantiers en font partie ;
 --      restaurer ne touche qu'aux tables présentes dans la sauvegarde.
 --
--- Appliquée par Claude (outil Supabase de la session), à la demande de
--- Lionel. Rejouable.
+-- Appliquée par Lionel dans l'éditeur SQL de Supabase (suite 155 : l'outil
+-- de la session attendait une confirmation qui ne s'affichait pas). Rejouable.
 -- ============================================================
 
 -- ---------- 1. Ordre et coche « Afficher » par planning ----------

@@ -105,19 +105,35 @@
     }).catch(function () { return null; });
   }
 
+  // Round du 09.11.2026 (suite 155, sql/0044) : chaque planning range ses
+  // fichiers dans son dossier (« <planning>/fichiers/… ») ; la racine
+  // (« fichiers/… ») n'est ouverte qu'au planning d'avant les comptes.
+  // Planning pas encore connu (cf. chargerMonCompte) : demandé à la base ;
+  // sans réponse, la racine, comme avant.
+  function dossierPieces_() {
+    if (etat.planningId) return Promise.resolve(etat.planningId + "/");
+    return new Promise(function (ok) { ok(sbClient.rpc("mon_planning")); }).then(function (r) {
+      if (r && !r.error && r.data) { etat.planningId = String(r.data); return etat.planningId + "/"; }
+      return "";
+    }, function () { return ""; });
+  }
+
   // Envoie un fichier (puis sa vignette) ; résout avec la pièce à joindre.
   function envoyerPiece_(fichier) {
     if (fichier.size > TAILLE_MAX_PIECE_) return Promise.reject(new Error("plus de 50 Mo"));
     var id = idPiece_();
-    var chemin = "fichiers/" + id + "/" + nomFichierStockage_(fichier.name);
     var depot = sbClient.storage.from(BUCKET_PIECES_);
-    return depot.upload(chemin, fichier, { contentType: fichier.type || "application/octet-stream", cacheControl: "31536000", upsert: false }).then(function (res) {
+    var chemin, cheminV;
+    return dossierPieces_().then(function (dossier) {
+      chemin = dossier + "fichiers/" + id + "/" + nomFichierStockage_(fichier.name);
+      cheminV = dossier + "vignettes/" + id + ".jpg";
+      return depot.upload(chemin, fichier, { contentType: fichier.type || "application/octet-stream", cacheControl: "31536000", upsert: false });
+    }).then(function (res) {
       if (res.error) throw res.error;
       return vignetteImage_(fichier);
     }).then(function (blob) {
       var piece = { chemin: chemin, nom: fichier.name || "fichier", type: fichier.type || "", taille: fichier.size || 0, vignette: null };
       if (!blob) return piece;
-      var cheminV = "vignettes/" + id + ".jpg";
       return depot.upload(cheminV, blob, { contentType: "image/jpeg", cacheControl: "31536000", upsert: false }).then(function (r) {
         if (!r.error) piece.vignette = cheminV;
         return piece;

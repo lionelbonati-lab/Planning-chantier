@@ -2274,7 +2274,7 @@ Fichier : sql/0044_plannings.sql (à appliquer dans l'éditeur SQL de Supabase),
 
 Choix de Lionel (suite 153) : lignes « Chacun choisit », « Pour les chantiers chacun choisi sa couleur » (« La même au départ »), absences « Oui, partout ». Puis : « Fait toutes les étapes sans me redemander ».
 
-Fichier : sql/0045_reglages_par_planning.sql (appliquée par Claude avec l'outil Supabase de la session, à la demande de Lionel).
+Fichier : sql/0045_reglages_par_planning.sql (appliquée par Lionel dans l'éditeur SQL de Supabase, cf. §50).
 
 - lignes_planning (planning, personne, ordre, masque) et couleurs_chantiers (planning, chantier, couleur), par planning. L'appli écrit toujours personnes.ordre / masque et chantiers.couleur : des déclencheurs rangent la valeur pour le planning du compte et laissent la personne / le chantier tels quels (sans compte : comme avant).
 - Une personne ajoutée par un planning est masquée dans les autres (chacun coche les siens) ; un nouveau chantier a la même couleur pour tous jusqu'à ce que chacun la change.
@@ -2283,3 +2283,20 @@ Fichier : sql/0045_reglages_par_planning.sql (appliquée par Claude avec l'outil
 - Lien responsable : lignes, ordre et couleurs du planning du lien, absences de tous les plannings.
 - Sauvegardes : lignes_planning et couleurs_chantiers en font partie ; restaurer ne touche qu'aux tables présentes dans la sauvegarde ; une absence reprise entre-temps par un autre planning n'est pas remise en double.
 - Testée sur la copie locale de la base (tests/sql/lancer.sh) : 59 vérifications (0044 et 0045).
+
+---
+
+## 50. Round du 09.11.2026 (suite 155) — plusieurs plannings, étape 3 : les comptes
+
+Choix de Lionel : compte créé « Toi, depuis l'appli » ; invitations « Toi seul », dans « un nouveau, ou le tien pour le partager » ; plusieurs comptes par planning « Oui, le prévoir ». Puis : « Fait toutes les étapes sans me redemander ».
+
+Fichiers : sql/0046_comptes.sql (Lionel l'applique dans l'éditeur SQL de Supabase), functions/inviter-compte (déployée par Claude, connexion exigée).
+
+- reglages et couleurs_perso : clé (planning_id, cle) / (planning_id, id) à la place de l'ancienne.
+- creer_planning_(entreprise, nom) : nouveau planning ; le personnel y est masqué (chacun coche les siens), sauf Machines / Transports. Fonction serveur seule.
+- comptes_entreprise() : les comptes de l'entreprise (administrateur ; les autres : le leur) avec e-mail, nom, planning, rôle, dernière connexion, mot de passe provisoire pas encore changé ; plannings_entreprise() : les plannings (administrateur).
+- retirer_compte(compte) : l'administrateur retire un compte de son entreprise (ni le sien, ni un autre administrateur) ; le planning et ses données restent.
+- supprimer_mon_compte : le dernier administrateur ne peut pas supprimer son compte.
+- inviter-compte : administrateur seul (ses propres droits), planning partagé de son entreprise seulement ; compte créé confirmé, mot de passe provisoire (12 caractères sans ambiguïté, hasard cryptographique), user_metadata.changer_mot_de_passe ; nouveau planning si demandé, compte membre, profil (prénom, nom, entreprise). Un échec efface le compte et le planning créés. Rend l'e-mail et le mot de passe provisoire ; « Cette adresse a déjà un compte. » sinon.
+- Testée sur la copie locale de la base (tests/sql/lancer.sh) : 71 vérifications (0044 à 0046).
+- §49 (0045) : appliquée finalement par Lionel dans l'éditeur SQL (l'outil de la session attendait une confirmation qui ne s'affichait pas chez lui).

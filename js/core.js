@@ -91,7 +91,7 @@
           erreurEl.textContent = messageConnexionLisible_(r.error);
           return;
         }
-        demarrerApresConnexion();
+        demarrerApresConnexion(r.data && (r.data.user || (r.data.session && r.data.session.user)));
       });
     });
     if (messageErreur) document.getElementById("erreurConnexion").textContent = messageErreur;
@@ -124,9 +124,54 @@
   // maintenant que demarrer() parle vraiment à Supabase (étape 2), on le
   // branche pour de bon : c'est ici que "connexion" et "chargement du
   // planning" se rejoignent enfin.
-  function demarrerApresConnexion() {
+  // Round du 09.11.2026 (suite 155) : un compte créé par l'administrateur
+  // (Réglages › Comptes, fonction serveur inviter-compte) arrive avec un mot
+  // de passe provisoire et user_metadata.changer_mot_de_passe : il choisit
+  // d'abord le sien (afficherChoixMotDePasse_), puis le planning s'ouvre.
+  function demarrerApresConnexion(utilisateur) {
+    if (utilisateur && utilisateur.user_metadata && utilisateur.user_metadata.changer_mot_de_passe) { afficherChoixMotDePasse_(utilisateur); return; }
     afficherLienDeconnexion();
     demarrer();
+  }
+
+  function afficherChoixMotDePasse_(utilisateur) {
+    var prenom = String((utilisateur.user_metadata && utilisateur.user_metadata.prenom) || "").trim();
+    app.innerHTML =
+      '<div class="login-screen"><div class="login-card">' +
+      '<h1>Planning Chantiers</h1>' +
+      '<p class="sous-titre">Bienvenue' + (prenom ? " " + esc(prenom) : "") + '. Choisis ton mot de passe (8 caractères au moins) : il remplace le mot de passe provisoire.</p>' +
+      '<form id="formChoixMdp">' +
+      '<input type="email" autocomplete="username" value="' + esc2(utilisateur.email || "") + '" hidden>' +
+      '<label for="champNouveauMdp">Nouveau mot de passe</label>' +
+      '<input type="password" id="champNouveauMdp" autocomplete="new-password" required>' +
+      '<label for="champNouveauMdp2">Encore une fois</label>' +
+      '<input type="password" id="champNouveauMdp2" autocomplete="new-password" required>' +
+      '<div class="erreur" id="erreurChoixMdp"></div>' +
+      '<button type="submit" id="btnChoixMdp">Enregistrer et ouvrir le planning</button>' +
+      '</form>' +
+      '<button type="button" class="login-autre" id="btnChoixMdpDeconnexion">Se déconnecter</button>' +
+      '</div></div>';
+    var erreurEl = document.getElementById("erreurChoixMdp"), btn = document.getElementById("btnChoixMdp");
+    var mdp = document.getElementById("champNouveauMdp"), mdp2 = document.getElementById("champNouveauMdp2");
+    document.getElementById("btnChoixMdpDeconnexion").addEventListener("click", function () {
+      Promise.resolve(sbClient.auth.signOut()).then(function () { window.location.reload(); });
+    });
+    document.getElementById("formChoixMdp").addEventListener("submit", function (e) {
+      e.preventDefault();
+      erreurEl.textContent = "";
+      if (mdp.value.length < 8) { erreurEl.textContent = "Le mot de passe doit faire au moins 8 caractères."; mdp.focus(); return; }
+      if (mdp.value !== mdp2.value) { erreurEl.textContent = "Les deux mots de passe ne sont pas les mêmes."; mdp2.focus(); return; }
+      btn.disabled = true; btn.textContent = "Enregistrement…";
+      Promise.resolve(sbClient.auth.updateUser({ password: mdp.value, data: { changer_mot_de_passe: false } })).then(function (r) {
+        if (r && r.error) throw r.error;
+        demarrerApresConnexion();
+      }).catch(function (err) {
+        btn.disabled = false; btn.textContent = "Enregistrer et ouvrir le planning";
+        var m = String((err && err.message) || err || "");
+        erreurEl.textContent = /different from the old/i.test(m) ? "Choisis un autre mot de passe que le provisoire." : "Échec : " + m;
+      });
+    });
+    mdp.focus();
   }
 
   // Vérifie s'il existe déjà une session valide (retour sur l'appli sans
@@ -145,8 +190,9 @@
       // Session renouvelée hors ligne la dernière fois (jeton provisoire,
       // cf. hors-ligne.js) : vrai renouvellement d'abord, s'il y a du réseau.
       if (r.data && r.data.session) {
-        if (typeof hlRenouvelerSiProvisoire === "function") hlRenouvelerSiProvisoire().then(demarrerApresConnexion);
-        else demarrerApresConnexion();
+        var utilisateur = r.data.session.user;
+        if (typeof hlRenouvelerSiProvisoire === "function") hlRenouvelerSiProvisoire().then(function () { demarrerApresConnexion(utilisateur); });
+        else demarrerApresConnexion(utilisateur);
         return;
       }
       if (sansReseau(r)) { demarrerApresConnexion(); return; }
@@ -352,6 +398,8 @@
     restaurer: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M4 10a6 6 0 1 0 1.8-4.3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M4.2 2.8v3.4h3.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     // Suite 61 — menu de la pastille (compte et réglages).
     personne: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="6.8" r="3.3" stroke="currentColor" stroke-width="1.5"/><path d="M3.5 17.2c0-3.4 2.9-5.7 6.5-5.7s6.5 2.3 6.5 5.7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    // Suite 155 : page Comptes (deux personnes).
+    comptes: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><circle cx="7" cy="6.2" r="2.6" stroke="currentColor" stroke-width="1.5"/><path d="M2.3 16c0-2.8 2.1-4.7 4.7-4.7s4.7 1.9 4.7 4.7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="14.6" cy="6.7" r="2.1" stroke="currentColor" stroke-width="1.4"/><path d="M12.7 11.7c2-.5 3.9.5 5 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
     affichage: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="2.5" y="3.5" width="15" height="10.5" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M7 17h6M10 14v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
     clavier: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="1.8" y="5" width="16.4" height="10" rx="1.6" stroke="currentColor" stroke-width="1.5"/><path d="M5 8.2h.01M8 8.2h.01M11 8.2h.01M14 8.2h.01M5 11h.01M14 11h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M7.5 11.6h4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
     // Suite 129 : bulle avec « ! » (page Améliorations et bugs).
