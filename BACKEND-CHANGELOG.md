@@ -2314,11 +2314,11 @@ Fichier : sql/0047_lien_ouvrier_couleurs.sql (Lionel l'applique dans l'éditeur 
 
 ---
 
-## 52. Round du 10.11.2026 (suite 157) — demandes d'absence chez l'employeur
+## 52. Round du 10.11.2026 (suite 157) — demandes d'absence chez le chef d'équipe
 
-Lionel : « J'aimerai que la demande de congé n'apparaisse uniquement chez la personne qui emploie un ouvrier ». Ses choix : employeur = « Planning où il est affiché » ; l'absence acceptée « Partout, comme maintenant ».
+Lionel : « J'aimerai que la demande de congé n'apparaisse uniquement chez la personne qui emploie un ouvrier ». Ses choix : chef d'équipe = « Planning où il est affiché » ; l'absence acceptée « Partout, comme maintenant ». Puis (suite 158) : « Remplace employeur par chef d'équipe, car nous ne sommes pas employeurs, nous sommes chefs d'équipe. »
 
-Fichiers : sql/0048_demandes_chez_employeur.sql (Lionel l'applique dans l'éditeur SQL de Supabase), functions/envoyer-push (version 4, déployée par Claude).
+Fichiers : sql/0048_demandes_chef_equipe.sql (Lionel l'applique dans l'éditeur SQL de Supabase), functions/envoyer-push (version 4, déployée par Claude).
 
 - plannings_de_la_personne_(personne) : les plannings de son entreprise où la personne active est affichée (coche « Afficher » du planning, sinon celle de la personne) ; affichée nulle part (ou plus active) : le planning de l'administrateur, pour qu'aucune demande ne se perde.
 - demandes_absence : policy « entreprise » : un compte ne voit et ne traite que les demandes des personnes de son planning.

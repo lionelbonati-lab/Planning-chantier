@@ -4,14 +4,14 @@ const { verificateur } = require('./aide_tests');
 
 // Round du 10.11.2026 (suite 157) — Lionel : « J'aimerai que la demande de
 // congé n'apparaisse uniquement chez la personne qui emploie un ouvrier ».
-// Ses choix : employeur = « Planning où il est affiché » ; l'absence
+// Ses choix : chef d'équipe = « Planning où il est affiché » ; l'absence
 // acceptée « Partout, comme maintenant ».
 // Vérifie :
 //   A. sql/0048 : plannings où la personne est affichée (sinon
 //      l'administrateur), policy des demandes, destinataires pour
 //      envoyer-push, fonctions fermées aux comptes, rejouable.
 //      (Comportement testé sur une copie locale de la base :
-//      tests/sql/test_0048_demandes_chez_employeur.sql.)
+//      tests/sql/test_0048_demandes_chef_equipe.sql.)
 //   B. envoyer-push (logic.js) : une demande n'est annoncée (et rappelée)
 //      qu'aux plannings de sa personne ; sans destinataires, à tous comme
 //      avant.
@@ -21,7 +21,7 @@ const { verificateur } = require('./aide_tests');
 // Lancer : node test_suite157.js
 
 const RACINE = path.join(__dirname, '..');
-const SQL = fs.readFileSync(path.join(RACINE, 'sql/0048_demandes_chez_employeur.sql'), 'utf8');
+const SQL = fs.readFileSync(path.join(RACINE, 'sql/0048_demandes_chef_equipe.sql'), 'utf8');
 
 (async () => {
   const { verifier, bilan } = verificateur();

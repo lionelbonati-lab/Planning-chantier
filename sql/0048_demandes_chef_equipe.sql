@@ -1,13 +1,14 @@
 -- ============================================================
--- Planning Chantiers — plusieurs plannings : demandes d'absence chez
--- l'employeur
+-- Planning Chantiers — plusieurs plannings : demandes d'absence chez le
+-- chef d'équipe
 -- Migration 0048 — 10.11.2026 (suite 157)
 --
 -- Lionel : « J'aimerai que la demande de congé n'apparaisse uniquement
--- chez la personne qui emploie un ouvrier ». Ses choix : employeur =
+-- chez la personne qui emploie un ouvrier ». Ses choix : chef d'équipe =
 -- « Planning où il est affiché » (« la demande arrive dans chaque planning
 -- où sa ligne est cochée « Afficher » ») ; l'absence acceptée « Partout,
--- comme maintenant ».
+-- comme maintenant ». Puis (suite 158) : « Remplace employeur par chef
+-- d'équipe, car nous ne sommes pas employeurs, nous sommes chefs d'équipe. »
 --
 --   1. plannings_de_la_personne_(personne) : les plannings de son
 --      entreprise où sa ligne est affichée (personne active, coche
