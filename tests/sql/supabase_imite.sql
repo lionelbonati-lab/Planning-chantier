@@ -21,7 +21,8 @@ create function cron.unschedule(id bigint) returns boolean language sql as $$ de
 create schema net;
 create function net.http_post(url text, headers jsonb default '{}', body jsonb default '{}', timeout_milliseconds int default 5000) returns bigint language sql as $$ select 1::bigint $$;
 create publication supabase_realtime;
--- Comme Supabase : le rôle service a tous les droits sur ce qui sera créé.
-alter default privileges in schema public grant all on tables to service_role;
-alter default privileges in schema public grant all on sequences to service_role;
-alter default privileges in schema public grant execute on functions to service_role;
+-- Suite 160 : PAS de droits d'office pour le rôle service sur les tables
+-- créées par les migrations : comme dans la vraie base, chaque migration
+-- les donne table par table (sql/0027, sql/0049). Ils avaient caché
+-- l'erreur « permission denied for table membres » d'inviter-compte.
+-- Fonctions : exécutables par tous à leur création (PostgreSQL), comme là-bas.

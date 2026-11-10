@@ -2326,3 +2326,17 @@ Fichiers : sql/0048_demandes_chef_equipe.sql (Lionel l'applique dans l'éditeur 
 - envoyer-push : la notification d'une demande et son rappel ne partent qu'aux appareils de ces plannings ; sans la 0048 (destinataires_demandes_ absente) : à tous, comme avant.
 - L'absence acceptée reste visible dans tous les plannings (0045).
 - Testée sur la copie locale de la base (tests/sql/lancer.sh) : 80 vérifications (0044 à 0048).
+
+---
+
+## 53. Round du 10.11.2026 (suite 160) — droits de la fonction inviter-compte
+
+Lionel : « J'ai une erreur à la création de compte » (capture : « Échec : Compte pas créé : permission denied for table membres »).
+
+Fichier : sql/0049_droits_inviter_compte.sql (Lionel l'applique dans l'éditeur SQL de Supabase).
+
+- Cause : la fonction serveur inviter-compte (§50) travaille avec la clé de service, qui n'a dans cette base que les droits donnés table par table (comme pour envoyer-push, sql/0027). Rien n'avait été donné sur les tables des plannings (0044). La copie locale de la base donnait ces droits d'office (tests/sql/supabase_imite.sql), ce qui a caché l'erreur.
+- Droits au plus juste : plannings (lire, effacer), membres (ajouter), entreprises (lire), profils (lire, ajouter, modifier).
+- Nettoyage : les plannings sans compte et vides, laissés par les essais qui ont échoué (3 plannings « à son nom », créés avant l'erreur ; le compte, lui, avait bien été effacé), sont effacés avec leurs lignes.
+- tests/sql/supabase_imite.sql : plus de droits d'office pour le rôle service, comme dans la vraie base. Sans la 0049, test_0046 et test_0049 échouent sur « permission denied for table plannings ».
+- tests/sql/test_0049_droits_inviter_compte.sql (nouveau, 3 vérifications ; 83 en tout) : ce que fait la fonction, dans son ordre, avec la clé de service ; pas plus de droits que nécessaire ; nettoyage.
