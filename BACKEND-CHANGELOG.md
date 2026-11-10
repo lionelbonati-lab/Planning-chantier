@@ -2300,3 +2300,14 @@ Fichiers : sql/0046_comptes.sql (Lionel l'applique dans l'éditeur SQL de Supaba
 - inviter-compte : administrateur seul (ses propres droits), planning partagé de son entreprise seulement ; compte créé confirmé, mot de passe provisoire (12 caractères sans ambiguïté, hasard cryptographique), user_metadata.changer_mot_de_passe ; nouveau planning si demandé, compte membre, profil (prénom, nom, entreprise). Un échec efface le compte et le planning créés. Rend l'e-mail et le mot de passe provisoire ; « Cette adresse a déjà un compte. » sinon.
 - Testée sur la copie locale de la base (tests/sql/lancer.sh) : 71 vérifications (0044 à 0046).
 - §49 (0045) : appliquée finalement par Lionel dans l'éditeur SQL (l'outil de la session attendait une confirmation qui ne s'affichait pas chez lui).
+
+---
+
+## 51. Round du 09.11.2026 (suite 156) — plusieurs plannings, étape 4 : lien des ouvriers
+
+Choix de Lionel (suite 153) : lien des ouvriers « Les deux plannings réunis » (0044) ; « Pour les chantiers chacun choisi sa couleur » (0045). Puis : « Fait toutes les étapes sans me redemander ».
+
+Fichier : sql/0047_lien_ouvrier_couleurs.sql (Lionel l'applique dans l'éditeur SQL de Supabase).
+
+- consultation_planning (lien des ouvriers) : pour chaque tâche, la couleur du chantier choisie par le planning de cette tâche (couleurs_chantiers), sinon celle de départ. Avant, toujours celle de départ, même après un changement de couleur dans l'appli. Le reste de la fonction est celui de la 0044.
+- Testée sur la copie locale de la base (tests/sql/lancer.sh) : 74 vérifications (0044 à 0047).

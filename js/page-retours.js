@@ -38,6 +38,11 @@
   var appareilRetourChoisi_ = null;
   var RETOURS_VISIBLES_ = 3;
   var retoursDeplies_ = {};      // sorte → liste entière affichée
+  // Round du 09.11.2026 (suite 156) — plusieurs comptes : l'administrateur
+  // voit les notes de tous (sql/0044) ; celles d'un autre compte portent
+  // son nom. { moi, noms: { user_id: nom } } (null : pas administrateur,
+  // ou comptes illisibles).
+  var AUTEURS_RETOURS_ = null;
 
   function nomAppareilRetour_(cle) {
     var a = APPAREILS_RETOUR_.filter(function (x) { return x[0] === cle; })[0];
@@ -117,6 +122,10 @@
     var jour = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
     return libelleDateCourteIso(jour) + " " + d.getFullYear() + ", " + hh;
   }
+  function auteurRetour_(r) {
+    if (!AUTEURS_RETOURS_ || !r.cree_par || r.cree_par === AUTEURS_RETOURS_.moi) return "";
+    return AUTEURS_RETOURS_.noms[r.cree_par] || "Compte retiré";
+  }
   function renderListesRetours_() {
     SORTES_RETOUR_.forEach(function (s) {
       var zone = document.getElementById("retoursListe-" + s.cle);
@@ -126,7 +135,8 @@
       var cachees = retoursDeplies_[s.cle] ? 0 : Math.max(0, lignes.length - RETOURS_VISIBLES_);
       zone.innerHTML = lignes.length ? lignes.slice(0, lignes.length - cachees).map(function (r) {
         return '<div class="retour" data-statut="' + esc(r.statut) + '">' +
-          '<div class="retour-tete"><span class="retour-appareil">' + esc(nomAppareilRetour_(r.appareil)) + '</span>' +
+          '<div class="retour-tete">' + (auteurRetour_(r) ? '<span class="retour-auteur">' + esc(auteurRetour_(r)) + '</span>' : '') +
+            '<span class="retour-appareil">' + esc(nomAppareilRetour_(r.appareil)) + '</span>' +
             '<span class="retour-date">' + esc(dateRetour_(r.cree_le)) + '</span>' +
             '<span class="retour-statut">' + esc(STATUTS_RETOUR_[r.statut] || r.statut) + '</span>' +
             '<button type="button" class="lien-reset-tout" data-retirer-retour="' + r.id + '">Retirer</button></div>' +
@@ -147,6 +157,19 @@
     var reconnu = document.getElementById("retoursReconnu");
     if (reconnu) reconnu.textContent = "Cet appareil : " + nomAppareilRetour_(appareilRetour_()).toLowerCase();
     renderListesRetours_();
+    // Suite 156 : noms des comptes, pour l'administrateur (cf. AUTEURS_RETOURS_).
+    if (etat.admin) {
+      new Promise(function (ok) { ok(sbClient.rpc("comptes_entreprise")); }).then(function (res) {
+        if (!res || res.error) return;
+        var a = { moi: null, noms: {} };
+        (res.data || []).forEach(function (c) {
+          if (c.moi) a.moi = c.user_id;
+          a.noms[c.user_id] = ((c.prenom || "") + " " + (c.nom || "")).trim() || c.email;
+        });
+        AUTEURS_RETOURS_ = a;
+        renderListesRetours_();
+      }, function () { /* sans les noms */ });
+    }
     Promise.resolve(sbClient.from("retours").select("*").order("cree_le", { ascending: false })).then(function (res) {
       if (res.error) throw res.error;
       RETOURS_ = (res.data || []).slice().sort(function (a, b) { return String(b.cree_le).localeCompare(String(a.cree_le)) || b.id - a.id; });
