@@ -8,7 +8,7 @@
 # sql/0044 et suivantes deux fois (rejouables), puis lance test_*.sql
 # (0044 : comptes, liens, sauvegardes ; 0045 : lignes, couleurs,
 # absences ; 0046 : comptes de l'entreprise, retirer un compte ; 0047 :
-# couleurs du lien des ouvriers ; 0048 : demandes chez l'employeur) : Lionel, un collègue dans un 2e planning de la même
+# couleurs du lien des ouvriers ; 0048 : demandes chez le chef d'équipe) : Lionel, un collègue dans un 2e planning de la même
 # entreprise, un inconnu dans une autre entreprise. Chaque vérification
 # affiche « OK: » ou « ÉCHEC: ».
 #

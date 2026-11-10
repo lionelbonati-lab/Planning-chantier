@@ -11592,14 +11592,14 @@ Choix de Lionel (suite 153) : lien des ouvriers « Les deux plannings réunis 
 - Suite complète : 152/159 dans cette session ; les 7 en échec (35, 40, 53, 56, 91, 92, 115) échouent aussi sur main ici (navigateur et polices du conteneur).
 
 
-## 270. Round du 10.11.2026 (suite 157) — Demandes d'absence chez l'employeur
+## 270. Round du 10.11.2026 (suite 157) — Demandes d'absence chez le chef d'équipe
 
-Lionel : « J'aimerai que la demande de congé n'apparaisse uniquement chez la personne qui emploie un ouvrier ». Ses choix : employeur = « Planning où il est affiché » ; l'absence acceptée « Partout, comme maintenant ». Base : BACKEND §52.
+Lionel : « J'aimerai que la demande de congé n'apparaisse uniquement chez la personne qui emploie un ouvrier ». Ses choix : chef d'équipe = « Planning où il est affiché » ; l'absence acceptée « Partout, comme maintenant ». Base : BACKEND §52. Puis (suite 158) : « Remplace employeur par chef d'équipe, car nous ne sommes pas employeurs, nous sommes chefs d'équipe. »
 
 - Appli : rien à changer. Les demandes d'absence (fenêtre Notifications, cases marquées) sont celles que la base laisse voir au compte : celles des personnes affichées dans son planning (coche « Afficher » de Personnel) ; une personne affichée nulle part : chez l'administrateur. L'absence acceptée reste visible dans tous les plannings.
 
 ### Tests
 
 - `tests/test_suite157.js` (nouveau, 8 vérifications) : sql/0048 ; envoyer-push (demande et rappel au seul planning où l'ouvrier est affiché, aux deux s'il l'est dans les deux, à tous sans la 0048) ; index.ts.
-- `tests/sql/test_0048_demandes_chez_employeur.sql` (nouveau, 6 vérifications SQL ; 80 en tout).
+- `tests/sql/test_0048_demandes_chef_equipe.sql` (nouveau, 6 vérifications SQL ; 80 en tout).
 
