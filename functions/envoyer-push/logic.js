@@ -358,9 +358,23 @@ function planEnvois(d, maintenant) {
 // Une modification d'un planning sans appareil abonné est simplement
 // retirée. Lignes sans planning_id (base d'avant 0044) : un seul groupe,
 // comme avant.
+// Round du 10.11.2026 (suite 157, sql/0048) — Lionel : « J'aimerai que la
+// demande de congé n'apparaisse uniquement chez la personne qui emploie un
+// ouvrier » ; choix « Planning où il est affiché ». d.destinataires :
+// [{ personne_id, planning_id }] (destinataires_demandes_) : une demande ne
+// part que vers les plannings où sa personne est affichée (sinon celui de
+// l'administrateur). Sans d.destinataires (base d'avant 0048) : vers tous,
+// comme avant.
 // Renvoie comme planEnvois, sauf modifsTraitees : [{ planning_id, session_id }].
 function planEnvoisParPlanning(d, maintenant) {
   const cle = function (x) { return x && x.planning_id != null ? String(x.planning_id) : ""; };
+  const dest = Array.isArray(d.destinataires) ? d.destinataires : null;
+  const demandesDu = function (liste, p) {
+    if (!dest) return liste || [];
+    return (liste || []).filter(function (q) {
+      return dest.some(function (x) { return String(x.planning_id) === p && String(x.personne_id) === String(q.personne_id); });
+    });
+  };
   const plannings = {};
   (d.abonnements || []).concat(d.modifs || []).forEach(function (x) { plannings[cle(x)] = true; });
   const duPlanning = function (liste, p) { return (liste || []).filter(function (x) { return cle(x) === p; }); };
@@ -368,7 +382,8 @@ function planEnvoisParPlanning(d, maintenant) {
   Object.keys(plannings).sort().forEach(function (p) {
     const plan = planEnvois(Object.assign({}, d, {
       abonnements: duPlanning(d.abonnements, p), modifs: duPlanning(d.modifs, p),
-      taches: duPlanning(d.taches, p), jalons: duPlanning(d.jalons, p), notes: duPlanning(d.notes, p), aReserver: duPlanning(d.aReserver, p)
+      taches: duPlanning(d.taches, p), jalons: duPlanning(d.jalons, p), notes: duPlanning(d.notes, p), aReserver: duPlanning(d.aReserver, p),
+      demandes: demandesDu(d.demandes, p), demandesEnAttente: demandesDu(d.demandesEnAttente, p)
     }), maintenant);
     plan.envois.forEach(function (e) { total.envois.push(e); });
     plan.modifsTraitees.forEach(function (s) { total.modifsTraitees.push({ planning_id: p || null, session_id: s }); });

@@ -2311,3 +2311,18 @@ Fichier : sql/0047_lien_ouvrier_couleurs.sql (Lionel l'applique dans l'éditeur 
 
 - consultation_planning (lien des ouvriers) : pour chaque tâche, la couleur du chantier choisie par le planning de cette tâche (couleurs_chantiers), sinon celle de départ. Avant, toujours celle de départ, même après un changement de couleur dans l'appli. Le reste de la fonction est celui de la 0044.
 - Testée sur la copie locale de la base (tests/sql/lancer.sh) : 74 vérifications (0044 à 0047).
+
+---
+
+## 52. Round du 10.11.2026 (suite 157) — demandes d'absence chez l'employeur
+
+Lionel : « J'aimerai que la demande de congé n'apparaisse uniquement chez la personne qui emploie un ouvrier ». Ses choix : employeur = « Planning où il est affiché » ; l'absence acceptée « Partout, comme maintenant ».
+
+Fichiers : sql/0048_demandes_chez_employeur.sql (Lionel l'applique dans l'éditeur SQL de Supabase), functions/envoyer-push (version 4, déployée par Claude).
+
+- plannings_de_la_personne_(personne) : les plannings de son entreprise où la personne active est affichée (coche « Afficher » du planning, sinon celle de la personne) ; affichée nulle part (ou plus active) : le planning de l'administrateur, pour qu'aucune demande ne se perde.
+- demandes_absence : policy « entreprise » : un compte ne voit et ne traite que les demandes des personnes de son planning.
+- destinataires_demandes_() (clé de service seule) : les plannings à prévenir pour chaque demande en attente.
+- envoyer-push : la notification d'une demande et son rappel ne partent qu'aux appareils de ces plannings ; sans la 0048 (destinataires_demandes_ absente) : à tous, comme avant.
+- L'absence acceptée reste visible dans tous les plannings (0045).
+- Testée sur la copie locale de la base (tests/sql/lancer.sh) : 80 vérifications (0044 à 0048).
