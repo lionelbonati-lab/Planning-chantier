@@ -56,6 +56,13 @@
   // rempli par la base (planning du compte connecté).
   var CONFLIT_REGLAGES = "planning_id,cle";
   var CONFLIT_COULEURS = "planning_id,id";
+  // Suite 154 (sql/0045) — lignes « Chacun choisit », « Pour les chantiers
+  // chacun choisi sa couleur » : l'appli lit les personnes et les chantiers
+  // par ces vues (ordre, coche « Afficher » et couleur du planning du
+  // compte). Elle écrit toujours dans personnes / chantiers : la base range
+  // ordre, masque et couleur pour son planning.
+  var VUE_PERSONNES = "personnes_du_planning";
+  var VUE_CHANTIERS = "chantiers_du_planning";
 
   function afficherEcranConnexion(messageErreur) {
     app.innerHTML =

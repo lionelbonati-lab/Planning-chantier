@@ -11539,3 +11539,19 @@ Lionel : « Un collègue aimerait utiliser mon planning pour ses propres besoin
 - `tests/sql/` (nouveau, hors suite : pas de PostgreSQL dans le CI) : copie locale de la base, 41 vérifications SQL avec deux comptes et une autre entreprise (`lancer.sh`).
 - Suite complète : 149/156 dans cette session ; les 7 en échec (35, 40, 53, 56, 91, 92, 115) échouent aussi sur main ici (navigateur et polices du conteneur), verts sur GitHub.
 
+
+## 267. Round du 09.11.2026 (suite 154) — Plusieurs plannings, étape 2 : lignes, couleurs de chantier et absences
+
+Choix de Lionel (suite 153) : lignes « Chacun choisit », « Pour les chantiers chacun choisi sa couleur » (« La même au départ »), absences « Oui, partout ». Puis : « Fait toutes les étapes sans me redemander ». Base : BACKEND §49.
+
+- `js/core.js` : VUE_PERSONNES (« personnes_du_planning ») et VUE_CHANTIERS (« chantiers_du_planning »).
+- `js/donnees-sync.js` : les 3 lectures des personnes et les 2 des chantiers passent par ces vues (ordre, coche « Afficher » et couleur du planning du compte). Écritures inchangées : la base range ordre, coche et couleur pour le planning.
+- Pour Lionel seul, rien ne change à l'écran ; avec un 2e planning, chacun a ses lignes, leur ordre et ses couleurs de chantier, et voit les absences de l'autre.
+
+### Tests
+
+- `tests/test_suite154.js` (nouveau, 11 vérifications) : sql/0045 (tables, déclencheurs, vues, absences, lien responsable, sauvegardes, rejouable) ; appli (lectures par les vues, écritures inchangées).
+- `tests/sql/test_0045_lignes_couleurs_absences.sql` (nouveau, 18 vérifications SQL) ; `tests/sql/test_0044_*.sql` : absences désormais communes ; `lancer.sh` applique 0044 et suivantes.
+- `tests/aide_tests.js` et les 14 tests qui ont leur propre faux Supabase (+ `test_suite52.js`, faux réseau) : les vues servies depuis les tables ; `test_suite52.js` : copie hors ligne des personnes lue par la vue ; `test_suite153.js` : une table créée par planning après 0044 compte comme rangée.
+- Suite complète : 150/157 dans cette session ; les 7 en échec (35, 40, 53, 56, 91, 92, 115) échouent aussi sur main ici (navigateur et polices du conteneur).
+

@@ -38,15 +38,17 @@ const liste = (re) => (SQL.match(re) || [])[1].match(/'[a-z_]+'/g).map((x) => x.
     const planning = liste(/foreach t in array array\[([^\]]+)\] loop\s+execute format\('alter table %I add column if not exists planning_id/);
     const aPart = ['profils', 'push_config', 'push_passages', 'retours', 'entreprises', 'plannings', 'membres'];
     const fichiers = fs.readdirSync(path.join(RACINE, 'sql')).filter((f) => /^\d{4}_.*\.sql$/.test(f)).sort();
-    const toutes = new Set(), connecteTout = new Set();
+    const toutes = new Set(), connecteTout = new Set(), creeesParPlanning = new Set();
     fichiers.forEach((f) => {
       const s = fs.readFileSync(path.join(RACINE, 'sql', f), 'utf8').replace(/--[^\n]*/g, '');
       for (const m of s.matchAll(/create table (?:if not exists )?(?:public\.)?([a-z_]+)/gi)) toutes.add(m[1].toLowerCase());
+      // Suite 154 : une table créée après 0044 directement par planning.
+      if (f > '0044') for (const m of s.matchAll(/create table if not exists ([a-z_]+) \(\s+planning_id uuid not null default mon_planning\(\)/g)) creeesParPlanning.add(m[1]);
       if (f < '0044') for (const m of s.matchAll(/create policy "connecte_[a-z]+" on (?:public\.)?([a-z_]+)/g)) connecteTout.add(m[1]);
     });
-    const nonRangees = [...toutes].filter((t) => !entreprise.includes(t) && !planning.includes(t) && !aPart.includes(t));
-    verifier(entreprise.length === 13 && planning.length === 13 && nonRangees.length === 0 && toutes.size === 33,
-      'sql/0044 : les ' + toutes.size + ' tables rangées — ' + entreprise.length + ' partagées, ' + planning.length + ' par planning, ' + aPart.length + ' à part (non rangées : ' + nonRangees.join(',') + ')');
+    const nonRangees = [...toutes].filter((t) => !entreprise.includes(t) && !planning.includes(t) && !aPart.includes(t) && !creeesParPlanning.has(t));
+    verifier(entreprise.length === 13 && planning.length === 13 && nonRangees.length === 0 && toutes.size >= 33,
+      'sql/0044 et suivantes : les ' + toutes.size + ' tables rangées — ' + entreprise.length + ' partagées, ' + (planning.length + creeesParPlanning.size) + ' par planning, ' + aPart.length + ' à part (non rangées : ' + nonRangees.join(',') + ')');
     const sansRemplacement = [...connecteTout].filter((t) => !entreprise.includes(t) && !planning.includes(t) && t !== 'retours');
     verifier(connecteTout.size >= 26 && sansRemplacement.length === 0 && /drop policy if exists "connecte_tout" on %I/.test(SQL) &&
       /drop policy if exists "connecte_tout" on retours;/.test(SQL) && /drop policy if exists "connecte_lire" on sauvegardes;/.test(SQL) && /drop policy if exists "connecte_supprimer" on sauvegardes;/.test(SQL),

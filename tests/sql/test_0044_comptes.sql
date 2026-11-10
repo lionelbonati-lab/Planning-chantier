@@ -25,10 +25,10 @@ commit;
 
 -- ---- Collègue ----
 begin; set local role authenticated; select set_config('request.jwt.claim.sub', '22222222-2222-2222-2222-222222222222', true);
-select pg_temp.v((select count(*) from taches) = 0 and (select count(*) from jalons) = 0 and (select count(*) from notes) = 0 and (select count(*) from series) = 0
+select pg_temp.v((select count(*) from taches where not est_absence) = 0 and (select string_agg(texte, ',') from taches) = 'Congé' and (select count(*) from jalons) = 0 and (select count(*) from notes) = 0 and (select count(*) from series) = 0
   and (select count(*) from equipes_compositions) = 0 and (select count(*) from reglages) = 0 and (select count(*) from couleurs_perso) = 0
   and (select count(*) from liens_responsables) = 0 and (select count(*) from sauvegardes) = 0 and (select count(*) from abonnements_push) = 0 and (select count(*) from retours) = 0,
-  'C : rien du planning de L (tâches, jalons, notes, séries, équipes, réglages, couleurs, lien responsable, sauvegardes, appareils, retours)');
+  'C : rien du planning de L (tâches, jalons, notes, séries, équipes, réglages, couleurs, lien responsable, sauvegardes, appareils, retours), sauf ses absences (0045)');
 select pg_temp.v((select string_agg(nom, ',' order by nom) from personnes) = 'Machines,Machines,Mathis,Paul,Transports',
   'C : le personnel partagé, sans l''équipe de L (' || (select string_agg(nom, ',' order by nom) from personnes) || ')');
 select pg_temp.v((select count(*) from statuts) = 2 and (select count(*) from chantiers) = 2 and (select count(*) from groupes) >= 1 and (select count(*) from elements_groupes) = 1
@@ -42,11 +42,11 @@ insert into personnes (nom, ordre, equipe) values ('Équipe de C', 9, true);
 select pg_temp.v((select planning_id from taches where texte = 'Tâche de C') = 'aaaaaaaa-0000-0000-0000-000000000002'
   and (select planning_id from personnes where nom = 'Équipe de C') = 'aaaaaaaa-0000-0000-0000-000000000002',
   'C : sa tâche et son équipe vont d''office dans son planning');
-update personnes set ordre = 7 where nom = 'Paul';
-select pg_temp.v((select ordre from personnes where nom = 'Paul') = 7, 'C : modifie une personne partagée');
-update taches set important = true where true;
-select pg_temp.v((select count(*) from taches where important) = 1, 'C : une mise à jour de toutes les tâches ne voit que la sienne');
-update taches set important = false where true;
+update personnes set couleur = '#abcdef' where nom = 'Paul';
+select pg_temp.v((select couleur from personnes where nom = 'Paul') = '#abcdef', 'C : modifie une personne partagée');
+update taches set important = true where not est_absence;
+select pg_temp.v((select count(*) from taches where important) = 1, 'C : une mise à jour de toutes les tâches (hors absences) ne voit que la sienne');
+update taches set important = false where not est_absence;
 select remplacer_case_personne((select id from personnes where nom = 'Mathis'), '2026-11-10', 'matin', '[{"texte": "Case de C"}]');
 select pg_temp.v((select count(*) from storage.objects) = 0 and (select count(*) from pieces_orphelines()) = 0, 'C : aucun fichier de L, ni à nettoyer');
 insert into storage.objects (bucket_id, name) values ('pieces', 'aaaaaaaa-0000-0000-0000-000000000002/fichiers/c1/Devis.pdf');

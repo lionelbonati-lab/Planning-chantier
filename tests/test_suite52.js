@@ -110,7 +110,8 @@ async function fauxSupabase(route) {
     });
     return json({ ok: true });
   }
-  const table = u.pathname.replace('/rest/v1/', '');
+  // Suite 154 : vues par planning (sql/0045) servies depuis les tables.
+  const table = ({ personnes_du_planning: 'personnes', chantiers_du_planning: 'chantiers' })[u.pathname.replace('/rest/v1/', '')] || u.pathname.replace('/rest/v1/', '');
   const lignes = BD[table] || (BD[table] = []);
   const garde = filtres(u);
   if (methode === 'GET' || methode === 'HEAD') {
@@ -160,7 +161,7 @@ function session(expireDans) {
   verifier(/Coffrage/.test(await bulles()) && /Ferraillage/.test(await bulles()), 'en ligne : planning chargé par le vrai supabase-js (' + await bulles() + ')');
   await page.waitForTimeout(7000); // préchargement des semaines suivantes (5 s)
   const cles = await copies();
-  verifier(cles.some((k) => /taches\?.*2026-09-21/.test(k)) && cles.some((k) => /taches\?.*2026-10-05/.test(k)) && cles.some((k) => /personnes\?/.test(k)),
+  verifier(cles.some((k) => /taches\?.*2026-09-21/.test(k)) && cles.some((k) => /taches\?.*2026-10-05/.test(k)) && cles.some((k) => /personnes_du_planning\?/.test(k)),
     'copies gardées : semaine affichée, semaines suivantes préchargées, personnes (' + cles.length + ' lectures)');
   const sw = await page.evaluate(() => navigator.serviceWorker.ready.then((r) => !!r.active));
   verifier(sw, 'service worker installé');

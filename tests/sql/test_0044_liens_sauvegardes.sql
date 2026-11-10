@@ -26,10 +26,10 @@ select pg_temp.v((select string_agg(x ->> 'texte', ',' order by x ->> 'texte') f
   and jsonb_array_length(consultation_responsable('fedcba9876543210fedcba9876543210', '2026-11-09') -> 'ordre_groupes') = 3,
   'lien responsable de L : son planning seul (pas les tâches de C), ses jalons, son ordre des sections');
 select pg_temp.v((select string_agg(x ->> 'texte', ',' order by x ->> 'texte') from jsonb_array_elements(consultation_responsable('cccccccccccccccccccccccccccccccc', '2026-11-09') -> 'taches') x)
-  = 'Case de C,Tâche de C'
+  = 'Case de C,Congé,Tâche de C'
   and jsonb_array_length(consultation_responsable('cccccccccccccccccccccccccccccccc', '2026-11-09') -> 'jalons') = 0
   and jsonb_array_length(consultation_responsable('cccccccccccccccccccccccccccccccc', '2026-11-09') -> 'personnes') = 5,
-  'lien responsable de C : son planning seul, le personnel partagé');
+  'lien responsable de C : son planning, les absences de tous (0045), le personnel partagé');
 select pg_temp.v((consultation_demander_absence('0123456789abcdef0123456789abcdef', '2026-11-25', '2026-11-25') ->> 'ok')::boolean, 'lien ouvrier : demande d''absence acceptée');
 commit;
 select pg_temp.v((select entreprise_id from demandes_absence order by id desc limit 1) = (select entreprise_id from personnes where nom = 'Mathis'),
@@ -106,7 +106,8 @@ select importer_sauvegarde(jsonb_build_object('version', 2, 'tables', jsonb_buil
     jsonb_build_object('id', 999998, 'personne_id', 424242, 'date', '2026-11-13', 'demi', 'matin', 'texte', 'Sans personne')),
   'reglages', jsonb_build_array(jsonb_build_object('cle', 'ordre_groupes', 'valeur', '["x"]'::jsonb, 'planning_id', (select id from plannings where nom = 'Lionel Test')))))) is not null;
 select restaurer_sauvegarde((select max(id) from sauvegardes where origine = 'importee')) is not null;
-select pg_temp.v((select string_agg(texte, ',' order by texte) from taches) = 'Importée' and (select planning_id from taches) = 'aaaaaaaa-0000-0000-0000-000000000002',
+select pg_temp.v((select string_agg(texte, ',' order by texte) from taches where planning_id = 'aaaaaaaa-0000-0000-0000-000000000002') = 'Importée'
+  and (select string_agg(texte, ',' order by texte) from taches) = 'Congé,Importée',
   'C restaure un fichier trafiqué : la tâche va dans SON planning, celle sans personne est laissée de côté');
 commit;
 select pg_temp.v((select string_agg(texte, ',' order by texte) from taches where planning_id = (select id from plannings where nom = 'Lionel Test')) = 'Coffrage,Congé,Ferraillage,Réunion'

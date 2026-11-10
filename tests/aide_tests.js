@@ -32,7 +32,11 @@ const FAUX_SUPABASE = LOGIQUE_PLAGE + '\n(' + function () {
   var prochainId = 1000;
   window.__ECRITURES = [];
   window.__AUTH = Object.assign({ id: 'u-test', email: 'test@local', motDePasse: 'secret' }, window.__AUTH_INITIALE || {});
+  // Suite 154 : les vues par planning (sql/0045) lisent ici les tables
+  // elles-mêmes (un seul planning).
+  var VUES = { personnes_du_planning: 'personnes', chantiers_du_planning: 'chantiers' };
   function requete(table) {
+    table = VUES[table] || table;
     var filtres = [], mode = 'select', valeurs = null, plage = null, conflit = null;
     var q = {
       select: function () { return q; },

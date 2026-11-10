@@ -31,6 +31,7 @@ const FAUX_SUPABASE = '(' + function (nomLong) {
     statuts: [], feries: [], categories_feries: [], couleurs_perso: []
   };
   function requete(table) {
+    table = ({ personnes_du_planning: 'personnes', chantiers_du_planning: 'chantiers' })[table] || table; // suite 154 : vues par planning (sql/0045)
     var q = {};
     ['select', 'eq', 'neq', 'order', 'gte', 'lte', 'in', 'limit', 'insert', 'update', 'upsert', 'delete', 'single', 'maybeSingle']
       .forEach(function (m) { q[m] = function () { return q; }; });
