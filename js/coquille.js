@@ -125,6 +125,7 @@
     cablerPageRetours();
     cablerPageLiensResponsables();
     cablerPageComptes();
+    cablerPageAide();
     cablerPageRaccourcis();
     cablerPageNotes();
     cablerPageCompte();
@@ -192,18 +193,25 @@
     // Round du 30.09.2026 (suite 129) — Lionel : « J'aimerai avoir un
     // endroit où je peux prendre des notes pour améliorer et signaler des
     // bugs. 2 cases, améliorations et bug. » (js/page-retours.js).
-    { page: "retours", nom: "Améliorations et bugs", icone: "retours" }
+    { page: "retours", nom: "Améliorations et bugs", icone: "retours" },
+    // Round du 10.11.2026 (suite 159) — Lionel : « J'aimerais que tu écrives
+    // une page, comment ça marche, pour ceux qui se connectent la première
+    // fois » (js/page-aide.js).
+    { page: "aide", nom: "Comment ça marche", court: "Aide", icone: "aide" }
   ];
   function pageReglage_(nom) { return PAGES_REGLAGES.filter(function (r) { return r.page === nom; })[0] || null; }
   // Onglets des réglages (suite 63) : mêmes .onglet que la rangée
   // principale, câblés avec elle (cablerNavigation, data-page). Barre du
   // haut : icône + nom (.onglet-nom, masqué en mode compact) ; liste du bas
-  // (téléphone) : lignes .switcher-item.
+  // (téléphone) : lignes .switcher-item. Suite 159 : en haut, le nom court
+  // (r.court) remplace le long quand la rangée est resserrée (cf.
+  // ajusterOngletsNav) ; le nom entier reste dans l'infobulle.
   function htmlOngletsReglages_(bas) {
     return PAGES_REGLAGES.map(function (r) {
       return bas
         ? '<button type="button" class="onglet switcher-item" data-page="' + r.page + '"' + (r.admin ? " hidden" : "") + '>' + ICONS[r.icone] + r.nom + '</button>'
-        : '<button type="button" class="onglet" data-page="' + r.page + '" title="' + r.nom + '"' + (r.admin ? " hidden" : "") + '>' + ICONS[r.icone] + '<span class="onglet-nom">' + r.nom + '</span></button>';
+        : '<button type="button" class="onglet" data-page="' + r.page + '" title="' + r.nom + '"' + (r.admin ? " hidden" : "") + '>' + ICONS[r.icone] +
+          '<span class="onglet-nom"' + (r.court ? ' data-long="' + r.nom + '" data-court="' + r.court + '"' : '') + '>' + r.nom + '</span></button>';
     }).join("");
   }
   function htmlPagesReglages() {
@@ -249,7 +257,9 @@
         '<div class="liste-intervenants" id="listeSauvegardes"></div>' +
       '</div></div>' +
       // Améliorations et bugs (suite 129, js/page-retours.js).
-      '<div class="page page-reglages" id="page-retours"><div class="page-scroll">' + htmlContenuPageRetours() + '</div></div>';
+      '<div class="page page-reglages" id="page-retours"><div class="page-scroll">' + htmlContenuPageRetours() + '</div></div>' +
+      // Comment ça marche (suite 159, js/page-aide.js).
+      '<div class="page page-reglages" id="page-aide"><div class="page-scroll">' + htmlContenuPageAide() + '</div></div>';
   }
   // Pages quittées de part et d'autre (suite 63) : la pastille rouvre la
   // dernière page de réglages vue (Mon compte la première fois), la croix
@@ -891,10 +901,18 @@
     if (!liste) return;
     // Suite 65 : d'abord resserrés (noms gardés), puis icônes seules si ça
     // ne suffit toujours pas (cf. .onglets-serres, style.css).
+    // Suite 159 : resserrés, les réglages prennent leur nom court (« Aide »
+    // pour « Comment ça marche », « Impression »…), avant les icônes seules
+    // (où l'onglet actif garde son nom entier, comme avant).
+    var noms = function (court) {
+      nav.querySelectorAll(".onglet-nom[data-court]").forEach(function (n) { n.textContent = court ? n.dataset.court : n.dataset.long; });
+    };
     nav.classList.remove("onglets-compacts", "onglets-serres");
+    noms(false);
     if (liste.scrollWidth <= liste.clientWidth + 1) return;
     nav.classList.add("onglets-serres");
-    if (liste.scrollWidth > liste.clientWidth + 1) { nav.classList.remove("onglets-serres"); nav.classList.add("onglets-compacts"); }
+    noms(true);
+    if (liste.scrollWidth > liste.clientWidth + 1) { nav.classList.remove("onglets-serres"); nav.classList.add("onglets-compacts"); noms(false); }
   }
   // Page affichée (onglet, ou page de réglages du menu de la pastille —
   // suite 61) : renseignée par cablerNavigation, utilisée par afficherPage.
@@ -984,6 +1002,8 @@
       "liens-responsables": renderLiensResponsables,
       // Suite 155 : comptes relus à chaque ouverture (dernière connexion).
       comptes: renderComptes,
+      // Suite 159 : gestes de l'appareil choisi.
+      aide: renderAide,
       raccourcis: renderRaccourcis,
       couleurs: function () { if (typeof majReglagesCouleursAffiches === "function") majReglagesCouleursAffiches(); },
       compte: chargerInfosCompte,

@@ -134,6 +134,10 @@
     demarrer();
   }
 
+  // Suite 159 : après ce premier mot de passe, la page « Comment ça
+  // marche » s'ouvre une fois le planning chargé (ouvrirAideSiPremiereConnexion,
+  // js/page-aide.js).
+  var aideAOuvrir_ = false;
   function afficherChoixMotDePasse_(utilisateur) {
     var prenom = String((utilisateur.user_metadata && utilisateur.user_metadata.prenom) || "").trim();
     app.innerHTML =
@@ -164,6 +168,7 @@
       btn.disabled = true; btn.textContent = "Enregistrement…";
       Promise.resolve(sbClient.auth.updateUser({ password: mdp.value, data: { changer_mot_de_passe: false } })).then(function (r) {
         if (r && r.error) throw r.error;
+        aideAOuvrir_ = true;
         demarrerApresConnexion();
       }).catch(function (err) {
         btn.disabled = false; btn.textContent = "Enregistrer et ouvrir le planning";
@@ -399,6 +404,8 @@
     // Suite 61 — menu de la pastille (compte et réglages).
     personne: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="6.8" r="3.3" stroke="currentColor" stroke-width="1.5"/><path d="M3.5 17.2c0-3.4 2.9-5.7 6.5-5.7s6.5 2.3 6.5 5.7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
     // Suite 155 : page Comptes (deux personnes).
+    // Suite 159 : page Comment ça marche (point d'interrogation).
+    aide: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7.5" stroke="currentColor" stroke-width="1.5"/><path d="M7.7 7.7a2.4 2.4 0 0 1 4.6.9c0 1.6-2.3 2-2.3 3.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="10" cy="14.3" r=".95" fill="currentColor"/></svg>',
     comptes: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><circle cx="7" cy="6.2" r="2.6" stroke="currentColor" stroke-width="1.5"/><path d="M2.3 16c0-2.8 2.1-4.7 4.7-4.7s4.7 1.9 4.7 4.7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="14.6" cy="6.7" r="2.1" stroke="currentColor" stroke-width="1.4"/><path d="M12.7 11.7c2-.5 3.9.5 5 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
     affichage: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="2.5" y="3.5" width="15" height="10.5" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M7 17h6M10 14v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
     clavier: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="1.8" y="5" width="16.4" height="10" rx="1.6" stroke="currentColor" stroke-width="1.5"/><path d="M5 8.2h.01M8 8.2h.01M11 8.2h.01M14 8.2h.01M5 11h.01M14 11h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M7.5 11.6h4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',

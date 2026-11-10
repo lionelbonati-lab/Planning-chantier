@@ -3814,6 +3814,24 @@
     background: var(--accent-soft); color: var(--ink); }
   .cpt-email, .cpt-planning { margin: 0 0 4px; font-size: 12.5px; color: var(--ink-muted); overflow-wrap: anywhere; }
   .compte .lr-vu { margin-top: 6px; }
+  /* Comment ça marche (round du 10.11.2026, suite 159, js/page-aide.js) :
+     « Gestes pour » (appareil), puis une section dépliable par sujet ;
+     tableau des gestes, encadré du stylet. */
+  .aide-appareil { margin: 0 0 12px; }
+  .aide { display: flex; flex-direction: column; gap: 8px; max-width: 680px; }
+  .aide-section { border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
+  .aide-section > summary { cursor: pointer; padding: 10px 14px; font-size: 14px; font-weight: 800; color: var(--ink); user-select: none; }
+  .aide-section[open] > summary { border-bottom: 1px solid var(--border); }
+  .aide-corps { padding: 4px 14px 12px; font-size: 13px; line-height: 1.5; }
+  .aide-corps p { margin: 8px 0 0; }
+  .aide-corps ul { margin: 8px 0 0; padding-left: 18px; }
+  .aide-corps li + li { margin-top: 4px; }
+  .aide-gestes { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12.5px; }
+  .aide-gestes th, .aide-gestes td { text-align: left; vertical-align: top; padding: 6px 8px; border-top: 1px solid var(--border); }
+  .aide-gestes th { width: 38%; font-weight: 700; color: var(--ink); }
+  .aide-gestes td { color: var(--ink-muted); }
+  .aide-encadre { padding: 8px 10px; border-radius: 8px; background: var(--accent-soft); color: var(--ink); }
+  @media (max-width: 600px) { .aide-gestes th { width: 42%; } }
   /* Premier mot de passe (suite 155, js/core.js) : « Se déconnecter » sous le formulaire. */
   .login-card .login-autre { display: block; width: auto; margin: 14px auto 0; padding: 4px 8px; border: 0; background: none; font-size: 13px; font-weight: 400;
     color: var(--ink-muted); text-decoration: underline; cursor: pointer; }

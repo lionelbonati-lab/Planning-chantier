@@ -11603,3 +11603,20 @@ Lionel : « J'aimerai que la demande de congé n'apparaisse uniquement chez la 
 - `tests/test_suite157.js` (nouveau, 8 vérifications) : sql/0048 ; envoyer-push (demande et rappel au seul planning où l'ouvrier est affiché, aux deux s'il l'est dans les deux, à tous sans la 0048) ; index.ts.
 - `tests/sql/test_0048_demandes_chef_equipe.sql` (nouveau, 6 vérifications SQL ; 80 en tout).
 
+
+## 271. Round du 10.11.2026 (suite 159) — Page « Comment ça marche »
+
+Lionel : « J'aimerais que tu écrives une page, comment ça marche, pour ceux qui se connectent la première fois, afin d'expliquer un peu toutes les fonctionnalités de l'application. Si jamais sur la tablette qu'on a au travail, on a un stylet, ce stylet agit comme un de gauche souris. Et quand on appuie avec le doigt, ce sera plutôt un clic droit. » Ses choix : stylet et doigt « L'expliquer dans la page » (l'appli ne change pas : le stylet y fait déjà le clic gauche, l'appui long du doigt le clic droit) ; « 1re connexion + Réglages » ; « Une page à sections ».
+
+- `js/page-aide.js` (nouveau) : Réglages › Comment ça marche, 13 sections dépliables (Pour commencer, Les gestes, Se déplacer, Ajouter, Absences et demandes de congé, Jalons et notes, Personnel…, Chantiers / statuts / horaires, Imprimer, Notifications, Partager et comptes, Sans réseau, Une idée ou un problème). « Gestes pour » Ordinateur, Tablette ou Téléphone (celui de l'appareil d'office) : gestes de la souris, ou du doigt ; sur tablette, un encadré « Avec un stylet, la pointe fait le clic gauche de la souris […] Avec le doigt, l'appui long fait le clic droit ».
+- `js/core.js` : la page s'ouvre une fois le planning chargé à la première connexion d'un compte (après le choix de son mot de passe) ; icône `aide`.
+- `js/coquille.js` : onglet « Comment ça marche » en dernier ; rangée des réglages resserrée : noms courts (« Compte », « Impression », « Raccourcis », « Liens », « Aide ») avant les icônes seules, nom entier dans l'infobulle. La rangée tient désormais en entier de 1280 à 1600 px (avant : icônes seules à 1280).
+- `js/donnees-sync.js` : ouverture à la première connexion (ouvrirAideSiPremiereConnexion).
+- `style.css` : sections, tableau des gestes, encadré.
+
+### Tests
+
+- `tests/test_suite159.js` (nouveau, 7 vérifications) : onglet et sections ; gestes de l'ordinateur, de la tablette (encadré stylet / doigt) et du téléphone ; première connexion ; noms courts de la rangée resserrée ; téléphone sans débordement.
+- `tests/test_suite63.js` : « Comment ça marche » dans la rangée des réglages, lue par l'infobulle (nom entier).
+- Suite complète : 154/161 dans cette session ; les 7 en échec (35, 40, 53, 56, 91, 92, 115) échouent aussi sur main ici (navigateur et polices du conteneur).
+
