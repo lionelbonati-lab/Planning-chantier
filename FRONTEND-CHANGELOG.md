@@ -11573,5 +11573,21 @@ Lionel : « Un collègue aimerait utiliser mon planning pour ses propres besoin
 - `tests/aide_tests.js` : faux Supabase avec rôle, planning, comptes, inviter-compte et user_metadata ; `ouvrirPlanning({ attendre })`.
 - `tests/test_suite63.js` : les onglets cachés ne comptent pas dans la rangée des réglages.
 - `tests/sql/test_0046_comptes.sql` (nouveau, 12 vérifications SQL ; 71 en tout).
-- Suite complète : 151/159 dans cette session ; les 7 en échec (35, 40, 53, 56, 91, 92, 115) échouent aussi sur main ici (navigateur et polices du conteneur).
+- Suite complète : 151/158 dans cette session ; les 7 en échec (35, 40, 53, 56, 91, 92, 115) échouent aussi sur main ici (navigateur et polices du conteneur).
+
+
+## 269. Round du 09.11.2026 (suite 156) — Plusieurs plannings, étape 4 : retours et lien des ouvriers
+
+Choix de Lionel (suite 153) : lien des ouvriers « Les deux plannings réunis » ; « Pour les chantiers chacun choisi sa couleur ». Puis : « Fait toutes les étapes sans me redemander ». Base : BACKEND §51.
+
+- `js/page-retours.js` : l'administrateur voit les notes de tous les comptes ; celles d'un autre compte portent le nom de leur auteur (son e-mail s'il n'a pas de nom, « Compte retiré » s'il n'existe plus). Les siennes, et celles d'avant les comptes, restent sans nom.
+- `style.css` : nom de l'auteur en pastille.
+- Lien des ouvriers : tâches des deux plannings (depuis la 0044), désormais avec la couleur de chantier choisie par le planning de chaque tâche (0047).
+- Notifications : déjà par planning depuis l'étape 1 (une demande d'absence prévient tous les plannings).
+
+### Tests
+
+- `tests/test_suite156.js` (nouveau, 5 vérifications) : sql/0047 (même fonction que la 0044, couleur du planning de la tâche, rejouable) ; noms des auteurs pour l'administrateur, rien pour un compte membre.
+- `tests/sql/test_0047_lien_ouvrier_couleurs.sql` (nouveau, 3 vérifications SQL ; 74 en tout).
+- Suite complète : 152/159 dans cette session ; les 7 en échec (35, 40, 53, 56, 91, 92, 115) échouent aussi sur main ici (navigateur et polices du conteneur).
 
