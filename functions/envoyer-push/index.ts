@@ -34,6 +34,11 @@
 // avec leur planning_id, et planEnvoisParPlanning (logic.js) ne prévient
 // chaque planning que de ce qui est à lui (les demandes d'absence, communes
 // à l'entreprise, à tous). La clé de service lit tout : le tri se fait ici.
+// Round du 10.11.2026 (suite 157, sql/0048) — Lionel : « J'aimerai que la
+// demande de congé n'apparaisse uniquement chez la personne qui emploie un
+// ouvrier ». destinataires_demandes_ donne les plannings où chaque personne
+// est affichée : une demande n'est annoncée qu'à eux. Sans la fonction
+// (base d'avant 0048) : à tous, comme avant.
 // ============================================================
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
@@ -139,7 +144,10 @@ Deno.serve(async (req: Request) => {
       siCreneau(admin.from("feries").select("date, categorie").gte("date", decalerIso(local.iso, -7)).lte("date", fin)),
     ]);
 
-    const plan = planEnvoisParPlanning({ abonnements, demandes, modifs, personnes, chantiers, statuts, demandesEnAttente, taches, jalons, notes, aReserver, horaires, feries, creneaux }, maintenant);
+    const destinataires = (demandes.length || demandesEnAttente.length)
+      ? await admin.rpc("destinataires_demandes_").then((r) => (r.error ? null : r.data), () => null)
+      : [];
+    const plan = planEnvoisParPlanning({ abonnements, demandes, modifs, personnes, chantiers, statuts, demandesEnAttente, taches, jalons, notes, aReserver, horaires, feries, creneaux, destinataires }, maintenant);
 
     // Noté d'abord : rien n'est annoncé deux fois.
     if (plan.demandesAnnoncees.length) await admin.from("demandes_absence").update({ notifiee_push: true }).in("id", plan.demandesAnnoncees);
