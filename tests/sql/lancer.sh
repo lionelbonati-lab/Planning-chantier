@@ -7,7 +7,7 @@
 # données comme celles de Lionel (donnees_avant_0044.sql), applique
 # sql/0044 et suivantes deux fois (rejouables), puis lance test_*.sql
 # (0044 : comptes, liens, sauvegardes ; 0045 : lignes, couleurs,
-# absences) : Lionel, un collègue dans un 2e planning de la même
+# absences ; 0046 : comptes de l'entreprise, retirer un compte) : Lionel, un collègue dans un 2e planning de la même
 # entreprise, un inconnu dans une autre entreprise. Chaque vérification
 # affiche « OK: » ou « ÉCHEC: ».
 #
@@ -30,5 +30,7 @@ for i in 1 2; do
     psql -d $B -f "$f" >/dev/null 2>&1 || { echo "ÉCHEC: $f (passage $i)"; exit 1; }
   done
 done
-for t in "$D"/test_00*.sql; do psql -d $B -f "$t" 2>&1; done | sed 's/^psql:[^:]*:[0-9]*: NOTICE:  //' | grep -E "^(OK|ÉCHEC)" | tee /dev/stderr | grep -q "^ÉCHEC" && exit 1
+# Une erreur SQL inattendue (qui arrête un fichier de tests) compte aussi.
+for t in "$D"/test_00*.sql; do psql -d $B -f "$t" 2>&1; done | sed -e 's/^psql:[^:]*:[0-9]*: NOTICE:  //' \
+  -e 's/^psql:\([^:]*\):\([0-9]*\): ERROR:  /ÉCHEC: erreur SQL (\1, ligne \2) : /' | grep -E "^(OK|ÉCHEC)" | tee /dev/stderr | grep -q "^ÉCHEC" && exit 1
 echo "Tests SQL : tout est OK."

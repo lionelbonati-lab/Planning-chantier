@@ -11555,3 +11555,23 @@ Choix de Lionel (suite 153) : lignes « Chacun choisit », « Pour les chanti
 - `tests/aide_tests.js` et les 14 tests qui ont leur propre faux Supabase (+ `test_suite52.js`, faux réseau) : les vues servies depuis les tables ; `test_suite52.js` : copie hors ligne des personnes lue par la vue ; `test_suite153.js` : une table créée par planning après 0044 compte comme rangée.
 - Suite complète : 150/157 dans cette session ; les 7 en échec (35, 40, 53, 56, 91, 92, 115) échouent aussi sur main ici (navigateur et polices du conteneur).
 
+
+## 268. Round du 09.11.2026 (suite 155) — Plusieurs plannings, étape 3 : les comptes
+
+Lionel : « Un collègue aimerait utiliser mon planning pour ses propres besoins. Il doit pouvoir un compte et gérer son propre planning. » Ses choix : compte créé « Toi, depuis l'appli » ; invitations « Toi seul », dans « un nouveau, ou le tien pour le partager ». Puis : « Fait toutes les étapes sans me redemander ». Base : BACKEND §50.
+
+- `js/page-comptes.js` (nouveau) : page Réglages › Comptes, pour l'administrateur seul (onglet caché aux autres). « Créer le compte » : prénom, nom, e-mail et planning (« Un nouveau planning, à son nom » ou « Partager « … » ») → fonction serveur inviter-compte. Le service d'e-mail intégré de Supabase n'écrit qu'aux membres de l'équipe du projet : la page affiche le mot de passe provisoire et un message prêt (« Envoyer par e-mail », « Copier le message », « Partager… »). Puis la liste des comptes de l'entreprise (nom, rôle, e-mail, planning, dernière connexion) ; « Retirer le compte » pour un compte membre (son planning et ses données restent).
+- `js/core.js` : à la première connexion d'un compte créé ainsi, écran « Choisis ton mot de passe » (8 caractères au moins, deux fois, pas le provisoire) avant le planning ; « Se déconnecter » possible. Icône `comptes`.
+- `js/coquille.js` : onglet « Comptes » après Liens responsables (caché tant que le compte n'est pas administrateur), sa page, relue à chaque ouverture.
+- `js/donnees-sync.js` : après le premier rendu, rôle (`etat.admin`) et planning (`etat.planningId`) du compte lus (chargerMonCompte).
+- `js/pieces-jointes.js` : un fichier joint va dans le dossier du planning (« <planning>/fichiers/… ») ; la base n'ouvre la racine qu'au planning d'avant les comptes.
+- `style.css` : formulaire, compte créé, cartes des comptes ; lien « Se déconnecter » de l'écran du mot de passe.
+
+### Tests
+
+- `tests/test_suite155.js` (nouveau, 25 vérifications) : inviter-compte (demande, mot de passe provisoire, administrateur seul, rien à moitié fait) ; sql/0046 ; page Comptes (liste, nouveau planning ou partagé, message, échec, retirer, téléphone) ; compte membre sans onglet ; premier mot de passe ; dossier des fichiers.
+- `tests/aide_tests.js` : faux Supabase avec rôle, planning, comptes, inviter-compte et user_metadata ; `ouvrirPlanning({ attendre })`.
+- `tests/test_suite63.js` : les onglets cachés ne comptent pas dans la rangée des réglages.
+- `tests/sql/test_0046_comptes.sql` (nouveau, 12 vérifications SQL ; 71 en tout).
+- Suite complète : 151/159 dans cette session ; les 7 en échec (35, 40, 53, 56, 91, 92, 115) échouent aussi sur main ici (navigateur et polices du conteneur).
+

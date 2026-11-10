@@ -124,6 +124,7 @@
     cablerPageNotificationsPush();
     cablerPageRetours();
     cablerPageLiensResponsables();
+    cablerPageComptes();
     cablerPageRaccourcis();
     cablerPageNotes();
     cablerPageCompte();
@@ -181,6 +182,12 @@
     // envoyer le planning à mon responsable, en lecture seul. » Géré
     // « Dans le menu Réglages » (js/page-liens-responsables.js).
     { page: "liens-responsables", nom: "Liens responsables", court: "Liens", icone: "lien" },
+    // Round du 09.11.2026 (suite 155) — Lionel : « Un collègue aimerait
+    // utiliser mon planning pour ses propres besoins. Il doit pouvoir un
+    // compte et gérer son propre planning. » Page de l'administrateur seul
+    // (admin : onglet caché aux autres, cf. majOngletComptes,
+    // js/page-comptes.js).
+    { page: "comptes", nom: "Comptes", icone: "comptes", admin: true },
     { page: "sauvegardes", nom: "Sauvegardes", icone: "sauvegarde" },
     // Round du 30.09.2026 (suite 129) — Lionel : « J'aimerai avoir un
     // endroit où je peux prendre des notes pour améliorer et signaler des
@@ -195,8 +202,8 @@
   function htmlOngletsReglages_(bas) {
     return PAGES_REGLAGES.map(function (r) {
       return bas
-        ? '<button type="button" class="onglet switcher-item" data-page="' + r.page + '">' + ICONS[r.icone] + r.nom + '</button>'
-        : '<button type="button" class="onglet" data-page="' + r.page + '" title="' + r.nom + '">' + ICONS[r.icone] + '<span class="onglet-nom">' + r.nom + '</span></button>';
+        ? '<button type="button" class="onglet switcher-item" data-page="' + r.page + '"' + (r.admin ? " hidden" : "") + '>' + ICONS[r.icone] + r.nom + '</button>'
+        : '<button type="button" class="onglet" data-page="' + r.page + '" title="' + r.nom + '"' + (r.admin ? " hidden" : "") + '>' + ICONS[r.icone] + '<span class="onglet-nom">' + r.nom + '</span></button>';
     }).join("");
   }
   function htmlPagesReglages() {
@@ -225,6 +232,8 @@
       '<div class="page page-reglages" id="page-notifications-push"><div class="page-scroll">' + htmlContenuPageNotificationsPush() + '</div></div>' +
       // Liens responsables (suite 143, js/page-liens-responsables.js).
       '<div class="page page-reglages" id="page-liens-responsables"><div class="page-scroll">' + htmlContenuPageLiensResponsables() + '</div></div>' +
+      // Comptes (suite 155, js/page-comptes.js).
+      '<div class="page page-reglages" id="page-comptes"><div class="page-scroll">' + htmlContenuPageComptes() + '</div></div>' +
       // Sauvegardes (round du 25.09.2026, suite 49 — js/page-sauvegardes.js,
       // sql/0017_sauvegardes.sql). Lionel, proposition 14 : « Sauvegarde
       // automatique [...] pour pouvoir revenir en arrière après une grosse
@@ -973,6 +982,8 @@
       retours: renderRetours,
       // Suite 143 : liens relus à chaque ouverture (dernière consultation).
       "liens-responsables": renderLiensResponsables,
+      // Suite 155 : comptes relus à chaque ouverture (dernière connexion).
+      comptes: renderComptes,
       raccourcis: renderRaccourcis,
       couleurs: function () { if (typeof majReglagesCouleursAffiches === "function") majReglagesCouleursAffiches(); },
       compte: chargerInfosCompte,

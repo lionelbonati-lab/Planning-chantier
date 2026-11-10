@@ -35,6 +35,11 @@ const FAUX_SUPABASE = LOGIQUE_PLAGE + '\n(' + function () {
   // Suite 154 : les vues par planning (sql/0045) lisent ici les tables
   // elles-mêmes (un seul planning).
   var VUES = { personnes_du_planning: 'personnes', chantiers_du_planning: 'chantiers' };
+  function utilisateurTest_() {
+    var u = { id: window.__AUTH.id, email: window.__AUTH.email };
+    if (window.__AUTH.metadata) u.user_metadata = Object.assign({}, window.__AUTH.metadata);
+    return u;
+  }
   function requete(table) {
     table = VUES[table] || table;
     var filtres = [], mode = 'select', valeurs = null, plage = null, conflit = null;
@@ -92,21 +97,25 @@ const FAUX_SUPABASE = LOGIQUE_PLAGE + '\n(' + function () {
       // (« secret », ou window.__AUTH_INITIALE), la vérification à la
       // connexion et le changement de mot de passe. window.__AUTH garde
       // l'état ; déconnexion notée dans window.__ECRITURES.
+      // Suite 155 : window.__AUTH.metadata = user_metadata du compte
+      // (changer_mot_de_passe : compte créé avec un mot de passe provisoire) ;
+      // updateUser({ data }) le complète.
       auth: {
-        getSession: function () { return Promise.resolve({ data: { session: { user: { id: window.__AUTH.id, email: window.__AUTH.email } } } }); },
+        getSession: function () { return Promise.resolve({ data: { session: { user: utilisateurTest_() } } }); },
         onAuthStateChange: function () { return { data: { subscription: { unsubscribe: function () {} } } }; },
         signInWithPassword: function (a) {
           var ok = a && a.email === window.__AUTH.email && a.password === window.__AUTH.motDePasse;
           window.__ECRITURES.push('auth:signIn:' + (ok ? 'ok' : 'refus'));
-          return Promise.resolve(ok ? { data: { session: { user: { id: window.__AUTH.id, email: window.__AUTH.email } } }, error: null } : { data: {}, error: { message: 'Invalid login credentials' } });
+          return Promise.resolve(ok ? { data: { user: utilisateurTest_(), session: { user: utilisateurTest_() } }, error: null } : { data: {}, error: { message: 'Invalid login credentials' } });
         },
         updateUser: function (a) {
           if (a && a.password) {
             if (a.password === window.__AUTH.motDePasse) return Promise.resolve({ data: {}, error: { message: 'New password should be different from the old password.' } });
             window.__AUTH.motDePasse = a.password;
           }
+          if (a && a.data) window.__AUTH.metadata = Object.assign({}, window.__AUTH.metadata, a.data);
           window.__ECRITURES.push('auth:updateUser');
-          return Promise.resolve({ data: { user: { id: window.__AUTH.id, email: window.__AUTH.email } }, error: null });
+          return Promise.resolve({ data: { user: utilisateurTest_() }, error: null });
         },
         signOut: function () { window.__ECRITURES.push('auth:signOut'); return Promise.resolve({}); }
       },
@@ -164,6 +173,19 @@ const FAUX_SUPABASE = LOGIQUE_PLAGE + '\n(' + function () {
           window.__ECRITURES.push('rpc:' + nom);
           return Promise.resolve({ data: idS, error: null });
         }
+        // Comptes (suite 155, sql/0044 et 0046) : rôle et planning du compte
+        // (window.__ADMIN, window.__PLANNING_ID), comptes et plannings de
+        // l'entreprise (window.__COMPTES, window.__PLANNINGS). Lectures : pas
+        // notées dans le journal des écritures.
+        if (nom === 'suis_admin') return Promise.resolve({ data: !!window.__ADMIN, error: null });
+        if (nom === 'mon_planning') return Promise.resolve({ data: window.__PLANNING_ID || null, error: null });
+        if (nom === 'comptes_entreprise') return Promise.resolve({ data: (window.__COMPTES || []).map(function (c) { return Object.assign({}, c); }), error: null });
+        if (nom === 'plannings_entreprise') return Promise.resolve({ data: (window.__PLANNINGS || []).slice(), error: null });
+        if (nom === 'retirer_compte') {
+          window.__COMPTES = (window.__COMPTES || []).filter(function (c) { return c.user_id !== a.p_user; });
+          window.__ECRITURES.push('rpc:retirer_compte:' + a.p_user);
+          return Promise.resolve({ data: null, error: null });
+        }
         // Notifications push (sql/0027, suite 126) : clé publique VAPID.
         if (nom === 'cle_publique_push') return Promise.resolve({ data: 'BOdf6zY073to_tfn7ThyN24EJPjYaxYkcWigQ4LgrzFqVqX_YV4w7dkpe-xdz8FV2RHnFORFSVcAugyS0nsmfTw', error: null });
         if (nom === 'restaurer_sauvegarde') console.log('RPC restaurer_sauvegarde ' + JSON.stringify(a));
@@ -190,6 +212,12 @@ const FAUX_SUPABASE = LOGIQUE_PLAGE + '\n(' + function () {
         if (nom === 'enregistrer-serie' && window.__REPONSE_SERIE) {
           window.__ECRITURES.push('fn:enregistrer-serie:' + JSON.stringify(b));
           return Promise.resolve({ data: window.__REPONSE_SERIE, error: null });
+        }
+        // inviter-compte (suite 155) : demande notée ; réponse window.__REPONSE_INVITER,
+        // sinon un compte créé avec un mot de passe provisoire fixe.
+        if (nom === 'inviter-compte') {
+          window.__ECRITURES.push('fn:inviter-compte:' + JSON.stringify(b));
+          return Promise.resolve(window.__REPONSE_INVITER || { data: { ok: true, email: b.email, mot_de_passe: 'abcd-efgh-jkmn' }, error: null });
         }
         // envoyer-push (suite 126) : l'essai est seulement noté.
         if (nom === 'envoyer-push') { window.__ECRITURES.push('fn:envoyer-push:' + JSON.stringify(b)); return Promise.resolve({ data: { ok: true }, error: null }); }
@@ -282,7 +310,9 @@ async function ouvrirPlanning(browser, options) {
   // Suite 88 : options.query = « ?raccourci=… » (raccourcis de l'icône, manifest.json).
   await page.goto('file://' + path.join(__dirname, '..', 'index.html') + (options.query || ''));
   // (raccourci « Mes notes » : page Notes affichée, barre du planning masquée)
-  await page.waitForSelector('#legendeBarre', { state: options.query ? 'attached' : 'visible' });
+  // Suite 155 : options.attendre = autre élément attendu (ex. #formChoixMdp,
+  // écran du premier mot de passe).
+  await page.waitForSelector(options.attendre || '#legendeBarre', { state: options.query ? 'attached' : 'visible' });
   await page.waitForTimeout(300);
   return { page, erreurs };
 }

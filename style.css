@@ -3796,6 +3796,27 @@
   .lr-vu { font-size: 11.5px; color: var(--ink-faint); margin: 10px 0 0; }
   .lr-gestion { display: flex; gap: 16px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
   .lien-responsable .lien-supprimer { color: var(--important-ink); }
+  /* Comptes (round du 09.11.2026, suite 155, js/page-comptes.js) : prénom,
+     nom, e-mail, planning et « Créer le compte » ; le compte créé (mot de
+     passe provisoire, message à envoyer) ; puis un cadre par compte. */
+  .cpt-ajout { display: flex; flex-wrap: wrap; gap: 8px; max-width: 520px; margin: 0 0 16px; }
+  .cpt-ajout input, .cpt-ajout select { flex: 1 1 200px; min-width: 0; font: inherit; font-size: 14px; padding: 8px 12px; border: 1px solid var(--border);
+    border-radius: 8px; background: var(--surface); color: var(--ink); }
+  .cpt-ajout #cptEmail, .cpt-ajout select { flex-basis: 100%; }
+  @media (max-width: 600px) { .cpt-ajout input, .cpt-ajout select { font-size: 16px; } }
+  .cpt-ajout input:focus, .cpt-ajout select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .cpt-cree { max-width: 520px; margin: 0 0 16px; box-sizing: border-box; border-color: var(--accent); }
+  .cpt-cree p { margin: 0 0 8px; font-size: 13px; }
+  .cpt-mdp { font-family: var(--police-mono); font-size: 14px; letter-spacing: .04em; user-select: all; }
+  .cpt-message { width: 100%; box-sizing: border-box; font: inherit; font-size: 12.5px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--ink); resize: vertical; }
+  .cpt-role { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px; font-size: 11px; font-weight: 700; vertical-align: 1px;
+    background: var(--accent-soft); color: var(--ink); }
+  .cpt-email, .cpt-planning { margin: 0 0 4px; font-size: 12.5px; color: var(--ink-muted); overflow-wrap: anywhere; }
+  .compte .lr-vu { margin-top: 6px; }
+  /* Premier mot de passe (suite 155, js/core.js) : « Se déconnecter » sous le formulaire. */
+  .login-card .login-autre { display: block; width: auto; margin: 14px auto 0; padding: 4px 8px; border: 0; background: none; font-size: 13px; font-weight: 400;
+    color: var(--ink-muted); text-decoration: underline; cursor: pointer; }
   .retour { padding: 9px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
   .retour[data-statut="traite"] { opacity: .6; }
   .retour-tete { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 12px; color: var(--ink-muted); }
